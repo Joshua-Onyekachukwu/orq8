@@ -3,6 +3,7 @@
 **Status:** Draft for review · **Sources:** docs/00 §5 (wedge), §5.6 (monetization Stage 1), §7 (GTM) · 04_GOLDEN_WORKFLOW (hero offer) · ADR-021 (no marketplace)
 **Goal:** Recruit the first **3–5 solo-founder design partners** for free, in exchange for validation, feedback, and a testimonial.
 **Application form:** marketing/design_partner_application.md — point candidates here ([orq8.ai/design-partners]) instead of scheduling cold.
+**2-week execution plan:** marketing/design_partner_plan.md — which communities to hit first, posting + DM cadence, funnel targets, stop rules.
 **Placeholders** marked [bracketed] — personalize before sending. Never send unpersonalized.
 
 ---
