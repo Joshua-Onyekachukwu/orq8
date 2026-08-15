@@ -116,6 +116,16 @@ Solo founders (beachhead) → agencies (pay more, same platform)
 
 ---
 
+## 5.5 Brand (Confirmed)
+
+- **Name:** ORQ8 — pronounced **"or-kate"**, from *orchestrate* (what the Executive Agent does) and *organization*. Short, brandable, no competing product found as of writing (search-verified; the only "ORQ8" hits are survey codes and URL noise).
+- **Positioning statement:** *The AI Organization Operating System — not another agent dashboard. An operating system.*
+- **Tagline:** *Tell ORQ8 what you want. It hires the team, does the work, and reports back.*
+- **Hero message:** "Paste an idea → researched, council-reviewed recommendation → an executed validation plan run by a temporary AI team — every dollar tracked, every decision explainable."
+- **Anti-message:** "Not a chatbot. Not a task manager. Not an agent zoo. An operating system for a company staffed by AI."
+- **Brand guardrails:** calm, executive design (33) · human sovereignty (CEO is final authority) · no agent marketplace or commissions (ADR-021) · FOSS-first, model-agnostic · outcomes over "AI activity" metrics (70).
+- **Domain:** register `orq8.ai` (premium) or `orq8.app`/`orq8.dev` (cheap) and claim the `@orq8` GitHub handle early — brand is clear and uncontested.
+
 ## 6. Pricing (Confirmed)
 
 **Principle: price the platform (governance + orchestration + memory + reporting); pass through model costs (BYOK).** Users pay only for models they use; ORQ8's margin is clean and the free-first story holds.
