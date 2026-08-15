@@ -68,17 +68,17 @@ Full documentation set: 61 markdown docs (59 numbered incl. 00 + 17a + 17c + 57/
 
 ### Phase 2 — Organization Core
 **Deps:** 1.
-**Scope:** Departments · positions · teams · agent profiles · agent templates (seed = 17d) · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1 · **per-agent activity log** (plain-language timeline from the audit stream — 57.3).
-**DoD:** CEO creates departments and hires template agents with business cases; org chart renders; hiring flow emits `hiring.*` events + audit; clicking an agent shows its plain-language activity timeline. **Unlocks:** 3, 4.
+**Scope:** Departments · positions · teams · agent profiles · agent templates (seed = 17d) · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1 · **per-agent activity log** (plain-language timeline from the audit stream — 57.3) · **Solo Founder Starter onboarding** (pre-filled constitution + BYOK paste-key + first-task suggestion — <10 min acceptance metric, 57.3).
+**DoD:** CEO creates departments and hires template agents with business cases; org chart renders; hiring flow emits `hiring.*` events + audit; clicking an agent shows its plain-language activity timeline; first-time onboarding completes in under 10 minutes. **Unlocks:** 3, 4.
 
 ### Phase 3 — Executive Intelligence
 **Deps:** 1, 2.
-**Scope:** Intent engine (classifier) · Executive Agent workflow (context → plan → recommend) · Company Memory (pgvector, permission-aware, configurable `EMBED_DIM`) · explain-why · ask-for-help · Executive screen chat mode · **minimal weekly CEO report** (audit-trail + task snapshot: goals progress, done/blocked, spend placeholder — pulled forward per 57.3).
+**Scope:** Intent engine (classifier) · Executive Agent workflow (context → plan → recommend) · Company Memory (pgvector, permission-aware, configurable `EMBED_DIM`) · explain-why (one-sentence **"because" inline** on recommendations/delegations/approval requests — 57.3) · ask-for-help · Executive screen chat mode · **minimal weekly CEO report** (audit-trail + task snapshot: goals progress, done/blocked, spend placeholder — pulled forward per 57.3).
 **DoD:** `POST /v1/intelligence/execute` classifies vague input, gathers context, produces a recommendation with evidence/assumptions/confidence, and **queues approval structurally** (full Approval Engine in Phase 5) — running on local/free models; weekly-report endpoint renders a one-page summary. **Unlocks:** 4, 6.
 
 ### Phase 4 — Goals and Work
 **Deps:** 2, 3.
-**Scope:** Goals/objectives/**kpis table**/strategies · projects · tasks + dependencies · teams · WorkflowSpec builder v1 + durable runs · stop conditions · commitments · Work Center UI (kanban/list/timeline).
+**Scope:** Goals/objectives/**kpis table**/strategies · projects · tasks + dependencies · teams · WorkflowSpec builder v1 + durable runs · stop conditions · commitments · Work Center UI (kanban/list/timeline) · **undo/rollback design constraint** (every consequential action records enough state to reverse — 57.3).
 **DoD:** CEO defines a goal; Executive creates project + tasks; tasks trace to objectives via `objective_id`; KPIs feed snapshots; stop conditions trigger pause/escalate. **Unlocks:** 5, 6.
 
 ### Phase 5 — Governance
@@ -93,7 +93,7 @@ Full documentation set: 61 markdown docs (59 numbered incl. 00 + 17a + 17c + 57/
 
 ### Phase 7 — Model Gateway
 **Deps:** 1 (client), 6.
-**Scope:** Provider abstraction (LiteLLM) · user API keys UI (BYOK, encrypted, masked, rotatable) · model registry · routing + fallback · usage tracking · weekly/monthly cost views · cost-aware policies.
+**Scope:** Provider abstraction (LiteLLM) · user API keys UI (BYOK, encrypted, masked, rotatable) · model registry · routing + fallback · usage tracking · weekly/monthly cost views · cost-aware policies · **CEO Home cost widget** (renders when usage data exists — 57.3).
 **DoD:** BYOK for OpenAI/Anthropic/Gemini/DeepSeek/Groq/OpenRouter + Ollama route through one gateway; costs attributable org→dept→project→agent; weekly/monthly cost views render.
 
 ### Phase 8 — Tools and Integrations
@@ -113,7 +113,7 @@ Full documentation set: 61 markdown docs (59 numbered incl. 00 + 17a + 17c + 57/
 
 ### Phase 11 — Build vs Buy / Internal Tools
 **Deps:** 8, 9.
-**Scope:** Capability registry · internal tool registry (`internal_tools`) · build-vs-buy analysis (`capability_evaluations`) · vendor/procurement registry · internal marketplace · engineering request workflow.
+**Scope:** Capability registry · internal tool registry (`internal_tools`) · build-vs-buy analysis (`capability_evaluations`) · vendor/procurement registry · internal tool discovery (the "marketplace" is a **search surface for in-org tools only — never an agent store**; ADR-021) · engineering request workflow.
 **DoD:** "do we already have something that extracts PDF data?" returns ranked options with recommendation. **Unlocks:** 12.
 
 ### Phase 12 — Performance & Workforce Optimization
@@ -156,6 +156,7 @@ The **full** workflow remains the canonical validation scenario (04 §4.4–4.5)
 - **Memory foundation in Phase 3** (Executive needs it); full memory UX/imports grow through 8–10.
 - **Approval engine in Phase 5**; workflow runtime + idempotency exist from Phase 1, so earlier phases queue approvals structurally (Phase 3 DoD reflects this).
 - **Weekly report pulled forward to Phase 3** (57.3): a minimal one-page report (PA-drafted from audit trail + task tables, Executive-reviewed) ships with Executive Intelligence; Phase 6 extends it with cost/workload data for G2 (ADR-017/018); Phase 14/15 extend further. Minimal simulation stays Phase 6.
+- **Handoff additive items folded in (57.3):** Agent Activity Log → Phase 2 scope; weekly report → Phase 3; undo/rollback → Phase 4–5 (reversal state recorded with every consequential action); CEO Home cost widget → Phase 7 (renders when usage data exists); onboarding <10 min → Phase 2–3 acceptance metric (Solo Founder Starter template); explain-why inline "because" → Phase 3; **max 5 agents in v1** — soft ceiling until Phase 6 multi-agent (schema already models it; going beyond 5 requires an explicit CEO decision).
 - **Phases 7–15 parallelize after Phase 6** per §49.3 tracks; G3 waits for the slowest track (12/15), not for all breadth.
 - Each phase keeps the free stack green (49.7); paid upgrades are config swaps (ADR-003/005).
 

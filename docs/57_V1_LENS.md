@@ -43,6 +43,8 @@ From the handoff §2.1: *the UI grows as the org grows*. Navigation for a worksp
 
 ## 57.3 Additive items adopted
 
+**All seven items below are folded into docs/49** (phase scopes §49.4 + notes §49.6); this table records the adoption decisions. Marketplace language is corrected per §57.4.1 / ADR-021.
+
 | Handoff item | Decision | Phase · issue |
 |---|---|---|
 | **Agent Activity Log** — plain-language per-agent timeline ("At 09:14 I researched… waiting for CEO") | Adopted. Part of agent profiles; events already flow through the audit framework (Phase 1), so this is a projection + copy layer | **Phase 2** (agent profile) · **#65** |
