@@ -65,4 +65,4 @@ From the handoff §2.1: *the UI grows as the org grows*. Navigation for a worksp
 
 - **Build agent:** when scoping a Phase 2–5 issue, check the table — if it's in the handoff's 12 and not mapped, flag it. If a build exceeds a mapped item, stop and ask (handoff §1.3: "if tempted to add a 13th thing, ask whether one of the 12 is incomplete").
 - **Reviewer:** this doc is the tiebreaker between the handoff and docs/49. It intentionally does not restate the brief's vision — that's docs/00–56.
-- **GitHub:** milestone checklists for Phases 2–5 should reference the item numbers above (e.g., "57.1-#4 Org Explorer").
+- **GitHub:** milestone checklists for Phases 2–5 should reference the item numbers above (e.g., "57.1-#4 Org Explorer"). The phase + current milestone-issue trace for all 12 items lives in docs/49 §49.14.

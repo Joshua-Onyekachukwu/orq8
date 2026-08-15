@@ -260,3 +260,24 @@ G3 (full Golden Workflow) lands at the end of 12–15. Tracks after Phase 6 para
 2. ~~Generate remaining docs~~ ✅ (09–56 + 00 + 17a + 17b + 21 ADRs).
 3. **Begin Phase 1 (Foundation)** implementation in this repo — monorepo, Drizzle schema, auth, Fastify shell, free local stack.
 4. Track progress on GitHub (`origin/main`); record any divergence as new ADRs.
+
+## 49.14 V1 Handoff Scope → Phase & Milestone Traceability
+
+The 12 v1 items from the development handoff (docs/57 §57.1) mapped to the phase plan and their GitHub milestone issues, so every item traces to where it is built and what tracks it. Issue numbers reference the Phase 1–3 milestones (M1–M3); items in phases whose milestone is not yet created are marked **—** (create them with that milestone, referencing the 57.1 item number per §57.5).
+
+| # (57.1) | Handoff item | Phase (§49.4) | Milestone issue(s) | Status |
+|---|---|---|---|---|
+| 1 | CEO Home Screen (one screen) | 3 + 4 | #30 (Executive screen chat mode) · Phase 4 Work Center — | Planned |
+| 2 | Executive Agent | 3 | #26 (context → plan → recommend) | Planned |
+| 3 | Hiring Flow (max 5 agents; "Hire" never "Create") | 2 | #19 (lifecycle) · #23 (hiring events + audit) · #18 (templates + 17d seed) | Planned |
+| 4 | Org Explorer (tree: CEO → Executive → Depts → Agents) | 2 | #22 (organization explorer UI) | Planned |
+| 5 | Goals + Tasks (status: ready/running/blocked/done) | 4 | — (create with Phase 4 milestone) | Planned |
+| 6 | One Approval Gate (server-side, one level) | 5 (1–3 queue approvals structurally) | #12 (pg-boss runtime + outbox, from Phase 1) · Phase 5 Approval Engine — | Planned |
+| 7 | Model Router with BYOK (encrypted, masked, never logged) | 1 + 7 | #9 (provider config + encrypted secrets) ✅ · Phase 7 routing — | 🔶 Key mgmt built; routing in 7 |
+| 8 | Basic Company Memory (pgvector, permission-aware) | 3 | #27 | Planned |
+| 9 | Audit Trail (append-only) | 1 | #7 (audit framework: hash chain) | ✅ Built |
+| 10 | Weekly Report (one page) | 3 (pulled forward, §57.3) | — (add under Phase 3 milestone; gate-checked by #32 DoD) | Planned (moved) |
+| 11 | One Integration (GitHub) | 8 | — (create with Phase 8 milestone) | Planned |
+| 12 | Constitution (minimal, 3–5 rules, code-enforced) | 5 | — (create with Phase 5 milestone; seeds 17b/17c ready) | Planned |
+
+**How to use:** items 1 and 7 intentionally span two phases — the listed issue is the primary build, the phase after the · is the follow-on surface. When creating a new milestone or issue, reference the handoff number (e.g. "57.1-#4 Org Explorer") so the trace survives in GitHub (docs/57 §57.5).
