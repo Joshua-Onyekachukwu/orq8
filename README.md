@@ -52,6 +52,7 @@ The complete Phase 0 documentation set lives in `docs/`. The **core foundation s
 | 17a | CONSTITUTION_TEMPLATE | Default constitution template (human-readable) |
 | 17b | CONSTITUTION_SEED | Machine-readable constitution seed (Phase 5 JSON w/ enforcement metadata) |
 | 17c | SEED_LOADER | Phase 5 seed loader spec — 17b → constitutions/approval_rules/permissions/financial_controls rows |
+| 17d | AGENT_TEMPLATES_SEED | Phase 2 seed — 7 department shapes + 21 hire-ready agent role templates (aligned with 17b authority defaults) |
 | 18 | GOVERNANCE_AUTHORIZATION | Authority model, approvals, delegation, kill switches |
 | 21 | MEMORY_KNOWLEDGE | Company memory, decision precedent, evidence types |
 | 33 | UI_UX_SYSTEM | Design direction, information architecture, workspaces |
@@ -82,7 +83,7 @@ The full set (09–56) is now complete. Index:
 | | | | | | | 55 | PRODUCT_ROADMAP |
 | | | | | | | 56 | ADR_INDEX |
 
-All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b seed JSON** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
+All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b/17d seed JSONs** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
 
 ## Environment setup (dev)
 

@@ -68,7 +68,7 @@ Full documentation set: 59 markdown docs (56 numbered + 00 + 17a + 17c) + 17b se
 
 ### Phase 2 — Organization Core
 **Deps:** 1.
-**Scope:** Departments · positions · teams · agent profiles · agent templates · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1.
+**Scope:** Departments · positions · teams · agent profiles · agent templates (seed = 17d) · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1.
 **DoD:** CEO creates departments and hires template agents with business cases; org chart renders; hiring flow emits `hiring.*` events + audit. **Unlocks:** 3, 4.
 
 ### Phase 3 — Executive Intelligence
