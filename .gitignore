@@ -17,6 +17,9 @@ out/
 # App internal data (never commit)
 .freebuff/
 
+# Third-party template (Trezo) — reference-only; not part of the codebase (see docs/58.11)
+/Trezo/
+
 # Local data volumes (postgres, minio, ollama)
 data/
 volumes/

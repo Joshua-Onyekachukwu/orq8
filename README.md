@@ -22,6 +22,11 @@ orq8/
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
 │   └── deploy/              # Deployment manifests (VPS → managed cloud later)
+
+## Quick start
+
+- **Local dev (free stack):** `docker compose -f infra/docker-compose.yml up -d` then `pnpm install` and `pnpm dev` — see docs/51_COMMANDS.md.
+- **Production (online):** Supabase (managed Postgres) + Vercel (web + API) + GitHub Actions (CI + migrations) — see **docs/58_DEPLOYMENT.md** for the full setup, env tables, and secret generation.
 ├── marketing/        # Landing + pricing copy, brand guide, design-partner kit, application + outreach plan
 ├── ORQ8_OVERVIEW.pdf         # One-page executive overview (tools/pdf_build.js)
 ├── ORQ8_DESIGN_PARTNER.pdf   # One-pager for recruiting solo-founder beta users (tools/pdf_build_design_partner.js)
