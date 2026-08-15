@@ -1,0 +1,40 @@
+# 55 — Product Roadmap
+
+**Product:** ORQ8 · **Status:** Phase 0 · full documentation set
+
+## 55.1 Vision Milestones
+
+| Stage | Goal | Gate |
+|-------|------|------|
+| Alpha (Phases 1–6) | Golden Workflow v1 works on free/local models for one founder + 3–5 agents | v1 e2e (04.6, 50.3) |
+| Beta (Phases 7–9) | BYOK + cost views; GitHub/email integrations; engineering workspace | per-phase DoD (49) |
+| GA (Phases 10–12) | Import existing business; performance/replacement; build-vs-buy | import + workforce optimization DoD |
+| Scale (Phases 13–16) | Voice, full reporting, simulation, hardening | per-phase DoD |
+
+## 55.2 Wedge (recommendation)
+
+Launch the platform skeleton with **one wedge market** (decision pending — see market/GTM note below): strongest candidates are **agencies**, **solo founders**, and **e-commerce ops**. The wedge defines the first integrations (48 Tier 1), first templates (13), and pricing pilot (54.5).
+
+## 55.3 GTM Stages
+
+1. **Design partners (3–5):** free, hands-on; validate Golden Workflow v1 value.
+2. **Paid beta:** Pro plan, BYOK, per-seat agents; measure CAC/retention.
+3. **GA:** self-serve + onboarding; Business plan; integration marketplace begins.
+
+## 55.4 Success Metrics
+
+- Activation: org created → first hire → first completed golden task (≤ 1 hour).
+- Retention: weekly active CEO (decision center interactions), agent task throughput.
+- Economics: cost per completed task, CEO time saved (18.7), gross margin per org.
+
+## 55.5 Expansion Levers
+
+AI-team marketplace · prebuilt department teams · premium agent templates · integration marketplace · internal-tool marketplace · usage-based execution (01.8, §78).
+
+## 55.6 Risks & Watch Items
+
+Scope creep (wedges only) · agent reliability (evals, 45) · trust/security (37) · platform giants absorbing the category (differentiate on governance + memory + attention) · pricing until economics known (54).
+
+## 55.7 Note
+
+A dedicated market/GTM document (`docs/00_MARKET_GTM.md`) is planned; wedge decision + competitive positioning will be recorded there before Beta.

@@ -34,6 +34,9 @@
 ### Agent lifecycle
 `agent.proposed` · `agent.hired` · `agent.onboarded` · `agent.restricted` · `agent.under_review` · `agent.suspended` · `agent.offboarded` · `agent.archived` · `agent.version_published` · `agent.performance.reviewed`
 
+### Hiring
+`hiring.proposed` · `hiring.approved` · `hiring.rejected` · `hiring.cancelled`
+
 ### Work
 `task.created` · `task.assigned` · `task.started` · `task.blocked` · `task.unblocked` · `task.waiting_approval` · `task.completed` · `task.failed` · `task.cancelled` · `project.created` · `project.completed` · `project.stopped` · `workflow.run_started` · `workflow.step_completed` · `workflow.run_completed` · `workflow.run_failed` · `workflow.run_abandoned` · `commitment.due_soon` · `commitment.missed`
 
@@ -53,10 +56,13 @@
 `tool.connected` · `tool.disconnected` · `tool.failed` · `tool.permission_changed` · `tool.built` · `tool.registered` · `capability.evaluated` · `procurement.recorded` · `procurement.renewal_due`
 
 ### AI & cost
-`model.usage_recorded` · `model.provider_down` · `model.fallback_used` · `budget.threshold_reached` (target/warning/ceiling) · `budget.requested` · `budget.approved` · `budget.rejected` · `cost.weekly_ready` · `cost.monthly_ready`
+`model.usage_recorded` · `model.provider_down` · `model.fallback_used` · `budget.threshold_reached` (target/warning/ceiling) · `budget.requested` · `budget.approved` · `budget.rejected` · `cost.weekly_ready` · `cost.monthly_ready` · `spend.executed` · `payment.executed`
 
 ### Reports & org health
 `report.generated` · `report.reviewed` · `report.delivered` · `org.health_changed` · `org.paused` · `org.resumed`
+
+### Simulation, import & sandbox (Phase 0 full set additions)
+`simulation.run` · `simulation.completed` · `import.started` · `import.discovered` · `import.mapped` · `import.proposed` · `import.activated` · `import.failed` · `sandbox.run_started` · `sandbox.run_completed` · `sandbox.run_failed` · `eval.run_completed`
 
 ## 36.5 Durable Workflows
 

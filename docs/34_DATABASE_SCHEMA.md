@@ -14,6 +14,8 @@
 - Enums as Postgres enums or constrained text (text + check preferred for evolution).
 - JSONB for flexible structured data (authority profiles, policies, evidence, conditions).
 - Immutable tables: `audit_events`, `agent_versions`, `constitutions` (published rows), `cost_entries`.
+- **Embedding dimension** (`EMBED_DIM`) is deployment-configurable — default matches the configured embedding model (768 for Ollama nomic-embed-text; 1536 for OpenAI text-embedding-3-small). Never hard-coded (ADR-012).
+- **Employee polymorphism (v1):** managers/owners are agents; the `employee_type (agent|user)` pattern (as in `team_members`) is reserved for future human employees (ADR-011).
 
 ## 34.2 ERD (summary)
 
@@ -44,7 +46,7 @@ organizations 1─N audit_events (chained) · 1─N reports · 1─N metric_snap
 - `sessions` (id, user_id, org_id, token_hash, expires_at, revoked_at, created_at, ip, user_agent)
 
 ### Organization
-- `departments` (id, org_id, name, slug, head_position_id, parent_id, status, budget_defaults jsonb, created_at)
+- `departments` (id, org_id, name, slug, head_position_id, parent_id, status, created_at)  — budgets live only in `financial_controls` (ADR-015)
 - `teams` (id, org_id, name, team_type [permanent|temporary|cross_functional], project_id, status, archived_at)
 - `team_members` (id, team_id, employee_type [agent|user], employee_id, role, joined_at, left_at)
 - `positions` (id, org_id, department_id, title, manager_position_id, employee_type, employee_id, status)
@@ -66,9 +68,10 @@ organizations 1─N audit_events (chained) · 1─N reports · 1─N metric_snap
 
 ### Strategy
 - `goals` (id, org_id, title, description, status, owner_agent_id, deadline, success_criteria jsonb, created_at)
-- `objectives` (id, org_id, goal_id, title, kpis jsonb, owner_agent_id, deadline, status)
+- `objectives` (id, org_id, goal_id, title, owner_agent_id, deadline, status)
 - `strategies` (id, org_id, goal_id, title, body, status, version)
 - `stop_conditions` (id, org_id, entity_type, entity_id, success jsonb, continue jsonb, pause jsonb, escalate jsonb, abandon jsonb, review_schedule)
+- `kpis` (id, org_id, objective_id, name, metric_key, target, current_value, unit, source, status, created_at)  — first-class KPI records (ADR-013); feed metric_snapshots, health, reports
 
 ### Work
 - `projects` (id, org_id, objective_id, name, description, status, start_at, end_at, budget_allocation_id, stop_condition_id, created_at)
@@ -121,6 +124,14 @@ organizations 1─N audit_events (chained) · 1─N reports · 1─N metric_snap
 - `audit_events` (id bigserial, org_id, actor_type, actor_id, department_id, agent_id, task_id, action, tool, input_ref, result_ref, authorization, approval_id, policy_ref, cost, outcome, occurred_at, prev_hash, hash) — **append-only, hash-chained** (§34.4)
 - `secret_records` (id, org_id, kind, masked_ref, key_kid, rotated_at, accessed_at, status) — never the value
 - `access_events` (id, org_id, actor_type, actor_id, resource_type, resource_id, action, decision [granted|denied], reason, at)
+
+### Runtime records (added in the Phase 0 full set, ADR-016)
+
+- `business_cases` (id, org_id, title, department_id, manager ref, mission, responsibilities jsonb, capabilities jsonb, model_policy_id, tool_grants jsonb, permissions jsonb, budget_policy jsonb, success_metrics jsonb, expected_workload, expected_cost, reason, alternatives jsonb, temporary, status [draft|proposed|approved|rejected|hired|cancelled], precheck jsonb, recommendation_ref, decided_by, decided_at)
+- `import_runs` (id, org_id, status [connecting|discovering|mapping|findings|correcting|proposing|simulating|approved|activated|cancelled], sources jsonb, findings_refs, assumptions jsonb, baselines_refs, proposal_ref, activated_at)
+- `sandbox_runs` (id, org_id, task_id, agent_id, repo_ref, image, command_allowlist jsonb, limits jsonb, status, exit_code, output_ref, duration_ms, cost, created_at)
+- `simulation_runs` (id, org_id, kind, proposal_ref, inputs jsonb, results jsonb, assumptions jsonb, confidence, status, created_at)
+- `agent_eval_runs` (id, org_id, agent_id, agent_version_id, model_policy_id, benchmark_id, metrics jsonb, score, status, created_at)
 
 ## 34.4 Append-Only Audit with Hash Chain
 

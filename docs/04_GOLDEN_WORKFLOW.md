@@ -61,3 +61,14 @@ The Golden Workflow is the **canonical architecture validation scenario**. If th
 - **Budget escalation:** department requests budget increase with evidence → performance-linked recommendation → CEO approval → staged release.
 - **Agent succession:** critical agent fails → backup takes over → knowledge transferred → permissions re-evaluated.
 - **Voice approval:** "Approve the marketing campaign" → confirmation → execution via the same authorization system.
+
+## 4.6 Golden Workflow v1 vs Full (ADR-014)
+
+The Phase 6 gate (49) validates **Golden Workflow v1**, a deliberately scoped subset that exercises the architecture without features from later phases:
+
+| Scope | Steps (§4.2) | Depends on |
+|-------|-------------|------------|
+| **v1 (Phases 1–6 gate)** | 1–13 (intent → execution), 17 (ask for help), 18 (major spend approval), 21 (validation), 24 (memory) | Phases 1–5 + minimal cost tracking + minimal cost/workload simulation (ADR-017) + v1 weekly report (ADR-018) |
+| **Full (after Phases 12–15)** | All 25, incl. 10 (full simulation), 14–16 (build/buy + internal/external tools), 19–20 (performance/replacement), 22–23 (business unit/expansion), 25 (full reporting) | Phases 7–15 |
+
+The **full** Golden Workflow remains the canonical architecture validation scenario (4.1–4.5); v1 is its Phase 6 precursor.

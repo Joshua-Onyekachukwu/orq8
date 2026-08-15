@@ -59,7 +59,27 @@ The complete Phase 0 documentation set lives in `docs/`. The **core foundation s
 | 44 | TESTING_STRATEGY | Test plan and agent evaluation framework |
 | 49 | IMPLEMENTATION_PLAN | Phased plan, dependency graph, definition of done |
 
-The remaining documents (09–56) will be produced in a later pass once this core set is reviewed and approved.
+The full set (09–56) is now complete. Index:
+
+| # | Doc | | # | Doc | | # | Doc |
+|---|---|---|---|---|---|---|---|
+| 09 | AGENT_HIRING_SYSTEM | | 25 | TOOLS_INTEGRATIONS | | 41 | SIMULATION |
+| 10 | AGENT_LIFECYCLE | | 26 | BUILD_VS_BUY | | 42 | INFRASTRUCTURE |
+| 11 | AGENT_PERFORMANCE | | 27 | INTERNAL_TOOLS | | 43 | DEPLOYMENT |
+| 12 | ORGANIZATION_ENGINE | | 28 | EXISTING_BUSINESS_IMPORT | | 44 | TESTING_STRATEGY |
+| 13 | DEPARTMENT_SYSTEM | | 29 | ENGINEERING_IDE | | 45 | EVALUATION_FRAMEWORK |
+| 14 | TEAM_AND_COUNCIL_SYSTEM | | 30 | CODE_EXECUTION_SANDBOX | | 46 | OPEN_SOURCE_ASSESSMENT |
+| 15 | TASK_WORKFLOW_ENGINE | | 31 | VOICE_SYSTEM | | 47 | THIRD_PARTY_LICENSES |
+| 16 | GOALS_KPI_STRATEGY | | 32 | DEPARTMENT_UX | | 48 | INTEGRATION_ROADMAP |
+| 19 | APPROVAL_ENGINE | | 38 | PRIVACY_DATA_GOVERNANCE | | 50 | DEVELOPMENT_CHECKLIST |
+| 20 | AUDIT_TRAIL | | 39 | OBSERVABILITY | | 51 | ENVIRONMENT_SETUP |
+| 22 | MODEL_ROUTING | | 40 | REPORTING | | 52 | OPERATIONS_RUNBOOK |
+| 23 | PROVIDER_API_KEYS | | | | | 53 | DISASTER_RECOVERY |
+| 24 | COST_RESOURCE_MANAGEMENT | | | | | 54 | COST_MODEL |
+| | | | | | | 55 | PRODUCT_ROADMAP |
+| | | | | | | 56 | ADR_INDEX |
+
+All 56 docs are internally consistent (ADR-001–020 in 56_ADR_INDEX). The market/GTM doc (`docs/00_MARKET_GTM.md`) remains planned.
 
 ## Environment setup (dev)
 
@@ -88,5 +108,5 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 ## Current status
 
-- **Phase 0 (Documentation & Architecture):** core foundation set in progress.
+- **Phase 0 (Documentation & Architecture):** **complete** — full 56-document set (core foundation + remaining 38) delivered, reviewed, and pushed to GitHub.
 - **Phase 1+ (Implementation):** not started — begins after documentation review and approval.

@@ -139,3 +139,16 @@ Requirements are grouped by capability. Each traces to sections of the master br
 - **R-NFR-9 [M1]** FOSS-first: self-hostable, free-tier friendly, no lock-in; funded upgrade path without rework.
 - **R-NFR-10 [M1]** Performance: routine interactions fast; long-running work asynchronous via events/queues; realtime updates via SSE/WebSockets.
 - **R-NFR-11 [M1]** Accessibility and calm, executive-focused UI; not a dashboard of hundreds of cards.
+
+## 2.17 M1 Scope Definition (Golden Workflow v1)
+
+**[M1]** = required for the first implementable milestone: **Golden Workflow v1** (04.6 — steps 1–13, 17–18, 21, 24 of §04 plus minimal cost tracking and a v1 weekly report; Phases 1–6). Where a requirement's *full* form belongs to a later phase, the **[M1]** tag means its **minimal subset** ships with v1 and the full feature ships in its phase:
+
+| Requirement | M1 minimal subset | Full form (phase) |
+|---|---|---|
+| R-REP-1/2/3 (reports) | v1 weekly report (PA drafts, Executive reviews) | Full weekly/monthly reporting (14) |
+| R-ENG-1/2/3/4 (engineering) | Sandboxed tool execution + review gate for build work in the Golden Workflow | Full Engineering IDE (9) |
+| R-TOO-1/2 (integrations, registry) | Integration framework + tool registry structure | GitHub/email/PM connectors (8) |
+| R-MOD-5 (cost views) | Basic cost attribution + weekly spend summary | Full weekly/monthly cost dashboards (7) |
+| R-FIN-9 (procurement) | Registry structure + capability resolution | Full procurement + build-vs-buy UX (11) |
+| R-EXE-3 (simulation mode) | Minimal cost/workload simulation before workforce proposal | Full simulation engine (15) |

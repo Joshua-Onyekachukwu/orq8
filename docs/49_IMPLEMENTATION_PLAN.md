@@ -47,7 +47,7 @@ Departments, positions, teams, agent profiles, agent templates, hiring lifecycle
 
 ### Phase 3 — Executive Intelligence
 Intent engine (classifier), Executive Agent workflow (context → plan → recommend), Company Memory (pgvector, permission-aware), explain-why, ask-for-help, chat mode in Executive screen.
-**DoD:** `POST /v1/intelligence/execute` classifies vague input, gathers context, produces a recommendation with evidence/assumptions/confidence, and requests approval where required — running on local/free models.
+**DoD:** `POST /v1/intelligence/execute` classifies vague input, gathers context, produces a recommendation with evidence/assumptions/confidence, and queues approval structurally (the full Approval Engine ships in Phase 5) — running on local/free models.
 
 ### Phase 4 — Goals and Work
 Goals/objectives/KPIs/strategies, projects, tasks, dependencies, teams, workflows (workflow builder v1), stop conditions, Work Center UI (kanban/list/timeline).
@@ -59,7 +59,7 @@ Constitution editor + versioning, policies, permissions, authority levels, appro
 
 ### Phase 6 — Multi-Agent Collaboration
 Delegation, councils (independent analysis, debate, synthesis), temporary teams, parallel execution, escalation, durable workflows wiring the golden loop.
-**DoD:** **Golden Workflow e2e passes** (§04) with deterministic model stubs and with Ollama — the architecture validation gate.
+**DoD:** **Golden Workflow v1 e2e passes** (04.6: steps 1–13, 17–18, 21, 24 + minimal cost tracking + v1 weekly report + minimal cost/workload simulation) with deterministic model stubs and with Ollama — the architecture validation gate.
 
 ### Phase 7 — Model Gateway
 Provider abstraction (LiteLLM), user API keys UI, model registry, routing + fallback, usage tracking, weekly/monthly cost views, cost-aware policies.
@@ -105,7 +105,8 @@ Distributed workers, stronger sandboxing (gVisor eval), advanced queues, reliabi
 
 - **Model gateway basics are pulled earlier than Phase 7:** Phase 3 needs model calls. Phase 1 includes the LiteLLM client + Ollama wiring; Phase 7 adds the full routing/keys/cost surface.
 - **Memory foundation lands in Phase 3** (needed by Executive); full memory UX/imports grow through Phases 8–10.
-- **Approval engine arrives in Phase 5** but the workflow runtime + idempotency exist from Phase 1, so earlier phases can queue approvals structurally.
+- **Approval engine arrives in Phase 5** but the workflow runtime + idempotency exist from Phase 1, so earlier phases can queue approvals structurally (Phase 3 DoD reflects this).
+- **Minimal cost/workload simulation and a v1 weekly report ship with Phase 6** (ADR-017/018) so the Golden Workflow v1 gate is self-contained; the full simulation (Phase 15) and full reporting (Phase 14) replace them.
 - Phases 8–12 can partially parallelize after Phase 6; the Golden Workflow remains the integration yardstick.
 
 ## 49.5 Cost/Infrastructure Estimate (free-first)
