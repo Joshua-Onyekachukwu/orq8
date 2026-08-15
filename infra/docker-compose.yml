@@ -100,7 +100,8 @@ services:
       ollama:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4000/health/liveliness || exit 1"]
+      # LiteLLM's image has no curl — use python/urllib (liveness needs no auth key)
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:4000/health/liveliness', timeout=3)\""]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -138,7 +139,8 @@ services:
       litellm:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3001/healthz || exit 1"]
+      # node:22-slim has no curl — probe with node fetch (matches the LiteLLM healthcheck fix)
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -163,7 +165,8 @@ services:
       orq8-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/healthz || exit 1"]
+      # node:22-slim has no curl — probe with node fetch (matches the LiteLLM healthcheck fix)
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 6

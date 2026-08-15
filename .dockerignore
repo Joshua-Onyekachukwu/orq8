@@ -1,0 +1,39 @@
+# ORQ8 — root build context for container images (compose profiles "app").
+# The compose build context is the repo root (context: ..), so keep the
+# payload minimal: only package manifests, lockfile, and app sources.
+
+node_modules
+**/node_modules
+.pnpm-store
+.git
+.gitignore
+.github
+.freebuff
+docs
+marketing
+tools
+infra
+data
+volumes
+pgdata
+
+# Build outputs
+dist
+build
+out
+.next
+**/.next
+*.tsbuildinfo
+coverage
+
+# Env / secrets (never bake into images)
+.env
+.env.*
+
+# Assets not needed at build/run time
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.log
