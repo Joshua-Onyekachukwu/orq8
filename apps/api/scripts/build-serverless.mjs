@@ -3,6 +3,10 @@
 // workspace packages' types reliably, so we bundle everything (including
 // @orq8/* packages, fastify, drizzle, pg) into a single file that needs no
 // node_modules resolution at runtime.
+//
+// The bundle is COMMITTED at api/index.js — Vercel auto-discovers functions in
+// the api/ directory (vercel.json `functions` config cannot see files that the
+// build command generates, so the output must exist in the repo).
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -12,12 +16,14 @@ const apiRoot = join(here, '..');
 
 await build({
   entryPoints: [join(apiRoot, 'src/serverless.ts')],
-  outfile: join(apiRoot, 'dist/serverless.cjs'),
+  outfile: join(apiRoot, 'api/index.js'),
   bundle: true,
   platform: 'node',
   target: 'node20',
-  format: 'cjs',
-  sourcemap: true,
+  // ESM on purpose: apps/api declares "type": "module", so api/index.js is
+  // interpreted as ESM — a CJS bundle would throw "module is not defined".
+  format: 'esm',
+  sourcemap: false,
   // Workspace packages resolve straight to their TS sources — esbuild bundles
   // them, so no dist build of the packages is required for deploy.
   alias: {
@@ -34,4 +40,4 @@ await build({
   logLevel: 'info',
 });
 
-console.log('[build] dist/serverless.cjs ready');
+console.log('[build] api/index.js ready (committed artifact)');

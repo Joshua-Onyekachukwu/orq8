@@ -1,7 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "dist/serverless.cjs": { "maxDuration": 60 }
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/dist/serverless" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }

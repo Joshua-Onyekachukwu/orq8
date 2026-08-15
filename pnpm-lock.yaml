@@ -29,6 +29,9 @@ importers:
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
+      '@node-rs/argon2':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@orq8/auth':
         specifier: workspace:^
         version: link:../../packages/auth
