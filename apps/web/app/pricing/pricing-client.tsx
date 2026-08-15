@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { Button } from "../../components/button";
 import { SiteFooter } from "../../components/site-footer";
 import { SiteHeader } from "../../components/site-header";
@@ -14,7 +15,7 @@ type Plan = {
   blurb: string;
   features: { lead?: string; text: string }[];
   cta: string;
-  ctaVariant: "default" | "outline";
+  ctaVariant: "default" | "outline" | "outline-light";
   featured?: boolean;
 };
 
@@ -58,7 +59,7 @@ const plans: Plan[] = [
       { text: "Weekly executive report + cost tracking by department, project, and agent" },
     ],
     cta: "Get Pro",
-    ctaVariant: "default",
+    ctaVariant: "outline-light",
   },
   {
     name: "Business",
@@ -206,32 +207,38 @@ export function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <SiteHeader />
+      {/* ---------- Navy mesh hero ---------- */}
+      <section className="bg-mesh relative overflow-hidden">
+        <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_25%,transparent_70%)]" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white" />
 
-      <main>
-        {/* ---------- Hero ---------- */}
-        <section className="border-b border-hairline">
-          <div className="mx-auto max-w-6xl px-6 py-16 text-center sm:py-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-              Pricing
+        <div className="relative">
+          <SiteHeader variant="navy" />
+
+          <div className="mx-auto max-w-4xl px-6 pt-16 text-center sm:pt-24">
+            <p className="animate-fade-up eyebrow inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-white/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Pricing — one platform price
             </p>
-            <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-navy-900 sm:text-5xl">
-              Run your company with an AI workforce. One platform price. You own the models.
+            <h1 className="animate-fade-up mt-6 text-4xl font-semibold leading-[1.08] tracking-tight text-white [animation-delay:0.08s] sm:text-6xl">
+              Run your company with an AI workforce.
+              <br />
+              <span className="text-white/85">One platform price. You own the models.</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-lg text-muted">
+            <p className="animate-fade-up mx-auto mt-6 max-w-2xl text-lg text-white/70 [animation-delay:0.16s]">
               ORQ8 is the operating system for an AI-staffed organization — governance, approvals,
-              memory, and executive reporting built in. Pay a simple platform price. Bring your own
-              model keys (or use free local models). No per-agent commissions. No hidden markups.
-              No agent marketplace — ever.
+              memory, and executive reporting built in. A simple platform price. Bring your own
+              model keys, or run on free local models.
             </p>
 
-            <div className="mt-8 inline-flex items-center rounded-full border border-hairline bg-canvas p-1 text-sm">
+            {/* Billing toggle — drives the cards and the comparison table */}
+            <div className="animate-fade-up mt-9 inline-flex items-center rounded-full border border-white/15 bg-white/5 p-1 text-sm [animation-delay:0.24s]">
               <button
                 type="button"
                 onClick={() => setBilling("monthly")}
                 aria-pressed={billing === "monthly"}
-                className={`rounded-full px-4 py-1.5 transition-colors ${
-                  billing === "monthly" ? "bg-navy-800 text-white" : "text-muted hover:text-ink"
+                className={`rounded-full px-5 py-2 transition-colors ${
+                  billing === "monthly" ? "bg-white text-navy-900" : "text-white/70 hover:text-white"
                 }`}
               >
                 Monthly
@@ -240,207 +247,258 @@ export function PricingPage() {
                 type="button"
                 onClick={() => setBilling("annual")}
                 aria-pressed={billing === "annual"}
-                className={`rounded-full px-4 py-1.5 transition-colors ${
-                  billing === "annual" ? "bg-navy-800 text-white" : "text-muted hover:text-ink"
+                className={`rounded-full px-5 py-2 transition-colors ${
+                  billing === "annual" ? "bg-white text-navy-900" : "text-white/70 hover:text-white"
                 }`}
               >
-                Annual <span className={billing === "annual" ? "text-white/80" : "text-navy-700"}>· save 20%</span>
+                Annual
+                <span
+                  className={`ml-1.5 rounded-full px-1.5 py-0.5 font-mono text-[10px] ${
+                    billing === "annual" ? "bg-emerald-400 text-navy-900" : "bg-white/10 text-emerald-300"
+                  }`}
+                >
+                  save 20%
+                </span>
               </button>
             </div>
-          </div>
-        </section>
 
-        {/* ---------- Tier cards ---------- */}
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <article
-                key={plan.name}
-                className={`relative flex flex-col rounded-lg border bg-white p-6 shadow-sm ${
-                  plan.featured ? "border-navy-800 ring-1 ring-navy-800" : "border-hairline"
+            <p className="animate-fade-up mt-6 font-mono text-xs tracking-wide text-white/50 [animation-delay:0.3s]">
+              No per-agent commissions · No agent marketplace · BYOK or free/local models
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------- Tier cards ---------- */}
+      <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {plans.map((plan) => (
+            <article
+              key={plan.name}
+              className={`relative flex flex-col rounded-xl border p-6 ${
+                plan.featured
+                  ? "border-navy-700 bg-navy-900 text-white"
+                  : "border-hairline bg-white text-ink"
+              }`}
+            >
+              {plan.featured && (
+                <span className="absolute -top-3 left-6 rounded-full bg-emerald-400 px-3 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-navy-900">
+                  Most popular
+                </span>
+              )}
+              <h2
+                className={`font-mono text-[11px] font-semibold uppercase tracking-[0.22em] ${
+                  plan.featured ? "text-emerald-300" : "text-muted"
                 }`}
               >
-                {plan.featured && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-navy-800 px-3 py-0.5 text-xs font-medium text-white">
-                    Most popular
-                  </span>
-                )}
-                <h2 className="text-lg font-semibold text-navy-900">{plan.name}</h2>
-                <div className="mt-3">
-                  <span className="text-3xl font-semibold tracking-tight text-navy-900">
-                    {billing === "monthly" ? plan.price.monthly : plan.price.annual}
-                  </span>
-                  <p className="mt-1 text-sm text-muted">
-                    {billing === "monthly" ? plan.note.monthly : plan.note.annual}
-                  </p>
-                </div>
-                <p className="mt-4 text-sm text-muted">{plan.blurb}</p>
-                <ul className="mt-5 flex-1 space-y-2.5 text-sm">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span aria-hidden className="mt-0.5 shrink-0 text-navy-700">
-                        ✓
-                      </span>
-                      <span>
-                        {f.lead && <strong className="font-semibold text-ink">{f.lead}</strong>}
-                        {f.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <Button href="#" variant={plan.ctaVariant} className="mt-6 w-full">
-                  {plan.cta}
-                </Button>
-              </article>
-            ))}
-          </div>
-        </section>
+                {plan.name}
+              </h2>
+              <div className="mt-4">
+                <span className={`text-3xl font-semibold tracking-tight ${plan.featured ? "text-white" : "text-navy-900"}`}>
+                  {billing === "monthly" ? plan.price.monthly : plan.price.annual}
+                </span>
+                <p className={`mt-1 text-sm ${plan.featured ? "text-white/60" : "text-muted"}`}>
+                  {billing === "monthly" ? plan.note.monthly : plan.note.annual}
+                </p>
+              </div>
+              <p className={`mt-4 text-sm ${plan.featured ? "text-white/70" : "text-muted"}`}>{plan.blurb}</p>
+              <ul className="mt-5 flex-1 space-y-2.5 text-sm">
+                {plan.features.map((f, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span
+                      aria-hidden
+                      className={`mt-0.5 shrink-0 font-semibold ${
+                        plan.featured ? "text-emerald-300" : "text-navy-700"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span className={plan.featured ? "text-white/85" : "text-ink/90"}>
+                      {f.lead && <strong className="font-semibold">{f.lead}</strong>}
+                      {f.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button href="#" variant={plan.ctaVariant} className="mt-6 w-full">
+                {plan.cta}
+              </Button>
+            </article>
+          ))}
+        </div>
+        <p className="mt-8 text-center font-mono text-xs text-muted">
+          Free to start · Prorated upgrades · Cancel anytime
+        </p>
+      </section>
 
-        {/* ---------- What's in every plan ---------- */}
-        <section className="border-y border-hairline bg-canvas">
-          <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-2xl font-semibold tracking-tight text-navy-900">
-              What's in every plan
-            </h2>
-            <ul className="mt-8 grid gap-x-8 gap-y-5 sm:grid-cols-2">
-              {everyPlan.map((item) => (
-                <li key={item.lead} className="flex gap-3">
-                  <span aria-hidden className="mt-1 text-navy-700">
-                    ✓
-                  </span>
-                  <p className="text-sm text-muted">
-                    <strong className="font-semibold text-ink">{item.lead}</strong> {item.text}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* ---------- How pricing works ---------- */}
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">How pricing works</h2>
-          <p className="mt-3 text-lg font-medium text-navy-800">
-            You pay for the platform. You pay for your models. We never mark up either.
-          </p>
-          <ol className="mt-8 grid gap-8 md:grid-cols-3">
-            {pricingSteps.map((step, i) => (
-              <li key={step.title} className="border-t border-hairline pt-4">
-                <p className="text-sm font-semibold text-navy-700">0{i + 1}</p>
-                <h3 className="mt-2 font-semibold text-ink">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted">{step.text}</p>
+      {/* ---------- What's in every plan ---------- */}
+      <section className="border-y border-hairline bg-canvas">
+        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+          <p className="eyebrow text-muted">In every plan</p>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-navy-900">
+            The system runs the organization. You stay the CEO.
+          </h2>
+          <ul className="mt-8 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+            {everyPlan.map((item) => (
+              <li key={item.lead} className="flex gap-3">
+                <span aria-hidden className="mt-1 font-semibold text-emerald-500">
+                  ✓
+                </span>
+                <p className="text-sm text-muted">
+                  <strong className="font-semibold text-ink">{item.lead}</strong> {item.text}
+                </p>
               </li>
             ))}
-          </ol>
-          <blockquote className="mt-10 rounded-lg border border-navy-800 bg-canvas p-6 text-navy-800">
-            <strong className="font-semibold">Why no per-agent commissions?</strong>{" "}
-            Because we sell the operating system, not the employees. Your AI workforce works for you —
-            not for us.
-          </blockquote>
-        </section>
+          </ul>
+        </div>
+      </section>
 
-        {/* ---------- Comparison table ---------- */}
-        <section className="border-y border-hairline bg-canvas">
-          <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-2xl font-semibold tracking-tight text-navy-900">
-              Compare plans
-            </h2>
-            <div className="mt-8 overflow-x-auto rounded-lg border border-hairline bg-white">
-              <table className="w-full min-w-[680px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-hairline">
-                    <th className="py-3 pl-6 pr-4 text-left font-medium text-muted" scope="col" />
-                    {tierNames.map((name) => (
-                      <th
-                        key={name}
-                        scope="col"
-                        className={`px-4 py-3 text-center font-semibold ${
-                          name === "Pro" ? "text-navy-800" : "text-navy-900"
+      {/* ---------- How pricing works ---------- */}
+      <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <p className="eyebrow text-muted">How pricing works</p>
+        <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-navy-900">
+          You pay for the platform. You pay for your models. We never mark up either.
+        </h2>
+        <ol className="mt-8 grid gap-8 md:grid-cols-3">
+          {pricingSteps.map((step, i) => (
+            <li key={step.title} className="border-t border-hairline pt-4">
+              <p className="font-mono text-sm font-semibold text-navy-700">0{i + 1}</p>
+              <h3 className="mt-2 font-semibold text-ink">{step.title}</h3>
+              <p className="mt-2 text-sm text-muted">{step.text}</p>
+            </li>
+          ))}
+        </ol>
+        <blockquote className="mt-10 rounded-xl border border-navy-800 bg-canvas p-6 text-navy-800">
+          <strong className="font-semibold">Why no per-agent commissions?</strong> Because we sell
+          the operating system, not the employees. Your AI workforce works for you — not for us.
+        </blockquote>
+      </section>
+
+      {/* ---------- Comparison table ---------- */}
+      <section className="border-y border-hairline bg-canvas">
+        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+          <p className="eyebrow text-muted">Compare plans</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900">
+            Everything, side by side.
+          </h2>
+          <div className="mt-8 overflow-x-auto rounded-xl border border-hairline bg-white">
+            <table className="w-full min-w-[680px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-hairline">
+                  <th className="py-4 pl-6 pr-4 text-left font-medium text-muted" scope="col" />
+                  {tierNames.map((name, i) => (
+                    <th
+                      key={name}
+                      scope="col"
+                      className={`px-4 py-4 text-center font-mono text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                        name === "Pro" ? "text-navy-800" : "text-muted"
+                      }`}
+                    >
+                      {name}
+                      {i === 1 && (
+                        <span className="mt-1 block text-[10px] normal-case tracking-normal text-emerald-500">
+                          most popular
+                        </span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Price", ...priceRow[billing]],
+                  ...comparison,
+                ].map(([label, free, pro, business, enterprise]) => (
+                  <tr key={label} className="border-b border-hairline/60 last:border-0">
+                    <th scope="row" className="py-2.5 pl-6 pr-4 text-left font-normal text-ink">
+                      {label}
+                    </th>
+                    {[free, pro, business, enterprise].map((v, i) => (
+                      <td
+                        key={i}
+                        className={`px-4 py-2.5 text-center ${
+                          i === 1 ? "bg-navy-900/[0.04]" : ""
+                        } ${
+                          v === "✓"
+                            ? "font-semibold text-emerald-600"
+                            : v === "—"
+                              ? "text-muted/40"
+                              : "text-ink"
                         }`}
                       >
-                        {name}
-                      </th>
+                        {v}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["Price", ...priceRow[billing]],
-                    ...comparison,
-                  ].map(([label, free, pro, business, enterprise]) => (
-                    <tr key={label} className="border-b border-hairline/60 last:border-0">
-                      <th
-                        scope="row"
-                        className="py-2.5 pl-6 pr-4 text-left font-normal text-ink"
-                      >
-                        {label}
-                      </th>
-                      {[free, pro, business, enterprise].map((v, i) => (
-                        <td
-                          key={i}
-                          className={`px-4 py-2.5 text-center ${
-                            v === "✓"
-                              ? "text-navy-700"
-                              : v === "—"
-                                ? "text-muted/40"
-                                : "text-ink"
-                          }`}
-                        >
-                          {v}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ---------- FAQ ---------- */}
-        <section className="mx-auto max-w-3xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">Frequently asked</h2>
-          <div className="mt-6">
-            {faqs.map((f) => (
-              <details key={f.q} className="group border-b border-hairline py-4">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-ink">
-                  {f.q}
-                  <span
-                    aria-hidden
-                    className="shrink-0 text-xl leading-none text-muted transition-transform duration-200 group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{f.a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
+      {/* ---------- FAQ ---------- */}
+      <section className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+        <p className="eyebrow text-center text-muted">Questions</p>
+        <h2 className="mt-3 text-center text-3xl font-semibold tracking-tight text-navy-900">
+          Frequently asked
+        </h2>
+        <div className="mt-6">
+          {faqs.map((f) => (
+            <details key={f.q} className="group border-b border-hairline py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-ink">
+                {f.q}
+                <span
+                  aria-hidden
+                  className="shrink-0 text-xl leading-none text-muted transition-transform duration-200 group-open:rotate-45"
+                >
+                  +
+                </span>
+              </summary>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
 
-        {/* ---------- CTA footer ---------- */}
-        <section className="bg-navy-900">
-          <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              One price. Your models. Your organization.
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-white/70">
-              Tell ORQ8 what you want. It hires the team, does the work, and reports back.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button href="#" variant="outline-light">
-                Start free
-              </Button>
-              <Button href="#" variant="outline-light">
-                Get Pro
-              </Button>
-              <Button href="#" variant="ghost-light">
-                Talk to sales
-              </Button>
-            </div>
+      {/* ---------- CTA footer (mesh, matching the landing) ---------- */}
+      <section
+        className="bg-mesh relative overflow-hidden"
+        style={{ "--mesh-accent": "rgb(252 211 77 / 0.22)" } as CSSProperties}
+      >
+        <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_bottom,black_25%,transparent_70%)]" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-transparent" />
+
+        <div className="relative mx-auto max-w-6xl px-6 py-20 text-center sm:py-24">
+          <p className="eyebrow inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-white/70">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            One price · Your models · Your organization
+          </p>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+            Tell ORQ8 what you want.
+            <br />
+            It hires the team, does the work, and reports back.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">
+            Start free on the free/local stack. Bring your own keys when you want frontier models.
+            No commissions. No agent marketplace. Ever.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <Button href="#" variant="outline-light" size="lg">
+              Start free
+            </Button>
+            <Button href="#" variant="outline-light" size="lg">
+              Get Pro
+            </Button>
+            <Button href="#" variant="ghost-light" size="lg">
+              Talk to sales
+            </Button>
           </div>
-        </section>
-      </main>
+          <p className="mt-6 font-mono text-xs tracking-wide text-white/50">
+            Free to start · Runs on free/local models · BYOK · No per-agent commissions, ever
+          </p>
+        </div>
+      </section>
 
       <SiteFooter />
     </div>
