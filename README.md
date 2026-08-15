@@ -22,6 +22,7 @@ orq8/
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
 │   └── deploy/              # Deployment manifests (VPS → managed cloud later)
+├── marketing/        # Landing + pricing page copy (drafts for the public site)
 └── docs/             # Phase 0 documentation set (this repository's source of truth)
 ```
 
