@@ -205,7 +205,35 @@ export type Provider = typeof providers.$inferSelect;
 export type NewProvider = typeof providers.$inferInsert;
 export type UserProviderKey = typeof userProviderKeys.$inferSelect;
 export type NewUserProviderKey = typeof userProviderKeys.$inferInsert;
+// Drip outbox for waitlist emails (docs/00 GTM, marketing/design_partner_application.md §4).
+// DB-as-queue: rows carry scheduled_at + status; a process-due pass (API endpoint or
+// local timer) sends due rows. No external queue dependency — works on serverless too.
+export const waitlistEmails = pgTable(
+  'waitlist_emails',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    signupId: uuid('signup_id')
+      .notNull()
+      .references(() => waitlistSignups.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // welcome | drip_2d | drip_7d
+    subject: text('subject').notNull(),
+    bodyText: text('body_text').notNull(),
+    bodyHtml: text('body_html').notNull(),
+    toEmail: text('to_email').notNull(),
+    toName: text('to_name'),
+    status: text('status').notNull().default('queued'), // queued | sent | failed
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('waitlist_emails_due_idx').on(t.status, t.scheduledAt)],
+);
+
 export type SecretRecord = typeof secretRecords.$inferSelect;
 export type NewSecretRecord = typeof secretRecords.$inferInsert;
 export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
 export type NewWaitlistSignup = typeof waitlistSignups.$inferInsert;
+export type WaitlistEmail = typeof waitlistEmails.$inferSelect;
+export type NewWaitlistEmail = typeof waitlistEmails.$inferInsert;

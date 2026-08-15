@@ -24,6 +24,18 @@ const envSchema = z.object({
 
   // Observability (docs/39)
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+
+  // Waitlist email drip (docs/00 GTM, marketing/design_partner_application.md §4).
+  // SMTP unset = dev mode: emails are logged, not sent (free local stack).
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default('ORQ8 <founder@orq8.ai>'),
+
+  // Internal endpoints (e.g. POST /v1/internal/waitlist/process-due) — required
+  // in production; unset disables them (local dev uses the inline timer).
+  INTERNAL_TOKEN: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

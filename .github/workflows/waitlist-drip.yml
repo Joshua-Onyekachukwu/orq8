@@ -1,0 +1,30 @@
+name: Waitlist drip
+
+on:
+  schedule:
+    # Every 30 minutes — free cron; keeps the waitlist drip moving without a VPS.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process-due:
+    name: Process due waitlist emails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call process-due endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
+            echo "::warning::API_URL/INTERNAL_TOKEN secrets not set — skipping drip run"
+            exit 0
+          fi
+          status=$(curl -s -o /tmp/drip.json -w "%{http_code}" -m 60 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/waitlist/process-due")
+          echo "process-due HTTP $status"
+          cat /tmp/drip.json
+          echo
+          if [ "$status" != "200" ]; then exit 1; fi
