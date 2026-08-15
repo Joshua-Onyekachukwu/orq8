@@ -20,10 +20,16 @@ await build({
   bundle: true,
   platform: 'node',
   target: 'node20',
-  // ESM on purpose: apps/api declares "type": "module", so api/index.js is
-  // interpreted as ESM — a CJS bundle would throw "module is not defined".
-  format: 'esm',
+  // CJS on purpose: an ESM bundle wraps CJS deps (pino etc.) in a __commonJS
+  // shim whose internal `require("node:os")` is a DYNAMIC require — Vercel's
+  // Lambda runtime rejects it in ESM ("Dynamic require of node:os is not
+  // supported"). CJS requires are native. api/package.json overrides the
+  // parent "type": "module" so the bundle loads as CJS.
+  format: 'cjs',
   sourcemap: false,
+  // Expose the handler directly as module.exports (works with both the
+  // @vercel/node bridge and the Rust runtime's mod.default || mod check).
+  footer: { js: 'module.exports = module.exports.default;' },
   // Workspace packages resolve straight to their TS sources — esbuild bundles
   // them, so no dist build of the packages is required for deploy.
   alias: {

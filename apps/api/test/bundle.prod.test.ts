@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
 // docs/58 — proof that the esbuild-bundled Lambda (what Vercel actually runs)
@@ -49,10 +49,11 @@ describeOrSkip('esbuild bundle (api/index.js — committed artifact) in producti
     }
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/orq8'; // boot-only; health never queries
 
-    const mod = (await import(pathToFileURL(bundle!).href)) as {
-      default: (req: unknown, res: unknown) => Promise<void>;
-    };
-    expect(typeof mod.default).toBe('function');
+    // Mirror Vercel's bridge: mod.default ?? mod (CJS module.exports = handler).
+    const require = createRequire(import.meta.url);
+    const mod = require(bundle!) as { default?: (req: unknown, res: unknown) => Promise<void> };
+    const handler = (mod.default ?? mod) as (req: unknown, res: unknown) => Promise<void>;
+    expect(typeof handler).toBe('function');
 
     const res: FakeRes = {
       statusCode: 0,
@@ -65,7 +66,7 @@ describeOrSkip('esbuild bundle (api/index.js — committed artifact) in producti
         this.body = body;
       },
     };
-    await mod.default({ method: 'GET', url: '/healthz', headers: {}, body: undefined } as never, res as never);
+    await handler({ method: 'GET', url: '/healthz', headers: {}, body: undefined } as never, res as never);
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ data: { status: 'ok', service: 'orq8-api' } });
   }, 30_000);
