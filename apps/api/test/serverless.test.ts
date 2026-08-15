@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import handler from '../api/index.js';
+import handler from '../src/serverless.js';
 
 // docs/58 — the Vercel serverless entry adapts buildApp() to Vercel's req/res
 // shape via inject(). These tests exercise that exact path with a mock
