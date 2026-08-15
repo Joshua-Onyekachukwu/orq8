@@ -47,7 +47,8 @@ The complete Phase 0 documentation set lives in `docs/`. The **core foundation s
 | 06 | SYSTEM_ARCHITECTURE | Services, tech stack, ADRs |
 | 07 | AGENT_RUNTIME | Agent execution loop, tool layer, sandbox |
 | 08 | EXECUTIVE_AGENT_SPEC | Executive Agent, intent engine, modes |
-| 17 | COMPANY_CONSTITUTION | Constitution template and versioning |
+| 17 | COMPANY_CONSTITUTION | Constitution design and versioning |
+| 17a | CONSTITUTION_TEMPLATE | Default constitution template (seed content for new orgs) |
 | 18 | GOVERNANCE_AUTHORIZATION | Authority model, approvals, delegation, kill switches |
 | 21 | MEMORY_KNOWLEDGE | Company memory, decision precedent, evidence types |
 | 33 | UI_UX_SYSTEM | Design direction, information architecture, workspaces |

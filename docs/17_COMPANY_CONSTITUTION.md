@@ -3,6 +3,8 @@
 **Product:** ORQ8 — AI Organization Operating System
 **Status:** Core foundation set · Phase 0
 
+> **Companion document:** the full default template every new organization starts from is in **17a_CONSTITUTION_TEMPLATE.md** (v1.0). This doc covers the design; the template is the seed content for the `constitutions` table.
+
 ## 17.1 Purpose
 
 Every organization on ORQ8 has a **Company Constitution**: the hard governance principles every agent, workflow, and human role operates under. It is the highest-level policy object and is **versioned and auditable**.
