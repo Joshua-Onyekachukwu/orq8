@@ -1,0 +1,133 @@
+%PDF-1.4
+%√¢√£√è√ì
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
+endobj
+8 0 obj
+<< /Length 5509 >>
+stream
+BT /F2 9 Tf 0.5 0.5 0.5 rg 54 22 Td (ORQ8  |  The AI Organization Operating System) Tj ET
+0.7 w 0.82 0.84 0.88 RG 54 726 m 558 726 l S
+BT /F2 22 Tf 0.10 0.18 0.35 rg 54 704 Td (ORQ8) Tj ET
+0.7 w 0.82 0.84 0.88 RG 54 696 m 558 696 l S
+BT /F3 10.5 Tf 0.35 0.38 0.42 rg 54.0 670.0 Td (The AI Organization Operating System ó an executive overview. Tell ORQ8 what you want. It hires the) Tj ET
+BT /F3 10.5 Tf 0.35 0.38 0.42 rg 54.0 658.0 Td (team, does the work, and reports back.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 633.5 Td (What is ORQ8?) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 620.0 Td (ORQ8 is a platform that lets a human CEO build and run a real company staffed by AI employees. It is not a) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 608.5 Td (chatbot, not a task manager, and not an "agent zoo." It is an operating system for an organization: the CEO) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 597.0 Td (speaks naturally ó a vague idea, a question, a goal, a command ó and the system forms teams, hires agents,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 585.5 Td (plans work, governs every action, and reports results.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 570.0 Td (The human CEO remains the final authority. Everything consequential requires approval, everything significant is) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 558.5 Td (audited, and every dollar is tracked.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 534.0 Td (The problem) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 520.5 Td (ï Everyone is building AI agents; nobody is building the system that makes agents safe, governed, and) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 509.0 Td (accountable.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 495.5 Td (ï Gartner predicts over 40% of agentic AI projects will be canceled by 2027 ó due to cost control, unclear value,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 484.0 Td (and missing risk controls, not model quality.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 470.5 Td (ï Solo founders and small operators have no middle management to delegate to; they drown in operations while) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 459.0 Td (agent tools add noise, not structure.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 436.5 Td (How it works ó the Golden Workflow) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 423.0 Td (The core loop: Intent, Understand, Context, Plan, Deliberate, Recommend, Authorize, Execute, Verify, Report,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 411.5 Td (Learn.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 396.0 Td (Example. The CEO says: "I think we should build an AI customer support product for African businesses. Find out) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 384.5 Td (whether this is worth pursuing." ORQ8: \(1\) classifies the intent; \(2\) convenes a temporary strategy council ó) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 373.0 Td (market researcher, finance analyst, legal researcher, growth strategist; \(3\) members research independently and) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 361.5 Td (challenge one another; \(4\) the Executive Agent synthesizes a recommendation with evidence, alternatives,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 350.0 Td (confidence, and the approval required; \(5\) the CEO approves in the Decision Center; \(6\) a project is created, the) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 338.5 Td (workforce is simulated, and temporary agents are hired and onboarded; \(7\) agents execute ó using tools,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 327.0 Td (requesting approvals, flagging blockers; \(8\) the organization learns, writes to Company Memory, and reports) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 315.5 Td (weekly. All of it ó every step, decision, and cost ó is audited.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 291.0 Td (What is inside) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 272.5 Td (Governance in code, not prompts) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 259.0 Td (ï Every organization has a Company Constitution: forbidden actions, approval tiers \(Automatic, Department,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 247.5 Td (Executive, CEO, Forbidden\), spending authority, and escalation rules.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 234.0 Td (ï Consequential actions require server-side approval. Agents cannot bypass approval, elevate their own) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 222.5 Td (permissions, modify governance, or access secrets.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 209.0 Td (ï A tamper-evident, append-only audit trail records every significant action, approval, and cost.) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 190.5 Td (Executive Agent & intent engine) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 177.0 Td (ï Understands vague requests, gathers context, plans, delegates, convenes councils, and asks for human input) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 165.5 Td (only when it truly matters.) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 147.0 Td (An AI workforce) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 133.5 Td (ï Agents are hired with business cases, organized into departments, teams, temporary project teams, and) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 122.0 Td (councils ó with performance reviews, versioning, and knowledge transfer on replacement.) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 103.5 Td (Money & budget control) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 90.0 Td (ï Budget allocation is separate from spending authority; target, warning, and ceiling levels; per-agent spending) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 78.5 Td (limits; hiring budget kept apart from operating budget.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 65.0 Td (ï Every dollar of model and tool spend is attributed to a department, project, and agent.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Length 3668 >>
+stream
+BT /F2 9 Tf 0.5 0.5 0.5 rg 54 22 Td (ORQ8  |  The AI Organization Operating System) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 717.5 Td (Company memory & decision precedent) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 704.0 Td (ï Persistent institutional knowledge. Agents must consult precedent before re-proposing an approach that was) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 692.5 Td (already rejected ó and explain what changed.) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 674.0 Td (Model-agnostic and cost-aware) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 660.5 Td (ï Routes every task to the cheapest adequate model. Runs on free local models today; Bring-Your-Own-Key for) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 649.0 Td (OpenAI, Anthropic, Gemini, DeepSeek, Groq, and OpenRouter.) Tj ET
+BT /F2 11 Tf 0.15 0.22 0.40 rg 54.0 630.5 Td (Executive reporting) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 617.0 Td (ï A CEO Decision Center instead of notification noise; weekly briefings and monthly executive reports prepared) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 605.5 Td (by a reporting agent and reviewed by the Executive Agent.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 583.0 Td (Why now ó the market) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 569.5 Td (ï AI agents market: ~$7.6B in 2025, projected ~$183B by 2033 \(Grand View Research, ~50% CAGR\). Gartner) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 558.0 Td (projects ~$202B of agentic AI spending in 2026.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 544.5 Td (ï The governance gap is the #1 complaint across agent deployments ó which is exactly what ORQ8 builds: the) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 533.0 Td (operating system layer everyone is missing.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 519.5 Td (ï The "one-person company powered by AI" wave is mainstream, and the category is producing) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 508.0 Td (multi-billion-dollar companies \(Sierra $10B, Cognition $10B+, Decagon $4.5B, Thinking Machines $12B\).) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 485.5 Td (Business model) Tj ET
+BT /F2 9 Tf 0.10 0.18 0.35 rg 58.0 472.0 Td (Free) Tj ET
+BT /F1 9 Tf 0 0 0 rg 209.2 472.0 Td (1 organization, 3 agents, free/local models ó $0) Tj ET
+BT /F2 9 Tf 0.10 0.18 0.35 rg 58.0 457.5 Td (Pro) Tj ET
+BT /F1 9 Tf 0 0 0 rg 209.2 457.5 Td (10 agents, BYOK, full governance, weekly report ó $49/mo) Tj ET
+BT /F2 9 Tf 0.10 0.18 0.35 rg 58.0 443.0 Td (Business) Tj ET
+BT /F1 9 Tf 0 0 0 rg 209.2 443.0 Td (50 agents, audit, integrations, monthly report ó $199/mo) Tj ET
+BT /F2 9 Tf 0.10 0.18 0.35 rg 58.0 428.5 Td (Enterprise) Tj ET
+BT /F1 9 Tf 0 0 0 rg 209.2 428.5 Td (Private deployment, SLA, custom integrations ó custom) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 410.0 Td (Users pay for the platform \(governance, orchestration, memory, reporting\); model costs pass through via) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 398.5 Td (Bring-Your-Own-Key. Clean margins, no lock-in, free to start.) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 374.0 Td (Status & next steps) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 360.5 Td (ï Phase 0 complete: full product specification ó architecture, security model, database schema, API contracts,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 349.0 Td (and go-to-market plan \(58 documents + architecture decision records\), all versioned and public.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 335.5 Td (ï Building Phase 1 \(Foundation\): monorepo, database, authentication, API shell ó on a free, self-hosted local) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 324.0 Td (stack.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 310.5 Td (ï Target: the Golden Workflow working end-to-end on free models, then design partners, paid beta, and general) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 299.0 Td (availability.) Tj ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000019 00000 n 
+0000000068 00000 n 
+0000000131 00000 n 
+0000000201 00000 n 
+0000000276 00000 n 
+0000000354 00000 n 
+0000000500 00000 n 
+0000000646 00000 n 
+0000006207 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+9927
+%%EOF
