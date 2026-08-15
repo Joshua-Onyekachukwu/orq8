@@ -5,11 +5,15 @@
   "type": "module",
   "description": "Shared Zod schemas and types — source of truth for API contracts (docs/06, 35)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "zod": "^4.4.3"
