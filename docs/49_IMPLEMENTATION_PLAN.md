@@ -263,7 +263,7 @@ G3 (full Golden Workflow) lands at the end of 12–15. Tracks after Phase 6 para
 
 ## 49.14 V1 Handoff Scope → Phase & Milestone Traceability
 
-The 12 v1 items from the development handoff (docs/57 §57.1) mapped to the phase plan and their GitHub milestone issues, so every item traces to where it is built and what tracks it. Issue numbers reference the Phase 1–3 milestones (M1–M3); items in phases whose milestone is not yet created are marked **—** (create them with that milestone, referencing the 57.1 item number per §57.5).
+The 12 v1 items from the development handoff mapped to the phase plan and their GitHub milestone issues, so every item traces to where it is built and what tracks it. **docs/57 §57.1 is the canonical trace (with issue numbers); this table is the phase-plan view of the same mapping.** Issue numbers reference the Phase 1–3 milestones (M1–M3); items in phases whose milestone is not yet created are marked **—** (create them with that milestone, referencing the 57.1 item number per §57.5).
 
 | # (57.1) | Handoff item | Phase (§49.4) | Milestone issue(s) | Status |
 |---|---|---|---|---|
