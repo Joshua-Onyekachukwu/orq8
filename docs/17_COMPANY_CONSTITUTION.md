@@ -3,7 +3,7 @@
 **Product:** ORQ8 — AI Organization Operating System
 **Status:** Core foundation set · Phase 0
 
-> **Companion document:** the full default template every new organization starts from is in **17a_CONSTITUTION_TEMPLATE.md** (v1.0). This doc covers the design; the template is the seed content for the `constitutions` table.
+> **Companion documents:** the full default template every new organization starts from is in **17a_CONSTITUTION_TEMPLATE.md** (v1.0, human-readable) and its machine-readable seed is **17b_CONSTITUTION_SEED.json** (structured JSON with enforcement metadata). This doc covers the design; 17b is the seed content for the `constitutions` table + compiled enforcement rules.
 
 ## 17.1 Purpose
 

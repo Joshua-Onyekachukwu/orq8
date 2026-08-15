@@ -268,3 +268,22 @@ The following are absolutely forbidden. No agent, workflow, or delegated authori
 | Article XV (Amendments) | Versioned constitution lifecycle, human-only write permission |
 
 *Prompt text may restate this Constitution; enforcement never depends on prompts.*
+
+---
+
+## Seed Format (Phase 5)
+
+The machine-readable seed lives in **17b_CONSTITUTION_SEED.json** — structured JSON with per-clause enforcement metadata. Loader mapping at seed time:
+
+| Seed block | Target table(s) |
+|-----------|-----------------|
+| `articles` (with clause `enforcement`) | `constitutions.body` (jsonb) — full versioned text + metadata |
+| `enforcement.deny_rules` | Authz deny registry (hard denies, no approval path) |
+| `enforcement.approval_rules` | `approval_rules` (+ `approval:mandatory_defaults` flags) |
+| `enforcement.financial_controls` | `financial_controls` defaults (authorities, levels, separation) |
+| `enforcement.permissions` | `permissions` (data classes, comm, emergency, constitution amend) |
+| `enforcement.escalation_rules` | Workflow escalation hooks + attention-model routing |
+| `enforcement.operational_limits` | Org-level operational limits (18.5) |
+| `enforcement.attention_model` | Attention routing config (18.7) |
+
+The seed is **org-agnostic**: at org creation it is copied per-tenant (with `[Company Name]` replaced), shown to the CEO for review, then published as version 1 (17 §17.6). In Phase 5 the file moves to `packages/db/seeds/constitution_default.json`; this copy remains the canonical source.
