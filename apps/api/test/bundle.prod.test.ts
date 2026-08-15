@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // docs/58 — proof that the esbuild-bundled Lambda (what Vercel actually runs)
@@ -21,7 +21,7 @@ const secretsPath = candidates('.freebuff/prod-secrets.txt').find((p) => {
 // The test loads secrets from the file itself; the file's presence is the gate.
 const hasSecrets = Boolean(secretsPath);
 
-const bundle = candidates('apps/api/dist/serverless.cjs').find((p) => {
+const bundle = candidates('apps/api/api/index.js').find((p) => {
   try {
     return readFileSync(p, 'utf8').length > 0;
   } catch {
@@ -40,7 +40,7 @@ interface FakeRes {
   end(body: string): void;
 }
 
-describeOrSkip('esbuild bundle (dist/serverless.cjs) in production mode', () => {
+describeOrSkip('esbuild bundle (api/index.js — committed artifact) in production mode', () => {
   it('boots and answers /healthz', async () => {
     // Parse prod secrets from the local file into env for this process.
     for (const line of readFileSync(secretsPath!, 'utf8').split(/\r?\n/)) {
@@ -49,8 +49,9 @@ describeOrSkip('esbuild bundle (dist/serverless.cjs) in production mode', () => 
     }
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/orq8'; // boot-only; health never queries
 
-    const require = createRequire(import.meta.url);
-    const mod = require(bundle!) as { default: (req: unknown, res: unknown) => Promise<void> };
+    const mod = (await import(pathToFileURL(bundle!).href)) as {
+      default: (req: unknown, res: unknown) => Promise<void>;
+    };
     expect(typeof mod.default).toBe('function');
 
     const res: FakeRes = {
