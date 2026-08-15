@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Button } from "../components/button";
+import { MockCeoHome } from "../components/mock-ceo-home";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
+import { WaitlistForm } from "../components/waitlist-form";
+import { API_URL } from "../lib/api";
 
 export const metadata: Metadata = {
   title: "The AI Organization Operating System",
@@ -9,60 +12,100 @@ export const metadata: Metadata = {
     "Tell ORQ8 what you want. It hires the team, does the work, and reports back. Not a chatbot. Not an agent zoo. An operating system for a company staffed by AI employees.",
 };
 
-const trustStats = [
-  "Paste an idea → researched, council-reviewed recommendation → an executed validation plan run by a temporary AI team — every dollar tracked, every decision explainable",
-  "Every decision explainable · every dollar tracked",
-];
+// Social proof for the waitlist section; silently hidden if the API is unreachable.
+async function getWaitlistCount(): Promise<number | null> {
+  try {
+    const res = await fetch(`${API_URL}/v1/waitlist/count`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.data?.count === "number" ? data.data.count : null;
+  } catch {
+    return null;
+  }
+}
 
 const problems = [
-  "Your inbox fills with agent updates; your money disappears into model tokens; and nothing remembers why a decision was made.",
-  "Most agent projects die on cost control, unclear value, and missing risk controls — not on model quality.",
-  "As a solo operator, you have no middle management to delegate to. You drown in operations.",
+  {
+    title: "Inbox of agent noise",
+    text: "Your inbox fills with agent updates; your money disappears into model tokens; and nothing remembers why a decision was made.",
+  },
+  {
+    title: "Costs run away",
+    text: "Most agent projects die on cost control, unclear value, and missing risk controls — not on model quality.",
+  },
+  {
+    title: "No one to delegate to",
+    text: "As a solo operator, you have no middle management. You drown in operations.",
+  },
 ];
 
 const steps = [
   {
-    title: "1. You speak. It understands.",
-    text: "Give ORQ8 a vague idea, a link, a document, or a question — \"I think there's a business here. Investigate it.\" The Executive Agent figures out intent, forms the right team, and plans the work. No forms. No 12 fields.",
+    n: "01",
+    title: "You speak. It understands.",
+    text: "Give ORQ8 a vague idea, a link, a document, or a question — “I think there’s a business here. Investigate it.” The Executive Agent figures out intent, forms the right team, and plans the work. No forms. No 12 fields.",
   },
   {
-    title: "2. It deliberates like a real organization.",
+    n: "02",
+    title: "It deliberates like a real organization.",
     text: "A council of AI employees researches independently and challenges one another. The Executive Agent synthesizes a recommendation with evidence, alternatives, confidence, and the approval required. You decide in the Decision Center — approve, reject, or modify with full context.",
   },
   {
-    title: "3. It hires, executes, and reports.",
+    n: "03",
+    title: "It hires, executes, and reports.",
     text: "Temporary AI employees are hired with business cases, onboarded, and put to work — using tools, requesting approvals, flagging blockers. The organization learns, writes to Company Memory, and sends you a weekly report. All of it audited.",
   },
 ];
 
 const features = [
   {
+    badge: "G",
     title: "Governance in code, not prompts",
     text: "A Company Constitution defines what the organization will never do. Approval tiers, spending authority, and forbidden actions are enforced server-side — no agent can bypass them, even with a clever prompt.",
+    dark: true,
+    span: "lg:col-span-3",
   },
   {
+    badge: "D",
     title: "The CEO Decision Center",
-    text: "One calm place for everything that needs you: approvals, hiring requests, budget escalations, risky actions, blocked work — each with what, why, evidence, alternatives, cost, and risk. Approve in seconds. No notification noise.",
+    text: "One calm place for everything that needs you: approvals, hiring requests, budget escalations, risky actions — each with what, why, evidence, alternatives, cost, and risk. Approve in seconds. No notification noise.",
+    dark: false,
+    span: "lg:col-span-3",
   },
   {
+    badge: "W",
     title: "An AI workforce, hired like a real one",
-    text: "Agents are hired with business cases, organized into departments, teams, and temporary project teams — with performance reviews, versioning, and knowledge transfer when someone is replaced.",
+    text: "Agents are hired with business cases, organized into departments, teams, and temporary project teams — with performance reviews and knowledge transfer.",
+    dark: false,
+    span: "lg:col-span-2",
   },
   {
+    badge: "$",
     title: "Money & budget control",
-    text: "Budget allocation is separate from spending authority. Target, warning, and ceiling levels. Every dollar of model and tool spend tracked to a department, project, and agent.",
+    text: "Budget allocation is separate from spending authority. Target, warning, and ceiling levels. Every dollar tracked to a department, project, and agent.",
+    dark: false,
+    span: "lg:col-span-2",
   },
   {
-    title: "Company memory & decision precedent",
-    text: "The organization remembers decisions and why they were made. Agents consult precedent before re-proposing what was already rejected — and explain what changed.",
+    badge: "M",
+    title: "Company memory & precedent",
+    text: "The organization remembers decisions and why they were made. Agents consult precedent before re-proposing what was already rejected.",
+    dark: false,
+    span: "lg:col-span-2",
   },
   {
+    badge: "R",
     title: "Model-agnostic & cost-aware",
     text: "Routes every task to the cheapest adequate model. Use free local models, or bring your own keys for OpenAI, Anthropic, Gemini, DeepSeek, Groq, OpenRouter. No lock-in. No markup.",
+    dark: true,
+    span: "lg:col-span-3",
   },
   {
+    badge: "E",
     title: "Executive reporting",
     text: "Weekly briefings and monthly executive reports, prepared by a reporting agent and reviewed by the Executive Agent. The loop closes: intent → execute → report → learn.",
+    dark: false,
+    span: "lg:col-span-3",
   },
 ];
 
@@ -102,184 +145,184 @@ const faqs = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const waitlistCount = await getWaitlistCount();
+
   return (
     <div className="min-h-screen bg-white">
-      <SiteHeader />
-
       <main>
         {/* ---------- Hero ---------- */}
-        <section className="border-b border-hairline">
-          <div className="mx-auto max-w-4xl px-6 py-20 text-center sm:py-28">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-              The AI Organization Operating System
-            </p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-navy-900 sm:text-6xl">
-              Tell ORQ8 what you want. It hires the team, does the work, and reports back.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">
-              Not a chatbot. Not a task manager. Not an agent zoo. ORQ8 is an operating system for a
-              company staffed by AI employees — with governance, approvals, memory, and executive
-              reporting built in. You stay the CEO. The system runs the organization.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button href="/pricing">Start free</Button>
-              <Button href="/#how-it-works" variant="outline">
-                See how it works
-              </Button>
+        <section className="relative overflow-hidden bg-navy-900">
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-navy-900 via-navy-800 to-navy-900" />
+          <div aria-hidden className="absolute -top-40 left-1/2 h-[36rem] w-[64rem] -translate-x-1/2 rounded-full bg-navy-700/40 blur-3xl" />
+          <div aria-hidden className="absolute right-[-10rem] top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+          <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
+
+          <div className="relative">
+            <SiteHeader
+              variant="navy"
+              cta={{ href: "#waitlist", label: "Get early access" }}
+            />
+
+            <div className="mx-auto max-w-4xl px-6 pt-16 text-center sm:pt-24">
+              <p className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                The AI Organization Operating System
+              </p>
+              <h1 className="animate-fade-up mt-6 text-4xl font-semibold leading-[1.08] tracking-tight text-white [animation-delay:0.08s] sm:text-6xl">
+                Tell ORQ8 what you want.
+                <br />
+                It hires the team, does the work, and reports back.
+              </h1>
+              <p className="animate-fade-up mx-auto mt-6 max-w-2xl text-lg text-white/70 [animation-delay:0.16s]">
+                Not a chatbot. Not a task manager. Not an agent zoo. An operating system for a
+                company staffed by AI employees — with governance, approvals, memory, and executive
+                reporting built in.{" "}
+                <span className="font-medium text-white">You stay the CEO. The system runs the organization.</span>
+              </p>
+              <div className="animate-fade-up mt-9 flex flex-wrap items-center justify-center gap-3 [animation-delay:0.24s]">
+                <Button href="#waitlist" variant="outline-light" size="lg">
+                  Get early access
+                </Button>
+                <Button href="#how-it-works" variant="ghost-light" size="lg">
+                  See how it works
+                </Button>
+              </div>
+              <p className="animate-fade-up mt-6 text-sm text-white/50 [animation-delay:0.3s]">
+                Free to start · Runs on free/local models · Bring your own model keys · No per-agent
+                commissions, ever
+              </p>
             </div>
-            <p className="mt-6 text-sm text-muted">
-              Free to start · Runs on free/local models · Bring your own model keys · No per-agent
-              commissions, ever
-            </p>
+
+            <div className="animate-fade-up px-6 pb-20 [animation-delay:0.38s]">
+              <MockCeoHome />
+            </div>
           </div>
         </section>
 
         {/* ---------- Trust strip ---------- */}
-        <section className="border-b border-hairline bg-canvas">
-          <div className="mx-auto grid max-w-6xl gap-8 px-6 py-10 sm:grid-cols-2">
-            <p className="text-sm text-muted">
+        <section className="border-b border-hairline bg-white">
+          <div className="mx-auto max-w-6xl px-6 py-12">
+            <p className="mx-auto max-w-3xl text-center text-lg font-medium leading-relaxed text-navy-800">
+              Paste an idea → researched, council-reviewed recommendation → an executed validation
+              plan run by a temporary AI team — every dollar tracked, every decision explainable.
+            </p>
+            <p className="mt-4 text-center text-sm text-muted">
               Built for solo founders and indie operators — the one-person company, powered by AI.
             </p>
-            {trustStats.map((stat) => (
-              <p key={stat} className="text-sm font-medium text-navy-800">
-                {stat}
-              </p>
-            ))}
           </div>
         </section>
 
         {/* ---------- The problem ---------- */}
-        <section className="mx-auto max-w-3xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">The problem — &ldquo;agent chaos&rdquo;</h2>
-          <p className="mt-4 text-lg text-ink">
-            Everyone is building AI agents. Nobody is building the system that makes them safe,
-            governed, and accountable.
-          </p>
-          <ul className="mt-6 space-y-3 text-muted">
-            {problems.map((p) => (
-              <li key={p} className="flex gap-3">
-                <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-navy-700" />
-                <span>{p}</span>
-              </li>
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">The problem</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
+              Everyone is building AI agents. Nobody is building the system that makes them safe,
+              governed, and accountable.
+            </h2>
+          </div>
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            {problems.map((p, i) => (
+              <div key={p.title} className="rounded-2xl border border-hairline bg-canvas/60 p-6">
+                <p className="text-sm font-medium text-navy-800">0{i + 1}</p>
+                <h3 className="mt-3 font-semibold text-ink">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{p.text}</p>
+              </div>
             ))}
-          </ul>
-          <p className="mt-8 font-medium text-navy-800">
-            ORQ8 is the layer that&rsquo;s missing: <strong>the operating system for an AI-staffed organization.</strong>
+          </div>
+          <p className="mt-10 text-lg text-navy-800">
+            ORQ8 is the layer that&rsquo;s missing:{" "}
+            <strong className="font-semibold">the operating system for an AI-staffed organization.</strong>
           </p>
         </section>
 
         {/* ---------- How it works ---------- */}
         <section id="how-it-works" className="border-y border-hairline bg-canvas">
-          <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-2xl font-semibold tracking-tight text-navy-900">
-              How it works — the Golden Workflow
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">How it works</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
+              The Golden Workflow — from vague idea to executed plan
             </h2>
-            <div className="mt-8 grid gap-8 md:grid-cols-3">
-              {steps.map((step) => (
-                <div key={step.title} className="border-t border-hairline pt-4">
-                  <h3 className="font-semibold text-ink">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted">{step.text}</p>
+            <div className="mt-12 grid gap-10 md:grid-cols-3">
+              {steps.map((s) => (
+                <div key={s.n} className="relative">
+                  <p className="text-5xl font-semibold text-navy-700/25">{s.n}</p>
+                  <h3 className="mt-3 font-semibold text-ink">{s.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{s.text}</p>
                 </div>
               ))}
             </div>
-            <p className="mt-10 rounded-lg border border-hairline bg-white p-5 text-sm text-muted">
-              <strong className="font-semibold text-ink">Example:</strong> &ldquo;I think we should build an AI
-              customer support product for African businesses. Find out whether this is worth
-              pursuing.&rdquo; → council of market researcher, finance analyst, legal researcher,
-              growth strategist → recommendation → your approval → validation project with a hired
-              AI team → weekly report.{" "}
-              <a href="#" className="text-navy-700 underline decoration-hairline underline-offset-2 hover:text-navy-800">
-                [Link to full story placeholder]
-              </a>
-            </p>
+            <div className="mt-12 rounded-2xl border border-hairline bg-white p-6 text-sm leading-relaxed text-muted shadow-sm">
+              <strong className="font-semibold text-ink">Example:</strong> “I think we should build an
+              AI customer support product for African businesses. Find out whether this is worth
+              pursuing.” → council of market researcher, finance analyst, legal researcher, growth
+              strategist → recommendation → your approval → validation project with a hired AI team →
+              weekly report.
+            </div>
           </div>
         </section>
 
-        {/* ---------- Features ---------- */}
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">What&rsquo;s inside</h2>
-          <div className="mt-8 grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {/* ---------- Features (bento) ---------- */}
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">What&rsquo;s inside</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
+            A company, not a dashboard
+          </h2>
+          <div className="mt-10 grid gap-5 lg:grid-cols-6">
             {features.map((f) => (
-              <div key={f.title} className="border-t border-hairline pt-4">
-                <h3 className="font-semibold text-navy-900">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{f.text}</p>
+              <div
+                key={f.title}
+                className={`rounded-2xl border p-7 ${
+                  f.dark
+                    ? "border-navy-700 bg-navy-900 text-white"
+                    : "border-hairline bg-white text-ink shadow-sm"
+                } ${f.span}`}
+              >
+                <span
+                  aria-hidden
+                  className={`grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold ${
+                    f.dark ? "bg-white/10 text-white" : "bg-navy-800/5 text-navy-800"
+                  }`}
+                >
+                  {f.badge}
+                </span>
+                <h3 className={`mt-4 font-semibold ${f.dark ? "text-white" : "text-navy-900"}`}>{f.title}</h3>
+                <p className={`mt-2 text-sm leading-relaxed ${f.dark ? "text-white/70" : "text-muted"}`}>
+                  {f.text}
+                </p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ---------- Callout ---------- */}
-        <section className="border-y border-hairline bg-canvas">
-          <div className="mx-auto max-w-3xl px-6 py-16 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-navy-900">
-              Your attention is the resource
+        {/* ---------- Waitlist ---------- */}
+        <section id="waitlist" className="border-y border-hairline bg-canvas">
+          <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Early access</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
+              Be first in the door
             </h2>
             <p className="mt-4 text-muted">
-              Other platforms give you more agents and more noise. ORQ8 protects your attention —
-              routine work runs autonomously, consequential decisions reach you, and everything else
-              waits quietly in a queue.{" "}
-              <strong className="font-semibold text-ink">
-                The scarcest resource in your company is you.
-              </strong>
+              We&rsquo;re onboarding a small cohort of design partners first — one real decision in
+              two weeks, honest feedback in return. Join the list and we&rsquo;ll email you when your
+              cohort opens.
             </p>
-          </div>
-        </section>
-
-        {/* ---------- Who it's for ---------- */}
-        <section className="mx-auto max-w-3xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">Who it&rsquo;s for</h2>
-          <p className="mt-4 font-medium text-ink">
-            The solo founder. The indie operator. The one-person company.
-          </p>
-          <ul className="mt-4 space-y-3 text-muted">
-            <li className="flex gap-3">
-              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-navy-700" />
-              <span>You have ideas, customers, and too much to do — and no team to delegate to.</span>
-            </li>
-            <li className="flex gap-3">
-              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-navy-700" />
-              <span>You want an organization that works while you sleep — but you never want to lose control.</span>
-            </li>
-            <li className="flex gap-3">
-              <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-navy-700" />
-              <span>You want every dollar and every decision accounted for.</span>
-            </li>
-          </ul>
-          <p className="mt-6 text-sm text-muted">
-            [Secondary audiences — later: agencies, small teams, then growing companies.]
-          </p>
-        </section>
-
-        {/* ---------- Pricing teaser ---------- */}
-        <section className="border-y border-hairline bg-canvas">
-          <div className="mx-auto max-w-4xl px-6 py-16 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-navy-900">Pricing</h2>
-            <p className="mt-3 text-lg font-medium text-navy-800">
-              One platform price. You own the models. No per-agent commissions.
-            </p>
-            <p className="mt-3 text-sm text-muted">
-              <strong className="font-medium text-navy-800">Free</strong> — start now ·{" "}
-              <strong className="font-medium text-navy-800">Pro $49/mo</strong> — the solo
-              founder&rsquo;s company ·{" "}
-              <strong className="font-medium text-navy-800">Business $199/mo</strong> — growing
-              operations · <strong className="font-medium text-navy-800">Enterprise</strong> —
-              private deployment.
-            </p>
-            <div className="mt-6">
-              <Button href="/pricing" variant="outline">
-                See full pricing
-              </Button>
+            <div className="mx-auto mt-8 max-w-md">
+              <WaitlistForm />
             </div>
+            <p className="mt-4 text-sm text-muted">
+              Free during beta · BYOK · No per-agent commissions{waitlistCount !== null ? ` · ${waitlistCount}+ already on the list` : ""}
+            </p>
           </div>
         </section>
 
         {/* ---------- Testimonials ---------- */}
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">Testimonials</h2>
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <h2 className="text-3xl font-semibold tracking-tight text-navy-900">Testimonials</h2>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
             {testimonials.map((t) => (
-              <figure key={t.name} className="rounded-lg border border-hairline bg-white p-6">
+              <figure key={t.name} className="rounded-2xl border border-hairline bg-white p-6 shadow-sm">
                 <blockquote className="text-sm leading-relaxed text-ink">&ldquo;{t.quote}&rdquo;</blockquote>
                 <figcaption className="mt-4 text-sm font-medium text-muted">— {t.name}</figcaption>
               </figure>
@@ -288,8 +331,8 @@ export default function Home() {
         </section>
 
         {/* ---------- FAQ ---------- */}
-        <section className="mx-auto max-w-3xl px-6 pb-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-navy-900">Frequently asked</h2>
+        <section className="mx-auto max-w-3xl px-6 pb-20">
+          <h2 className="text-3xl font-semibold tracking-tight text-navy-900">Frequently asked</h2>
           <div className="mt-6">
             {faqs.map((f) => (
               <details key={f.q} className="group border-b border-hairline py-4">
@@ -314,18 +357,17 @@ export default function Home() {
         </section>
 
         {/* ---------- Final CTA ---------- */}
-        <section className="bg-navy-900">
-          <div className="mx-auto max-w-4xl px-6 py-20 text-center">
+        <section className="relative overflow-hidden bg-navy-900">
+          <div aria-hidden className="absolute -top-32 left-1/2 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-navy-700/50 blur-3xl" />
+          <div className="relative mx-auto max-w-2xl px-6 py-20 text-center">
             <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               Tell ORQ8 what you want. It hires the team, does the work, and reports back.
             </h2>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button href="/pricing" variant="outline-light">
-                Start free — no card required
-              </Button>
-              <Button href="/pricing" variant="ghost-light">
-                Talk to us
-              </Button>
+            <p className="mt-4 text-white/70">
+              Free to start. Your keys, no markup, no commissions. You stay the CEO.
+            </p>
+            <div className="mx-auto mt-8 max-w-md">
+              <WaitlistForm variant="navy" source="cta" />
             </div>
           </div>
         </section>

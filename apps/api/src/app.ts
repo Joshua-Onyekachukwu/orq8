@@ -16,6 +16,7 @@ import { idempotencyPlugin } from './plugins/idempotency.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProviderRoutes } from './routes/providers.js';
+import { registerWaitlistRoutes } from './routes/waitlist.js';
 import type { AppDeps } from './types.js';
 
 export async function buildApp(
@@ -72,5 +73,6 @@ export async function buildApp(
   registerHealthRoutes(app, deps);
   registerAuthRoutes(app, deps);
   registerProviderRoutes(app, deps);
+  registerWaitlistRoutes(app, deps);
   return app;
 }
