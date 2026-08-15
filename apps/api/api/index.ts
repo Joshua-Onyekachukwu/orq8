@@ -38,7 +38,17 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
 ): Promise<void> {
-  const app = await getApp();
+  let app: Awaited<ReturnType<typeof buildApp>>;
+  try {
+    app = await getApp();
+  } catch (err) {
+    // Boot failures must be diagnosable in the deployment dashboard.
+    const message = err instanceof Error ? err.message : String(err);
+    res.statusCode = 500;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ error: { code: 'boot.failed', message } }));
+    return;
+  }
   const response = await app.inject({
     method: (req.method ?? 'GET') as InjectMethod,
     url: req.url ?? '/',
