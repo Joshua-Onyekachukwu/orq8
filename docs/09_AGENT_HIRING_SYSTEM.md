@@ -6,6 +6,8 @@
 
 Agents are **hired, not created** (§11). The primary UX copy is "Hire Agent." Every hire must be justified by a **Business Case** — hiring is a governed organizational decision, not a configuration action.
 
+**Who initiates:** the User (CEO) or an authorized Executive/Department agent may initiate hiring, in line with organizational authority and budget policies (18, 17b). Agents propose hires via business cases; they never self-hire, and approval follows the authority model. ORQ8 does not operate an agent marketplace — hiring happens *within* the organization when a business need exists (ADR-021).
+
 ## 9.2 Business Case (required fields, §11)
 
 - title · department · manager · mission

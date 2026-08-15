@@ -57,4 +57,4 @@ Vertical agents (Sierra, 11x) do one job with no org-wide governance; agent buil
 
 ## Vision
 
-From solo founders to enterprise: the AI organization becomes the default way companies are run. Expansion levers: AI-team marketplace, prebuilt department teams, premium agent templates, integration marketplace, internal-tool marketplace, usage-based execution.
+From solo founders to enterprise: the AI organization becomes the default way companies are run. ORQ8 earns from the platform itself — tiers, organizational capacity, enterprise capabilities, and optional AI/voice/infrastructure usage — never from agent sales or commissions; there is no agent marketplace (ADR-021).

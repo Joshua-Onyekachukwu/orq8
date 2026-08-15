@@ -29,6 +29,6 @@ Before implementing any integration, verify from **current official documentatio
 - Health checks per account (25.2); `tool.failed` events; fallback: workflow pauses or routes to need-human.
 - Revocation handling: token expiry → alert → reconnect flow → dependent tasks queued.
 
-## 48.6 Marketplace (later)
+## 48.6 Ecosystem (later)
 
-Integration marketplace + internal tool marketplace (27.4) as revenue/ecosystem plays (55).
+Integration extensions + internal-tool sharing (27.4) as platform ecosystem features — **not an agent marketplace** (ADR-021; no agent sales or commissions).

@@ -129,6 +129,8 @@ Solo founders (beachhead) → agencies (pay more, same platform)
 
 **Anchor check:** Lindy $20–199/mo, Relevance $29–349/mo, mid-market $500–3k/mo → $49/$199 sits in the sweet spot; the governance/audit/memory layer justifies the premium. Per brief §78: **keep pricing flexible until usage economics are known** (54_COST_MODEL); revisit at GA.
 
+**Revenue model principle (ADR-021):** revenue comes from the operating system itself — platform tiers, organizational capacity, enterprise capabilities, and optional AI/voice/infrastructure usage — **never from commissions on agents**. ORQ8 does not operate an AI-agent marketplace; agents are hired within an organization when a business need exists.
+
 ---
 
 ## 7. Go-To-Market Plan

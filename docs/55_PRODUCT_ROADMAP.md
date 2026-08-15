@@ -19,7 +19,7 @@ Launch the platform skeleton with **one wedge market** (decision pending — see
 
 1. **Design partners (3–5):** free, hands-on; validate Golden Workflow v1 value.
 2. **Paid beta:** Pro plan, BYOK, per-seat agents; measure CAC/retention.
-3. **GA:** self-serve + onboarding; Business plan; integration marketplace begins.
+3. **GA:** self-serve + onboarding; Business plan; integration ecosystem begins.
 
 ## 55.4 Success Metrics
 
@@ -29,7 +29,7 @@ Launch the platform skeleton with **one wedge market** (decision pending — see
 
 ## 55.5 Expansion Levers
 
-AI-team marketplace · prebuilt department teams · premium agent templates · integration marketplace · internal-tool marketplace · usage-based execution (01.8, §78).
+ORQ8 does **not** operate an AI-agent marketplace and takes no commissions on agents (ADR-021). Growth levers are platform-side: organizational capacity tiers, enterprise capabilities, optional AI/voice/infrastructure usage, integration extensions, and internal-tool sharing (01.8).
 
 ## 55.6 Risks & Watch Items
 

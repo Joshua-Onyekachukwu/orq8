@@ -33,6 +33,7 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 | 018 | v1 weekly report ships at Phase 6; full reporting Phase 14 (40/49) | Accepted |
 | 019 | Permission namespace `{domain}:{resource}:{action}` canonicalized in the Approval Engine (19) | Accepted |
 | 020 | Event catalog extended: `spend.executed`, `payment.executed`, `simulation.run/completed`, `hiring.proposed/approved/rejected`, `import.*`, `sandbox.*`, `eval.*` (36) | Accepted |
+| 021 | No AI-agent marketplace; revenue from platform (tiers, capacity, enterprise, usage) — never agent commissions; hiring initiated within the org per authority + budget (01, 55, 00, 09) | Accepted |
 
 ## Records
 

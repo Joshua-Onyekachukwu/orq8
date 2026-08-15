@@ -71,7 +71,7 @@ Nothing consequential is activated automatically during import.
 | Business | Larger orgs, team collaboration, advanced governance, audit, SSO |
 | Enterprise | Large workforce, private deployment, advanced security, custom integrations, SLA |
 
-Potential additional revenue: AI-team marketplace, prebuilt department teams, premium agent templates, integration marketplace, internal-tool marketplace, usage-based execution.
+Revenue comes from the organization operating system itself — platform tiers, organizational capacity, enterprise capabilities, and optional AI/voice/infrastructure usage — **not from commissions on agents**. ORQ8 does not operate an AI-agent marketplace; agents are hired within an organization when a business need exists (ADR-021). Platform-side ecosystem levers (non-agent): integration extensions and internal-tool sharing.
 
 Pricing stays flexible until usage economics are known.
 
