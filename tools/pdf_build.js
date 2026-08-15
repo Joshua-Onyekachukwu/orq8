@@ -65,4 +65,9 @@ bullet('Target: the Golden Workflow working end-to-end on free models, then desi
 spacer(6);
 rule(yPos() - 4);
 
-build(OUT, 'ORQ8  |  The AI Organization Operating System');
+build(OUT, {
+  headerText: 'ORQ8  |  The AI Organization Operating System',
+  footerLeft: 'orq8.ai',
+  pageNumbers: true,
+  contact: '[hello@orq8.ai]',
+});

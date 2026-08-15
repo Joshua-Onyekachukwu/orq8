@@ -159,7 +159,7 @@ function render() {
 }
 
 // ---------- PDF assembly ----------
-function build(OUT, footerText) {
+function build(OUT, opts = {}) {
   render();
   const n = pages.length;
   const total = 6 + 2 * n; // 1 catalog, 2 pages, 3-5 fonts, pages, streams
@@ -175,9 +175,26 @@ function build(OUT, footerText) {
     bodies[6 + i] =
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${6 + n + i} 0 R >>`;
   });
+  // page chrome: optional running header, footer brand left, page number right, contact line
+  const size = 8.5, gray = '0.5 0.5 0.5 rg';
   pages.forEach((p, i) => {
-    bodies[6 + n + i] =
-      `BT /F2 9 Tf 0.5 0.5 0.5 rg 54 22 Td (${esc(footerText)}) Tj ET\n` + p;
+    const parts = [];
+    if (opts.headerText) {
+      parts.push(`BT /F2 ${size} Tf ${gray} ${ML} ${H - 44} Td (${esc(opts.headerText)}) Tj ET`);
+    }
+    if (opts.footerLeft) {
+      parts.push(`BT /F2 ${size} Tf ${gray} ${ML} 22 Td (${esc(opts.footerLeft)}) Tj ET`);
+    }
+    if (opts.pageNumbers) {
+      const label = `Page ${i + 1} of ${n}`;
+      const x = W - MR - textWidth(label, size);
+      parts.push(`BT /F2 ${size} Tf ${gray} ${x.toFixed(1)} 22 Td (${esc(label)}) Tj ET`);
+    }
+    if (opts.contact) {
+      const x = (W - textWidth(opts.contact, size)) / 2;
+      parts.push(`BT /F3 ${size} Tf ${gray} ${x.toFixed(1)} 12 Td (${esc(opts.contact)}) Tj ET`);
+    }
+    bodies[6 + n + i] = (parts.length ? parts.join('\n') + '\n' : '') + p;
   });
 
   const offsets = new Array(total).fill(0);
