@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/*
+ * ORQ8 design tokens — calm, executive (docs/33 §33.1, §33.11).
+ * Navy palette matches the PDF brand colors (docs/00 §5.7, tools/pdf_engine.js).
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* brand navy (rgb 0.10 0.18 0.35 → #1a2e59) and friends */
+  --color-navy-700: #263866;
+  --color-navy-800: #1a2e59;
+  --color-navy-900: #0d1730;
+
+  /* neutral ink / muted / hairlines */
+  --color-ink: #161b26;
+  --color-muted: #59616b;
+  --color-hairline: #d1d6e0;
+  --color-canvas: #f7f8fb;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white font-sans text-ink antialiased;
+}

@@ -89,7 +89,7 @@ All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b/17d seed J
 
 ## Environment setup (dev)
 
-> **Status note:** Phase 1 (Foundation) is underway. The monorepo, Drizzle schema + migrations, auth, and the Fastify API shell are in place — **steps 1–4 work now** (`pnpm dev` boots the API at `:3001`). `apps/web` (Next.js) lands next in Phase 1 — step 5 becomes runnable then. See 51_ENVIRONMENT_SETUP.md for the full guide.
+> **Status note:** Phase 1 (Foundation) is underway. The monorepo, Drizzle schema + migrations, auth, the Fastify API shell, and the Next.js web shell (`/` + `/pricing` from the marketing copy) are in place — **all steps work now** (`pnpm dev` boots the API at `:3001`; `pnpm dev:web` boots the site at `:3000`). See 51_ENVIRONMENT_SETUP.md for the full guide.
 
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 
@@ -117,4 +117,4 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 ## Current status
 
 - **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (59 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
-- **Phase 1 (Foundation):** **in progress** — pnpm monorepo, Drizzle schema + migrations (users, orgs, memberships, sessions, hash-chained audit), Argon2id auth (register/login/logout/me, ADR-007 sessions), Fastify shell with error envelope + idempotency, all tested (28 tests green) and verified against the free local stack (Postgres via `infra/docker-compose.yml`). Next: Next.js web shell, provider config + encrypted secrets, pg-boss + outbox, SSE.
+- **Phase 1 (Foundation):** **in progress** — pnpm monorepo, Drizzle schema + migrations (users, orgs, memberships, sessions, hash-chained audit), Argon2id auth (register/login/logout/me, ADR-007 sessions), Fastify shell with error envelope + idempotency, and the Next.js web shell with the `/` + `/pricing` routes built from the marketing copy (docs/33 palette, monthly/annual toggle, comparison table, FAQ). All tested (28 tests green) and verified against the free local stack (Postgres via `infra/docker-compose.yml`). Next: provider config + encrypted secrets, pg-boss + outbox, SSE.
