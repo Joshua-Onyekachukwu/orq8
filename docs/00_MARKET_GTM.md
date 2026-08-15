@@ -114,9 +114,51 @@ Solo founders (beachhead) → agencies (pay more, same platform)
 - Do **not** build vertical depth before the platform works (49 phases).
 - Do **not** chase enterprise before the free stack is validated.
 
+### 5.5 Three-way wedge analysis (scoring)
+
+Scored 1–5 (higher = better for the wedge) across the 12 dimensions that decide wedge outcomes:
+
+| Dimension | Solo founders | Agencies | E-commerce ops |
+|---|---|---:|---:|
+| Urgency of pain / willingness to pay | 2 | 4 | 4 |
+| Fit with the platform's core capability | 5 | 4 | 3 |
+| Agent reliability ceiling (cheap failures?) | 4 | 3 | 2 |
+| Founder's access to buyers | 5 | 4 | 3 |
+| Competitive intensity (5 = least crowded) | 4 | 2 | 1 |
+| Integration/tooling lift (5 = least) | 4 | 3 | 1 |
+| Dogfooding fit (builder is the buyer) | 5 | 3 | 1 |
+| Expansion path breadth | 4 | 4 | 3 |
+| Unit economics (ACV × margin) | 2 | 5 | 5 |
+| Narrative / fundraising power | 5 | 3 | 2 |
+| Crush risk (5 = safest) | 4 | 3 | 2 |
+| Implementation risk (5 = safest) | 5 | 3 | 2 |
+| **Total** | **49** | **41** | **30** |
+
+**Reading the table:**
+- **Solo founders win on the wedge's real job — validation, distribution, and narrative** — plus the lowest implementation risk (v1 scope matches the plan exactly) and cheap failures that build trust fast. The one weakness (low ACV) is managed by the monetization sequence in 5.6.
+- **Agencies are the money wedge** (3–10× ACV) but risky as a *first* market: client-grade deliverables demand near-perfect reliability, and the lane is crowded and jaded ("AI agency" tools everywhere). Sell to them second, once reliability is proven.
+- **E-commerce is rejected:** the most contested vertical in AI (Gorgias, Zendesk AI, Shopify), the heaviest integration lift, customer-facing reliability risk (a misfire is a chargeback), and no dogfooding fit. Deprioritized unless a design partner drags us in.
+
+### 5.6 Monetization sequence (beachhead → revenue)
+
+The wedge's job is validation, not final revenue. The sequence:
+
+```
+Stage 1 (now → Phase 6): design partners (3–5 solo founders), free
+  → validate Golden Workflow v1 + collect testimonials + dogfood
+Stage 2 (beta): Pro at $49/mo to solo founders
+  → affordable ACV + BYOK keeps margin clean; ~50–100 orgs; measure CAC/retention
+Stage 3 (GA): agencies as the FIRST PAID upmarket market
+  → same platform, agency principals, $100–500/mo ACV, leveraging proven reliability
+Stage 4: SMB back-office → mid-market/enterprise
+  → governance, SSO, private deployment
+```
+
+**Principle: never rebuild.** The platform serves every stage — the wedge validates it, agencies monetize it, enterprise scales it. Progression is GTM sequencing, not product forks.
+
 ---
 
-## 5.5 Brand (Confirmed)
+## 5.7 Brand (Confirmed)
 
 - **Name:** ORQ8 — pronounced **"or-kate"**, from *orchestrate* (what the Executive Agent does) and *organization*. Short, brandable, no competing product found as of writing (search-verified; the only "ORQ8" hits are survey codes and URL noise).
 - **Positioning statement:** *The AI Organization Operating System — not another agent dashboard. An operating system.*
