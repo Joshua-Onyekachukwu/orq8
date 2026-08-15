@@ -79,7 +79,7 @@ The full set (09–56) is now complete. Index:
 | | | | | | | 55 | PRODUCT_ROADMAP |
 | | | | | | | 56 | ADR_INDEX |
 
-All 56 docs are internally consistent (ADR-001–020 in 56_ADR_INDEX). The market/GTM doc (`docs/00_MARKET_GTM.md`) remains planned.
+All 56 docs are internally consistent (ADR-001–020 in 56_ADR_INDEX), plus **docs/00_MARKET_GTM.md** (market analysis + go-to-market: wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
 
 ## Environment setup (dev)
 
