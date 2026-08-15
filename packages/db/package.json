@@ -5,7 +5,10 @@
   "type": "module",
   "description": "Drizzle schema, migrations, seeds (docs/06 packages/db, 34)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "generate": "drizzle-kit generate",
@@ -13,7 +16,8 @@
     "db:push": "drizzle-kit push",
     "seed": "tsx src/seed.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

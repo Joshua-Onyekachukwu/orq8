@@ -5,11 +5,15 @@
   "type": "module",
   "description": "Session tokens and Argon2id password hashing (docs/37, ADR-007)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.1.0"

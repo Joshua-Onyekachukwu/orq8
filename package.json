@@ -18,7 +18,8 @@
     "db:migrate": "pnpm --filter @orq8/db migrate",
     "db:seed": "pnpm --filter @orq8/db seed",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infra/docker-compose.yml down"
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "build:packages": "pnpm -r --filter \"./packages/*\" build"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
