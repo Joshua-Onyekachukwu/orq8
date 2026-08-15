@@ -91,6 +91,8 @@ All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b/17d seed J
 
 > **Status note:** Phase 1 (Foundation) is underway. The monorepo, Drizzle schema + migrations, auth, the Fastify API shell, and the Next.js web shell (`/` + `/pricing` from the marketing copy) are in place — **all steps work now** (`pnpm dev` boots the API at `:3001`; `pnpm dev:web` boots the site at `:3000`). See 51_ENVIRONMENT_SETUP.md for the full guide.
 
+> **Shortcuts:** `make help` lists the dev targets (`infra-up`, `infra-down`, `db-migrate`, `db-seed`, `dev-api`, `dev-web`, plus `setup` for a one-shot bootstrap) — all delegating to the pnpm scripts below. On Windows without `make`, call the pnpm scripts directly.
+
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 
 ```bash
