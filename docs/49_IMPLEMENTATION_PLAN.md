@@ -59,7 +59,7 @@ Phase 5 (governance) ◄──────────────────�
 ## 49.4 Phase-by-Phase Plan (scope · DoD · unlocks)
 
 ### Phase 0 — Documentation & Architecture ✅ complete
-Full documentation set: 59 markdown docs (56 numbered + 00 + 17a + 17c) + 17b seed JSON + 21 ADRs + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
+Full documentation set: 61 markdown docs (59 numbered incl. 00 + 17a + 17c + 57/58) + 17b seed JSON + 21 ADRs + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
 
 ### Phase 1 — Foundation
 **Deps:** G0.
@@ -68,13 +68,13 @@ Full documentation set: 59 markdown docs (56 numbered + 00 + 17a + 17c) + 17b se
 
 ### Phase 2 — Organization Core
 **Deps:** 1.
-**Scope:** Departments · positions · teams · agent profiles · agent templates (seed = 17d) · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1.
-**DoD:** CEO creates departments and hires template agents with business cases; org chart renders; hiring flow emits `hiring.*` events + audit. **Unlocks:** 3, 4.
+**Scope:** Departments · positions · teams · agent profiles · agent templates (seed = 17d) · hiring lifecycle (proposed→approved→hired→onboarding→active) · `business_cases` · organization explorer UI · employment records · authority profiles v1 · **per-agent activity log** (plain-language timeline from the audit stream — 57.3).
+**DoD:** CEO creates departments and hires template agents with business cases; org chart renders; hiring flow emits `hiring.*` events + audit; clicking an agent shows its plain-language activity timeline. **Unlocks:** 3, 4.
 
 ### Phase 3 — Executive Intelligence
 **Deps:** 1, 2.
-**Scope:** Intent engine (classifier) · Executive Agent workflow (context → plan → recommend) · Company Memory (pgvector, permission-aware, configurable `EMBED_DIM`) · explain-why · ask-for-help · Executive screen chat mode.
-**DoD:** `POST /v1/intelligence/execute` classifies vague input, gathers context, produces a recommendation with evidence/assumptions/confidence, and **queues approval structurally** (full Approval Engine in Phase 5) — running on local/free models. **Unlocks:** 4, 6.
+**Scope:** Intent engine (classifier) · Executive Agent workflow (context → plan → recommend) · Company Memory (pgvector, permission-aware, configurable `EMBED_DIM`) · explain-why · ask-for-help · Executive screen chat mode · **minimal weekly CEO report** (audit-trail + task snapshot: goals progress, done/blocked, spend placeholder — pulled forward per 57.3).
+**DoD:** `POST /v1/intelligence/execute` classifies vague input, gathers context, produces a recommendation with evidence/assumptions/confidence, and **queues approval structurally** (full Approval Engine in Phase 5) — running on local/free models; weekly-report endpoint renders a one-page summary. **Unlocks:** 4, 6.
 
 ### Phase 4 — Goals and Work
 **Deps:** 2, 3.
@@ -155,7 +155,7 @@ The **full** workflow remains the canonical validation scenario (04 §4.4–4.5)
 - **Model gateway basics pulled forward:** Phase 1 includes the LiteLLM client + Ollama wiring (Phase 3 needs model calls); Phase 7 adds routing/keys/cost surface.
 - **Memory foundation in Phase 3** (Executive needs it); full memory UX/imports grow through 8–10.
 - **Approval engine in Phase 5**; workflow runtime + idempotency exist from Phase 1, so earlier phases queue approvals structurally (Phase 3 DoD reflects this).
-- **Minimal simulation + v1 weekly report ship with Phase 6** (ADR-017/018) so G2 is self-contained; Phase 14/15 extend them.
+- **Weekly report pulled forward to Phase 3** (57.3): a minimal one-page report (PA-drafted from audit trail + task tables, Executive-reviewed) ships with Executive Intelligence; Phase 6 extends it with cost/workload data for G2 (ADR-017/018); Phase 14/15 extend further. Minimal simulation stays Phase 6.
 - **Phases 7–15 parallelize after Phase 6** per §49.3 tracks; G3 waits for the slowest track (12/15), not for all breadth.
 - Each phase keeps the free stack green (49.7); paid upgrades are config swaps (ADR-003/005).
 

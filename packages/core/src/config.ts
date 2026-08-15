@@ -28,13 +28,31 @@ const envSchema = z.object({
 
 export type AppConfig = z.infer<typeof envSchema>;
 
+const DEV_ONLY_SECRETS = [
+  'dev-only-session-secret-change-me',
+  'dev-only-encryption-key-32-bytes!!',
+] as const;
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
     const fields = parsed.error.flatten().fieldErrors;
     throw new Error(`Invalid environment configuration: ${JSON.stringify(fields)}`);
   }
-  return parsed.data;
+  const config = parsed.data;
+
+  // docs/37.2 — dev-only secret defaults must never reach a real environment.
+  // Fail at boot instead of silently running with known keys in production.
+  if (config.NODE_ENV === 'production') {
+    const live = [config.SESSION_SECRET, config.ENCRYPTION_KEY];
+    if (live.some((v) => (DEV_ONLY_SECRETS as readonly string[]).includes(v))) {
+      throw new Error(
+        'Refusing to boot in production with dev-only secrets: set SESSION_SECRET and ENCRYPTION_KEY (docs/58).',
+      );
+    }
+  }
+
+  return config;
 }
 
 export function allowedOrigins(config: AppConfig): string[] {

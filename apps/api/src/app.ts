@@ -28,6 +28,9 @@ export async function buildApp(
     // workspace pino and fastify's bundled pino (docs/39 — pino everywhere).
     loggerInstance: deps.logger as unknown as FastifyBaseLogger,
     genReqId: () => randomUUID(),
+    // Trust X-Forwarded-* from Vercel/nginx so request.ip is the real client IP
+    // (docs/58). The API never sets cookies, so this has no auth implications.
+    trustProxy: true,
   });
 
   await app.register(cors, { origin: allowedOrigins(deps.config), credentials: true });
@@ -64,6 +67,23 @@ export async function buildApp(
       reply
         .code(400)
         .send({ error: toErrorEnvelope(validation((error as { validation?: unknown }).validation), requestId) });
+      return;
+    }
+    // Fastify's own errors carry a status (415 unsupported media type, 413 body
+    // too large, …) — surface it instead of collapsing to a 500 envelope.
+    const fastifyErr = error as { statusCode?: unknown; message?: unknown };
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      typeof fastifyErr.statusCode === 'number' &&
+      fastifyErr.statusCode >= 400
+    ) {
+      const status = fastifyErr.statusCode;
+      const msg =
+        typeof fastifyErr.message === 'string' ? fastifyErr.message : 'Bad request';
+      reply.code(status).send({
+        error: toErrorEnvelope(new AppError(status, 'bad_request', msg), requestId),
+      });
       return;
     }
     request.log.error({ err: error }, 'unhandled error');

@@ -1,0 +1,41 @@
+name: DB Migrate
+
+# docs/58_DEPLOYMENT.md — migrations + static seed run against Supabase on every
+# main push touching packages/db; also triggerable manually via workflow_dispatch.
+on:
+  push:
+    branches: [main]
+    paths: ["packages/db/**", ".github/workflows/db-migrate.yml"]
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    name: Apply migrations + seed
+    runs-on: ubuntu-latest
+    env:
+      # Set in repo Settings → Secrets and variables → Actions. The Supabase
+      # connection string (pooled, port 6543) from Project Settings → Database.
+      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrate
+        run: pnpm --filter @orq8/db migrate
+
+      - name: Seed (idempotent — provider catalog only)
+        run: pnpm --filter @orq8/db seed

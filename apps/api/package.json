@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "vercel:dev": "vercel dev",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@types/pg": "^8.21.0",
+    "@vercel/node": "^5.10.1",
     "pg": "^8.23.0"
   }
 }
