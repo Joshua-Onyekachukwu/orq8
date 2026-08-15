@@ -1,0 +1,23 @@
+# ORQ8 — Caddy TLS termination (docs/42.1, 43). Used in "tls" compose profile / VPS mode.
+# Replace orq8.example.com with your real domain, and unset the comment in docker-compose
+# orq8-api depends_on for prod use. Web serves the app; /v1 is proxied to the API.
+
+orq8.example.com {
+	encode zstd gzip
+
+	# API under /v1 (and health endpoints)
+	handle /v1/* {
+		reverse_proxy orq8-api:3001
+	}
+	handle /healthz {
+		reverse_proxy orq8-api:3001
+	}
+	handle /readyz {
+		reverse_proxy orq8-api:3001
+	}
+
+	# Everything else → Next.js web
+	handle {
+		reverse_proxy orq8-web:3000
+	}
+}

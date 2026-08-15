@@ -85,7 +85,7 @@ All **58 markdown docs** (56 numbered + 00 + 17a) and the **17b seed JSON** are 
 
 ## Environment setup (dev)
 
-> **Status note:** this describes the **target state for Phase 1**. The monorepo, migrations, and infra files don't exist yet — these commands become runnable as Phase 1 (Foundation) lands. See 51_ENVIRONMENT_SETUP.md for the full guide.
+> **Status note:** `infra/docker-compose.yml` + env examples are in place and ready to boot (steps 2–3 work now). The monorepo, migrations, and app code land in Phase 1 — steps 1, 4, and 5 become runnable then. See 51_ENVIRONMENT_SETUP.md for the full guide.
 
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 

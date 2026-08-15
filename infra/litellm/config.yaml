@@ -1,0 +1,40 @@
+# ORQ8 — LiteLLM model gateway config (docs/22 Model Routing, 51.3 Local Models)
+# Free/local-first: Ollama models are served at $0 model cost.
+# BYOK providers (OpenAI/Anthropic/Gemini/DeepSeek/Groq/OpenRouter) are added
+# at runtime via Settings → AI Providers (Phase 7) or by extending model_list.
+# The master key comes from the LITELLM_MASTER_KEY env var (infra/.env).
+
+model_list:
+  # Default chat model — zero-cost local (pull first: `ollama pull llama3.2`)
+  - model_name: llama3.2
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: http://ollama:11434
+
+  - model_name: llama3.1:8b
+    litellm_params:
+      model: ollama/llama3.1:8b
+      api_base: http://ollama:11434
+
+  - model_name: qwen2.5:7b
+    litellm_params:
+      model: ollama/qwen2.5:7b
+      api_base: http://ollama:11434
+
+  # Embeddings — 768-dim default (configurable EMBED_DIM, ADR-012)
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: http://ollama:11434
+
+router_settings:
+  routing_strategy: simple-shuffle
+  enable_pre_call_checks: true
+  # Phase 7: fallbacks to BYOK providers once keys exist, e.g.
+  # fallbacks:
+  #   - { llama3.2: ["gpt-4o-mini"] }
+
+litellm_settings:
+  drop_params: true
+  num_retries: 2
+  request_timeout: 120
