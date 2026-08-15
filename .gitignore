@@ -17,6 +17,10 @@ out/
 # App internal data (never commit)
 .freebuff/
 
+# Vercel CLI/build artifacts
+.vercel/
+apps/api/.vercel/
+
 # Third-party template (Trezo) — reference-only; not part of the codebase (see docs/58.11)
 /Trezo/
 

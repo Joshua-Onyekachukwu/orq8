@@ -34,33 +34,39 @@ function getApp(): Promise<Awaited<ReturnType<typeof buildApp>>> {
   return cachedApp;
 }
 
+function send(res: VercelResponse, status: number, body: string): void {
+  try {
+    res.statusCode = status;
+    res.setHeader('content-type', 'application/json');
+    res.end(body);
+  } catch {
+    /* response already closed */
+  }
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
 ): Promise<void> {
-  let app: Awaited<ReturnType<typeof buildApp>>;
   try {
-    app = await getApp();
-  } catch (err) {
-    // Boot failures must be diagnosable in the deployment dashboard.
-    const message = err instanceof Error ? err.message : String(err);
-    res.statusCode = 500;
-    res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ error: { code: 'boot.failed', message } }));
-    return;
-  }
-  const response = await app.inject({
-    method: (req.method ?? 'GET') as InjectMethod,
-    url: req.url ?? '/',
-    headers: req.headers as Record<string, string | string[] | undefined>,
-    // Vercel pre-parses JSON bodies; re-encode so Fastify's parser sees the raw payload.
-    payload: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
-  });
+    const app = await getApp();
+    const response = await app.inject({
+      method: (req.method ?? 'GET') as InjectMethod,
+      url: req.url ?? '/',
+      headers: req.headers as Record<string, string | string[] | undefined>,
+      // Vercel pre-parses JSON bodies; re-encode so Fastify's parser sees the raw payload.
+      payload: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
+    });
 
-  res.statusCode = response.statusCode;
-  for (const [name, value] of Object.entries(response.headers)) {
-    if (value === undefined) continue;
-    res.setHeader(name, value as string);
+    res.statusCode = response.statusCode;
+    for (const [name, value] of Object.entries(response.headers)) {
+      if (value === undefined) continue;
+      res.setHeader(name, value as string);
+    }
+    res.end(response.body);
+  } catch (err) {
+    // Boot/request failures must be diagnosable in the deployment dashboard.
+    const message = err instanceof Error ? err.message : String(err);
+    send(res, 500, JSON.stringify({ error: { code: 'serverless.failed', message } }));
   }
-  res.end(response.body);
 }
