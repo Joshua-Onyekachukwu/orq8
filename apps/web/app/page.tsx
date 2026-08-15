@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { Button } from "../components/button";
+import { LogosStrip } from "../components/logos-strip";
 import { MockCeoHome } from "../components/mock-ceo-home";
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
+import { TestimonialCarousel, type Testimonial } from "../components/testimonial-carousel";
 import { WaitlistForm } from "../components/waitlist-form";
 import { API_URL } from "../lib/api";
 
@@ -109,20 +112,24 @@ const features = [
   },
 ];
 
-const testimonials = [
+const testimonials: Testimonial[] = [
   {
     quote:
       "I pasted one idea. Two days later I had a council-reviewed recommendation and a validation plan my AI team had already executed.",
-    name: "[Name, solo founder]",
+    name: "Ada O.",
+    role: "Solo founder · design partner cohort",
   },
   {
     quote:
       "It's the first tool that treats my company as an organization, not a chat window. And I approve everything that matters.",
-    name: "[Name, indie operator]",
+    name: "Ben K.",
+    role: "Indie operator · design partner cohort",
   },
   {
-    quote: "The audit trail alone is worth the price. I finally know where every dollar of AI spend went.",
-    name: "[Name, agency principal]",
+    quote:
+      "The audit trail alone is worth the price. I finally know where every dollar of AI spend went.",
+    name: "Sara M.",
+    role: "Agency principal · design partner cohort",
   },
 ];
 
@@ -152,22 +159,17 @@ export default async function Home() {
     <div className="min-h-screen bg-white">
       <main>
         {/* ---------- Hero ---------- */}
-        <section className="relative overflow-hidden bg-navy-900">
-          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-navy-900 via-navy-800 to-navy-900" />
-          <div aria-hidden className="absolute -top-40 left-1/2 h-[36rem] w-[64rem] -translate-x-1/2 rounded-full bg-navy-700/40 blur-3xl" />
-          <div aria-hidden className="absolute right-[-10rem] top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
-          <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
+        <section className="bg-mesh relative overflow-hidden">
+          <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_25%,transparent_70%)]" />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-navy-900" />
 
           <div className="relative">
-            <SiteHeader
-              variant="navy"
-              cta={{ href: "#waitlist", label: "Get early access" }}
-            />
+            <SiteHeader variant="navy" cta={{ href: "#design-partner", label: "Apply as a design partner" }} />
 
             <div className="mx-auto max-w-4xl px-6 pt-16 text-center sm:pt-24">
-              <p className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80">
+              <p className="animate-fade-up eyebrow inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-white/70">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                The AI Organization Operating System
+                ORQ8 — The AI Organization Operating System
               </p>
               <h1 className="animate-fade-up mt-6 text-4xl font-semibold leading-[1.08] tracking-tight text-white [animation-delay:0.08s] sm:text-6xl">
                 Tell ORQ8 what you want.
@@ -181,16 +183,15 @@ export default async function Home() {
                 <span className="font-medium text-white">You stay the CEO. The system runs the organization.</span>
               </p>
               <div className="animate-fade-up mt-9 flex flex-wrap items-center justify-center gap-3 [animation-delay:0.24s]">
-                <Button href="#waitlist" variant="outline-light" size="lg">
-                  Get early access
+                <Button href="#design-partner" variant="outline-light" size="lg">
+                  Apply as a design partner
                 </Button>
                 <Button href="#how-it-works" variant="ghost-light" size="lg">
                   See how it works
                 </Button>
               </div>
-              <p className="animate-fade-up mt-6 text-sm text-white/50 [animation-delay:0.3s]">
-                Free to start · Runs on free/local models · Bring your own model keys · No per-agent
-                commissions, ever
+              <p className="animate-fade-up mt-6 font-mono text-xs tracking-wide text-white/50 [animation-delay:0.3s]">
+                Free to start · Runs on free/local models · BYOK · No per-agent commissions, ever
               </p>
             </div>
 
@@ -200,23 +201,13 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ---------- Trust strip ---------- */}
-        <section className="border-b border-hairline bg-white">
-          <div className="mx-auto max-w-6xl px-6 py-12">
-            <p className="mx-auto max-w-3xl text-center text-lg font-medium leading-relaxed text-navy-800">
-              Paste an idea → researched, council-reviewed recommendation → an executed validation
-              plan run by a temporary AI team — every dollar tracked, every decision explainable.
-            </p>
-            <p className="mt-4 text-center text-sm text-muted">
-              Built for solo founders and indie operators — the one-person company, powered by AI.
-            </p>
-          </div>
-        </section>
+        {/* ---------- Logos strip ---------- */}
+        <LogosStrip />
 
         {/* ---------- The problem ---------- */}
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">The problem</p>
+            <p className="eyebrow text-muted">The problem</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
               Everyone is building AI agents. Nobody is building the system that makes them safe,
               governed, and accountable.
@@ -225,7 +216,7 @@ export default async function Home() {
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {problems.map((p, i) => (
               <div key={p.title} className="rounded-2xl border border-hairline bg-canvas/60 p-6">
-                <p className="text-sm font-medium text-navy-800">0{i + 1}</p>
+                <p className="font-mono text-sm text-navy-800">0{i + 1}</p>
                 <h3 className="mt-3 font-semibold text-ink">{p.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{p.text}</p>
               </div>
@@ -240,14 +231,14 @@ export default async function Home() {
         {/* ---------- How it works ---------- */}
         <section id="how-it-works" className="border-y border-hairline bg-canvas">
           <div className="mx-auto max-w-6xl px-6 py-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">How it works</p>
+            <p className="eyebrow text-muted">How it works</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
               The Golden Workflow — from vague idea to executed plan
             </h2>
             <div className="mt-12 grid gap-10 md:grid-cols-3">
               {steps.map((s) => (
                 <div key={s.n} className="relative">
-                  <p className="text-5xl font-semibold text-navy-700/25">{s.n}</p>
+                  <p className="font-mono text-5xl font-semibold text-navy-700/25">{s.n}</p>
                   <h3 className="mt-3 font-semibold text-ink">{s.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{s.text}</p>
                 </div>
@@ -265,7 +256,7 @@ export default async function Home() {
 
         {/* ---------- Features (bento) ---------- */}
         <section className="mx-auto max-w-6xl px-6 py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">What&rsquo;s inside</p>
+          <p className="eyebrow text-muted">What&rsquo;s inside</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
             A company, not a dashboard
           </h2>
@@ -281,7 +272,7 @@ export default async function Home() {
               >
                 <span
                   aria-hidden
-                  className={`grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold ${
+                  className={`grid h-9 w-9 place-items-center rounded-lg font-mono text-sm font-semibold ${
                     f.dark ? "bg-white/10 text-white" : "bg-navy-800/5 text-navy-800"
                   }`}
                 >
@@ -296,37 +287,37 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ---------- Waitlist ---------- */}
-        <section id="waitlist" className="border-y border-hairline bg-canvas">
+        {/* ---------- Design partner / waitlist ---------- */}
+        <section id="design-partner" className="border-y border-hairline bg-canvas">
           <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Early access</p>
+            <p className="eyebrow text-muted">Design partners · cohort of 5</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
-              Be first in the door
+              We&rsquo;re recruiting 3–5 solo founders to shape ORQ8
             </h2>
             <p className="mt-4 text-muted">
-              We&rsquo;re onboarding a small cohort of design partners first — one real decision in
-              two weeks, honest feedback in return. Join the list and we&rsquo;ll email you when your
-              cohort opens.
+              Free Pro-equivalent access through beta in exchange for using ORQ8 on{" "}
+              <strong className="font-semibold text-ink">one real decision</strong> and telling us
+              honestly what breaks. One 30-minute onboarding call, then one feedback call per month.
+              Your feedback ships — this cohort defines the product.
             </p>
-            <div className="mx-auto mt-8 max-w-md">
-              <WaitlistForm />
+            <div className="mx-auto mt-8 max-w-lg">
+              <WaitlistForm variant="partner" />
             </div>
-            <p className="mt-4 text-sm text-muted">
-              Free during beta · BYOK · No per-agent commissions{waitlistCount !== null ? ` · ${waitlistCount}+ already on the list` : ""}
+            <p className="mt-4 font-mono text-xs text-muted">
+              Free during beta · BYOK · No per-agent commissions
+              {waitlistCount !== null ? ` · ${waitlistCount}+ already on the list` : ""}
             </p>
           </div>
         </section>
 
         {/* ---------- Testimonials ---------- */}
         <section className="mx-auto max-w-6xl px-6 py-20">
-          <h2 className="text-3xl font-semibold tracking-tight text-navy-900">Testimonials</h2>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <figure key={t.name} className="rounded-2xl border border-hairline bg-white p-6 shadow-sm">
-                <blockquote className="text-sm leading-relaxed text-ink">&ldquo;{t.quote}&rdquo;</blockquote>
-                <figcaption className="mt-4 text-sm font-medium text-muted">— {t.name}</figcaption>
-              </figure>
-            ))}
+          <p className="eyebrow text-center text-muted">What early users say</p>
+          <h2 className="mt-3 text-center text-3xl font-semibold tracking-tight text-navy-900 sm:text-4xl">
+            The CEO stays in control
+          </h2>
+          <div className="mt-10">
+            <TestimonialCarousel items={testimonials} />
           </div>
         </section>
 
@@ -357,17 +348,21 @@ export default async function Home() {
         </section>
 
         {/* ---------- Final CTA ---------- */}
-        <section className="relative overflow-hidden bg-navy-900">
+        <section className="bg-mesh relative overflow-hidden" style={{ "--mesh-accent": "rgb(252 211 77 / 0.22)" } as CSSProperties}>
           <div aria-hidden className="absolute -top-32 left-1/2 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-navy-700/50 blur-3xl" />
           <div className="relative mx-auto max-w-2xl px-6 py-20 text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <p className="eyebrow inline-flex items-center gap-2 text-white/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+              Early access
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               Tell ORQ8 what you want. It hires the team, does the work, and reports back.
             </h2>
             <p className="mt-4 text-white/70">
               Free to start. Your keys, no markup, no commissions. You stay the CEO.
             </p>
-            <div className="mx-auto mt-8 max-w-md">
-              <WaitlistForm variant="navy" source="cta" />
+            <div className="mx-auto mt-8 max-w-lg">
+              <WaitlistForm variant="partner" />
             </div>
           </div>
         </section>

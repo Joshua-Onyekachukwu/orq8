@@ -7,6 +7,9 @@
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  /* mono labels / technical metadata (marketing/DESIGN_DIRECTION.md §2) */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
 
   /* brand navy (rgb 0.10 0.18 0.35 → #1a2e59) and friends */
   --color-navy-700: #263866;
@@ -60,6 +63,17 @@ body {
   }
 }
 
+@keyframes carousel-in {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .animate-fade-up {
   animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -72,9 +86,32 @@ body {
   animation: glow 6s ease-in-out infinite;
 }
 
+.animate-carousel-in {
+  animation: carousel-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* subtle grid used behind the hero product mockup */
 .bg-grid-white {
   background-image: linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
   background-size: 44px 44px;
 }
+
+/*
+ * Gradient-mesh brand treatment (marketing/DESIGN_DIRECTION.md §2): layered
+ * radial mesh over the navy base — calm, never saturated. Used in the hero and
+ * final CTA. `--mesh-accent` lets sections shift hue (amber CTA vs emerald hero).
+ */
+.bg-mesh {
+  background-color: var(--color-navy-900);
+  background-image:
+    radial-gradient(42rem 30rem at 12% -8%, rgb(38 56 102 / 0.85), transparent 62%),
+    radial-gradient(38rem 26rem at 88% -12%, var(--mesh-accent, rgb(52 211 153 / 0.28)), transparent 60%),
+    radial-gradient(46rem 34rem at 50% 118%, rgb(38 56 102 / 0.9), transparent 65%);
+}
+
+/* hero eyebrow + section labels: mono, tracked (design direction §2) */
+.eyebrow {
+  @apply font-mono text-[11px] font-semibold uppercase tracking-[0.22em];
+}
+

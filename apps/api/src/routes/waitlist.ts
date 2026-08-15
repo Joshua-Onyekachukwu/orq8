@@ -27,7 +27,12 @@ export function registerWaitlistRoutes(app: FastifyInstance, deps: AppDeps): voi
 
     const [row] = await db
       .insert(waitlistSignups)
-      .values({ email, source: parsed.data.source ?? 'landing' })
+      .values({
+        email,
+        name: parsed.data.name?.trim() || null,
+        role: parsed.data.role ?? null,
+        source: parsed.data.source ?? 'landing',
+      })
       .returning();
     if (!row) throw new Error('waitlist insert returned no row');
     reply.code(201);
