@@ -94,6 +94,8 @@ Best,
 [Your name]
 [Founder, ORQ8 · orq8.ai]
 
+> **Send as:** plain text with `ORQ8_DESIGN_PARTNER.pdf` attached (or a link to it) — the one-pager does the heavy lifting, so the email stays short.
+
 ---
 
 ## 5. Follow-up (send if no reply, 3–4 days later)

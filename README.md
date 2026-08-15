@@ -22,7 +22,9 @@ orq8/
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
 │   └── deploy/              # Deployment manifests (VPS → managed cloud later)
-├── marketing/        # Landing + pricing page copy (drafts for the public site)
+├── marketing/        # Landing + pricing copy, design-partner outreach kit
+├── ORQ8_OVERVIEW.pdf         # One-page executive overview (tools/pdf_build.js)
+├── ORQ8_DESIGN_PARTNER.pdf   # One-pager for recruiting solo-founder beta users (tools/pdf_build_design_partner.js)
 └── docs/             # Phase 0 documentation set (this repository's source of truth)
 ```
 
