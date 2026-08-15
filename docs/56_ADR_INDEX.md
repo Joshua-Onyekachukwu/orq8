@@ -37,7 +37,7 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 
 ## Records
 
-Full standalone records for **all 20 ADRs live in `docs/adr/ADR-001.md` … `ADR-020.md`** (context / decision / consequences / links). This index is the summary + status tracker.
+Full standalone records for **all 21 ADRs live in `docs/adr/ADR-001.md` … `ADR-021.md`** (context / decision / consequences / links). This index is the summary + status tracker.
 
 ## Process
 

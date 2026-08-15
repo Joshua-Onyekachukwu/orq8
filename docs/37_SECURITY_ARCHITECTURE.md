@@ -100,4 +100,4 @@
 ## 37.7 Incident Response
 
 - Emergency controls are the first line (pause org, revoke financial execution, stop comms, freeze deploys).
-- Audit trail supports reconstruction; runbook (52_ later) documents escalation.
+- Audit trail supports reconstruction; runbook (52) documents escalation.

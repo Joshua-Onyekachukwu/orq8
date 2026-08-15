@@ -132,7 +132,7 @@ Package manager: **pnpm** (fast, disk-efficient, free).
 
 ## 6.6 Architecture Decision Records (key decisions)
 
-> Full standalone records live in **`docs/adr/`** (ADR-001–020); the index is 56_ADR_INDEX.md. Each ADR below carries context, decision, and consequences.
+> Full standalone records live in **`docs/adr/`** (ADR-001–021); the index is 56_ADR_INDEX.md. Each ADR below carries context, decision, and consequences.
 
 - **ADR-001 — Fastify over NestJS/Express.** Modular plugin architecture, minimal overhead, freedom to compose domain modules. If a heavier framework is ever needed, domain boundaries are preserved so it can migrate.
 - **ADR-002 — Drizzle over Prisma.** TS-first, lightweight, first-class pgvector support, no codegen lock-in.

@@ -13,7 +13,7 @@
 
 ## 55.2 Wedge (recommendation)
 
-Launch the platform skeleton with **one wedge market** (decision pending — see market/GTM note below): strongest candidates are **agencies**, **solo founders**, and **e-commerce ops**. The wedge defines the first integrations (48 Tier 1), first templates (13), and pricing pilot (54.5).
+Launch the platform skeleton with **one confirmed wedge market: solo founders / indie operators** (decision + three-way analysis recorded in 00 §5). The wedge defines the first integrations (48 Tier 1), first templates (13), and pricing pilot (54.5); expansion path: solo founders → agencies → SMBs → enterprise.
 
 ## 55.3 GTM Stages
 
@@ -37,4 +37,4 @@ Scope creep (wedges only) · agent reliability (evals, 45) · trust/security (37
 
 ## 55.7 Note
 
-A dedicated market/GTM document (`docs/00_MARKET_GTM.md`) is planned; wedge decision + competitive positioning will be recorded there before Beta.
+The market/GTM document (**docs/00_MARKET_GTM.md**) is delivered and is the living GTM record: confirmed wedge (solo founders), pricing (Free/$49/$199/custom), competitive positioning, and success metrics (§7–8).

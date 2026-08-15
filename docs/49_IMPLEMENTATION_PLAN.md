@@ -59,7 +59,7 @@ Phase 5 (governance) ◄──────────────────�
 ## 49.4 Phase-by-Phase Plan (scope · DoD · unlocks)
 
 ### Phase 0 — Documentation & Architecture ✅ complete
-Full 58-doc set + 20 ADRs + market/GTM + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
+Full documentation set: 58 markdown docs (56 numbered + 00 + 17a) + 17b seed JSON + 21 ADRs + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
 
 ### Phase 1 — Foundation
 **Deps:** G0.
@@ -257,6 +257,6 @@ G3 (full Golden Workflow) lands at the end of 12–15. Tracks after Phase 6 para
 ## 49.13 Immediate Next Steps
 
 1. ~~Approve the documentation set~~ ✅ (G0 satisfied; set reviewed and revised).
-2. ~~Generate remaining docs~~ ✅ (09–56 + 00 + 17a + 20 ADRs).
+2. ~~Generate remaining docs~~ ✅ (09–56 + 00 + 17a + 17b + 21 ADRs).
 3. **Begin Phase 1 (Foundation)** implementation in this repo — monorepo, Drizzle schema, auth, Fastify shell, free local stack.
 4. Track progress on GitHub (`origin/main`); record any divergence as new ADRs.

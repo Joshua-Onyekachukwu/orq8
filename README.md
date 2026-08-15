@@ -80,7 +80,7 @@ The full set (09–56) is now complete. Index:
 | | | | | | | 55 | PRODUCT_ROADMAP |
 | | | | | | | 56 | ADR_INDEX |
 
-All 56 docs are internally consistent (ADR-001–020 in 56_ADR_INDEX), plus **docs/00_MARKET_GTM.md** (market analysis + go-to-market: wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
+All **58 markdown docs** (56 numbered + 00 + 17a) and the **17b seed JSON** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
 
 ## Environment setup (dev)
 
@@ -111,5 +111,5 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 ## Current status
 
-- **Phase 0 (Documentation & Architecture):** **complete** — full 56-document set (core foundation + remaining 38) delivered, reviewed, and pushed to GitHub.
+- **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (58 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
 - **Phase 1+ (Implementation):** not started — begins after documentation review and approval.
