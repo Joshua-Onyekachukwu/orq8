@@ -85,7 +85,7 @@ All **58 markdown docs** (56 numbered + 00 + 17a) and the **17b seed JSON** are 
 
 ## Environment setup (dev)
 
-> **Status note:** `infra/docker-compose.yml` + env examples are in place and ready to boot (steps 2–3 work now). The monorepo, migrations, and app code land in Phase 1 — steps 1, 4, and 5 become runnable then. See 51_ENVIRONMENT_SETUP.md for the full guide.
+> **Status note:** Phase 1 (Foundation) is underway. The monorepo, Drizzle schema + migrations, auth, and the Fastify API shell are in place — **steps 1–4 work now** (`pnpm dev` boots the API at `:3001`). `apps/web` (Next.js) lands next in Phase 1 — step 5 becomes runnable then. See 51_ENVIRONMENT_SETUP.md for the full guide.
 
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 
@@ -113,4 +113,4 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 ## Current status
 
 - **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (58 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
-- **Phase 1+ (Implementation):** not started — begins after documentation review and approval.
+- **Phase 1 (Foundation):** **in progress** — pnpm monorepo, Drizzle schema + migrations (users, orgs, memberships, sessions, hash-chained audit), Argon2id auth (register/login/logout/me, ADR-007 sessions), Fastify shell with error envelope + idempotency, all tested (28 tests green) and verified against the free local stack (Postgres via `infra/docker-compose.yml`). Next: Next.js web shell, provider config + encrypted secrets, pg-boss + outbox, SSE.

@@ -1,0 +1,20 @@
+{
+  "name": "@orq8/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Config, logger (pino), errors, idempotency, tracing (docs/06 packages/core)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@orq8/domain": "workspace:^",
+    "pino": "^10.3.1",
+    "zod": "^4.4.3"
+  }
+}
