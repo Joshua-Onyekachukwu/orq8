@@ -300,10 +300,15 @@ async function probeProvider(
   base: string | null,
   logger: AppDeps['logger'],
 ): Promise<ProbeResult> {
+  // Structural type for the fetch response: the Vercel builder compiles with a
+  // lib config where the global Response lacks ok/status — never depend on it.
+  const asProbe = (r: unknown): { ok: boolean; status: number } =>
+    r as { ok: boolean; status: number };
+
   if (provider.kind === 'local' || provider.slug === 'ollama') {
     const url = `${base ?? 'http://localhost:11434'}/api/tags`;
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const res = asProbe(await fetch(url, { signal: AbortSignal.timeout(5000) }));
       return res.ok
         ? { ok: true, message: `Connected to ${provider.name} (local)` }
         : { ok: false, message: `Local provider responded ${res.status}` };
@@ -322,7 +327,7 @@ async function probeProvider(
       ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }
       : { Authorization: `Bearer ${apiKey}` };
   try {
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(5000) });
+    const res = asProbe(await fetch(url, { headers, signal: AbortSignal.timeout(5000) }));
     if (res.ok) return { ok: true, message: `Connected — ${provider.name} accepted the key` };
     if (res.status === 401 || res.status === 403) {
       return { ok: false, message: `${provider.name} rejected the key (${res.status})` };
