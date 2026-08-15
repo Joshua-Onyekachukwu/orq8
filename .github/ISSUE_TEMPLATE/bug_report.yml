@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a defect in the API, web shell, packages, or infrastructure.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report. Please be specific — include the phase and milestone if you know it (attach the matching milestone from the repo).
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+      placeholder: "e.g. POST /v1/auth/register returns 500 instead of 201 when email already exists"
+    validations:
+      required: true
+  - type: input
+    id: phase
+    attributes:
+      label: Phase / milestone
+      description: Which phase does this belong to? (docs/49 phases 1–16, or the GitHub milestone)
+      placeholder: "e.g. Phase 1 (Foundation) — G1"
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Start the stack (`docker compose -f infra/docker-compose.yml up -d` + `pnpm dev`)
+        2. ...
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node/pnpm versions, browser, database (docker vs local).
+      placeholder: "Windows 11 · Node 24 · pnpm 9 · Postgres 16 (docker)"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace
+      description: Paste relevant output (pino logs, error envelope JSON, stack trace).
+      render: shell
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocker (blocks a phase DoD)
+        - High (breaks a core flow)
+        - Medium (edge case / partial)
+        - Low (cosmetic / polish)
+      default: 2
+    validations:
+      required: true
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      options:
+        - label: Reproduced on `main` (or noted which commit)
+        - label: `pnpm typecheck` and `pnpm test` pass for the affected package (or noted failure)

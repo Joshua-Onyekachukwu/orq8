@@ -1,0 +1,62 @@
+name: Feature request
+description: Propose a new capability for ORQ8 (in-phase scope from docs/49, or a change to it).
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose a capability for ORQ8. If it's already in docs/49's phase scope, prefer a task under that phase's milestone — this template is for new scope or scope changes (which may warrant an ADR).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't a user do today, and why does it matter?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should ORQ8 do? Sketch the behavior, not the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, and why they were rejected.
+  - type: input
+    id: phase
+    attributes:
+      label: Target phase
+      description: Which phase should this land in? (docs/49 phases 1–16, or "not phased yet")
+      placeholder: "e.g. Phase 5 (Governance)"
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope impact
+      options:
+        - New scope (not in docs/49 — may need ADR)
+        - Extends existing phase scope
+        - Changes existing scope (contradicts a doc — ADR required)
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How will we know this is done? One checkbox per criterion.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 (blocks the current phase)
+        - P1 (should do soon)
+        - P2 (nice to have)
+        - P3 (later phase)
+      default: 2

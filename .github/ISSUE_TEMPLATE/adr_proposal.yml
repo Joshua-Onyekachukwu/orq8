@@ -1,0 +1,71 @@
+name: ADR proposal
+description: Propose a new Architecture Decision Record (docs/adr/ADR-0NN.md, indexed in docs/56).
+title: "[ADR]: "
+labels: ["adr"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Architecture decisions are recorded as ADRs in `docs/adr/` and indexed in `docs/56_ADR_INDEX.md`. This issue is the review trail for a proposal; once accepted, the ADR file lands in the repo and references this issue.
+  - type: input
+    id: number
+    attributes:
+      label: Proposed ADR number
+      description: Next free number (currently 21 ADRs exist — next is 22).
+      placeholder: "22"
+    validations:
+      required: true
+  - type: input
+    id: title
+    attributes:
+      label: ADR title
+      description: One line — "ADR-0NN — <decision>".
+      placeholder: "e.g. ADR-022 — Adopt Temporal for the durable workflow runtime"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this decision needed now? What problem or constraint forces it?
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: What are we deciding? Be specific enough to implement.
+    validations:
+      required: true
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: What changes for the docs, schema, API, or roadmap? Which existing docs need updating?
+    validations:
+      required: true
+  - type: input
+    id: related
+    attributes:
+      label: Related docs / ADRs
+      description: Sections that reference or conflict with this decision.
+      placeholder: "docs/06 §6.x · supersedes ADR-0NN"
+  - type: dropdown
+    id: status
+    attributes:
+      label: Proposed status
+      options:
+        - Proposed (open for review)
+        - Accepted (ready to file)
+        - Supersedes an existing ADR (name it in Related)
+      default: 0
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before filing the ADR file
+      options:
+        - label: Number confirmed free (docs/56 index)
+        - label: Conflicting docs identified and will be updated
+        - label: ADR file drafted in the accepted format (Context / Decision / Consequences / Links)
