@@ -59,7 +59,7 @@ Phase 5 (governance) ◄──────────────────�
 ## 49.4 Phase-by-Phase Plan (scope · DoD · unlocks)
 
 ### Phase 0 — Documentation & Architecture ✅ complete
-Full documentation set: 58 markdown docs (56 numbered + 00 + 17a) + 17b seed JSON + 21 ADRs + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
+Full documentation set: 59 markdown docs (56 numbered + 00 + 17a + 17c) + 17b seed JSON + 21 ADRs + pitch. **DoD:** docs internally consistent (G0); ADRs recorded (56); this plan approved. **Unlocks:** G0.
 
 ### Phase 1 — Foundation
 **Deps:** G0.
@@ -83,7 +83,7 @@ Full documentation set: 58 markdown docs (56 numbered + 00 + 17a) + 17b seed JSO
 
 ### Phase 5 — Governance
 **Deps:** 2, 4.
-**Scope:** Constitution editor + versioning (seed = 17a) · policies · permissions (canonical namespace, ADR-019) · authority profiles enforcement · **Approval Engine + CEO Decision Center** · forbidden actions (hard denies) · emergency controls + kill switches · default operational limits (18.5) · audit trail UI.
+**Scope:** Constitution editor + versioning (seed = 17a; loader spec = 17c) · policies · permissions (canonical namespace, ADR-019) · authority profiles enforcement · **Approval Engine + CEO Decision Center** · forbidden actions (hard denies) · emergency controls + kill switches · default operational limits (18.5) · audit trail UI.
 **DoD:** a consequential action from any agent is blocked/queued per policy; CEO approves/rejects/modifies/delegates; emergency pause halts the org instantly (verified in tests); all audited. **Unlocks:** 6, 8.
 
 ### Phase 6 — Multi-Agent Collaboration 🏁 **Golden Workflow v1 gate (G2)**

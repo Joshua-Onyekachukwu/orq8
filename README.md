@@ -51,6 +51,7 @@ The complete Phase 0 documentation set lives in `docs/`. The **core foundation s
 | 17 | COMPANY_CONSTITUTION | Constitution design and versioning |
 | 17a | CONSTITUTION_TEMPLATE | Default constitution template (human-readable) |
 | 17b | CONSTITUTION_SEED | Machine-readable constitution seed (Phase 5 JSON w/ enforcement metadata) |
+| 17c | SEED_LOADER | Phase 5 seed loader spec — 17b → constitutions/approval_rules/permissions/financial_controls rows |
 | 18 | GOVERNANCE_AUTHORIZATION | Authority model, approvals, delegation, kill switches |
 | 21 | MEMORY_KNOWLEDGE | Company memory, decision precedent, evidence types |
 | 33 | UI_UX_SYSTEM | Design direction, information architecture, workspaces |
@@ -81,7 +82,7 @@ The full set (09–56) is now complete. Index:
 | | | | | | | 55 | PRODUCT_ROADMAP |
 | | | | | | | 56 | ADR_INDEX |
 
-All **58 markdown docs** (56 numbered + 00 + 17a) and the **17b seed JSON** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
+All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b seed JSON** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
 
 ## Environment setup (dev)
 
@@ -112,5 +113,5 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 ## Current status
 
-- **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (58 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
+- **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (59 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
 - **Phase 1 (Foundation):** **in progress** — pnpm monorepo, Drizzle schema + migrations (users, orgs, memberships, sessions, hash-chained audit), Argon2id auth (register/login/logout/me, ADR-007 sessions), Fastify shell with error envelope + idempotency, all tested (28 tests green) and verified against the free local stack (Postgres via `infra/docker-compose.yml`). Next: Next.js web shell, provider config + encrypted secrets, pg-boss + outbox, SSE.

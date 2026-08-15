@@ -273,7 +273,7 @@ The following are absolutely forbidden. No agent, workflow, or delegated authori
 
 ## Seed Format (Phase 5)
 
-The machine-readable seed lives in **17b_CONSTITUTION_SEED.json** — structured JSON with per-clause enforcement metadata. Loader mapping at seed time:
+The machine-readable seed lives in **17b_CONSTITUTION_SEED.json** — structured JSON with per-clause enforcement metadata. The **row-level loader spec** (exact field mappings, load flow, idempotency, verification counts) lives in **17c_SEED_LOADER.md**. Loader mapping at seed time:
 
 | Seed block | Target table(s) |
 |-----------|-----------------|
