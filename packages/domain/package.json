@@ -3,12 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Shared Zod schemas and types — source of truth for API contracts (docs/06, 35)",
+  "description": "Shared Zod schemas and types \u00e2\u20ac\u201d source of truth for API contracts (docs/06, 35)",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
