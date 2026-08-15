@@ -1,6 +1,6 @@
 # ORQ8 — Pricing Page Copy
 
-**Status:** Draft for review · **Sources:** docs/00 §5.5 (brand) + §6 (confirmed pricing) · 54_COST_MODEL (economics) · ADR-021 (no marketplace)
+**Status:** Draft for review · **Sources:** docs/00 §5.7 (brand) + §6 (confirmed pricing) · 54_COST_MODEL (economics) · ADR-021 (no marketplace)
 **Note:** Annual prices are suggested defaults (~20% off). Per brief §78, pricing stays flexible until usage economics are known — confirm before launch.
 
 ---

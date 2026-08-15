@@ -1,6 +1,6 @@
 # ORQ8 — Landing Page Copy
 
-**Status:** Draft for review · **Sources:** docs/00 §5.5 (brand) + §7.4 (messaging) · 04_GOLDEN_WORKFLOW (hero offer) · ADR-021 (no marketplace)
+**Status:** Draft for review · **Sources:** docs/00 §5.7 (brand) + §7.4 (messaging) · 04_GOLDEN_WORKFLOW (hero offer) · ADR-021 (no marketplace)
 **Companion:** marketing/pricing_page.md (tier cards, comparison, FAQ)
 **Placeholders** marked [bracketed] — fill before launch.
 
@@ -35,7 +35,7 @@ ORQ8  ·  How it works  ·  Features  ·  Pricing  ·  [Docs]  ·  **Sign in**  
 ## TRUST STRIP (placeholders)
 
 > Built for solo founders and indie operators — the one-person company, powered by AI.
-> [Stat placeholder: "Paste an idea → validated plan + an AI team that did the work"]
+> [Stat placeholder: "Paste an idea → researched, council-reviewed recommendation → an executed validation plan run by a temporary AI team — every dollar tracked, every decision explainable"]
 > [Stat placeholder: "Every decision explainable · every dollar tracked"]
 
 ---
