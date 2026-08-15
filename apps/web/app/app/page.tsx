@@ -45,14 +45,19 @@ export default async function AppPage() {
           <Link href="/" className="text-lg font-semibold tracking-tight text-navy-900">
             ORQ8
           </Link>
-          <form action="/api/auth/logout" method="post">
-            <button
-              type="submit"
-              className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-navy-800 hover:text-navy-800"
-            >
-              Sign out
-            </button>
-          </form>
+          <div className="flex items-center gap-4">
+            <Link href="/settings/providers" className="text-sm text-muted transition-colors hover:text-navy-800">
+              Settings
+            </Link>
+            <form action="/api/auth/logout" method="post">
+              <button
+                type="submit"
+                className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-navy-800 hover:text-navy-800"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 

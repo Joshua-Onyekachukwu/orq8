@@ -14,6 +14,7 @@ const envSchema = z.object({
   // Secrets (docs/37) — dev-only defaults; override in real environments
   SESSION_SECRET: z.string().min(16).default('dev-only-session-secret-change-me'),
   ENCRYPTION_KEY: z.string().min(16).default('dev-only-encryption-key-32-bytes!!'),
+  ENCRYPTION_KEY_KID: z.string().default('v1'), // wrapping-key version stamp (docs/23.5)
 
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
 

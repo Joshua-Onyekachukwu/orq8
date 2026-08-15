@@ -15,6 +15,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { idempotencyPlugin } from './plugins/idempotency.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerProviderRoutes } from './routes/providers.js';
 import type { AppDeps } from './types.js';
 
 export async function buildApp(
@@ -70,5 +71,6 @@ export async function buildApp(
 
   registerHealthRoutes(app, deps);
   registerAuthRoutes(app, deps);
+  registerProviderRoutes(app, deps);
   return app;
 }
