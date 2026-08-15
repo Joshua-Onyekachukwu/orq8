@@ -5,10 +5,7 @@
   "type": "module",
   "description": "Config, logger (pino), errors, idempotency, tracing (docs/06 packages/core)",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
