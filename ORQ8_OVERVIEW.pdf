@@ -78,7 +78,7 @@ BT /F1 10 Tf 0 0 0 rg 54.0 65.0 Td (• Every dollar of model and tool spend is at
 endstream
 endobj
 9 0 obj
-<< /Length 3851 >>
+<< /Length 4204 >>
 stream
 BT /F2 8.5 Tf 0.5 0.5 0.5 rg 54 748 Td (ORQ8  |  The AI Organization Operating System) Tj ET
 BT /F2 8.5 Tf 0.5 0.5 0.5 rg 54 22 Td (orq8.ai) Tj ET
@@ -110,14 +110,16 @@ BT /F1 9 Tf 0 0 0 rg 209.2 443.0 Td (50 agents, audit, integrations, monthly rep
 BT /F2 9 Tf 0.10 0.18 0.35 rg 58.0 428.5 Td (Enterprise) Tj ET
 BT /F1 9 Tf 0 0 0 rg 209.2 428.5 Td (Private deployment, SLA, custom integrations — custom) Tj ET
 BT /F1 10 Tf 0 0 0 rg 54.0 410.0 Td (Users pay for the platform \(governance, orchestration, memory, reporting\); model costs pass through via) Tj ET
-BT /F1 10 Tf 0 0 0 rg 54.0 398.5 Td (Bring-Your-Own-Key. Clean margins, no lock-in, free to start.) Tj ET
-BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 374.0 Td (Status & next steps) Tj ET
-BT /F1 10 Tf 0 0 0 rg 54.0 360.5 Td (• Phase 0 complete: full product specification — architecture, security model, database schema, API contracts,) Tj ET
-BT /F1 10 Tf 0 0 0 rg 70.0 349.0 Td (and go-to-market plan \(58 documents + architecture decision records\), all versioned and public.) Tj ET
-BT /F1 10 Tf 0 0 0 rg 54.0 335.5 Td (• Building Phase 1 \(Foundation\): monorepo, database, authentication, API shell — on a free, self-hosted local) Tj ET
-BT /F1 10 Tf 0 0 0 rg 70.0 324.0 Td (stack.) Tj ET
-BT /F1 10 Tf 0 0 0 rg 54.0 310.5 Td (• Target: the Golden Workflow working end-to-end on free models, then design partners, paid beta, and general) Tj ET
-BT /F1 10 Tf 0 0 0 rg 70.0 299.0 Td (availability.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 398.5 Td (Bring-Your-Own-Key. Clean margins, no lock-in, free to start. ORQ8 runs no agent marketplace and takes no) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 387.0 Td (commissions — revenue comes from the operating system itself: platform tiers, organizational capacity, enterprise) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 375.5 Td (capabilities, and optional AI/voice/infrastructure usage — never from a cut of your workforce \(ADR-021\).) Tj ET
+BT /F2 13 Tf 0.10 0.18 0.35 rg 54.0 351.0 Td (Status & next steps) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 337.5 Td (• Phase 0 complete: full product specification — architecture, security model, database schema, API contracts,) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 326.0 Td (and go-to-market plan \(58 documents + architecture decision records\), all versioned and public.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 312.5 Td (• Building Phase 1 \(Foundation\): monorepo, database, authentication, API shell — on a free, self-hosted local) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 301.0 Td (stack.) Tj ET
+BT /F1 10 Tf 0 0 0 rg 54.0 287.5 Td (• Target: the Golden Workflow working end-to-end on free models, then design partners, paid beta, and general) Tj ET
+BT /F1 10 Tf 0 0 0 rg 70.0 276.0 Td (availability.) Tj ET
 endstream
 endobj
 xref
@@ -135,5 +137,5 @@ xref
 trailer
 << /Size 10 /Root 1 0 R >>
 startxref
-10293
+10646
 %%EOF

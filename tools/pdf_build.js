@@ -55,7 +55,7 @@ table(['Tier', 'Includes'],
     ['Business', '50 agents, audit, integrations, monthly report — $199/mo'],
     ['Enterprise', 'Private deployment, SLA, custom integrations — custom']
   ]);
-p('Users pay for the platform (governance, orchestration, memory, reporting); model costs pass through via Bring-Your-Own-Key. Clean margins, no lock-in, free to start.');
+p('Users pay for the platform (governance, orchestration, memory, reporting); model costs pass through via Bring-Your-Own-Key. Clean margins, no lock-in, free to start. ORQ8 runs no agent marketplace and takes no commissions — revenue comes from the operating system itself: platform tiers, organizational capacity, enterprise capabilities, and optional AI/voice/infrastructure usage — never from a cut of your workforce (ADR-021).');
 
 h1('Status & next steps');
 bullet('Phase 0 complete: full product specification — architecture, security model, database schema, API contracts, and go-to-market plan (58 documents + architecture decision records), all versioned and public.');
