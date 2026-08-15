@@ -75,6 +75,8 @@ Platform-layer kill switches (override prompts entirely):
 
 Implemented as `emergency_controls` state consulted by Authz on every action; plus operational limits (max concurrent tasks, execution time, model spend, tool calls, retries, delegation depth, outbound rate, financial authority).
 
+**Default operational limits (editable per org):** max 5 concurrent tasks/agent · max 30 min execution/task (agents) · max $25 model spend/task (paid models) · max 50 tool calls/task · max 3 retries per step · max delegation depth 3 · max 10 outbound messages/hour/agent · financial authority per constitution (17a VIII). Voice limits in 31.6. These are defaults, not hard-coded values — every org configures its own (R-NFR-8).
+
 ## 18.6 Change Management (§86)
 
 Major changes follow `Change Proposal → Impact Analysis → Simulation → Approval → Implementation → Verification → Audit` (create/remove department, change reporting, increase budgets, replace critical agents, change goals, new financial policy, major workflow changes).

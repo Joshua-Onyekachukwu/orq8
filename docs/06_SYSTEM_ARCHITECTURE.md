@@ -132,6 +132,8 @@ Package manager: **pnpm** (fast, disk-efficient, free).
 
 ## 6.6 Architecture Decision Records (key decisions)
 
+> Full standalone records live in **`docs/adr/`** (ADR-001–020); the index is 56_ADR_INDEX.md. Each ADR below carries context, decision, and consequences.
+
 - **ADR-001 — Fastify over NestJS/Express.** Modular plugin architecture, minimal overhead, freedom to compose domain modules. If a heavier framework is ever needed, domain boundaries are preserved so it can migrate.
 - **ADR-002 — Drizzle over Prisma.** TS-first, lightweight, first-class pgvector support, no codegen lock-in.
 - **ADR-003 — pg-boss first, Temporal later.** The brief names Temporal as a candidate; per its own guidance ("do not over-engineer infrastructure before workload requires it"), we define a `WorkflowRuntime` interface and ship a pg-boss adapter (durable, Postgres-backed, free). Temporal adapter implements the same interface when scale/features justify it. Zero domain-code changes.

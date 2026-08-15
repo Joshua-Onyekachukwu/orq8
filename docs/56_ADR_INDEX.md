@@ -34,8 +34,12 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 | 019 | Permission namespace `{domain}:{resource}:{action}` canonicalized in the Approval Engine (19) | Accepted |
 | 020 | Event catalog extended: `spend.executed`, `payment.executed`, `simulation.run/completed`, `hiring.proposed/approved/rejected`, `import.*`, `sandbox.*`, `eval.*` (36) | Accepted |
 
+## Records
+
+Full standalone records for **all 20 ADRs live in `docs/adr/ADR-001.md` … `ADR-020.md`** (context / decision / consequences / links). This index is the summary + status tracker.
+
 ## Process
 
-- New decisions during implementation → new ADR entry here + record in git history.
+- New decisions during implementation → new ADR file + entry here + record in git history.
 - Superseded ADRs are marked, never deleted (audit-friendly).
 - All statuses above are **Accepted for Phase 0**; revisit at each phase's DoD (50.2).

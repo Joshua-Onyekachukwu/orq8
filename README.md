@@ -83,6 +83,8 @@ All 56 docs are internally consistent (ADR-001–020 in 56_ADR_INDEX), plus **do
 
 ## Environment setup (dev)
 
+> **Status note:** this describes the **target state for Phase 1**. The monorepo, migrations, and infra files don't exist yet — these commands become runnable as Phase 1 (Foundation) lands. See 51_ENVIRONMENT_SETUP.md for the full guide.
+
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 
 ```bash

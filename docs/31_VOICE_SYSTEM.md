@@ -38,4 +38,5 @@ Never execute a consequential action from a single unconfirmed utterance; always
 ## 31.6 Safety
 
 - Voice command history is auditable; spoken approvals record the confirmation utterance + approval record.
-- Rate limits and an explicit disable switch per org (some users prefer voice-off).
+- **Default operational limits (editable):** max 5 spoken approvals per 15 min per user; max 60s of continuous utterance; voice input disabled after 3 consecutive failed confirmations (requires text re-auth); per-org voice kill switch (voice-off) honored at the platform layer. All limits configurable per org (18.5).
+- Voice sessions carry the same rate limits, spend limits, and audit as chat; no new approval path exists via voice.
