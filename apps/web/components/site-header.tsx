@@ -17,10 +17,10 @@ export function SiteHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/pricing" className="text-muted transition-colors hover:text-ink">
+          <Link href="/login" className="text-muted transition-colors hover:text-ink">
             Sign in
           </Link>
-          <Button href="/pricing" size="sm">
+          <Button href="/register" size="sm">
             Get started — free
           </Button>
         </div>
