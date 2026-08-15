@@ -1,28 +1,49 @@
 import Link from "next/link";
 import { Button } from "./button";
 
-export function SiteHeader() {
+type HeaderProps = {
+  variant?: "light" | "navy";
+  cta?: { href: string; label: string };
+};
+
+export function SiteHeader({ variant = "light", cta }: HeaderProps) {
+  const navy = variant === "navy";
   return (
-    <header className="border-b border-hairline bg-white">
+    <header className={navy ? "border-b border-white/10" : "border-b border-hairline bg-white"}>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-navy-900">
+        <Link
+          href="/"
+          className={`text-lg font-semibold tracking-tight ${navy ? "text-white" : "text-navy-900"}`}
+        >
           ORQ8
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-muted sm:flex">
-          <a href="/#how-it-works" className="transition-colors hover:text-ink">
+        <nav className={`hidden items-center gap-6 text-sm sm:flex ${navy ? "text-white/70" : "text-muted"}`}>
+          <a href="/#how-it-works" className="transition-colors hover:text-white">
             How it works
           </a>
-          <Link href="/pricing" className="transition-colors hover:text-ink">
+          <Link href="/pricing" className="transition-colors hover:text-white">
             Pricing
           </Link>
+          <a href="/#waitlist" className="transition-colors hover:text-white">
+            Waitlist
+          </a>
         </nav>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/login" className="text-muted transition-colors hover:text-ink">
+          <Link
+            href="/login"
+            className={navy ? "text-white/70 transition-colors hover:text-white" : "text-muted transition-colors hover:text-ink"}
+          >
             Sign in
           </Link>
-          <Button href="/register" size="sm">
-            Get started — free
-          </Button>
+          {cta ? (
+            <Button href={cta.href} size="sm" variant={navy ? "outline-light" : "default"}>
+              {cta.label}
+            </Button>
+          ) : (
+            <Button href="/register" size="sm">
+              Get started — free
+            </Button>
+          )}
         </div>
       </div>
     </header>

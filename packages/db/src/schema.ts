@@ -159,6 +159,19 @@ export const userProviderKeys = pgTable(
   (t) => [index('user_provider_keys_org_idx').on(t.orgId)],
 );
 
+// Public waitlist funnel — landing page signups (pre-org, pre-auth).
+export const waitlistSignups = pgTable(
+  'waitlist_signups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    source: text('source').notNull().default('landing'), // landing | design_partner | referral
+    status: text('status').notNull().default('pending'), // pending | invited | signed_up
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('waitlist_signups_email_idx').on(t.email)],
+);
+
 // Immutable access ledger for secrets — every decrypt is recorded (docs/23.6, 37).
 export const secretRecords = pgTable(
   'secret_records',
@@ -192,3 +205,5 @@ export type UserProviderKey = typeof userProviderKeys.$inferSelect;
 export type NewUserProviderKey = typeof userProviderKeys.$inferInsert;
 export type SecretRecord = typeof secretRecords.$inferSelect;
 export type NewSecretRecord = typeof secretRecords.$inferInsert;
+export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
+export type NewWaitlistSignup = typeof waitlistSignups.$inferInsert;
