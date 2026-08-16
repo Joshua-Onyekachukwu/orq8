@@ -87,7 +87,10 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       });
       const data = await res.json();
       if (!res.ok) {
-        setNotice({ kind: "err", text: data?.error?.message ?? "Failed to save key" });
+        setNotice({
+          kind: "err",
+          text: data?.error?.message ?? "Failed to save key — check the key is valid and the API is running on :3001.",
+        });
         return;
       }
       setApiKey("");
@@ -113,7 +116,10 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       });
       const data = await res.json();
       if (!res.ok) {
-        setNotice({ kind: "err", text: data?.error?.message ?? `${action} failed` });
+        setNotice({
+          kind: "err",
+          text: data?.error?.message ?? `${action} failed — check the API is running on :3001.`,
+        });
         return;
       }
       if (action === "test") {
@@ -132,7 +138,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       }
       await refresh();
     } catch {
-      setNotice({ kind: "err", text: "Network error" });
+      setNotice({ kind: "err", text: "Network error — is the API running on :3001?" });
     } finally {
       setActionBusy(null);
     }
@@ -186,6 +192,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
             </label>
             <input
               id="key-name"
+              name="key_name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className={inputClass}
@@ -198,6 +205,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
             </label>
             <input
               id="api-key"
+              name="api_key"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -214,6 +222,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
               </label>
               <input
                 id="endpoint-url"
+                name="base_url"
                 type="url"
                 value={endpointUrl}
                 onChange={(e) => setEndpointUrl(e.target.value)}
@@ -316,6 +325,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                           <input
                             type="password"
                             value={rotateValue}
+                            name="new_api_key"
                             onChange={(e) => setRotateValue(e.target.value)}
                             required
                             autoComplete="off"
