@@ -94,7 +94,7 @@ const Integrations: React.FC = () => {
               </div>
 
               {/* the core */}
-              <div className="relative bg-navy-950 dark:bg-black mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)]">
+              <div className="relative bg-navy-950 dark:bg-navy-950 mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)] dark:shadow-[0_0_70px_-15px_rgba(200,255,50,0.25)]">
                 <span className="text-white text-[32px] font-bold tracking-[-1.6px] leading-none">
                   ORQ8
                 </span>
@@ -123,7 +123,7 @@ const IntegrationCard: React.FC<{
   card: (typeof cards)[number];
 }> = ({ card }) => {
   return (
-    <div className="lift-card group relative px-[20px] md:px-[25px] py-[25px] md:py-[30px] rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/10 shadow-sm">
+    <div className="lift-card group relative px-[20px] md:px-[25px] py-[25px] md:py-[30px] rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 shadow-sm dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)]">
       <div
         className="w-[64px] h-[64px] md:w-[72px] md:h-[72px] rounded-[10px] md:rounded-[20px] flex items-center justify-center flex-none transition-transform duration-300 group-hover:scale-105"
         style={{ backgroundColor: card.iconBg }}
@@ -138,7 +138,7 @@ const IntegrationCard: React.FC<{
           <h3 className="!font-semibold -tracking-[0.2px] !text-lg md:!text-[20px] !mb-0">
             {card.title}
           </h3>
-          <span className="flex-none flex items-center gap-[6px] text-[10px] font-semibold uppercase tracking-[1.4px] text-gray-400 dark:text-gray-500">
+          <span className="flex-none flex items-center gap-[6px] text-[10px] font-semibold uppercase tracking-[1.4px] text-gray-400 dark:text-gray-400">
             <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
             Live
           </span>
