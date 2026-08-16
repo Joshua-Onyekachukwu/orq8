@@ -2,50 +2,72 @@
 
 import React from "react";
 
-const cards = [
-  {
-    icon: "ri-slack-fill",
-    iconBg: "#ECF5EC",
-    iconColor: "#611f69",
-    title: "Slack",
-    text: "Give ORQ8 a brief in one message. It plans, hires, and reports right where you work.",
-  },
-  {
-    icon: "ri-github-fill",
-    iconBg: "#EDEDF6",
-    iconColor: "#24292f",
-    title: "GitHub",
-    text: "Agents open PRs, review code, and ship. Every deploy routes through your approval.",
-  },
-  {
-    icon: "ri-google-fill",
-    iconBg: "#F9EAE0",
-    iconColor: "#4285F4",
-    title: "Gmail & Drive",
-    text: "Draft, send, and file. Your company email and documents stay inside the org.",
-  },
-  {
-    icon: "ri-notion-line",
-    iconBg: "#F9EAE0",
-    iconColor: "#000000",
-    title: "Notion",
-    text: "Company memory lives where you read it: docs, wikis, and decisions in sync.",
-  },
-  {
-    icon: "ri-stripe-line",
-    iconBg: "#ECF5EC",
-    iconColor: "#635bff",
-    title: "Stripe",
-    text: "Spend is tracked against budgets in real time. Every dollar accounted for.",
-  },
-  {
-    icon: "ri-zapier-line",
-    iconBg: "#EDEDF6",
-    iconColor: "#FF4F00",
-    title: "Zapier",
-    text: "Connect the rest of your stack. Automations flow through the same audit trail.",
-  },
+/* Looping integration showcase: two rows of tool tiles scrolling in opposite
+   directions around an ORQ8 hub divider. Real remixicon brand glyphs where the
+   icon set has them; clean brand-letter monograms for the rest. Each row is one
+   full sequence rendered twice so the -50% loop is seamless; edge fades and a
+   reduced-motion fallback come from globals.css. */
+
+interface IntegrationTool {
+  name: string;
+  color: string;
+  icon?: string; // remixicon class when available
+  letter?: string; // monogram fallback
+}
+
+const rowA: IntegrationTool[] = [
+  { name: "GitHub", color: "#24292f", icon: "ri-github-fill" },
+  { name: "Slack", color: "#611f69", icon: "ri-slack-fill" },
+  { name: "Figma", color: "#F24E1E", icon: "ri-figma-fill" },
+  { name: "Notion", color: "#000000", icon: "ri-notion-line" },
+  { name: "Linear", color: "#5E6AD2", letter: "L" },
+  { name: "Stripe", color: "#635bff", letter: "S" },
+  { name: "Zapier", color: "#FF4F00", letter: "Z" },
+  { name: "Gmail", color: "#4285F4", icon: "ri-google-fill" },
+  { name: "Drive", color: "#00AC47", letter: "D" },
 ];
+
+const rowB: IntegrationTool[] = [
+  { name: "Discord", color: "#5865F2", icon: "ri-discord-fill" },
+  { name: "Dropbox", color: "#0061FF", icon: "ri-dropbox-fill" },
+  { name: "Jira", color: "#0052CC", letter: "J" },
+  { name: "Asana", color: "#F06A6A", letter: "A" },
+  { name: "Airtable", color: "#FCB400", letter: "A" },
+  { name: "HubSpot", color: "#FF7A59", letter: "H" },
+  { name: "Intercom", color: "#1F8DED", letter: "I" },
+  { name: "Zoom", color: "#2D8CFF", letter: "Z" },
+  { name: "Trello", color: "#0079BF", letter: "T" },
+];
+
+const ToolTile: React.FC<{ tool: IntegrationTool }> = ({ tool }) => {
+  return (
+    <div className="flex items-center gap-[12px] rounded-[14px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 px-[16px] py-[11px] shadow-sm hover:shadow-md transition-shadow">
+      <span
+        className="w-[40px] h-[40px] rounded-[10px] flex items-center justify-center text-[20px] flex-none"
+        style={{ backgroundColor: `${tool.color}1A` }}
+      >
+        {tool.icon ? (
+          <i
+            className={`${tool.icon} text-[20px] leading-none`}
+            style={{ color: tool.color }}
+            aria-hidden="true"
+          ></i>
+        ) : (
+          <span
+            className="text-[16px] font-bold leading-none"
+            style={{ color: tool.color }}
+            aria-hidden="true"
+          >
+            {tool.letter}
+          </span>
+        )}
+      </span>
+      <span className="text-[15px] font-medium text-navy-950 dark:text-white whitespace-nowrap -tracking-[0.2px]">
+        {tool.name}
+      </span>
+    </div>
+  );
+};
 
 const Integrations: React.FC = () => {
   return (
@@ -65,111 +87,54 @@ const Integrations: React.FC = () => {
               budgets, same audit trail across all of them.
             </p>
           </div>
+        </div>
 
-          {/* Even 3-column grid: cards, core, cards. No negative margins, no
-              overlap — every container keeps its own space. */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[25px] items-center">
-            <div className="space-y-[25px] lg:space-y-[40px]">
-              {cards.slice(0, 3).map((card) => (
-                <IntegrationCard key={card.title} card={card} />
-              ))}
-            </div>
+        {/* Row 1: scrolls left */}
+        <div
+          className="integrations-marquee relative overflow-hidden py-[6px]"
+          role="presentation"
+        >
+          <div className="integrations-marquee-track flex items-center gap-[16px] md:gap-[20px] w-max">
+            {[...rowA, ...rowA].map((tool, i) => (
+              <ToolTile key={`${tool.name}-${i}`} tool={tool} />
+            ))}
+          </div>
+        </div>
 
-            <div className="relative lg:flex items-center justify-center">
-              {/* Desktop: the orbiting core orb. Mobile/tablet get the compact
-                  horizontal bar below — the section keeps its center at any
-                  width, with nothing covering the cards. */}
+        {/* ORQ8 hub divider between the two streams */}
+        <div className="flex items-center justify-center gap-[16px] md:gap-[22px] my-[26px] md:my-[34px] px-[20px]">
+          <span
+            aria-hidden
+            className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-gray-200 dark:to-white/10"
+          ></span>
+          <span className="flex items-center gap-[10px]">
+            <span className="text-navy-950 dark:text-white font-bold tracking-[-0.6px] text-lg leading-none">
+              ORQ8
+            </span>
+            <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+            <span className="text-[10px] font-semibold uppercase tracking-[2.2px] text-gray-400">
+              System online
+            </span>
+          </span>
+          <span
+            aria-hidden
+            className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-gray-200 dark:to-white/10"
+          ></span>
+        </div>
 
-              <div className="hidden lg:block relative">
-                {/* soft glow behind the core */}
-                <div className="absolute w-[440px] h-[440px] rounded-full bg-lime blur-[100px] opacity-[0.10]"></div>
-
-                {/* outer rings with orbiting satellites */}
-                <div className="absolute w-[400px] h-[400px]">
-                  <div className="animate-orbit-slower absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
-                    <span className="absolute -top-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
-                    <span className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
-                  </div>
-                </div>
-                <div className="absolute w-[296px] h-[296px]">
-                  <div className="animate-orbit-slow absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
-                    <span className="absolute top-1/2 -translate-y-1/2 -right-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
-                    <span className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
-                  </div>
-                </div>
-
-                {/* the core */}
-                <div className="relative bg-navy-950 dark:bg-navy-950 mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)] dark:shadow-[0_0_70px_-15px_rgba(200,255,50,0.25)]">
-                  <span className="text-white text-[32px] font-bold tracking-[-1.6px] leading-none">
-                    ORQ8
-                  </span>
-                  <span className="mt-[10px] flex items-center gap-[7px]">
-                    <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
-                    <span className="text-[9px] font-semibold uppercase tracking-[2.4px] text-white/60">
-                      System online
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Compact horizontal core — mobile/tablet (below lg) */}
-              <div className="lg:hidden w-full max-w-[460px] mx-auto relative rounded-[20px] bg-navy-950 dark:bg-navy-950 border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.45)] dark:shadow-[0_0_60px_-15px_rgba(200,255,50,0.2)] px-[24px] py-[18px] md:py-[22px] flex items-center justify-center gap-[14px] md:gap-[18px]">
-                <span className="text-white text-[22px] md:text-[26px] font-bold tracking-[-1.2px] leading-none">
-                  ORQ8
-                </span>
-                <span className="w-[5px] h-[5px] md:w-[6px] md:h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
-                <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[2.2px] text-white/60">
-                  System online
-                </span>
-                <span aria-hidden className="hidden sm:flex items-center gap-[12px] ltr:ml-[8px] rtl:mr-[8px]">
-                  <span className="w-[7px] h-[7px] rounded-full bg-primary-500/70"></span>
-                  <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
-                  <span className="w-[7px] h-[7px] rounded-full bg-primary-500/70"></span>
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-[25px] lg:space-y-[40px]">
-              {cards.slice(3).map((card) => (
-                <IntegrationCard key={card.title} card={card} />
-              ))}
-            </div>
+        {/* Row 2: scrolls right */}
+        <div
+          className="integrations-marquee relative overflow-hidden py-[6px]"
+          role="presentation"
+        >
+          <div className="integrations-marquee-track marquee-reverse flex items-center gap-[16px] md:gap-[20px] w-max">
+            {[...rowB, ...rowB].map((tool, i) => (
+              <ToolTile key={`${tool.name}-${i}`} tool={tool} />
+            ))}
           </div>
         </div>
       </div>
     </>
-  );
-};
-
-const IntegrationCard: React.FC<{
-  card: (typeof cards)[number];
-}> = ({ card }) => {
-  return (
-    <div className="lift-card group relative px-[20px] md:px-[25px] py-[25px] md:py-[30px] rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 shadow-sm dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)]">
-      <div
-        className="w-[64px] h-[64px] md:w-[72px] md:h-[72px] rounded-[10px] md:rounded-[20px] flex items-center justify-center flex-none transition-transform duration-300 group-hover:scale-105"
-        style={{ backgroundColor: card.iconBg }}
-      >
-        <i
-          className={`${card.icon} text-[32px] md:text-[36px] leading-none`}
-          style={{ color: card.iconColor }}
-        ></i>
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center justify-between gap-[8px]">
-          <h3 className="!font-semibold -tracking-[0.2px] !text-lg md:!text-[20px] !mb-0">
-            {card.title}
-          </h3>
-          <span className="flex-none flex items-center gap-[6px] text-[10px] font-semibold uppercase tracking-[1.4px] text-gray-400 dark:text-gray-400">
-            <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
-            Live
-          </span>
-        </div>
-        <p className="lg:-tracking-[0.16px] lg:text-[15px] xl:text-md text-gray-500 dark:text-gray-400 mt-[8px] !mb-0">
-          {card.text}
-        </p>
-      </div>
-    </div>
   );
 };
 
