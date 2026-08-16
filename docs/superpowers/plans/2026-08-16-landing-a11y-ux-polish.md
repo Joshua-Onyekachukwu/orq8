@@ -41,7 +41,7 @@
 
 ## Already Fixed (do NOT repeat)
 
-Skip link + `id="main"` + `theme-color` (layout) · `role="status"`/`role="alert"` + input `name`/`autoComplete`/`spellCheck` on the waitlist forms · `prefers-reduced-motion` autoplay kill in Testimonials/Partners · swiper prev/next `aria-label`s · GoTop 44px target + single transition · `btn-press` on authored CTAs · lime/navy tokens in the authored files · remix icon unification (material-symbols removed) · `::selection` + `:focus-visible` + scrollbar theming · Reveal scroll-entry system · footer dead-link cleanup + subscribe error state.
+Skip link + `id="main"` + `theme-color` (layout) · `role="status"`/`role="alert"` + input `name`/`autoComplete`/`spellCheck` on the waitlist forms · **contact form label/input semantics (`htmlFor`/`id`/`name`/`autoComplete`/`required`, phone `type="tel"` — Task 5 is DONE)** · **`scroll-margin-top: 96px` on `[id]` so the skip link clears the fixed navbar** · `prefers-reduced-motion` autoplay kill in Testimonials/Partners · swiper prev/next `aria-label`s · GoTop 44px target + single transition · `btn-press` on authored CTAs · lime/navy tokens in the authored files · remix icon unification (material-symbols removed) · `::selection` + `:focus-visible` + scrollbar theming · Reveal scroll-entry system · footer dead-link cleanup + subscribe error state.
 
 ---
 

@@ -2,6 +2,11 @@
 
 @custom-variant dark (&:where([class=dark], [class=dark] *));
 
+/* Skip-link and anchor targets must clear the fixed navbar */
+[id] {
+  scroll-margin-top: 96px;
+}
+
 @theme {
   --font-body: "Inter", serif;
   --text-xs: 12px;
