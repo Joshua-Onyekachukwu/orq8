@@ -32,11 +32,6 @@ const Navbar: React.FC = () => {
   // sticky it gets its own background, so the wordmark follows that.
   const [isSticky, setIsSticky] = useState<boolean>(false);
   const isHome = pathname === "/";
-  const brandColor = isSticky
-    ? "text-black dark:text-white"
-    : isHome
-      ? "text-white"
-      : "text-black dark:text-white";
   const burgerBar = isSticky
     ? "bg-dark dark:bg-white"
     : isHome
@@ -156,12 +151,27 @@ const Navbar: React.FC = () => {
     return normalized(pathname) === normalized(item.href);
   };
 
+  // Brand logo. Two stacked versions cross-fade on scroll: the white logo
+  // sits over the transparent navy hero, the dark logo once the bar turns
+  // sticky (white pill) or sits on light subpage banners. Decorative images;
+  // the Link provides the accessible name.
+  const showWhite = isHome && !isSticky;
   const Wordmark = ({ className = "" }: { className?: string }) => (
     <span
-      className={`inline-flex items-center gap-[7px] text-[24px] font-bold tracking-[-1.2px] leading-none ${brandColor} transition-colors duration-300 ${className}`}
+      className={`relative inline-block h-8 w-auto leading-none ${className}`}
     >
-      ORQ8
-      <span className="w-[8px] h-[8px] rounded-full bg-lime inline-block"></span>
+      <img
+        src="/images/logo-white.png"
+        alt=""
+        aria-hidden
+        className={`absolute inset-0 h-8 w-auto transition-opacity duration-300 ${showWhite ? "opacity-100" : "opacity-0"}`}
+      />
+      <img
+        src="/images/logo-dark.png"
+        alt=""
+        aria-hidden
+        className={`relative h-8 w-auto transition-opacity duration-300 ${showWhite ? "opacity-0" : "opacity-100"}`}
+      />
     </span>
   );
 

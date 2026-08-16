@@ -147,10 +147,21 @@ export function AppSidebar({
     </nav>
   );
 
-  const Wordmark = (
-    <Link href="/app" className="flex items-baseline gap-1.5 text-xl font-bold tracking-tight text-white">
-      ORQ8
-      <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
+  // Brand wordmark. `tone` picks the logo for the surface it sits on:
+  // "dark" logo on light surfaces (the mobile top bar), "white" on the navy
+  // drawer and desktop rail. Decorative image; the Link names the brand.
+  const Wordmark = ({ tone }: { tone: "dark" | "white" }) => (
+    <Link
+      href="/app"
+      aria-label="ORQ8 home"
+      className="inline-block"
+    >
+      <img
+        src={tone === "white" ? "/images/logo-white.png" : "/images/logo-dark.png"}
+        alt=""
+        aria-hidden
+        className="h-7 w-auto"
+      />
     </Link>
   );
 
@@ -195,7 +206,7 @@ export function AppSidebar({
     <>
       {/* Mobile top bar */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hairline bg-white px-4 lg:hidden">
-        {Wordmark}
+        <Wordmark tone="dark" />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -218,7 +229,7 @@ export function AppSidebar({
           }`}
         >
           <div className="flex items-center justify-between px-5 pt-4">
-            {Wordmark}
+            <Wordmark tone="white" />
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -237,7 +248,7 @@ export function AppSidebar({
       {/* Desktop rail */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-navy-950 lg:flex">
         <div className="px-5 py-6">
-          {Wordmark}
+          <Wordmark tone="white" />
         </div>
         {OrgBlock}
         {NavList}

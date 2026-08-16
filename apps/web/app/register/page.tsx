@@ -50,12 +50,17 @@ export default async function RegisterPage({
 
       <Link
         href="/"
-        className="relative mb-10 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
+        aria-label="ORQ8 home"
+        className="relative mb-10 flex items-center gap-3"
       >
-        ORQ8
-        <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
+        <img
+          src="/images/logo-white.png"
+          alt=""
+          aria-hidden
+          className="h-9 w-auto"
+        />
         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald">
-          · command center
+          command center
         </span>
       </Link>
 

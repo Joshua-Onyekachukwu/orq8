@@ -54,10 +54,12 @@ const Footer: React.FC = () => {
                 className="inline-block mb-[18px] md:mb-[25px]"
                 aria-label="ORQ8 home"
               >
-                <span className="inline-flex items-center gap-[8px] text-[26px] font-bold tracking-[-1.4px] text-white">
-                  ORQ8
-                  <span className="w-[9px] h-[9px] rounded-full bg-lime inline-block"></span>
-                </span>
+                <img
+                  src="/images/logo-white.png"
+                  alt=""
+                  aria-hidden
+                  className="h-8 w-auto"
+                />
               </Link>
 
               <h3 className="!text-white !font-light !text-[20px] md:!text-[22px] lg:!text-2xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] lg:!mb-[14px] !max-w-[420px] !leading-[1.3]">

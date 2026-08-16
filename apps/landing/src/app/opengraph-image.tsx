@@ -1,8 +1,18 @@
 import { ImageResponse } from "next/og";
+import fs from "node:fs";
+import path from "node:path";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "ORQ8: Run your company with AI employees";
+
+// The real brand wordmark (white on the navy card), inlined as a data URL so
+// the generator needs no network or asset pipeline at request time.
+const logoWhite =
+  "data:image/png;base64," +
+  fs
+    .readFileSync(path.join(process.cwd(), "public/images/logo-white.png"))
+    .toString("base64");
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -47,11 +57,8 @@ export default function OpengraphImage() {
           }}
         />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 34 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 999, background: "#c8ff32" }} />
-          <div style={{ fontSize: 68, fontWeight: 800, color: "#ffffff", letterSpacing: "-3px", lineHeight: 1 }}>
-            ORQ8
-          </div>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 34 }}>
+          <img src={logoWhite} width={400} height={138} style={{ objectFit: "contain" }} />
         </div>
 
         <div
