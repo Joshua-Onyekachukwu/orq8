@@ -10,6 +10,8 @@ const variants = {
   ghost: "text-navy-800 hover:bg-navy-800/5",
   "outline-light": "border border-white/60 text-white hover:bg-white hover:text-navy-900",
   "ghost-light": "text-white/80 hover:text-white",
+  amber: "bg-amber text-[#0a0a0f] hover:bg-ember",
+  emerald: "bg-emerald text-navy-950 hover:bg-emerald-300",
 };
 
 const sizes = {

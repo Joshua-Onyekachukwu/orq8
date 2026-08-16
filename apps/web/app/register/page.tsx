@@ -5,7 +5,7 @@ export const metadata = { title: "Create your organization" };
 
 export default function RegisterPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-6">
+    <div id="main" className="flex min-h-screen flex-col items-center justify-center bg-canvas px-6">
       <Link href="/" className="mb-8 text-2xl font-semibold tracking-tight text-navy-900">
         ORQ8
       </Link>

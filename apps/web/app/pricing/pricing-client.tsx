@@ -206,7 +206,7 @@ export function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div id="main" className="min-h-screen bg-white">
       {/* ---------- Navy mesh hero ---------- */}
       <section className="bg-mesh relative overflow-hidden">
         <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_25%,transparent_70%)]" />
@@ -294,7 +294,7 @@ export function PricingPage() {
                 {plan.name}
               </h2>
               <div className="mt-4">
-                <span className={`text-3xl font-semibold tracking-tight ${plan.featured ? "text-white" : "text-navy-900"}`}>
+                <span className={`text-3xl font-semibold tracking-tight tabular-nums ${plan.featured ? "text-white" : "text-navy-900"}`}>
                   {billing === "monthly" ? plan.price.monthly : plan.price.annual}
                 </span>
                 <p className={`mt-1 text-sm ${plan.featured ? "text-white/60" : "text-muted"}`}>
@@ -418,6 +418,8 @@ export function PricingPage() {
                         key={i}
                         className={`px-4 py-2.5 text-center ${
                           i === 1 ? "bg-navy-900/[0.04]" : ""
+                        } ${
+                          label === "Price" ? "tabular-nums" : ""
                         } ${
                           v === "✓"
                             ? "font-semibold text-emerald-600"

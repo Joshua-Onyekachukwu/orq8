@@ -10,7 +10,7 @@ export function WaitlistForm({
   variant = "light",
   source = "landing",
 }: {
-  variant?: "light" | "navy" | "partner";
+  variant?: "light" | "navy" | "partner" | "dark";
   source?: string;
 }) {
   const [email, setEmail] = useState("");
@@ -22,6 +22,7 @@ export function WaitlistForm({
 
   const navy = variant === "navy";
   const partner = variant === "partner";
+  const dark = variant === "dark";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,21 +60,24 @@ export function WaitlistForm({
   }
 
   const field =
-    navy || partner
+    navy || partner || dark
       ? "border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-white/50 focus:bg-white/15"
       : "border-hairline bg-white text-ink placeholder:text-muted focus:border-navy-700 focus:ring-2 focus:ring-navy-700/20";
 
   const btn =
-    navy || partner
-      ? "bg-white text-navy-900 hover:bg-white/90"
-      : "bg-navy-800 text-white hover:bg-navy-700";
+    dark
+      ? "bg-emerald text-navy-950 hover:bg-emerald-300"
+      : navy || partner
+        ? "bg-white text-navy-900 hover:bg-white/90"
+        : "bg-navy-800 text-white hover:bg-navy-700";
 
   return (
     <div className="w-full text-left">
       {status === "done" ? (
         <div
+          role="status"
           className={`rounded-lg border px-4 py-3 text-sm ${
-            navy || partner
+            navy || partner || dark
               ? "border-white/20 bg-white/10 text-white"
               : "border-green-300 bg-green-50 text-green-800"
           }`}
@@ -87,10 +91,13 @@ export function WaitlistForm({
               <input
                 type="text"
                 required
+                name="name"
+                spellCheck={false}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Full name"
                 aria-label="Full name"
+                autoComplete="name"
                 className={`h-11 w-full rounded-lg border px-4 text-sm outline-none transition-colors ${field}`}
               />
               <select
@@ -116,6 +123,9 @@ export function WaitlistForm({
             <input
               type="email"
               required
+              name="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={partner ? "you@company.com" : "you@company.com"}
@@ -148,7 +158,7 @@ export function WaitlistForm({
         </form>
       )}
       {status === "error" && (
-        <p className={`mt-2 text-sm ${navy || partner ? "text-red-200" : "text-red-700"}`}>{message}</p>
+        <p className={`mt-2 text-sm ${navy || partner || dark ? "text-red-200" : "text-red-700"}`}>{message}</p>
       )}
     </div>
   );
