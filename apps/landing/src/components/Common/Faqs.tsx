@@ -64,10 +64,10 @@ const Faqs: React.FC = () => {
       question: "How much does ORQ8 cost?",
       answer: (
         <p>
-          Joining the waitlist is free. When your cohort opens, you get 7 days
-          free with your first agents. We take a credit card up front, you pay
-          nothing until day 8, and you can cancel any time. When your
-          organization earns its keep, Pro is $49/month.
+          Joining the waitlist is free. When your cohort opens, every plan
+          starts with 7 days free, Starter through Enterprise. We take a credit
+          card up front, you pay nothing until day 8, and you can cancel any
+          time. When your organization earns its keep, Pro is $49/month.
         </p>
       ),
     },

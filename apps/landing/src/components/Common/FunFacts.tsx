@@ -23,7 +23,7 @@ const FunFacts: React.FC = () => {
     {
       id: 3,
       value: "7",
-      description: "Days free to try. Card required, cancel any time",
+      description: "Days free on every plan. Card required, cancel any time",
     },
     {
       id: 4,

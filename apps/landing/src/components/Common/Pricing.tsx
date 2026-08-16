@@ -7,16 +7,20 @@ interface PricingPlan {
   title: string;
   description: string;
   price: string;
+  priceNote: string;
   features: string[];
+  cta: { label: string; href: string };
+  popular?: boolean;
 }
 
 const Pricing: React.FC = () => {
   const pricingPlans: PricingPlan[] = [
     {
-      title: "Trial",
+      title: "Starter",
       description:
-        "Seven days with your first agents working. Card on file, nothing charged until day 8.",
-      price: "7 days",
+        "The first step. Your first agents working for you within a week.",
+      price: "$0",
+      priceNote: "for 7 days",
       features: [
         "Your first 3 agents",
         "1 department",
@@ -24,12 +28,14 @@ const Pricing: React.FC = () => {
         "Weekly report",
         "Community support",
       ],
+      cta: { label: "Start free", href: "/#waitlist" },
     },
     {
       title: "Pro",
       description:
         "For founders building a full organization that runs while they sleep.",
       price: "$49",
+      priceNote: "/ MO",
       features: [
         "Unlimited agents",
         "All departments + teams",
@@ -37,12 +43,15 @@ const Pricing: React.FC = () => {
         "BYOK: bring your own keys",
         "Priority support",
       ],
+      cta: { label: "Join the waitlist", href: "/#waitlist" },
+      popular: true,
     },
     {
       title: "Business",
       description:
         "For companies that need real scale, governance, and admin control.",
       price: "$199",
+      priceNote: "/ MO",
       features: [
         "Everything in Pro",
         "Multiple organizations",
@@ -50,11 +59,27 @@ const Pricing: React.FC = () => {
         "SSO + admin controls",
         "Dedicated support",
       ],
+      cta: { label: "Join the waitlist", href: "/#waitlist" },
+    },
+    {
+      title: "Enterprise",
+      description:
+        "Custom AI organizations for larger teams and bespoke governance.",
+      price: "Custom",
+      priceNote: "",
+      features: [
+        "Everything in Business",
+        "Custom AI model contracts",
+        "Dedicated infrastructure",
+        "Security review + SLA",
+        "Onboarding + success team",
+      ],
+      cta: { label: "Contact us", href: "/contact/" },
     },
   ];
 
   const styles: Record<string, { border: string; text: string; button: string; buttonHover: string; buttonText: string }> = {
-    Trial: {
+    Starter: {
       border: "border-white/20",
       text: "text-white/60",
       button: "bg-white/10",
@@ -75,6 +100,13 @@ const Pricing: React.FC = () => {
       buttonHover: "hover:bg-lime hover:text-black",
       buttonText: "text-white",
     },
+    Enterprise: {
+      border: "border-white/20",
+      text: "text-white/60",
+      button: "bg-white/10",
+      buttonHover: "hover:bg-primary-500 hover:text-white",
+      buttonText: "text-white",
+    },
   };
 
   return (
@@ -89,21 +121,25 @@ const Pricing: React.FC = () => {
               Pricing
             </span>
             <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] !text-white">
-              7 days free. <span className="text-lime">$49 when it earns its keep.</span>
+              Every plan starts with{" "}
+              <span className="text-lime">7 days free.</span>
             </h2>
+            <p className="!mb-0 mt-[12px] md:mt-[16px] text-white/60 md:text-[15px] lg:text-md">
+              Card on file, nothing charged until day 8. Cancel any time.
+            </p>
           </div>
 
-          <div className="md:max-w-[1076px] mx-auto relative top-[140px] -mt-[140px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[25px]">
+          <div className="md:max-w-[1316px] mx-auto relative top-[140px] -mt-[140px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[25px]">
               {pricingPlans.map((plan, index) => {
                 const s = styles[plan.title];
-                const popular = plan.title === "Pro";
+                const popular = Boolean(plan.popular);
 
                 return (
                   <div
                     key={index}
-                    className={`lift-card relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[35px] ${
-                      popular ? "lg:-mt-[30px] lg:pb-[60px]" : ""
+                    className={`lift-card relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[30px] ${
+                      popular ? "xl:-mt-[30px] xl:pb-[60px]" : ""
                     }`}
                   >
                     {popular && (
@@ -116,13 +152,16 @@ const Pricing: React.FC = () => {
                     >
                       {plan.title}
                     </span>
+                    <span className="inline-block mb-[12px] md:mb-[18px] rounded-[50px] border border-lime/40 text-lime text-[9px] font-bold uppercase tracking-[1.8px] px-[12px] py-[5px]">
+                      7 days free
+                    </span>
                     <p className="text-[#8f8f99] -tracking-[0.16px] md:text-[15px] lg:text-md">
                       {plan.description}
                     </p>
                     <div className="mt-[20px] md:mt-[30px] mb-[6px] block leading-none text-white text-[40px] md:text-[45px] lg:text-[55px] font-light -tracking-[2.5px] md:-tracking-[3.6px]">
                       {plan.price}{" "}
                       <span className="text-base md:text-[15px] tracking-[.5px] md:tracking-[1.5px] font-normal text-[#8F8F99] ltr:-ml-[4px] rtl:-mr-[4px]">
-                        {plan.title === "Trial" ? "" : "/ MO"}
+                        {plan.priceNote}
                       </span>
                     </div>
                     <p className="text-[#8f8f99] -tracking-[0.14px]">
@@ -140,11 +179,11 @@ const Pricing: React.FC = () => {
                       ))}
                     </ul>
                     <Link
-                      href="/#waitlist"
+                      href={plan.cta.href}
                       className={`btn-press block w-full rounded-[60px] ${s.button} p-[7px] md:p-[10px] uppercase text-xs font-bold ${s.buttonText} tracking-[1.8px] ${s.buttonHover}`}
                     >
                       <span className="flex items-center justify-center gap-[15px] md:gap-[20px]">
-                        Join the waitlist{" "}
+                        {plan.cta.label}{" "}
                         <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
                       </span>
                     </Link>
