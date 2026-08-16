@@ -106,7 +106,7 @@ const Cta: React.FC = () => {
 
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
                 <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                Cancel anytime
+                Leave the list any time
               </li>
             </ul>
 
