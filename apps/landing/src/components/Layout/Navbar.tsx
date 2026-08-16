@@ -43,6 +43,38 @@ const Navbar: React.FC = () => {
       ? "bg-white"
       : "bg-dark dark:bg-white";
 
+  // Light/dark theme. Persists to localStorage ("theme" key, shared with
+  // SidebarSettings); when the user has no stored choice, follows the system
+  // preference live. The "dark" class on <html> drives all dark: styles.
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("theme");
+    const dark = stored
+      ? stored === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setTheme(dark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", dark);
+
+    // Follow OS changes until the user picks a theme themselves.
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem("theme")) {
+        setTheme(e.matches ? "dark" : "light");
+        document.documentElement.classList.toggle("dark", e.matches);
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const toggleTheme = (): void => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+  };
+
   // Scroll-spy: on the homepage, highlight the section currently in view.
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
@@ -161,6 +193,36 @@ const Navbar: React.FC = () => {
     </span>
   );
 
+  // Theme toggle button. Colours follow the bar context: transparent over the
+  // navy hero (white), over light banners (dark), sticky (inverts both ways).
+  const toggleText = isSticky
+    ? "text-black dark:text-white"
+    : isHome
+      ? "text-white"
+      : "text-black dark:text-white";
+  const toggleBorder = isSticky
+    ? "border-gray-200 dark:border-white/20"
+    : isHome
+      ? "border-white/25"
+      : "border-gray-200 dark:border-white/20";
+
+  const ThemeToggle = ({ className = "" }: { className?: string }) => (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={
+        theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+      }
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className={`rounded-full border transition-colors duration-300 flex items-center justify-center w-[40px] h-[40px] flex-none ${toggleBorder} ${toggleText} hover:border-lime hover:text-lime ${className}`}
+    >
+      <i
+        className={`${theme === "dark" ? "ri-sun-line" : "ri-moon-line"} text-[18px] leading-none`}
+        aria-hidden="true"
+      ></i>
+    </button>
+  );
+
   return (
     <>
       <div
@@ -173,17 +235,20 @@ const Navbar: React.FC = () => {
               <Wordmark />
             </Link>
 
-            <button
-              type="button"
-              aria-label="Toggle menu"
-              aria-expanded={!isActiveMobileMenu}
-              className="inline-block relative leading-none lg:hidden"
-              onClick={handleToggleMobileMenu}
-            >
-              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
-              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-opacity duration-300`}></span>
-              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
-            </button>
+            <div className="flex items-center gap-[14px] ml-auto lg:hidden">
+              <ThemeToggle />
+              <button
+                type="button"
+                aria-label="Toggle menu"
+                aria-expanded={!isActiveMobileMenu}
+                className="inline-block relative leading-none"
+                onClick={handleToggleMobileMenu}
+              >
+                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
+                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-opacity duration-300`}></span>
+                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
+              </button>
+            </div>
 
             {/* For Big Devices */}
             <div className="hidden lg:flex items-center grow basis-full">
@@ -217,10 +282,12 @@ const Navbar: React.FC = () => {
                 ))}
               </ul>
 
+              <ThemeToggle className="ltr:ml-[16px] rtl:mr-[16px] xl:ltr:ml-[26px] xl:rtl:mr-[26px]" />
+
               <Link
                 href="/#waitlist"
                 onClick={(e) => handleSectionClick(e, "waitlist")}
-                className="btn-press group inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime"
+                className="btn-press group inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime ltr:ml-[16px] rtl:mr-[16px] xl:ltr:ml-[26px] xl:rtl:mr-[26px]"
               >
                 <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                   JOIN THE WAITLIST{" "}
