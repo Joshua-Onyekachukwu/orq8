@@ -85,24 +85,24 @@ const plans: Plan[] = [
     cta: "Get Business",
     ctaVariant: "outline",
   },
-  {
-    name: "Enterprise",
-    price: { monthly: "Custom", annual: "Custom" },
-    note: { monthly: "private deployment · SLA", annual: "private deployment · SLA" },
-    blurb: "For large AI workforces and regulated environments.",
-    trial: true,
-    features: [
-      { lead: "Unlimited AI employees", text: "" },
-      { lead: "Private deployment", text: " (self-hosted or VPC)" },
-      { text: "Custom integrations and internal-tool platform" },
-      { text: "SLA + dedicated onboarding" },
-      { text: "Enterprise governance: SSO, advanced audit, compliance reporting" },
-      { text: "Usage-based options for AI/voice/infrastructure" },
-    ],
-    cta: "Talk to sales",
-    ctaVariant: "outline",
-  },
 ];
+
+/* Enterprise is presented as its own full-width container below the three
+   tier cards, mirroring the landing page structure. */
+const enterprise = {
+  name: "Enterprise",
+  blurb:
+    "For large AI workforces and regulated environments. Custom pricing.",
+  features: [
+    { lead: "Unlimited AI employees", text: "" },
+    { lead: "Private deployment", text: " (self-hosted or VPC)" },
+    { text: "Custom integrations and internal-tool platform" },
+    { text: "Enterprise governance: SSO, advanced audit, compliance reporting" },
+    { text: "SLA + dedicated onboarding" },
+    { text: "Usage-based options for AI/voice/infrastructure" },
+  ],
+  cta: "Talk to sales",
+};
 
 const everyPlan = [
   {
@@ -280,7 +280,7 @@ export function PricingPage() {
 
       {/* ---------- Tier cards ---------- */}
       <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan) => (
             <article
               key={plan.name}
@@ -349,6 +349,39 @@ export function PricingPage() {
         <p className="mt-8 text-center font-mono text-xs text-muted">
           7 days free on every plan · Prorated upgrades · Cancel anytime
         </p>
+
+        {/* Enterprise: its own container under the three cards */}
+        <div className="mt-8 rounded-xl border border-navy-700 bg-navy-900 p-6 text-white sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-10">
+            <div className="lg:max-w-xs lg:flex-shrink-0">
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300">
+                {enterprise.name}
+              </h2>
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight">
+                Custom AI organizations for larger teams.
+              </h3>
+              <p className="mt-2 text-sm text-white/60">{enterprise.blurb}</p>
+            </div>
+            <ul className="flex-1 grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+              {enterprise.features.map((f, i) => (
+                <li key={i} className="flex gap-2">
+                  <span aria-hidden className="mt-0.5 shrink-0 font-semibold text-emerald-300">
+                    ✓
+                  </span>
+                  <span className="text-white/85">
+                    {f.lead && <strong className="font-semibold">{f.lead}</strong>}
+                    {f.text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="lg:flex-shrink-0">
+              <Button href="#" variant="outline-light" className="w-full lg:w-auto">
+                {enterprise.cta}
+              </Button>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ---------- What's in every plan ---------- */}
