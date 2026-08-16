@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react"; 
+import React from "react";
 import ContactInfo from "./ContactInfo";
 
 const ContactForm: React.FC = () => {
@@ -22,43 +22,69 @@ const ContactForm: React.FC = () => {
                 <form>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-[20px] md:gap-[25px]">
                     <div>
-                      <label className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]">
+                      <label
+                        htmlFor="contact-name"
+                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                      >
                         Name
                       </label>
                       <input
                         type="text"
+                        id="contact-name"
+                        name="name"
+                        autoComplete="name"
+                        required
                         className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         placeholder="Enter name"
                       />
                     </div>
 
                     <div>
-                      <label className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]">
+                      <label
+                        htmlFor="contact-email"
+                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                      >
                         Email
                       </label>
                       <input
                         type="email"
+                        id="contact-email"
+                        name="email"
+                        autoComplete="email"
+                        required
                         className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         placeholder="Enter email address"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]">
+                      <label
+                        htmlFor="contact-phone"
+                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                      >
                         Phone no
                       </label>
                       <input
-                        type="text"
+                        type="tel"
+                        id="contact-phone"
+                        name="phone"
+                        autoComplete="tel"
                         className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         placeholder="Enter phone number"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]">
+                      <label
+                        htmlFor="contact-message"
+                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                      >
                         Message
                       </label>
                       <textarea
+                        id="contact-message"
+                        name="message"
+                        required
                         className="block text-sm md:text-base w-full h-[164px] bg-white dark:bg-dark rounded-[20px] px-[15px] md:px-[20px] pt-[15px] md:pt-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
                         placeholder="Write your message here"
                       ></textarea>
@@ -78,7 +104,7 @@ const ContactForm: React.FC = () => {
                         stored.
                       </label>
                     </div>
-                    
+
                     <div className="md:col-span-2">
                       <button
                         type="submit"

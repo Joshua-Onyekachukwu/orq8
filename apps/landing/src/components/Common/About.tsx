@@ -36,7 +36,7 @@ const aboutContent = {
     },
   ],
   cta: {
-    text: "GET STARTED",
+    text: "JOIN THE WAITLIST",
     href: "/#waitlist",
   },
 };
@@ -44,8 +44,7 @@ const aboutContent = {
 const About: React.FC = () => {
   return (
     <div
-      id="how-it-works"
-      className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px] scroll-mt-[120px]"
+      className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]"
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
         {/* Image Section */}

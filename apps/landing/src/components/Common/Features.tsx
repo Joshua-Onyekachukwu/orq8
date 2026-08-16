@@ -76,7 +76,7 @@ const Features: React.FC = () => {
             {features.map((feature) => (
               <div
                 key={feature.id}
-                className="group relative z-[1] py-[25px] md:py-[30px] lg:py-[40px] px-[20px] ltr:md:pr-[25px] rtl:md:pl-[25px] ltr:lg:pr-[30px] rtl:lg:pl-[30px] ltr:md:pl-[95px] rtl:md:pr-[95px] ltr:lg:pl-[105px] rtl:lg:pr-[105px]"
+                className="lift-card group relative z-[1] py-[25px] md:py-[30px] lg:py-[40px] px-[20px] ltr:md:pr-[25px] rtl:md:pl-[25px] ltr:lg:pr-[30px] rtl:lg:pl-[30px] ltr:md:pl-[95px] rtl:md:pr-[95px] ltr:lg:pl-[105px] rtl:lg:pr-[105px]"
               >
                 <div className="rounded-[10px] md:rounded-[20px] absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-navy-900 -z-[1] ltr:md:ml-[42px] rtl:md:mr-[42px]"></div>
                 <div

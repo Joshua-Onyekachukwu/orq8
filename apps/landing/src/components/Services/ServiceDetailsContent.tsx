@@ -170,11 +170,11 @@ const ServiceDetailsContent: React.FC = () => {
               </p>
 
               <Link
-                href="/pricing"
+                href="/#waitlist"
                 className="inline-block rounded-[60px] bg-orange-400 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-[#c8ff32] hover:text-black mt-[10px] md:mt-[25px]"
               >
                 <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
-                  GET STARTED{" "}
+                  JOIN THE WAITLIST{" "}
                   <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
                 </span>
               </Link>

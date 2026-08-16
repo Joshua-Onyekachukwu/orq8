@@ -1,10 +1,12 @@
 import About from "@/components/Common/About";
 import Faqs from "@/components/Common/Faqs";
 import Features from "@/components/Common/Features";
+import HowItWorks from "@/components/Common/HowItWorks";
 import FunFacts from "@/components/Common/FunFacts";
 import Integrations from "@/components/Common/Integrations";
 import Partners from "@/components/Common/Partners";
 import Pricing from "@/components/Common/Pricing";
+import { Reveal } from "@/components/Common/Reveal";
 import Testimonials from "@/components/Common/Testimonials";
 import Cta from "@/components/Common/Cta";
 import HeroBanner from "@/components/Home/HeroBanner";
@@ -14,23 +16,45 @@ export default function Home() {
     <>
       <HeroBanner />
 
-      <Partners />
+      <Reveal>
+        <Partners />
+      </Reveal>
 
-      <About />
+      <Reveal>
+        <HowItWorks />
+      </Reveal>
 
-      <Features />
+      <Reveal>
+        <About />
+      </Reveal>
 
-      <Integrations />
+      <Reveal>
+        <Features />
+      </Reveal>
 
-      <Testimonials />
+      <Reveal>
+        <Integrations />
+      </Reveal>
 
-      <FunFacts />
+      <Reveal>
+        <Testimonials />
+      </Reveal>
 
-      <Pricing />
+      <Reveal>
+        <FunFacts />
+      </Reveal>
 
-      <Faqs />
+      <Reveal>
+        <Pricing />
+      </Reveal>
 
-      <Cta />
+      <Reveal>
+        <Faqs />
+      </Reveal>
+
+      <Reveal>
+        <Cta />
+      </Reveal>
     </>
   );
 }

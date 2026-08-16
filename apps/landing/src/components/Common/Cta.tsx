@@ -81,7 +81,7 @@ const Cta: React.FC = () => {
                     disabled={status === "loading"}
                     className="btn-press inline-flex items-center justify-center gap-[12px] rounded-[50px] bg-orange-500 text-white font-bold uppercase text-xs tracking-[1.8px] px-[28px] h-[52px] hover:bg-primary-500 disabled:opacity-60"
                   >
-                    {status === "loading" ? "Submitting…" : "Get early access"}
+                    {status === "loading" ? "Submitting…" : "Join the waitlist"}
                     <i className="ri-arrow-right-up-line text-[20px]"></i>
                   </button>
                 </form>
@@ -101,7 +101,7 @@ const Cta: React.FC = () => {
 
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
                 <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                Get set up in 5 minutes
+                Priority access when the cohort opens
               </li>
 
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">

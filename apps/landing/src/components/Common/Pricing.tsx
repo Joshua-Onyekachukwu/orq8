@@ -89,7 +89,7 @@ const Pricing: React.FC = () => {
               Pricing
             </span>
             <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] !text-white">
-              Free to start. <span className="text-lime">$49 when it earns its keep.</span>
+              Free to join. <span className="text-lime">$49 when it earns its keep.</span>
             </h2>
           </div>
 
@@ -102,7 +102,7 @@ const Pricing: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className={`relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[35px] ${
+                    className={`lift-card relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[35px] ${
                       popular ? "lg:-mt-[30px] lg:pb-[60px]" : ""
                     }`}
                   >
@@ -144,7 +144,7 @@ const Pricing: React.FC = () => {
                       className={`btn-press block w-full rounded-[60px] ${s.button} p-[7px] md:p-[10px] uppercase text-xs font-bold ${s.buttonText} tracking-[1.8px] ${s.buttonHover}`}
                     >
                       <span className="flex items-center justify-center gap-[15px] md:gap-[20px]">
-                        Get Started{" "}
+                        Join the waitlist{" "}
                         <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
                       </span>
                     </Link>

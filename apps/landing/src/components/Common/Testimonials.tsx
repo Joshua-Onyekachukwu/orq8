@@ -9,9 +9,7 @@ import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 interface Testimonial {
   id: number;
   quote: string;
-  name: string;
-  position: string;
-  image: string;
+  role: string;
 }
 
 const Testimonials: React.FC = () => {
@@ -20,33 +18,20 @@ const Testimonials: React.FC = () => {
       id: 1,
       quote:
         "I spend Sundays doing six jobs nobody hired me for — accounting, marketing, ops, support. ORQ8 is the first thing that treats my business like a company instead of a to-do list.",
-      name: "Lucile Young",
-      position: "Solo Founder",
-      image: "/images/users/user5.jpg",
+      role: "Solo founder",
     },
     {
       id: 2,
       quote:
         "I've tried every AI tool. They answer questions. None of them does the work. ORQ8 is the difference between a chatbot and an employee — it plans, it hires, it reports back.",
-      name: "Jacob Jones",
-      position: "Product Founder",
-      image: "/images/users/user1.jpg",
+      role: "Product founder",
     },
     {
       id: 3,
       quote:
         "The Monday report alone is worth it. For the first time I actually know what my company did this week — what it cost, what's blocked, and what needs my decision.",
-      name: "Amelia Brown",
-      position: "E-commerce Founder",
-      image: "/images/users/user2.jpg",
+      role: "E-commerce founder",
     },
-  ];
-
-  const users = [
-    "/images/users/user1.jpg",
-    "/images/users/user2.jpg",
-    "/images/users/user3.jpg",
-    "/images/users/user4.jpg",
   ];
 
   const reducedMotion = usePrefersReducedMotion();
@@ -80,6 +65,9 @@ const Testimonials: React.FC = () => {
             Founders don&apos;t need more tools.{" "}
             <span className="text-primary-500">They need a company.</span>
           </h2>
+          <p className="mt-[10px] lg:mt-[14px] text-sm md:text-[15px] text-gray-500 dark:text-gray-400">
+            What early founders tell us — paraphrased, names kept private.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
@@ -108,7 +96,7 @@ const Testimonials: React.FC = () => {
                   <Image
                     src="/images/icons/quote.svg"
                     className="mb-[15px] md:mb-[25px] xl:mb-[40px]"
-                    alt="quote"
+                    alt=""
                     width={36}
                     height={27}
                   />
@@ -116,18 +104,17 @@ const Testimonials: React.FC = () => {
                     {testimonial.quote}
                   </p>
                   <div className="flex items-center gap-[15px] mt-[20px] md:mt-[30px] xl:mt-[45px]">
-                    <Image
-                      src={testimonial.image}
-                      className="rounded-full w-[44px]"
-                      alt="user-image"
-                      width={44}
-                      height={44}
-                    />
+                    <div
+                      aria-hidden="true"
+                      className="w-[44px] h-[44px] rounded-full bg-lime/15 text-lime flex items-center justify-center font-bold text-lg shrink-0"
+                    >
+                      {testimonial.role.charAt(0)}
+                    </div>
                     <div>
                       <h3 className="!text-base md:!text-md !font-semibold !mb-[5px]">
-                        {testimonial.name}
+                        {testimonial.role}
                       </h3>
-                      <span className="block">{testimonial.position}</span>
+                      <span className="block">Early beta · paraphrased</span>
                     </div>
                   </div>
                 </SwiperSlide>
@@ -138,7 +125,8 @@ const Testimonials: React.FC = () => {
           <div className="text-center relative rounded-[10px] md:rounded-[20px]">
             <Image
               src="/images/testimonials.jpg"
-              alt="testimonials-image"
+              alt=""
+              aria-hidden="true"
               className="rounded-[20px] inline-block"
               width={939}
               height={939}
@@ -151,15 +139,14 @@ const Testimonials: React.FC = () => {
               }}
             >
               <div className="flex items-center justify-center ltr:md:justify-left rtl:md:justify-right mb-[12px] md:mb-0">
-                {users.map((user, index) => (
-                  <Image
+                {[0, 1, 2, 3].map((index) => (
+                  <div
                     key={index}
-                    src={user}
-                    className="rounded-full w-[40px] border-[2px] border-white dark:border-dark ltr:-mr-[15px] rtl:-ml-[15px] ltr:last:mr-0 rtl:last:ml-0"
-                    alt="user-image"
-                    width={40}
-                    height={40}
-                  />
+                    aria-hidden="true"
+                    className="w-[40px] h-[40px] rounded-full border-[2px] border-white dark:border-dark bg-lime/15 text-lime flex items-center justify-center ltr:-mr-[15px] rtl:-ml-[15px] ltr:last:mr-0 rtl:last:ml-0"
+                  >
+                    <i className="ri-user-smile-line text-[18px]"></i>
+                  </div>
                 ))}
               </div>
               FOUNDERS WHO RUN IT
