@@ -2,18 +2,42 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 type AuthMode = "login" | "register";
 
 const fieldClass =
-  "h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-emerald/60 focus:ring-2 focus:ring-emerald/25";
-const labelClass = "mb-1 block text-sm font-medium text-white/70";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-emerald/60 focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
+const labelClass = "mb-1.5 block text-sm font-medium text-white/70";
 
-export function AuthForm({ mode }: { mode: AuthMode }) {
+/**
+ * Validates a ?next= redirect target: internal absolute paths only, so the
+ * value can never smuggle an open redirect (no //host, no backslash tricks).
+ */
+function safeNext(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//") || value.includes("\\")) return null;
+  return value;
+}
+
+export function AuthForm({
+  mode,
+  next,
+}: {
+  mode: AuthMode;
+  next?: string | null;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const target = safeNext(next);
 
   // Move focus to the alert so keyboard + screen-reader users hear the failure.
   useEffect(() => {
@@ -23,18 +47,32 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setPending(true);
 
     const form = new FormData(e.currentTarget);
+    const password = String(form.get("password") ?? "");
+    if (mode === "register") {
+      const confirm = String(form.get("confirm_password") ?? "");
+      if (confirm !== password) {
+        setConfirmError("Passwords do not match.");
+        return;
+      }
+      setConfirmError(null);
+      if (!termsAccepted) {
+        setError("Please accept the terms to continue.");
+        return;
+      }
+    }
+
     const body: Record<string, string> = {
       email: String(form.get("email") ?? ""),
-      password: String(form.get("password") ?? ""),
+      password,
     };
     if (mode === "register") {
       body.name = String(form.get("name") ?? "");
       body.org_name = String(form.get("org_name") ?? "");
     }
 
+    setPending(true);
     try {
       const res = await fetch(`/api/auth/${mode}`, {
         method: "POST",
@@ -49,7 +87,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         );
         return;
       }
-      router.push("/app");
+      router.push(target ?? "/app");
       router.refresh();
     } catch {
       setError("Network error. Is the API running?");
@@ -58,14 +96,62 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
   }
 
+  const PasswordField = ({
+    id,
+    name,
+    label = "Password",
+    placeholder,
+    autoComplete,
+    show,
+    onToggle,
+    minLength,
+  }: {
+    id: string;
+    name: string;
+    label?: string;
+    placeholder: string;
+    autoComplete: string;
+    show: boolean;
+    onToggle: () => void;
+    minLength?: number;
+  }) => (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          name={name}
+          type={show ? "text" : "password"}
+          required
+          autoComplete={autoComplete}
+          minLength={minLength}
+          disabled={pending}
+          className={`${fieldClass} pr-11`}
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={show ? "Hide password" : "Show password"}
+          aria-pressed={show}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-lime"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>
       {error && (
         <div
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
         >
           {error}
         </div>
@@ -76,7 +162,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           <label htmlFor="name" className={labelClass}>
             Your name
           </label>
-          <input id="name" name="name" autoComplete="name" className={fieldClass} placeholder="Ada Lovelace" />
+          <input
+            id="name"
+            name="name"
+            autoComplete="name"
+            disabled={pending}
+            className={fieldClass}
+            placeholder="Ada Lovelace"
+          />
         </div>
       )}
 
@@ -90,6 +183,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             name="org_name"
             required
             autoComplete="organization"
+            disabled={pending}
             className={fieldClass}
             placeholder="Acme Inc."
           />
@@ -106,33 +200,101 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           type="email"
           required
           autoComplete="email"
+          disabled={pending}
           className={fieldClass}
           placeholder="you@company.com"
         />
       </div>
 
-      <div>
-        <label htmlFor="password" className={labelClass}>
-          Password
+      <PasswordField
+        id="password"
+        name="password"
+        placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
+        autoComplete={mode === "register" ? "new-password" : "current-password"}
+        minLength={mode === "register" ? 8 : undefined}
+        show={showPassword}
+        onToggle={() => setShowPassword((v) => !v)}
+      />
+
+      {mode === "register" && (
+        <>
+          <PasswordField
+            id="confirm_password"
+            name="confirm_password"
+            label="Confirm password"
+            placeholder="Repeat your password"
+            autoComplete="new-password"
+            show={showConfirm}
+            onToggle={() => setShowConfirm((v) => !v)}
+          />
+          {confirmError && (
+            <p role="alert" className="text-sm text-red-300">
+              {confirmError}
+            </p>
+          )}
+        </>
+      )}
+
+      {mode === "login" && (
+        <div className="flex items-center justify-between text-sm">
+          <label className="flex cursor-pointer items-center gap-2 text-white/60">
+            <input
+              type="checkbox"
+              name="remember"
+              disabled={pending}
+              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald"
+            />
+            Remember me
+          </label>
+        </div>
+      )}
+
+      {mode === "register" && (
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-white/60">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            disabled={pending}
+            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald"
+          />
+          <span>
+            I accept the{" "}
+            <Link
+              href="/settings/terms-conditions"
+              target="_blank"
+              className="font-medium text-emerald transition-colors hover:text-lime"
+            >
+              terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/settings/privacy-policy"
+              target="_blank"
+              className="font-medium text-emerald transition-colors hover:text-lime"
+            >
+              privacy policy
+            </Link>
+            .
+          </span>
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          autoComplete={mode === "register" ? "new-password" : "current-password"}
-          minLength={mode === "register" ? 8 : undefined}
-          className={fieldClass}
-          placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
-        />
-      </div>
+      )}
 
       <button
         type="submit"
         disabled={pending}
-        className="h-10 w-full rounded-md bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime active:translate-y-px disabled:opacity-50"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create my organization"}
+        {pending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            {mode === "login" ? "Signing in…" : "Creating your organization…"}
+          </>
+        ) : mode === "login" ? (
+          "Sign in"
+        ) : (
+          "Create my organization"
+        )}
       </button>
     </form>
   );
