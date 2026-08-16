@@ -61,21 +61,15 @@ const Pricing: React.FC = () => {
       ],
       cta: { label: "Join the waitlist", href: "/#waitlist" },
     },
-    {
-      title: "Enterprise",
-      description:
-        "Custom AI organizations for larger teams and bespoke governance.",
-      price: "Custom",
-      priceNote: "",
-      features: [
-        "Everything in Business",
-        "Custom AI model contracts",
-        "Dedicated infrastructure",
-        "Security review + SLA",
-        "Onboarding + success team",
-      ],
-      cta: { label: "Contact us", href: "/contact/" },
-    },
+  ];
+
+  const enterpriseFeatures: string[] = [
+    "Everything in Business",
+    "Custom AI model contracts",
+    "Dedicated infrastructure",
+    "Security review + SLA",
+    "Onboarding + success team",
+    "Dedicated account manager",
   ];
 
   const styles: Record<string, { border: string; text: string; button: string; buttonHover: string; buttonText: string }> = {
@@ -98,13 +92,6 @@ const Pricing: React.FC = () => {
       text: "text-primary-500",
       button: "bg-primary-500",
       buttonHover: "hover:bg-lime hover:text-black",
-      buttonText: "text-white",
-    },
-    Enterprise: {
-      border: "border-white/20",
-      text: "text-white/60",
-      button: "bg-white/10",
-      buttonHover: "hover:bg-primary-500 hover:text-white",
       buttonText: "text-white",
     },
   };
@@ -130,7 +117,7 @@ const Pricing: React.FC = () => {
           </div>
 
           <div className="md:max-w-[1316px] mx-auto relative top-[140px] -mt-[140px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[25px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[25px]">
               {pricingPlans.map((plan, index) => {
                 const s = styles[plan.title];
                 const popular = Boolean(plan.popular);
@@ -190,6 +177,48 @@ const Pricing: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-[25px] lift-card border-[2px] md:border-[5px] lg:border-[10px] border-white/20 rounded-[15px] md:rounded-[30px] bg-navy-800 px-[18px] md:px-[30px] lg:px-[45px] py-[25px] md:py-[35px] lg:py-[40px]">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-[25px] md:gap-[35px] lg:gap-[50px]">
+                <div className="lg:max-w-[280px] lg:flex-shrink-0">
+                  <span className="block mb-[10px] md:mb-[15px] uppercase font-bold tracking-[1.8px] text-xs text-white/60">
+                    Enterprise
+                  </span>
+                  <span className="inline-block mb-[12px] md:mb-[18px] rounded-[50px] border border-lime/40 text-lime text-[9px] font-bold uppercase tracking-[1.8px] px-[12px] py-[5px]">
+                    7 days free
+                  </span>
+                  <h3 className="!mb-0 !font-light !text-xl md:!text-2xl lg:!text-[28px] -tracking-[1px] md:-tracking-[1.6px] !text-white">
+                    Custom AI organizations for larger teams.
+                  </h3>
+                  <p className="!mb-0 mt-[10px] md:mt-[14px] text-[#8f8f99] md:text-[15px] lg:text-md">
+                    Bespoke governance, dedicated infrastructure, and a team that
+                    gets you running.
+                  </p>
+                </div>
+                <ul className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-[25px] gap-y-[12px] md:gap-y-[14px]">
+                  {enterpriseFeatures.map((feature, featureIndex) => (
+                    <li
+                      key={featureIndex}
+                      className="relative ltr:pl-[28px] rtl:pr-[28px] text-white -tracking-[0.16px] md:text-[15px] lg:text-md"
+                    >
+                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 ltr:-left-[2px] rtl:-right-[2px] text-lime text-[22px] md:text-[24px]"></i>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <div className="lg:flex-shrink-0">
+                  <Link
+                    href="/contact/"
+                    className={`btn-press block w-full lg:w-auto rounded-[60px] bg-white/10 hover:bg-lime hover:text-black p-[7px] md:p-[10px] lg:px-[26px] uppercase text-xs font-bold text-white tracking-[1.8px]`}
+                  >
+                    <span className="flex items-center justify-center gap-[15px] md:gap-[20px]">
+                      Contact us{" "}
+                      <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
+                    </span>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
