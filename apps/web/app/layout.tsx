@@ -16,11 +16,9 @@ export const metadata: Metadata = {
 };
 
 // Next 15: theme-color is a viewport export, not a metadata field.
+// Light theme only for now; the browser chrome stays white in every mode.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
-  ],
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

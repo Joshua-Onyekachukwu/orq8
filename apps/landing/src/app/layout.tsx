@@ -31,16 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Apply the saved or system theme before paint so there is no flash of
-            the wrong theme. Reads the same "theme" key SidebarSettings uses. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.classList.toggle("dark",d);}catch(e){}})();`,
-          }}
-        />
-      </head>
+    // Light theme only for now. The dark: styles stay in the codebase for the
+    // future dark-mode pass, but nothing applies the "dark" class anymore, so
+    // the site always renders in the approved white/navy design.
+    <html lang="en">
+      <head />
       <body className={`${inter.variable} antialiased !bg-white dark:!bg-dark`}>
         <a
           href="#main"

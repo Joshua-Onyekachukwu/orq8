@@ -43,37 +43,9 @@ const Navbar: React.FC = () => {
       ? "bg-white"
       : "bg-dark dark:bg-white";
 
-  // Light/dark theme. Persists to localStorage ("theme" key, shared with
-  // SidebarSettings); when the user has no stored choice, follows the system
-  // preference live. The "dark" class on <html> drives all dark: styles.
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    const dark = stored
-      ? stored === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(dark ? "dark" : "light");
-    document.documentElement.classList.toggle("dark", dark);
-
-    // Follow OS changes until the user picks a theme themselves.
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (e: MediaQueryListEvent) => {
-      if (!localStorage.getItem("theme")) {
-        setTheme(e.matches ? "dark" : "light");
-        document.documentElement.classList.toggle("dark", e.matches);
-      }
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  const toggleTheme = (): void => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-  };
+  // Theme: light only for now. The dark: styles remain in the codebase for a
+  // future dark-mode pass, but nothing reads the stored theme or applies the
+  // "dark" class, so the site always renders in the white/navy design.
 
   // Scroll-spy: on the homepage, highlight the section currently in view.
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -193,36 +165,6 @@ const Navbar: React.FC = () => {
     </span>
   );
 
-  // Theme toggle button. Colours follow the bar context: transparent over the
-  // navy hero (white), over light banners (dark), sticky (inverts both ways).
-  const toggleText = isSticky
-    ? "text-black dark:text-white"
-    : isHome
-      ? "text-white"
-      : "text-black dark:text-white";
-  const toggleBorder = isSticky
-    ? "border-gray-200 dark:border-white/20"
-    : isHome
-      ? "border-white/25"
-      : "border-gray-200 dark:border-white/20";
-
-  const ThemeToggle = ({ className = "" }: { className?: string }) => (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      aria-label={
-        theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-      }
-      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      className={`rounded-full border transition-colors duration-300 flex items-center justify-center w-[40px] h-[40px] flex-none ${toggleBorder} ${toggleText} hover:border-lime hover:text-lime ${className}`}
-    >
-      <i
-        className={`${theme === "dark" ? "ri-sun-line" : "ri-moon-line"} text-[18px] leading-none`}
-        aria-hidden="true"
-      ></i>
-    </button>
-  );
-
   return (
     <>
       <div
@@ -236,7 +178,6 @@ const Navbar: React.FC = () => {
             </Link>
 
             <div className="flex items-center gap-[14px] ml-auto lg:hidden">
-              <ThemeToggle />
               <button
                 type="button"
                 aria-label="Toggle menu"
@@ -281,8 +222,6 @@ const Navbar: React.FC = () => {
                   </li>
                 ))}
               </ul>
-
-              <ThemeToggle className="ltr:ml-[16px] rtl:mr-[16px] xl:ltr:ml-[26px] xl:rtl:mr-[26px]" />
 
               <Link
                 href="/#waitlist"
