@@ -232,13 +232,13 @@ const HeroBanner: React.FC = () => {
                 </span>
 
                 <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
-                  Run your company with{" "}
-                  <span className="font-bold text-lime">AI employees</span>
+                  Run an actual company of{" "}
+                  <span className="font-bold text-lime">One</span>
                 </h1>
 
                 <p className="lg:text-md xl:text-lg text-white/75 max-w-[560px]">
-                  You set the direction. ORQ8 hires the team, does the work, and
-                  reports back under your approvals and your budget.
+                  You set the direction. ORQ8 hires the AI team, does the work,
+                  and reports back under your approvals and your budget.
                 </p>
 
                 <Link
