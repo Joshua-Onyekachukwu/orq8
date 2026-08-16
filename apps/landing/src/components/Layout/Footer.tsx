@@ -30,7 +30,7 @@ const Footer: React.FC = () => {
 
   return (
     <>
-      <footer className="relative z-[1] bg-navy-950 dark:bg-black pt-[70px] md:pt-[90px] lg:pt-[110px] overflow-hidden">
+      <footer className="relative z-[1] bg-navy-950 pt-[70px] md:pt-[90px] lg:pt-[110px] overflow-hidden">
         <div
           aria-hidden
           className="absolute inset-0"
