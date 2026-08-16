@@ -9,6 +9,7 @@
 
 @theme {
   --font-body: "Inter", serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
