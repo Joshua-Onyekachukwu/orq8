@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react";
 type AuthMode = "login" | "register";
 
 const fieldClass =
-  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-700/20";
-const labelClass = "mb-1 block text-sm font-medium text-ink";
+  "h-10 w-full rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-emerald/60 focus:ring-2 focus:ring-emerald/25";
+const labelClass = "mb-1 block text-sm font-medium text-white/70";
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
@@ -45,14 +45,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       if (!res.ok) {
         setError(
           (data as { error?: string } | null)?.error ??
-            "That didn't work — check your details and try again. If it persists, the API may be down on :3001."
+            "That didn't work — check your details and try again. If it persists, the API may be down."
         );
         return;
       }
       router.push("/app");
       router.refresh();
     } catch {
-      setError("Network error — is the API running on :3001?");
+      setError("Network error — is the API running?");
     } finally {
       setPending(false);
     }
@@ -65,7 +65,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-200"
         >
           {error}
         </div>
@@ -130,7 +130,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <button
         type="submit"
         disabled={pending}
-        className="h-10 w-full rounded-md bg-navy-800 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-50"
+        className="h-10 w-full rounded-md bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime active:translate-y-px disabled:opacity-50"
       >
         {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create my organization"}
       </button>
