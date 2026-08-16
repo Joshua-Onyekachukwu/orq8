@@ -12,9 +12,9 @@ const tabs = [
 ];
 
 /**
- * Settings hub shell, adapted from the Trezo settings Nav: a top bar plus
- * pill tabs that highlight the active section. Standalone layout (the
- * dashboard shell has its own sidebar); Providers & Keys lives at
+ * Settings hub shell: a top bar plus pill tabs that highlight the active
+ * section. Standalone layout (the dashboard shell has its own sidebar);
+ * Providers & Keys lives at
  * /settings/providers and is linked from Connections.
  */
 export function SettingsShell({

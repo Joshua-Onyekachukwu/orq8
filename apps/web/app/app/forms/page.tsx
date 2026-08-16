@@ -4,9 +4,9 @@ import { useState } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Mail, UserPlus } from "lucide-react";
 
 /**
- * Forms, adapted from the Trezo input-select + checkboxes-radios base. The
- * left column is the element gallery; the right column composes the same
- * elements into a real ORQ8 flow: hiring an agent (Phase 2 template).
+ * Forms: the left column is the element gallery (inputs, selects, checks,
+ * radios, switches); the right column composes the same elements into a
+ * real ORQ8 flow: hiring an agent (Phase 2).
  */
 const fieldClass =
   "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-navy-800";

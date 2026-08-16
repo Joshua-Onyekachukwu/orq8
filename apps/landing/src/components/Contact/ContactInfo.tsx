@@ -13,10 +13,10 @@ const ContactInfo: React.FC = () => {
       </span>
 
       <a
-        href="mailto:helloinfo@trezo.com"
+        href="mailto:hello@orq8.company"
         className="inline-block font-light md:-tracking-[.44px] lg:-tracking-[1.44px] text-md md:text-[22px] lg:text-xl transition-all hover:text-primary-500"
       >
-        helloinfo@trezo.com
+        hello@orq8.company
       </a>
 
       <span className="block text-black dark:text-white font-medium text-xs uppercase tracking-[1.8px] mb-[5px] md:mb-[8px] mt-[20px] md:mt-[30px] lg:mt-[40px]">

@@ -1,9 +1,8 @@
 import { Activity, ClipboardCheck } from "lucide-react";
 
-// Ported from the Trezo template (Dashboard/eCommerce/Welcome.tsx):
-// same card structure - greeting, divider, two stat chips, right-side
-// visual - re-skinned for ORQ8 (navy command center + lime/emerald accents,
-// live SYSTEM ONLINE panel instead of the stock illustration).
+// ORQ8 command-center welcome banner: greeting, divider, two status chips,
+// and a live SYSTEM ONLINE panel on the right. Navy surface with lime and
+// emerald accents per the ORQ8 design language.
 export function WelcomeBanner() {
   const today = new Date().toLocaleDateString(undefined, {
     weekday: "long",
@@ -12,8 +11,8 @@ export function WelcomeBanner() {
   });
 
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-navy-950 p-[20px] text-white md:p-[25px]">
-      <div className="trezo-card-content relative md:pr-[240px]">
+    <div className="orq8-card mb-[25px] rounded-md bg-navy-950 p-[20px] text-white md:p-[25px]">
+      <div className="orq8-card-content relative md:pr-[240px]">
         <div className="md:py-[5px]">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
             {today}
@@ -54,7 +53,7 @@ export function WelcomeBanner() {
           </div>
         </div>
 
-        {/* Decorative system status - ORQ8 visual instead of the template image */}
+        {/* Decorative system status panel */}
         <div className="mt-[20px] rounded-md border border-white/10 bg-white/5 p-[16px] text-center md:absolute md:right-0 md:top-1/2 md:mt-0 md:w-[210px] md:-translate-y-1/2">
           <p className="flex items-center justify-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-lime">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-lime" />

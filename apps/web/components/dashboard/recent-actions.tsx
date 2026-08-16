@@ -1,8 +1,8 @@
 import { ArrowUpRight, Bot, FileText, GitPullRequest, Search } from "lucide-react";
 
-// Ported from the Trezo template (Dashboard/eCommerce/RecentTransaction.tsx):
-// icon-chip list rows with title + subtitle and a right-aligned value.
-// Re-skinned for ORQ8 agent actions, keeping the inline "because" line.
+// ORQ8 recent agent actions: icon-chip list rows with agent + summary on
+// the left, time and cost on the right, and the inline "because" line that
+// explains why each agent acted.
 const actions = [
   {
     time: "09:41",
@@ -53,9 +53,9 @@ const actions = [
 
 export function RecentActions() {
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
-      <div className="trezo-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
-        <div className="trezo-card-title">
+    <div className="orq8-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
+      <div className="orq8-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
+        <div className="orq8-card-title">
           <h5 className="!mb-0">Recent agent actions</h5>
         </div>
         <a
@@ -66,7 +66,7 @@ export function RecentActions() {
         </a>
       </div>
 
-      <div className="trezo-card-content">
+      <div className="orq8-card-content">
         <ul>
           {actions.map((a) => (
             <li

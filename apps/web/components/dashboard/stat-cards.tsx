@@ -7,10 +7,9 @@ import dynamic from "next/dynamic";
 // Dynamically import react-apexcharts with Next.js dynamic import
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// Ported from the Trezo template (Dashboard/eCommerce/TotalOrders.tsx):
-// header row with label + delta chip + period, big figure, mini chart,
-// then a two-item legend list. Re-skinned with ORQ8 metrics and the
-// brand's emerald/lime palette.
+// ORQ8 stat card: header row with label + delta chip + period, big figure,
+// mini bar chart, then a two-item legend list. Metrics are ORQ8 operating
+// numbers; charts use the brand emerald/lime palette.
 type Stat = {
   label: string;
   value: string;
@@ -120,8 +119,8 @@ function StatCard({ stat }: { stat: Stat }) {
   };
 
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
-      <div className="trezo-card-content">
+    <div className="orq8-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
+      <div className="orq8-card-content">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <span className="block">{stat.label}</span>

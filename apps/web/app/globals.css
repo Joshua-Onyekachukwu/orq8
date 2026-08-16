@@ -38,7 +38,7 @@
   --color-hairline: #d1d6e0;
   --color-canvas: #f7f8fb;
 
-  /* Trezo template color scales (ported with the dashboard components) */
+  /* Status and accent color scales for the dashboard components */
   --color-secondary-50: #eef6ff;
   --color-secondary-100: #daebff;
   --color-secondary-200: #bddcff;
@@ -101,7 +101,7 @@
   --color-orange-900: #7e2010;
   --shadow-3xl: rgba(149, 157, 165, 0.2) 0px 8px 24px;
 
-  /* trezo-card spacing helpers used by the ported dashboard cards */
+  /* orq8-card spacing helper used by the dashboard cards */
   --spacing-card: 1.5625rem;
 }
 

@@ -10,9 +10,8 @@ const fieldClass =
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
 /**
- * Account settings, adapted from the Trezo AccountSettingsForm. Sample
- * values for the founder's profile; the save action wires to the members
- * API in Phase 2.
+ * Account settings hub. Sample values for the founder's profile; the save
+ * action wires to the members API in Phase 2.
  */
 export default function SettingsPage() {
   const [avatar, setAvatar] = useState<string | null>("/images/members/member-1.jpg");

@@ -5,9 +5,9 @@ import Image from "next/image";
 import { CheckCircle2, Edit, Mail, MapPin, Phone, Share2, Sparkles } from "lucide-react";
 
 /**
- * My Profile, adapted from the Trezo user-profile base: a cover card with
- * avatar and actions, section tabs (Overview / Details / Projects), an
- * About card, an agent roster card, and a projects table.
+ * My Profile: a cover card with avatar and actions, section tabs
+ * (Overview / Details / Projects), an About card, an agent roster card,
+ * and a projects table.
  */
 const agents = [
   { name: "Researcher · α", role: "Market researcher", status: "Working", image: null as string | null },

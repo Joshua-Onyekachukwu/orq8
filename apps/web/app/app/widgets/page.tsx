@@ -3,8 +3,8 @@ import { Activity, ArrowDownRight, ArrowUpRight, CircleDollarSign, ClipboardChec
 export const metadata = { title: "Widgets" };
 
 /**
- * Widgets, adapted from the Trezo widget base: the reusable stat cards and
- * mini-panels that compose dashboards.
+ * Widgets: the reusable stat cards and mini-panels that compose
+ * dashboards.
  */
 const stats = [
   {

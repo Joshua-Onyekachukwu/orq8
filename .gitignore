@@ -21,7 +21,7 @@ out/
 .vercel/
 apps/api/.vercel/
 
-# Third-party template (Trezo) — reference-only; not part of the codebase (see docs/58.11)
+# Reference pack — local only; not part of the codebase
 /Trezo/
 
 # Local data volumes (postgres, minio, ollama)

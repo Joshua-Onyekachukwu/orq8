@@ -42,7 +42,7 @@ Every brief shares the same skeleton — that consistency is the signal worth ta
 | Product mockup + app shell density | nexus-interface | Compact stat cards, nested surfaces, mono metric readouts — the "command center" feel |
 | Light variant (future / docs) | nexus-digital-product-architecture | Indigo-on-white alternative when a light mode is ever needed |
 
-**Explicitly skipped:** WebGL/dither/particle layers (aura/nexus vibes but wrong for calm-executive), MUI (Trezo's stack — we stay Tailwind), any template HTML imported wholesale.
+**Explicitly skipped:** WebGL/dither/particle layers (aura/nexus vibes but wrong for calm-executive), MUI (the admin pack's stack — we stay Tailwind), any third-party HTML imported wholesale.
 
 ---
 
@@ -52,8 +52,8 @@ Every brief shares the same skeleton — that consistency is the signal worth ta
 
 **Borrow (the workflow, not the output):**
 1. **Design exploration fast** — generate 3 hero/section variants by prompt, pick the strongest, use it as the visual brief; I reimplement in our Next.js + Tailwind components.
-2. **Image-to-HTML for reference** — paste a screenshot of a design Joshua likes (another product, a Trezo page, a sketch) → get a faithful starting layout → I port it.
-3. **Component patterns** — its public navbar/bento/card components as references for our Phase 3 app shell, exactly like the Trezo agreement.
+2. **Image-to-HTML for reference** — paste a screenshot of a design Joshua likes (another product, a reference page, a sketch) → get a faithful starting layout → I port it.
+3. **Component patterns** — its public navbar/bento/card components as references for our Phase 3 app shell, exactly like the reference-pack agreement.
 
 **Don't borrow:** Aura-hosted subdomain publishing and export-as-is — static HTML fights our Next.js routes, the waitlist backend, and the session-cookie auth flow. Same trap as Webflow. We borrow *sight*, not *site*.
 
@@ -71,4 +71,4 @@ Every brief shares the same skeleton — that consistency is the signal worth ta
 - **D2:** Refresh `/login` + `/register` in the aethel dark-command style as the next UI work item.
 - **D3:** Landing hero + ecosystem bento get vertex/connect treatments on the next copy pass.
 - **D4:** Aura is a *reference generator* — Joshua can paste generated designs into `Design MD files/` (or any folder) and I reimplement. No Aura output is committed as-is.
-- **D5:** Trezo stays reference-only for the Phase 3 app shell (per prior agreement).
+- **D5:** The reference admin pack stays reference-only for the Phase 3 app shell (per prior agreement).

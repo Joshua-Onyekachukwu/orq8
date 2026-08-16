@@ -7,13 +7,12 @@ import { WelcomeBanner } from "@/components/dashboard/welcome";
 
 export const metadata = { title: "Dashboard" };
 
-// Dashboard composed from the Trezo template components (Dashboard/eCommerce):
-// Welcome banner + stat cards on top, then a full-width activity chart,
-// Decision Center table beside the budgets donut, and the agent-action list.
-// All re-skinned with ORQ8 content and the navy/lime/emerald brand palette.
+// ORQ8 command dashboard: welcome banner + stat cards on top, full-width
+// activity chart, Decision Center table beside the budgets donut, and the
+// agent-action list - all in the navy/lime/emerald brand palette.
 export default function AppPage() {
   return (
-    <div className="trezo-main-content">
+    <div className="orq8-main-content">
       <WelcomeBanner />
 
       <StatCards />

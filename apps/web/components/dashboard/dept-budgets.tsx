@@ -7,9 +7,8 @@ import dynamic from "next/dynamic";
 // Dynamically import react-apexcharts with Next.js dynamic import
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// Ported from the Trezo template (Dashboard/eCommerce/OrderSummary.tsx):
-// donut chart + legend list inside a standard trezo-card. Re-skinned as
-// ORQ8 department budgets with the brand palette.
+// ORQ8 department budgets: donut chart + legend list with spend/total and
+// the weekly-total footer, using the brand palette per department.
 const budgets = [
   { dept: "Marketing", spent: "$620", total: "$1,000", pct: 62, color: "#34d399" },
   { dept: "Engineering", spent: "$470", total: "$1,000", pct: 47, color: "#1f64f1" },
@@ -37,9 +36,9 @@ export function DeptBudgets() {
   };
 
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
-      <div className="trezo-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
-        <div className="trezo-card-title">
+    <div className="orq8-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
+      <div className="orq8-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
+        <div className="orq8-card-title">
           <h5 className="!mb-0">Dept budgets</h5>
         </div>
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
@@ -47,7 +46,7 @@ export function DeptBudgets() {
         </span>
       </div>
 
-      <div className="trezo-card-content">
+      <div className="orq8-card-content">
         <div className="mx-auto max-w-[240px]">
           {isChartLoaded && (
             <Chart

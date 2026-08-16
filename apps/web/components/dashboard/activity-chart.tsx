@@ -7,9 +7,8 @@ import dynamic from "next/dynamic";
 // Dynamically import react-apexcharts with Next.js dynamic import
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// Ported from the Trezo template (Dashboard/eCommerce/ReturningCustomerRate.tsx):
-// trezo-card with a range dropdown and a full-width line chart. Re-skinned
-// as ORQ8 agent activity in the brand palette.
+// ORQ8 agent activity: full-width line chart of agent actions and approvals
+// in the brand emerald/lime palette, with the 68-actions week summary.
 export function ActivityChart() {
   const [isChartLoaded, setChartLoaded] = useState(false);
 
@@ -57,9 +56,9 @@ export function ActivityChart() {
   };
 
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
-      <div className="trezo-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
-        <div className="trezo-card-title">
+    <div className="orq8-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
+      <div className="orq8-card-header mb-[20px] flex items-center justify-between md:mb-[25px]">
+        <div className="orq8-card-title">
           <h5 className="!mb-0">Agent activity</h5>
         </div>
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald">
@@ -67,7 +66,7 @@ export function ActivityChart() {
         </span>
       </div>
 
-      <div className="trezo-card-content">
+      <div className="orq8-card-content">
         {isChartLoaded && (
           <Chart options={options} series={series} type="line" height={321} />
         )}

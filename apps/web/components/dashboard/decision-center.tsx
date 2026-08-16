@@ -4,10 +4,9 @@ import React, { useState } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Check, ChevronDown, PencilLine, Search, X } from "lucide-react";
 
-// Ported from the Trezo template (Dashboard/eCommerce/RecentOrders.tsx):
-// header with search + dropdown, paginated table with status badges and
-// row actions. Re-skinned for ORQ8 (navy/emerald/lime) with the
-// Decision Center approval queue content.
+// ORQ8 Decision Center: search + status filter, paginated approval-queue
+// table with avatar chips, status badges, and Approve/Modify/Reject actions
+// in the navy/emerald/lime design language.
 type Request = {
   id: string;
   from: string;
@@ -126,13 +125,13 @@ export function DecisionCenter() {
   };
 
   return (
-    <div className="trezo-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
-      <div className="trezo-card-header mb-[20px] sm:flex sm:items-center sm:justify-between md:mb-[25px]">
-        <div className="trezo-card-title">
+    <div className="orq8-card mb-[25px] rounded-md bg-white p-[20px] dark:bg-[#0c1427] md:p-[25px]">
+      <div className="orq8-card-header mb-[20px] sm:flex sm:items-center sm:justify-between md:mb-[25px]">
+        <div className="orq8-card-title">
           <h5 className="!mb-0">Decision Center</h5>
         </div>
 
-        <div className="trezo-card-subtitle sm:flex sm:items-center">
+        <div className="orq8-card-subtitle sm:flex sm:items-center">
           <form className="relative my-[13px] sm:my-0 sm:mr-[20px] sm:w-[240px]">
             <label className="absolute left-[13px] top-1/2 mt-px -translate-y-1/2 leading-none text-black dark:text-white">
               <Search className="!text-[20px]" />
@@ -149,9 +148,9 @@ export function DecisionCenter() {
             />
           </form>
 
-          <div className="trezo-card-subtitle">
-            <Menu as="div" className="trezo-card-dropdown relative">
-              <MenuButton className="trezo-card-dropdown-btn inline-block rounded-md border border-gray-100 px-[12px] py-[5px] transition-all hover:bg-gray-50 dark:border-[#172036] dark:hover:bg-[#0a0e19] md:px-[19px] md:py-[6.5px]">
+          <div className="orq8-card-subtitle">
+            <Menu as="div" className="orq8-card-dropdown relative">
+              <MenuButton className="orq8-card-dropdown-btn inline-block rounded-md border border-gray-100 px-[12px] py-[5px] transition-all hover:bg-gray-50 dark:border-[#172036] dark:hover:bg-[#0a0e19] md:px-[19px] md:py-[6.5px]">
                 <span className="relative inline-block pr-[17px] md:pr-[20px]">
                   {selectedOption}
                   <ChevronDown className="absolute -right-[3px] top-1/2 h-4 w-4 -translate-y-1/2" />
@@ -183,7 +182,7 @@ export function DecisionCenter() {
         </div>
       </div>
 
-      <div className="trezo-card-content">
+      <div className="orq8-card-content">
         <div className="table-responsive overflow-x-auto">
           <table className="w-full">
             <thead className="text-black dark:text-white">
