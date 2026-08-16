@@ -16,11 +16,29 @@ const menuItems = [
 const Navbar: React.FC = () => {
   const pathname = usePathname();
 
-  // Sticky navbar — glass command-bar once you scroll
+  // Sticky navbar — glass command-bar once you scroll.
+  // The transparent bar sits over the navy hero on the homepage (white
+  // wordmark) and over light banners on subpages (dark wordmark); once
+  // sticky it gets its own background, so the wordmark follows that.
+  const [isSticky, setIsSticky] = useState<boolean>(false);
+  const isHome = pathname === "/";
+  const brandColor = isSticky
+    ? "text-black dark:text-white"
+    : isHome
+      ? "text-white"
+      : "text-black dark:text-white";
+  const burgerBar = isSticky
+    ? "bg-dark dark:bg-white"
+    : isHome
+      ? "bg-white"
+      : "bg-dark dark:bg-white";
+
   useEffect(() => {
     const elementId = document.getElementById("navbar");
     const handleScroll = () => {
-      if (window.scrollY > 80) {
+      const sticky = window.scrollY > 80;
+      setIsSticky(sticky);
+      if (sticky) {
         elementId?.classList.add("is-sticky");
       } else {
         elementId?.classList.remove("is-sticky");
@@ -40,7 +58,7 @@ const Navbar: React.FC = () => {
 
   const Wordmark = ({ className = "" }: { className?: string }) => (
     <span
-      className={`inline-flex items-center gap-[7px] text-[24px] font-bold tracking-[-1.2px] leading-none text-black dark:text-white ${className}`}
+      className={`inline-flex items-center gap-[7px] text-[24px] font-bold tracking-[-1.2px] leading-none ${brandColor} transition-colors duration-300 ${className}`}
     >
       ORQ8
       <span className="w-[8px] h-[8px] rounded-full bg-lime inline-block"></span>
@@ -66,9 +84,9 @@ const Navbar: React.FC = () => {
               className="inline-block relative leading-none lg:hidden"
               onClick={handleToggleMobileMenu}
             >
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-transform duration-300"></span>
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-opacity duration-300"></span>
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-transform duration-300"></span>
+              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
+              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-opacity duration-300`}></span>
+              <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
             </button>
 
             {/* For Big Devices */}
