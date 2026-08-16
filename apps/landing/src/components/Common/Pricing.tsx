@@ -185,9 +185,6 @@ const Pricing: React.FC = () => {
                   <span className="block mb-[10px] md:mb-[15px] uppercase font-bold tracking-[1.8px] text-xs text-white/60">
                     Enterprise
                   </span>
-                  <span className="inline-block mb-[12px] md:mb-[18px] rounded-[50px] border border-lime/40 text-lime text-[9px] font-bold uppercase tracking-[1.8px] px-[12px] py-[5px]">
-                    7 days free
-                  </span>
                   <h3 className="!mb-0 !font-light !text-xl md:!text-2xl lg:!text-[28px] -tracking-[1px] md:-tracking-[1.6px] !text-white">
                     Custom AI organizations for larger teams.
                   </h3>
