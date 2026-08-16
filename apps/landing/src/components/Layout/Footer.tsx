@@ -175,7 +175,7 @@ const Footer: React.FC = () => {
 
               <div>
                 <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
-                  Get started
+                  Next steps
                 </span>
                 <ul className="space-y-[12px] md:space-y-[14px]">
                   <li>
