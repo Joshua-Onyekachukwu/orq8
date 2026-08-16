@@ -17,14 +17,16 @@ type Plan = {
   cta: string;
   ctaVariant: "default" | "outline" | "outline-light";
   featured?: boolean;
+  trial?: boolean;
 };
 
 const plans: Plan[] = [
   {
-    name: "Free",
+    name: "Starter",
     price: { monthly: "$0", annual: "$0" },
-    note: { monthly: "free forever", annual: "free forever" },
-    blurb: "For trying it on one idea.",
+    note: { monthly: "for 7 days", annual: "for 7 days" },
+    blurb: "The first step. Your first AI employees working for you.",
+    trial: true,
     features: [
       { text: "1 organization · 3 AI employees" },
       { text: "1 department" },
@@ -33,7 +35,7 @@ const plans: Plan[] = [
       { text: "Company Constitution + audit trail" },
       { text: "One integration" },
     ],
-    cta: "Start free, no card required",
+    cta: "Start 7-day trial",
     ctaVariant: "outline",
   },
   {
@@ -45,6 +47,7 @@ const plans: Plan[] = [
     },
     blurb: "For the solo founder who wants their whole operation run.",
     featured: true,
+    trial: true,
     features: [
       { lead: "10 AI employees", text: ". Hire per business case, not per headcount tax" },
       { text: "Unlimited departments, teams, and temporary project teams" },
@@ -69,6 +72,7 @@ const plans: Plan[] = [
       annual: "billed annually, save 20%",
     },
     blurb: "For growing companies with real operations.",
+    trial: true,
     features: [
       { lead: "50 AI employees", text: "" },
       { text: "Everything in Pro" },
@@ -86,6 +90,7 @@ const plans: Plan[] = [
     price: { monthly: "Custom", annual: "Custom" },
     note: { monthly: "private deployment · SLA", annual: "private deployment · SLA" },
     blurb: "For large AI workforces and regulated environments.",
+    trial: true,
     features: [
       { lead: "Unlimited AI employees", text: "" },
       { lead: "Private deployment", text: " (self-hosted or VPC)" },
@@ -163,6 +168,10 @@ const comparison = [
 
 const faqs = [
   {
+    q: "Is there a free trial?",
+    a: "Yes, every plan starts with 7 days free, Starter through Enterprise. We take a credit card up front, you pay nothing until day 8, and you can cancel any time.",
+  },
+  {
     q: "Do I need my own API keys?",
     a: "No. You can run entirely on free/local models. Add your own keys when you want frontier models. You pay the provider directly, we never mark up.",
   },
@@ -196,7 +205,7 @@ const faqs = [
   },
 ];
 
-const tierNames = ["Free", "Pro", "Business", "Enterprise"] as const;
+const tierNames = ["Starter", "Pro", "Business", "Enterprise"] as const;
 
 export function PricingPage() {
   const [billing, setBilling] = useState<Billing>("monthly");
@@ -293,6 +302,17 @@ export function PricingPage() {
               >
                 {plan.name}
               </h2>
+              {plan.trial && (
+                <span
+                  className={`mt-3 inline-block rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                    plan.featured
+                      ? "border-emerald-400/50 text-emerald-300"
+                      : "border-emerald-400/60 text-emerald-600"
+                  }`}
+                >
+                  7 days free
+                </span>
+              )}
               <div className="mt-4">
                 <span className={`text-3xl font-semibold tracking-tight tabular-nums ${plan.featured ? "text-white" : "text-navy-900"}`}>
                   {billing === "monthly" ? plan.price.monthly : plan.price.annual}
@@ -327,7 +347,7 @@ export function PricingPage() {
           ))}
         </div>
         <p className="mt-8 text-center font-mono text-xs text-muted">
-          Free to start · Prorated upgrades · Cancel anytime
+          7 days free on every plan · Prorated upgrades · Cancel anytime
         </p>
       </section>
 
@@ -482,12 +502,12 @@ export function PricingPage() {
             It hires the team, does the work, and reports back.
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-lg text-white/70">
-            Start free on the free/local stack. Bring your own keys when you want frontier models.
-            No commissions. No agent marketplace. Ever.
+            Every plan starts with 7 days free on the free/local stack. Bring your own keys
+            when you want frontier models. No commissions. No agent marketplace. Ever.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button href="#" variant="outline-light" size="lg">
-              Start free
+              Start 7-day trial
             </Button>
             <Button href="#" variant="outline-light" size="lg">
               Get Pro
@@ -497,7 +517,7 @@ export function PricingPage() {
             </Button>
           </div>
           <p className="mt-6 font-mono text-xs tracking-wide text-white/50">
-            Free to start · Runs on free/local models · BYOK · No per-agent commissions, ever
+            7 days free · Runs on free/local models · BYOK · No per-agent commissions, ever
           </p>
         </div>
       </section>

@@ -4,7 +4,7 @@ import { PricingPage } from "./pricing-client";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "One platform price. You own the models. Free, Pro $49/mo, Business $199/mo, Enterprise. No per-agent commissions, no agent marketplace, ever.",
+    "Every plan starts with 7 days free. Starter, Pro $49/mo, Business $199/mo, Enterprise. You own the models. No per-agent commissions, no agent marketplace, ever.",
 };
 
 export default function Page() {
