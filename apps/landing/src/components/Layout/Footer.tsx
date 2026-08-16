@@ -30,25 +30,43 @@ const Footer: React.FC = () => {
 
   return (
     <>
-      <footer
-        className="bg-cover bg-center bg-no-repeat relative z-[1] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]"
-        style={{
-          backgroundImage: "url(/images/footer-bg.jpg)",
-        }}
-      >
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-[25px] items-end">
-            <div className="lg:max-w-[386px]">
-              <Link href="/" className="inline-block mb-[15px] md:mb-[25px] lg:mb-[40px]">
-                <span className="inline-flex items-center gap-[7px] text-[26px] font-bold tracking-[-1.4px] text-white">
+      <footer className="relative z-[1] bg-navy-950 dark:bg-black pt-[70px] md:pt-[90px] lg:pt-[110px] overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+            maskImage:
+              "radial-gradient(70% 70% at 50% 0%, black, transparent 90%)",
+            WebkitMaskImage:
+              "radial-gradient(70% 70% at 50% 0%, black, transparent 90%)",
+          }}
+        ></div>
+
+        <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[40px] lg:gap-[60px] pb-[50px] md:pb-[70px]">
+            {/* Brand + waitlist */}
+            <div>
+              <Link
+                href="/"
+                className="inline-block mb-[18px] md:mb-[25px]"
+                aria-label="ORQ8 home"
+              >
+                <span className="inline-flex items-center gap-[8px] text-[26px] font-bold tracking-[-1.4px] text-white">
                   ORQ8
                   <span className="w-[9px] h-[9px] rounded-full bg-lime inline-block"></span>
                 </span>
               </Link>
 
-              <h3 className="!text-white !font-light !text-[20px] md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[20px] lg:!mb-[25px]">
+              <h3 className="!text-white !font-light !text-[20px] md:!text-[22px] lg:!text-2xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] lg:!mb-[14px] !max-w-[420px] !leading-[1.3]">
                 Follow our journey and get invited when your cohort opens
               </h3>
+              <p className="text-white/60 text-sm md:text-[15px] !mb-[20px] md:!mb-[28px] !max-w-[420px]">
+                One founder. A company that runs itself. First cohort opens
+                soon.
+              </p>
 
               {status === "done" ? (
                 <p role="status" className="text-lime font-medium">
@@ -59,14 +77,17 @@ const Footer: React.FC = () => {
                   Signup failed. Please try again.
                 </p>
               ) : (
-                <form onSubmit={handleSubscribe} className="relative">
+                <form
+                  onSubmit={handleSubscribe}
+                  className="relative max-w-[440px]"
+                >
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block h-[45px] md:h-[50px] border border-white/30 bg-white/20 w-full rounded-[50px] placeholder:text-white text-white px-[20px] md:px-[25px] outline-0 text-sm md:text-base"
-                    placeholder="Your Email here"
+                    className="block h-[52px] border border-white/20 bg-white/10 w-full rounded-[50px] placeholder:text-white/50 text-white px-[22px] md:px-[25px] outline-0 text-sm md:text-base focus:border-lime transition-colors"
+                    placeholder="Your email here"
                     aria-label="Email address"
                     name="email"
                     autoComplete="email"
@@ -75,7 +96,7 @@ const Footer: React.FC = () => {
                   <button
                     type="submit"
                     disabled={status === "loading"}
-                    className="btn-press md:absolute md:top-[2px] ltr:md:right-[2px] rtl:md:left-[2px] inline-block rounded-[60px] bg-lime p-[7px] md:p-[5px] uppercase text-xs font-bold text-black tracking-[1px] md:tracking-[1.8px] hover:bg-primary-500 hover:text-white mt-[15px] md:mt-0 disabled:opacity-60"
+                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-[50px] bg-lime p-[7px] md:p-[6px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-primary-500 hover:text-white mt-[15px] md:mt-0 disabled:opacity-60"
                   >
                     <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                       {status === "loading" ? "Joining…" : "Join the waitlist"}{" "}
@@ -86,90 +107,103 @@ const Footer: React.FC = () => {
               )}
             </div>
 
-            <div className="lg:max-w-[325px] ltr:lg:ml-auto rtl:lg:mr-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-[13px] md:gap-[25px] lg:gap-[50px] xl:gap-[100px]">
-                <ul>
-                  <li className="mb-[13px] last:mb-0">
-                    <Link
-                      href="/pricing"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
-                    >
-                      Pricing
-                    </Link>
-                  </li>
-                  <li className="mb-[13px] last:mb-0">
+            {/* Link columns */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-[30px] lg:gap-[40px] lg:ltr:justify-end lg:rtl:justify-start">
+              <div>
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                  Product
+                </span>
+                <ul className="space-y-[12px] md:space-y-[14px]">
+                  <li>
                     <Link
                       href="/#features"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
                     >
                       Platform
                     </Link>
                   </li>
-                  <li className="mb-[13px] last:mb-0">
+                  <li>
                     <Link
                       href="/#how-it-works"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
                     >
                       How it works
                     </Link>
                   </li>
-                  <li className="mb-[13px] last:mb-0">
+                  <li>
                     <Link
-                      href="/contact"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
+                      href="/pricing"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
                     >
-                      Contact
+                      Pricing
                     </Link>
                   </li>
                 </ul>
+              </div>
 
-                <ul>
-                  <li className="mb-[13px] last:mb-0">
-                    <Link
-                      href="/#waitlist"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
-                    >
-                      Join the waitlist
-                    </Link>
-                  </li>
-                  <li className="mb-[13px] last:mb-0">
+              <div>
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                  Company
+                </span>
+                <ul className="space-y-[12px] md:space-y-[14px]">
+                  <li>
                     <Link
                       href="/about"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
                     >
                       About
                     </Link>
                   </li>
-                  <li className="mb-[13px] last:mb-0">
+                  <li>
+                    <Link
+                      href="/contact"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
+                    >
+                      Contact
+                    </Link>
+                  </li>
+                  <li>
                     <Link
                       href="/#faq"
-                      className="text-white transition-colors hover:text-lime md:text-[15px] lg:text-md md:-tracking-[0.46px] lg:-tracking-[0.96px]"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
                     >
                       FAQ
                     </Link>
                   </li>
                 </ul>
               </div>
+
+              <div>
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                  Get started
+                </span>
+                <ul className="space-y-[12px] md:space-y-[14px]">
+                  <li>
+                    <Link
+                      href="/#waitlist"
+                      className="text-white/85 transition-colors hover:text-lime md:text-[15px]"
+                    >
+                      Join the waitlist
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="absolute -z-[1] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:block">
-          <span className="text-lime/30 text-[120px] font-bold tracking-[-4px]">
-            ORQ8
-          </span>
+          {/* Bottom bar */}
+          <div className="relative border-t border-white/10 py-[25px] md:py-[28px] flex flex-col md:flex-row items-center justify-between gap-[14px]">
+            <p className="text-sm text-white/50 !mb-0">
+              © {new Date().getFullYear()}{" "}
+              <span className="text-lime font-medium">ORQ8</span>. The AI
+              Organization Operating System.
+            </p>
+            <p className="text-sm text-white/50 !mb-0">
+              Built by a company of one, running on ORQ8.
+            </p>
+          </div>
         </div>
       </footer>
-
-      <div className="py-[25px] md:py-[30px] bg-navy-800 text-center">
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
-          <p className="font-medium text-[#b8b8b8]">
-            © {new Date().getFullYear()}{" "}
-            <span className="text-lime">ORQ8</span>. The AI Organization
-            Operating System. Built by a company of one, running on ORQ8.
-          </p>
-        </div>
-      </div>
     </>
   );
 };

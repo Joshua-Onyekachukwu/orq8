@@ -13,29 +13,25 @@ const steps: Step[] = [
     id: 1,
     icon: "ri-chat-3-line",
     title: "Give direction",
-    description:
-      "Say it in plain words: “I think we should build an AI support product.” No specs, no project plans. That’s the whole brief.",
+    description: "Tell ORQ8 your goal in plain words. That's the whole brief.",
   },
   {
     id: 2,
     icon: "ri-team-line",
-    title: "The Executive Agent plans and hires",
-    description:
-      "Your Exec gathers what the company knows, turns your direction into a plan, and hires the specialists it needs, inside your budget.",
+    title: "It plans and hires",
+    description: "The Executive Agent plans the work and hires the team, within budget.",
   },
   {
     id: 3,
     icon: "ri-terminal-box-line",
     title: "Agents do the work",
-    description:
-      "Researchers, writers, and engineers execute across your tools. Spend, publish, and deploy stop at your approval gate. Everything else runs.",
+    description: "They execute across your tools. Big actions wait for your approval.",
   },
   {
     id: 4,
     icon: "ri-calendar-check-line",
-    title: "You approve. The Monday report closes the loop",
-    description:
-      "Consequential decisions come to you. Approve or reject in one tap. Every Monday: what happened, what it cost, what needs your decision.",
+    title: "You approve. It reports",
+    description: "One tap to approve. Every Monday, a report on what happened and what's next.",
   },
 ];
 
@@ -66,18 +62,16 @@ const HowItWorks: React.FC = () => {
               key={step.id}
               className="lift-card group relative rounded-[15px] md:rounded-[20px] border border-white/10 bg-navy-900 p-[25px] md:p-[30px] transition-colors hover:border-lime/50"
             >
-              <div className="flex items-center justify-between mb-[25px] md:mb-[30px]">
-                <span className="w-[46px] h-[46px] md:w-[50px] md:h-[50px] rounded-full bg-lime/10 text-lime flex items-center justify-center text-[22px] md:text-[24px] leading-none transition-colors group-hover:bg-lime group-hover:text-navy-950">
-                  <i className={step.icon}></i>
-                </span>
-                <span className="font-bold text-[20px] md:text-[22px] text-white/25 tracking-[2px]">
-                  0{step.id}
-                </span>
-              </div>
-              <h3 className="!font-light !text-[19px] md:!text-[21px] !text-white !leading-[1.3] -tracking-[.44px] md:-tracking-[.8px] !mb-[10px] md:!mb-[12px]">
+              <span className="absolute top-[20px] ltr:right-[22px] rtl:left-[22px] font-bold text-[40px] leading-none text-white/10 -tracking-[2px]">
+                0{step.id}
+              </span>
+              <span className="w-[46px] h-[46px] md:w-[50px] md:h-[50px] rounded-full bg-lime/10 text-lime flex items-center justify-center text-[22px] md:text-[24px] leading-none mb-[20px] md:mb-[25px] transition-colors group-hover:bg-lime group-hover:text-navy-950">
+                <i className={step.icon}></i>
+              </span>
+              <h3 className="!font-semibold !text-[17px] md:!text-[19px] !text-white !leading-[1.3] -tracking-[.44px] !mb-[8px] md:!mb-[10px]">
                 {step.title}
               </h3>
-              <p className="text-white/65 md:text-[15px] lg:text-md -tracking-[0.16px]">
+              <p className="text-white/60 text-[14px] md:text-[15px] -tracking-[0.16px] !mb-0">
                 {step.description}
               </p>
             </div>
@@ -90,13 +84,12 @@ const HowItWorks: React.FC = () => {
               <i className="ri-loop-left-line"></i>
             </span>
             <div>
-              <h3 className="!font-light !text-[19px] md:!text-[21px] !text-white !mb-[6px] -tracking-[.44px] md:-tracking-[.8px]">
+              <h3 className="!font-semibold !text-[17px] md:!text-[19px] !text-white !mb-[6px] -tracking-[.44px]">
                 The loop never stops
               </h3>
-              <p className="text-white/65 md:text-[15px] lg:text-md -tracking-[0.16px] max-w-[560px]">
+              <p className="text-white/60 text-[14px] md:text-[15px] -tracking-[0.16px] max-w-[560px] !mb-0">
                 Your company keeps working while you sleep. Every Monday the
-                report brings you back up to speed. Then you give the next
-                direction.
+                report brings you back up to speed.
               </p>
             </div>
           </div>

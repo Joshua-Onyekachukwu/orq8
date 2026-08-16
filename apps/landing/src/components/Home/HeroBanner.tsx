@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 /* The ORQ8 "command center", the product the hero sells.
@@ -232,7 +231,7 @@ const HeroBanner: React.FC = () => {
                   THE AI ORGANIZATION OPERATING SYSTEM
                 </span>
 
-                <h1 className="font-display !mb-[15px] lg:!mb-[20px] !text-white !font-light !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
+                <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
                   Run your company with{" "}
                   <span className="font-bold text-lime">AI employees</span>
                 </h1>

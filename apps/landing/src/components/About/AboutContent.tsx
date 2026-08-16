@@ -60,7 +60,7 @@ const AboutContent: React.FC = () => {
                 <div className="relative rounded-[10px] md:rounded-[20px] bg-navy-950 p-[20px] md:p-[25px] text-left shadow-[0px_20px_60px_-15px_rgba(13,20,39,0.45)]">
                   {/* Command center mock */}
                   <div className="flex items-center justify-between mb-[18px]">
-                    <span className="font-display text-white text-[15px] font-bold tracking-[-0.5px]">
+                    <span className="text-white text-[15px] font-bold tracking-[-0.5px]">
                       ORQ8 <span className="text-white/60">· Command Center</span>
                     </span>
                     <span className="flex items-center gap-[6px]">
@@ -97,7 +97,7 @@ const AboutContent: React.FC = () => {
                       <span className="text-[10px] font-semibold uppercase tracking-[1.6px] text-white/50">
                         Agents active
                       </span>
-                      <span className="font-display text-white text-[18px] font-bold -tracking-[0.5px]">
+                      <span className="text-white text-[18px] font-bold -tracking-[0.5px]">
                         03
                       </span>
                     </div>
@@ -120,7 +120,7 @@ const AboutContent: React.FC = () => {
                       <span className="text-[10px] font-semibold uppercase tracking-[1.6px] text-white/50">
                         Weekly cost
                       </span>
-                      <span className="font-display text-white text-[18px] font-bold -tracking-[0.5px]">
+                      <span className="text-white text-[18px] font-bold -tracking-[0.5px]">
                         $14.20
                       </span>
                     </div>

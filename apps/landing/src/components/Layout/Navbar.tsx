@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 // Menu items. `href` points at a section (`/#id`) when the content lives on the
 // landing page, or at a dedicated route when it has its own page. The nav is
@@ -25,7 +25,6 @@ function normalized(path: string): string {
 
 const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const router = useRouter();
 
   // Sticky navbar. Glass command-bar once you scroll.
   // The transparent bar sits over the navy hero on the homepage (white

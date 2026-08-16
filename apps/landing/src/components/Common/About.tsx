@@ -42,9 +42,10 @@ const aboutContent = {
 
 const About: React.FC = () => {
   return (
-    <div
-      className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]"
-    >
+    <div className="py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
+      <div
+        className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]"
+      >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
         {/* Image Section */}
         <div>
@@ -131,6 +132,7 @@ const About: React.FC = () => {
             </span>
           </Link>
         </div>
+      </div>
       </div>
     </div>
   );
