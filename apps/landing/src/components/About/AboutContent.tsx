@@ -5,34 +5,34 @@ import Image from "next/image";
 
 // Data structure for dynamic content
 const aboutContent = {
-  tagline: "About ORQ8 Finance",
+  tagline: "About ORQ8",
   heading: {
-    part1: "We offer cutting edge tools for your personal",
-    highlighted: "finance",
-    part2: "management",
+    part1: "One founder. A company",
+    highlighted: "that runs itself",
+    part2: "",
   },
   description:
-    "Unlock powerful solutions designed to streamline your income and spending, enhance efficiency, and drive business growth.",
+    "ORQ8 is the operating system for a company of one. You set the direction. It hires the team, does the work, and reports back under your approvals and your budget.",
   features: [
     {
-      title: "Real-Time Financial Overview",
+      title: "Human sovereignty",
       description:
-        "Instantly view your total balance, cash flow, and net worth at a glance. Consolidates data across multiple accounts.",
+        "You stay in command. Consequential actions route to you: a spend, a publish, a deploy. Approve or reject in one tap.",
     },
     {
-      title: "Savings & Goal Tracking",
+      title: "Company memory",
       description:
-        "Users can create and monitor financial goals (e.g., emergency fund, travel, debt repayment). Visual goal trackers show progress toward completion.",
+        "Every decision and lesson accumulates from day one. Your organization gets smarter the longer it works with you.",
     },
     {
-      title: "Interactive Budgeting Tools",
+      title: "Budget discipline",
       description:
-        "Set monthly budgets per category and monitor progress in real time. Get alerts when nearing or exceeding budget limits.",
+        "Every agent knows its budget. Costs tracked per department and per task. No surprises on the invoice.",
     },
     {
-      title: "Smart Categorization",
+      title: "Weekly report",
       description:
-        "Transactions are automatically categorized (e.g., utilities, food, travel). Users can customize categories and rules to personalize tracking.",
+        "Every Monday: what happened, what's blocked, what it cost, what's next. Five minutes to read, always.",
     },
   ],
   cta: {
@@ -46,42 +46,90 @@ const AboutContent: React.FC = () => {
     <div className="pt-[70px] md:pt-[90px] lg:pt-[110px] xl:pt-[130px] 2xl:pt-[150px]">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
-          {/* Image Section */}
+          {/* Visual Section */}
           <div>
             <div className="text-center sticky top-[86px] z-[1] md:pt-[80px] lg:pt-[50px] xl:pt-[80px] ltr:pr-[20px] rtl:pl-[20px]">
               <Image
                 src="/images/dots.png"
                 className="hidden md:inline-block -z-[1] absolute top-0 ltr:left-0 rtl:right-0"
-                alt="dots"
+                alt=""
                 width={336}
                 height={336}
               />
               <div className="mx-auto md:max-w-[446px] lg:max-w-[340px] xl:max-w-[446px]">
-                <Image
-                  src="/images/about.jpg"
-                  className="inline-block rounded-[10px] md:rounded-[20px]"
-                  alt="about-image"
-                  width={670}
-                  height={810}
-                />
+                <div className="relative rounded-[10px] md:rounded-[20px] bg-navy-950 p-[20px] md:p-[25px] text-left shadow-[0px_20px_60px_-15px_rgba(13,20,39,0.45)]">
+                  {/* Command center mock */}
+                  <div className="flex items-center justify-between mb-[18px]">
+                    <span className="font-display text-white text-[15px] font-bold tracking-[-0.5px]">
+                      ORQ8 <span className="text-white/60">· Command Center</span>
+                    </span>
+                    <span className="flex items-center gap-[6px]">
+                      <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
+                      <span className="w-[7px] h-[7px] rounded-full bg-lime/60 animate-pulse-dot"></span>
+                      <span className="w-[7px] h-[7px] rounded-full bg-lime/30"></span>
+                    </span>
+                  </div>
+
+                  <div className="rounded-[10px] border border-lime/70 bg-navy-900 p-[14px] mb-[14px]">
+                    <div className="flex items-center justify-between mb-[8px]">
+                      <span className="text-[10px] font-semibold uppercase tracking-[1.6px] text-white/50">
+                        Approval required
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[1.2px] text-lime">
+                        Spend · $250
+                      </span>
+                    </div>
+                    <p className="!mb-0 text-[12px] leading-[1.5] text-white/80">
+                      Marketing requests $250 for a LinkedIn campaign.
+                    </p>
+                    <div className="flex gap-[8px] mt-[12px]">
+                      <span className="inline-block rounded-[8px] bg-lime text-navy-950 text-[11px] font-bold uppercase tracking-[1px] px-[12px] py-[6px]">
+                        Approve
+                      </span>
+                      <span className="inline-block rounded-[8px] border border-white/20 text-white/70 text-[11px] font-bold uppercase tracking-[1px] px-[12px] py-[6px]">
+                        Reject
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[10px] bg-navy-900 border border-white/10 p-[14px] mb-[14px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-[1.6px] text-white/50">
+                        Agents active
+                      </span>
+                      <span className="font-display text-white text-[18px] font-bold -tracking-[0.5px]">
+                        03
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-[10px]">
+                      <span className="text-[11px] text-white/60">
+                        Researcher · Analyzing
+                      </span>
+                      <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                    </div>
+                    <div className="flex items-center justify-between mt-[6px]">
+                      <span className="text-[11px] text-white/60">
+                        Writer · Drafting launch post
+                      </span>
+                      <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[10px] bg-navy-900 border border-white/10 p-[14px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-[1.6px] text-white/50">
+                        Weekly cost
+                      </span>
+                      <span className="font-display text-white text-[18px] font-bold -tracking-[0.5px]">
+                        $14.20
+                      </span>
+                    </div>
+                    <p className="!mb-0 mt-[4px] text-[11px] text-lime">
+                      within budget
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Image
-                src="/images/net-profit.jpg"
-                className="max-w-[150px] md:max-w-[250px] top-[25px] md:top-[110px] ltr:right-0 rtl:left-0 absolute inline-block rounded-[5px]"
-                alt="net-profit"
-                width={250}
-                height={140}
-              />
-              <Image
-                src="/images/activity.jpg"
-                className="max-w-[120px] md:max-w-[183px] bottom-[25px] md:bottom-[50px] ltr:right-0 rtl:left-0 absolute inline-block rounded-[5px]"
-                style={{
-                  boxShadow: "0px 13px 34px 0px rgba(125, 113, 150, 0.10)",
-                }}
-                alt="activity"
-                width={183}
-                height={131}
-              />
             </div>
           </div>
 
