@@ -368,7 +368,7 @@ export default function Page() {
     <div id="main" className="min-h-screen bg-navy-950 text-white">
       {/* 01. HERO: the command center opens */}
       <div className="bg-mesh grain relative">
-        <SiteHeader variant="navy" cta={{ href: "#start", label: "Start free" }} />
+        <SiteHeader variant="navy" cta={{ href: "#start", label: "Join the waitlist" }} />
         <section className="relative overflow-hidden">
           <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 pb-24 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:pb-32 lg:pt-20">
             <div>
@@ -395,7 +395,7 @@ export default function Page() {
                   </a>
                 </div>
                 <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.22em] text-white/40">
-                  Free to start · No credit card · Self-hostable
+                  7 days free · Card on file · Self-hostable
                 </p>
               </Reveal>
             </div>
@@ -704,19 +704,21 @@ export default function Page() {
           <Reveal className="text-center">
             <Eyebrow index="06" text="Pricing" />
             <h2 className="mx-auto mt-6 max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-white text-balance sm:text-5xl">
-              Free to start. <span className="text-emerald">$49 when it earns its keep.</span>
+              Every plan starts with 7 days free.{" "}
+              <span className="text-emerald">$49 when it earns its keep.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-fog">
-              No credit card to begin. Bring your own model keys and pay exactly what the work costs.
+              Card on file, nothing charged until day 8. Bring your own model keys and pay
+              exactly what the work costs.
             </p>
           </Reveal>
           <div className="mx-auto mt-14 grid max-w-3xl gap-5 sm:grid-cols-2">
             <Reveal delay={60}>
               <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-navy-surface p-7">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Free</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Starter</p>
                 <p className="mt-3 text-4xl font-semibold tracking-tight text-white">
                   $0
-                  <span className="text-base font-normal text-fog"> /mo</span>
+                  <span className="text-base font-normal text-fog"> for 7 days</span>
                 </p>
                 <ul className="mt-6 space-y-2.5 text-sm text-fog">
                   <li>Your first 3 agents</li>
@@ -725,7 +727,7 @@ export default function Page() {
                   <li>Community support</li>
                 </ul>
                 <a href="#start" className={`${ghostCta} mt-8 w-full`}>
-                  Start free
+                  Join the waitlist
                 </a>
               </div>
             </Reveal>
@@ -746,7 +748,7 @@ export default function Page() {
                   <li>BYOK: bring your own keys</li>
                 </ul>
                 <a href="#start" className={`${primaryCta} mt-8 w-full`}>
-                  Start Pro
+                  Join the waitlist
                 </a>
               </div>
             </Reveal>

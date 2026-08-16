@@ -35,7 +35,7 @@ const plans: Plan[] = [
       { text: "Company Constitution + audit trail" },
       { text: "One integration" },
     ],
-    cta: "Start 7-day trial",
+    cta: "Join the waitlist",
     ctaVariant: "outline",
   },
   {
@@ -61,7 +61,7 @@ const plans: Plan[] = [
       { text: "Simulation: forecast workforce, workload, and cost before you commit" },
       { text: "Weekly executive report + cost tracking by department, project, and agent" },
     ],
-    cta: "Get Pro",
+    cta: "Join the waitlist",
     ctaVariant: "outline-light",
   },
   {
@@ -82,7 +82,7 @@ const plans: Plan[] = [
       { text: "Priority support" },
       { text: "SSO (coming soon)" },
     ],
-    cta: "Get Business",
+    cta: "Join the waitlist",
     ctaVariant: "outline",
   },
 ];
@@ -540,10 +540,7 @@ export function PricingPage() {
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Button href="#" variant="outline-light" size="lg">
-              Start 7-day trial
-            </Button>
-            <Button href="#" variant="outline-light" size="lg">
-              Get Pro
+              Join the waitlist
             </Button>
             <Button href="#" variant="ghost-light" size="lg">
               Talk to sales

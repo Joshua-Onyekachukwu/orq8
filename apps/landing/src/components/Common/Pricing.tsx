@@ -28,7 +28,7 @@ const Pricing: React.FC = () => {
         "Weekly report",
         "Community support",
       ],
-      cta: { label: "Start free", href: "/#waitlist" },
+      cta: { label: "Join the waitlist", href: "/#waitlist" },
     },
     {
       title: "Pro",
