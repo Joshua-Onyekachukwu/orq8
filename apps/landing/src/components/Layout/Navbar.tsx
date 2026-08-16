@@ -247,9 +247,11 @@ const Navbar: React.FC = () => {
                   >
                     <Link
                       href={item.href}
-                      onClick={() => {
+                      onClick={(e) => {
                         if (item.section) {
-                          setPendingScroll(item.section);
+                          // Same treatment as the desktop nav: smooth-scroll in
+                          // place on the homepage, navigate + scroll elsewhere.
+                          handleSectionClick(e, item.section);
                         }
                         setActiveMobileMenu(true);
                       }}
@@ -268,8 +270,8 @@ const Navbar: React.FC = () => {
 
               <Link
                 href="/#waitlist"
-                onClick={() => {
-                  setPendingScroll("waitlist");
+                onClick={(e) => {
+                  handleSectionClick(e, "waitlist");
                   setActiveMobileMenu(true);
                 }}
                 className="btn-press inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime mt-[15px]"
