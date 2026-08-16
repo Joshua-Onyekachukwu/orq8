@@ -110,7 +110,7 @@ const Footer: React.FC = () => {
             {/* Link columns */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-[30px] lg:gap-[40px] lg:ltr:justify-end lg:rtl:justify-start">
               <div>
-                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/60 mb-[18px] md:mb-[24px]">
                   Product
                 </span>
                 <ul className="space-y-[12px] md:space-y-[14px]">
@@ -142,7 +142,7 @@ const Footer: React.FC = () => {
               </div>
 
               <div>
-                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/60 mb-[18px] md:mb-[24px]">
                   Company
                 </span>
                 <ul className="space-y-[12px] md:space-y-[14px]">
@@ -174,7 +174,7 @@ const Footer: React.FC = () => {
               </div>
 
               <div>
-                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/40 mb-[18px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[1.8px] text-xs text-white/60 mb-[18px] md:mb-[24px]">
                   Next steps
                 </span>
                 <ul className="space-y-[12px] md:space-y-[14px]">
