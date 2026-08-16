@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type AuthMode = "login" | "register";
 
@@ -13,6 +13,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // Move focus to the alert so keyboard + screen-reader users hear the failure.
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,7 +43,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError((data as { error?: string } | null)?.error ?? "Something went wrong. Please try again.");
+        setError(
+          (data as { error?: string } | null)?.error ??
+            "That didn't work — check your details and try again. If it persists, the API may be down on :3001."
+        );
         return;
       }
       router.push("/app");
@@ -53,6 +62,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div
+          ref={errorRef}
+          tabIndex={-1}
           role="alert"
           className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700"
         >
