@@ -68,8 +68,9 @@ const navGroups: NavGroup[] = [
   {
     title: "Settings",
     items: [
+      { label: "Settings", href: "/settings", icon: Settings, built: true },
       { label: "Providers & Keys", href: "/settings/providers", icon: KeyRound, built: true },
-      { label: "Members & Roles", href: "/app/members", icon: Users, phase: "Phase 2" },
+      { label: "Members & Roles", href: "/app/members", icon: Users, built: true },
     ],
   },
 ];
