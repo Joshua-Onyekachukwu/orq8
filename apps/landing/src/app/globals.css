@@ -288,6 +288,37 @@
   }
 }
 
+/** Features orbit: gentle card float and flowing connection dashes. Delays are
+    staggered per card via --float-delay; connectors use the same dash trick as
+    the marquees so the flow is seamless. */
+@keyframes float-card {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.feature-float {
+  animation: float-card 9s ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -1.8;
+  }
+}
+.orbit-connector {
+  stroke-dasharray: 0.9 0.9;
+  animation: dash-flow 3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feature-float,
+  .orbit-connector {
+    animation: none;
+  }
+}
+
 /** Integrations hub: slow orbital spin on the dashed rings (satellites ride along) */
 @keyframes orbit-spin {
   from {
