@@ -75,6 +75,7 @@ export function WaitlistForm({
     <div className="w-full text-left">
       {status === "done" ? (
         <div
+          role="status"
           className={`rounded-lg border px-4 py-3 text-sm ${
             navy || partner || dark
               ? "border-white/20 bg-white/10 text-white"
@@ -90,10 +91,13 @@ export function WaitlistForm({
               <input
                 type="text"
                 required
+                name="name"
+                spellCheck={false}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Full name"
                 aria-label="Full name"
+                autoComplete="name"
                 className={`h-11 w-full rounded-lg border px-4 text-sm outline-none transition-colors ${field}`}
               />
               <select
@@ -119,6 +123,9 @@ export function WaitlistForm({
             <input
               type="email"
               required
+              name="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={partner ? "you@company.com" : "you@company.com"}
