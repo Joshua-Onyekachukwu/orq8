@@ -70,6 +70,10 @@ const Integrations: React.FC = () => {
               One organization,{" "}
               <span className="text-primary-500">connected to your stack</span>
             </h2>
+            <p className="max-w-[520px] mx-auto mt-[12px] md:mt-[16px] text-gray-500 dark:text-gray-400">
+              The tools you already use plug straight in. Same approvals, same
+              budgets, same audit trail across all of them.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[25px] items-center">
@@ -85,7 +89,7 @@ const Integrations: React.FC = () => {
                 {group.cards.map((card, i) => (
                   <div
                     key={card.title}
-                    className={`lift-card px-[20px] md:px-[25px] py-[25px] md:py-[35px] mb-[25px] lg:mb-[40px] last:mb-0 rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] ${
+                    className={`lift-card group relative px-[20px] md:px-[25px] py-[25px] md:py-[35px] mb-[25px] lg:mb-[40px] last:mb-0 rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/10 shadow-sm ${
                       i === 0
                         ? "md:mx-[50px] lg:mx-0 xl:mx-[50px]"
                         : i === 1
@@ -96,19 +100,27 @@ const Integrations: React.FC = () => {
                             ? "ltr:md:ml-[100px] rtl:md:mr-[100px] ltr:lg:ml-[30px] rtl:lg:mr-[30px] ltr:xl:ml-[100px] rtl:xl:mr-[100px]"
                             : "ltr:md:mr-[100px] rtl:md:ml-[100px] ltr:lg:mr-[30px] rtl:lg:ml-[30px] ltr:xl:mr-[100px] rtl:xl:ml-[100px]"
                     }`}
-                    style={{ backgroundColor: card.iconBg }}
                   >
-                    <div className="w-[72px] h-[72px] rounded-[10px] md:rounded-[20px] bg-white flex items-center justify-center flex-none shadow-sm">
+                    <div
+                      className="w-[72px] h-[72px] rounded-[10px] md:rounded-[20px] flex items-center justify-center flex-none transition-transform duration-300 group-hover:scale-105"
+                      style={{ backgroundColor: card.iconBg }}
+                    >
                       <i
                         className={`${card.icon} text-[36px] leading-none`}
                         style={{ color: card.iconColor }}
                       ></i>
                     </div>
-                    <div>
-                      <h3 className="!font-semibold -tracking-[0.2px] !text-lg md:!text-[20px] !mb-[10px]">
-                        {card.title}
-                      </h3>
-                      <p className="lg:-tracking-[0.16px] lg:text-[15px] xl:text-md text-gray-500 dark:text-gray-400">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-[8px]">
+                        <h3 className="!font-semibold -tracking-[0.2px] !text-lg md:!text-[20px] !mb-0">
+                          {card.title}
+                        </h3>
+                        <span className="flex-none flex items-center gap-[6px] text-[10px] font-semibold uppercase tracking-[1.4px] text-gray-400 dark:text-gray-500">
+                          <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                          Live
+                        </span>
+                      </div>
+                      <p className="lg:-tracking-[0.16px] lg:text-[15px] xl:text-md text-gray-500 dark:text-gray-400 mt-[8px]">
                         {card.text}
                       </p>
                     </div>
@@ -117,15 +129,36 @@ const Integrations: React.FC = () => {
               </div>
             ))}
 
-            <div className="relative hidden lg:block">
-              <div className="bg-navy-950 dark:bg-black mx-auto w-[186px] h-[186px] rounded-full flex items-center justify-center">
-                <span className="text-white text-[28px] font-bold tracking-[-1.4px]">
+            <div className="relative hidden lg:flex items-center justify-center">
+              {/* soft glow behind the core */}
+              <div className="absolute w-[440px] h-[440px] rounded-full bg-lime blur-[100px] opacity-[0.10]"></div>
+
+              {/* outer rings with orbiting satellites */}
+              <div className="absolute w-[400px] h-[400px]">
+                <div className="animate-orbit-slower absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
+                  <span className="absolute -top-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
+                  <span className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
+                </div>
+              </div>
+              <div className="absolute w-[296px] h-[296px]">
+                <div className="animate-orbit-slow absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
+                  <span className="absolute top-1/2 -translate-y-1/2 -right-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
+                  <span className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
+                </div>
+              </div>
+
+              {/* the core */}
+              <div className="relative bg-navy-950 dark:bg-black mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)]">
+                <span className="font-display text-white text-[32px] font-bold tracking-[-1.6px] leading-none">
                   ORQ8
                 </span>
+                <span className="mt-[10px] flex items-center gap-[7px]">
+                  <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                  <span className="text-[9px] font-semibold uppercase tracking-[2.4px] text-white/60">
+                    System online
+                  </span>
+                </span>
               </div>
-              <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[240px] h-[240px] rounded-full border border-[#E5E5E5] border-dashed dark:border-gray-900"></div>
-              <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[384px] h-[384px] rounded-full border border-[#E5E5E5] border-dashed dark:border-gray-900"></div>
-              <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[528px] h-[528px] rounded-full border border-[#E5E5E5] border-dashed dark:border-gray-900"></div>
             </div>
           </div>
         </div>
