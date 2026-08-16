@@ -1,6 +1,7 @@
 import About from "@/components/Common/About";
 import Faqs from "@/components/Common/Faqs";
 import Features from "@/components/Common/Features";
+import HowItWorks from "@/components/Common/HowItWorks";
 import FunFacts from "@/components/Common/FunFacts";
 import Integrations from "@/components/Common/Integrations";
 import Partners from "@/components/Common/Partners";
@@ -17,6 +18,10 @@ export default function Home() {
 
       <Reveal>
         <Partners />
+      </Reveal>
+
+      <Reveal>
+        <HowItWorks />
       </Reveal>
 
       <Reveal>
