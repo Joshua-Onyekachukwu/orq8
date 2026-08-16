@@ -75,34 +75,56 @@ const Integrations: React.FC = () => {
               ))}
             </div>
 
-            <div className="relative hidden lg:flex items-center justify-center">
-              {/* soft glow behind the core */}
-              <div className="absolute w-[440px] h-[440px] rounded-full bg-lime blur-[100px] opacity-[0.10]"></div>
+            <div className="relative lg:flex items-center justify-center">
+              {/* Desktop: the orbiting core orb. Mobile/tablet get the compact
+                  horizontal bar below — the section keeps its center at any
+                  width, with nothing covering the cards. */}
 
-              {/* outer rings with orbiting satellites */}
-              <div className="absolute w-[400px] h-[400px]">
-                <div className="animate-orbit-slower absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
-                  <span className="absolute -top-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
-                  <span className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
+              <div className="hidden lg:block relative">
+                {/* soft glow behind the core */}
+                <div className="absolute w-[440px] h-[440px] rounded-full bg-lime blur-[100px] opacity-[0.10]"></div>
+
+                {/* outer rings with orbiting satellites */}
+                <div className="absolute w-[400px] h-[400px]">
+                  <div className="animate-orbit-slower absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
+                    <span className="absolute -top-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
+                    <span className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-[10px] h-[10px] rounded-full bg-primary-500/70"></span>
+                  </div>
+                </div>
+                <div className="absolute w-[296px] h-[296px]">
+                  <div className="animate-orbit-slow absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
+                    <span className="absolute top-1/2 -translate-y-1/2 -right-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
+                    <span className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
+                  </div>
+                </div>
+
+                {/* the core */}
+                <div className="relative bg-navy-950 dark:bg-navy-950 mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)] dark:shadow-[0_0_70px_-15px_rgba(200,255,50,0.25)]">
+                  <span className="text-white text-[32px] font-bold tracking-[-1.6px] leading-none">
+                    ORQ8
+                  </span>
+                  <span className="mt-[10px] flex items-center gap-[7px]">
+                    <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                    <span className="text-[9px] font-semibold uppercase tracking-[2.4px] text-white/60">
+                      System online
+                    </span>
+                  </span>
                 </div>
               </div>
-              <div className="absolute w-[296px] h-[296px]">
-                <div className="animate-orbit-slow absolute inset-0 rounded-full border border-dashed border-[#E5E5E5] dark:border-white/15">
-                  <span className="absolute top-1/2 -translate-y-1/2 -right-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
-                  <span className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-[10px] h-[10px] rounded-full bg-lime animate-pulse-dot"></span>
-                </div>
-              </div>
 
-              {/* the core */}
-              <div className="relative bg-navy-950 dark:bg-navy-950 mx-auto w-[196px] h-[196px] rounded-full flex flex-col items-center justify-center border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.55)] dark:shadow-[0_0_70px_-15px_rgba(200,255,50,0.25)]">
-                <span className="text-white text-[32px] font-bold tracking-[-1.6px] leading-none">
+              {/* Compact horizontal core — mobile/tablet (below lg) */}
+              <div className="lg:hidden w-full max-w-[460px] mx-auto relative rounded-[20px] bg-navy-950 dark:bg-navy-950 border border-white/10 dark:border-white/20 shadow-[0_20px_60px_-15px_rgba(13,20,39,0.45)] dark:shadow-[0_0_60px_-15px_rgba(200,255,50,0.2)] px-[24px] py-[18px] md:py-[22px] flex items-center justify-center gap-[14px] md:gap-[18px]">
+                <span className="text-white text-[22px] md:text-[26px] font-bold tracking-[-1.2px] leading-none">
                   ORQ8
                 </span>
-                <span className="mt-[10px] flex items-center gap-[7px]">
-                  <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
-                  <span className="text-[9px] font-semibold uppercase tracking-[2.4px] text-white/60">
-                    System online
-                  </span>
+                <span className="w-[5px] h-[5px] md:w-[6px] md:h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
+                <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-[2.2px] text-white/60">
+                  System online
+                </span>
+                <span aria-hidden className="hidden sm:flex items-center gap-[12px] ltr:ml-[8px] rtl:mr-[8px]">
+                  <span className="w-[7px] h-[7px] rounded-full bg-primary-500/70"></span>
+                  <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
+                  <span className="w-[7px] h-[7px] rounded-full bg-primary-500/70"></span>
                 </span>
               </div>
             </div>
