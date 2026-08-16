@@ -78,7 +78,7 @@ const Footer: React.FC = () => {
                     className="btn-press md:absolute md:top-[2px] ltr:md:right-[2px] rtl:md:left-[2px] inline-block rounded-[60px] bg-lime p-[7px] md:p-[5px] uppercase text-xs font-bold text-black tracking-[1px] md:tracking-[1.8px] hover:bg-primary-500 hover:text-white mt-[15px] md:mt-0 disabled:opacity-60"
                   >
                     <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
-                      {status === "loading" ? "Subscribing…" : "Subscribe"}{" "}
+                      {status === "loading" ? "Joining…" : "Join the waitlist"}{" "}
                       <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
                     </span>
                   </button>

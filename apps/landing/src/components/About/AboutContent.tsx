@@ -36,8 +36,8 @@ const aboutContent = {
     },
   ],
   cta: {
-    text: "GET STARTED",
-    href: "/pricing",
+    text: "JOIN THE WAITLIST",
+    href: "/#waitlist",
   },
 };
 

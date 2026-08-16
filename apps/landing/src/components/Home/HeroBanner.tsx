@@ -205,7 +205,7 @@ const HeroBanner: React.FC = () => {
                   className="btn-press group inline-block text-center bg-lime rounded-[50px] text-navy-950 font-semibold md:text-[15px] lg:text-md xl:text-[17px] py-[11px] px-[26px] hover:bg-emerald mt-[5px] md:mt-[10px] lg:mt-[18px] xl:mt-[22px]"
                 >
                   <span className="inline-flex items-center gap-[10px] ltr:pr-[6px] rtl:pl-[6px]">
-                    Start Free — No Credit Card{" "}
+                    Join the waitlist{" "}
                     <i className="ri-arrow-right-line text-[20px] transition-transform duration-300 group-hover:translate-x-[3px]"></i>
                   </span>
                 </Link>

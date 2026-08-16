@@ -23,7 +23,7 @@ const FunFacts: React.FC = () => {
     {
       id: 3,
       value: "$0",
-      description: "To start. No credit card required",
+      description: "To join. No credit card required",
     },
     {
       id: 4,
