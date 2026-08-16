@@ -226,7 +226,7 @@ const HeroBanner: React.FC = () => {
             </div>
 
             {/* Right: headline, proof, CTA */}
-            <div className="relative py-[60px] md:py-[80px] lg:pt-[260px] lg:pb-[160px] ltr:lg:pl-[60px] rtl:lg:pr-[60px] ltr:xl:pl-0 rtl:xl:pr-0 ltr:2xl:pl-[95px] rtl:2xl:pr-[95px]">
+            <div className="relative pt-[110px] md:pt-[140px] pb-[60px] md:pb-[80px] lg:pt-[300px] lg:pb-[160px] ltr:lg:pl-[60px] rtl:lg:pr-[60px] ltr:xl:pl-0 rtl:xl:pr-0 ltr:2xl:pl-[95px] rtl:2xl:pr-[95px]">
               <div className="px-[12px] 2xl:px-0 mx-auto 2xl:mx-0 sm:max-w-[540px] md:max-w-[720px] lg:max-w-full 2xl:max-w-[720px]">
                 <span className="inline-block py-[8px] md:py-[10px] px-[13px] md:px-[16px] font-bold text-[11px] md:text-xs bg-lime rounded-[10px] text-black tracking-[1.8px] mb-[16px] md:mb-[20px]">
                   THE AI ORGANIZATION OPERATING SYSTEM
