@@ -24,7 +24,7 @@ export default async function SettingsProvidersPage() {
   const keys = (((await keysRes.json()) as { data?: KeyItem[] }).data ?? []) as KeyItem[];
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div id="main" className="min-h-screen bg-canvas">
       <header className="border-b border-hairline bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <a href="/" className="text-lg font-semibold tracking-tight text-navy-900">

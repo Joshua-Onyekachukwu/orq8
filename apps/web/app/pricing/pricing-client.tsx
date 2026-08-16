@@ -206,7 +206,7 @@ export function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div id="main" className="min-h-screen bg-white">
       {/* ---------- Navy mesh hero ---------- */}
       <section className="bg-mesh relative overflow-hidden">
         <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_25%,transparent_70%)]" />

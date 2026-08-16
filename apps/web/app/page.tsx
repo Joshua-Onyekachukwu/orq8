@@ -365,7 +365,7 @@ const faqs = [
 
 export default function Page() {
   return (
-    <div className="min-h-screen bg-navy-950 text-white">
+    <div id="main" className="min-h-screen bg-navy-950 text-white">
       {/* 01 — HERO: the command center opens */}
       <div className="bg-mesh grain relative">
         <SiteHeader variant="navy" cta={{ href: "#start", label: "Start free" }} />
