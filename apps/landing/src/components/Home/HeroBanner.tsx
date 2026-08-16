@@ -189,8 +189,9 @@ const HeroBanner: React.FC = () => {
       <div className="bg-navy-950">
         <div className="xl:max-w-[1920px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {/* Left: product visual panel */}
-            <div className="relative bg-cover bg-no-repeat bg-center h-[840px] sm:h-[820px] lg:h-full ltr:lg:mr-[100px] rtl:lg:ml-[100px] ltr:xl:mr-[215px] rtl:xl:ml-[215px] overflow-hidden">
+            {/* Product visual panel. Desktop: left column. Mobile: stacked
+                BELOW the headline (content first), so the message leads. */}
+            <div className="relative bg-cover bg-no-repeat bg-center h-[840px] sm:h-[820px] lg:h-full order-2 lg:order-1 ltr:lg:mr-[100px] rtl:lg:ml-[100px] ltr:xl:mr-[215px] rtl:xl:ml-[215px] overflow-hidden">
               <div
                 aria-hidden
                 className="absolute inset-0"
@@ -225,8 +226,8 @@ const HeroBanner: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: headline, proof, CTA */}
-            <div className="relative pt-[110px] md:pt-[140px] pb-[60px] md:pb-[80px] lg:pt-[300px] lg:pb-[160px] ltr:lg:pl-[60px] rtl:lg:pr-[60px] ltr:xl:pl-0 rtl:xl:pr-0 ltr:2xl:pl-[95px] rtl:2xl:pr-[95px]">
+            {/* Right: headline, proof, CTA — first on mobile, right on desktop */}
+            <div className="relative order-1 lg:order-2 pt-[110px] md:pt-[140px] pb-[60px] md:pb-[80px] lg:pt-[300px] lg:pb-[160px] ltr:lg:pl-[60px] rtl:lg:pr-[60px] ltr:xl:pl-0 rtl:xl:pr-0 ltr:2xl:pl-[95px] rtl:2xl:pr-[95px]">
               <div className="px-[12px] 2xl:px-0 mx-auto 2xl:mx-0 sm:max-w-[540px] md:max-w-[720px] lg:max-w-full 2xl:max-w-[720px]">
                 <span className="inline-block py-[8px] md:py-[10px] px-[13px] md:px-[16px] font-bold text-[11px] md:text-xs bg-lime rounded-[10px] text-black tracking-[1.8px] mb-[16px] md:mb-[20px]">
                   THE AI ORGANIZATION OPERATING SYSTEM
