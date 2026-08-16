@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-// Landing-page waitlist capture — posts through /api/waitlist (public endpoint).
+// Landing-page waitlist capture. Posts through /api/waitlist (public endpoint).
 // `variant="partner"` is the design-partner path (marketing/design_partner_application.md):
 // adds name + team size + note, tagged source=design_partner so the cohort pipeline
 // can pull candidates straight out of waitlist_signups.
@@ -42,20 +42,20 @@ export function WaitlistForm({
       const data = await res.json();
       if (!res.ok) {
         setStatus("error");
-        setMessage(data?.error?.message ?? "Could not sign you up — try again.");
+        setMessage(data?.error?.message ?? "Could not sign you up. Try again.");
         return;
       }
       setStatus("done");
       setMessage(
         data?.data?.already
-          ? "You're already on the list — we'll be in touch."
+          ? "You're already on the list. We'll be in touch."
           : partner
-            ? "Application received. We read every one — we'll email you within a few days."
+            ? "Application received. We read every one. We'll email you within a few days."
             : "You're on the list. We'll email you when your cohort opens.",
       );
     } catch {
       setStatus("error");
-      setMessage("Network error — the preview API may be down.");
+      setMessage("Network error. The preview API may be down.");
     }
   }
 
@@ -150,7 +150,7 @@ export function WaitlistForm({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="One real decision you'd feed ORQ8 in your first two weeks (optional — e.g. “should we build X?”)"
+              placeholder="One real decision you'd feed ORQ8 in your first two weeks (optional: e.g. “should we build X?”)"
               aria-label="The decision you'd feed ORQ8"
               className={`w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors ${field}`}
             />

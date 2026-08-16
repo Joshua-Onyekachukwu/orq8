@@ -25,7 +25,7 @@ const journeyData: JourneyData = {
   imageUrl: "/images/journey.jpg",
   mission: {
     title: "Our Mission",
-    description: "Our mission is simple: to make financial wellness accessible for everyone. We combine cutting-edge technology with smart design to help users make informed decisions, stay organized, and reach their financial goals with confidence. No jargon, no hidden fees—just clarity, control, and real results."
+    description: "Our mission is simple: to make financial wellness accessible for everyone. We combine cutting-edge technology with smart design to help users make informed decisions, stay organized, and reach their financial goals with confidence. No jargon, no hidden fees. Just clarity, control, and real results."
   },
   vision: {
     title: "Our Vision",
@@ -46,7 +46,7 @@ const OurJourney: React.FC = () => {
             <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] lg:max-w-[770px]">
               {journeyData.subtitle}{" "}
               <span className="text-primary-500">financial solutions</span>
-              —that&apos;s our story and mission.
+              That&apos;s our story and mission.
             </h2>
 
             <p className="md:text-[15px] lg:text-md -tracking-[0.16px] lg:max-w-[636px] ltr:lg:ml-auto rtl:lg:mr-auto mt-[10px] lg:mt-[15px] xl:mt-0">

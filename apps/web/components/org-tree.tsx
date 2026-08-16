@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 
 /*
- * The org tree — ORQ8's signature element.
+ * The org tree: ORQ8's signature element.
  * One sovereign node at the top; an organization assembles below it.
  *
  * Two variants:
  *  - "hero": static, forms once on load (staggered fade, lines follow)
- *  - "full": the growth diagram — cycles α (3) → β (7) → γ (12) agents,
+ *  - "full": the growth diagram, cycles α (3) → β (7) → γ (12) agents,
  *    dimming nodes that don't exist yet. State chips let the reader step.
  *
  * Two tones:
@@ -231,7 +231,7 @@ function OrgTree({
       viewBox={variant === "hero" ? "0 0 560 380" : "0 0 720 470"}
       className="h-auto w-full"
       role="img"
-      aria-label="Organization chart: you as CEO, an executive agent below you, then departments of specialists — engineering, marketing, and research."
+      aria-label="Organization chart: you as CEO, an executive agent below you, then departments of specialists: engineering, marketing, and research."
     >
       {nodes.map((node, i) => {
         const edge = incoming.get(node.id);

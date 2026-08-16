@@ -7,9 +7,9 @@ import { SiteHeader } from "../components/site-header";
 import { WaitlistForm } from "../components/waitlist-form";
 
 export const metadata: Metadata = {
-  title: "ORQ8 — Run your company with AI employees",
+  title: "ORQ8: Run your company with AI employees",
   description:
-    "You set the direction. ORQ8 hires the team, does the work, and reports back — under your approvals, your budgets, your audit trail.",
+    "You set the direction. ORQ8 hires the team, does the work, and reports back under your approvals and your budget.",
 };
 
 const MONO = "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
@@ -149,7 +149,7 @@ function MiniOrg() {
   );
 }
 
-/* CEO dashboard mockup — the "command center" the product is. */
+/* CEO dashboard mockup, the "command center" the product is. */
 function CommandCenter() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:max-w-none">
@@ -366,14 +366,14 @@ const faqs = [
 export default function Page() {
   return (
     <div id="main" className="min-h-screen bg-navy-950 text-white">
-      {/* 01 — HERO: the command center opens */}
+      {/* 01. HERO: the command center opens */}
       <div className="bg-mesh grain relative">
-        <SiteHeader variant="navy" cta={{ href: "#start", label: "Start free" }} />
+        <SiteHeader variant="navy" cta={{ href: "#start", label: "Join the waitlist" }} />
         <section className="relative overflow-hidden">
           <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 pb-24 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:pb-32 lg:pt-20">
             <div>
               <Reveal>
-                <p className="eyebrow text-emerald">ORQ8 — AI organization operating system</p>
+                <p className="eyebrow text-emerald">ORQ8: AI organization operating system</p>
                 <h1 className="mt-6 text-6xl font-semibold tracking-[-0.03em] text-white sm:text-7xl lg:text-8xl">
                   ORQ8<span className="text-emerald">.</span>
                 </h1>
@@ -381,21 +381,21 @@ export default function Page() {
                   Run your company with AI employees.
                 </p>
                 <p className="mt-6 max-w-lg text-base leading-relaxed text-fog sm:text-lg">
-                  You set the direction. ORQ8 hires the team, does the work, and reports back — under
-                  your approvals, your budgets, your audit trail.
+                  You set the direction. ORQ8 hires the team, does the work, and reports back under
+                  your approvals and your budget.
                 </p>
               </Reveal>
               <Reveal delay={100} className="mt-10">
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <a href="#start" className={primaryCta}>
-                    Start your company — free
+                    Start your company free
                   </a>
                   <a href="#how-it-works" className={ghostCta}>
                     See how it works <span aria-hidden>→</span>
                   </a>
                 </div>
                 <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.22em] text-white/40">
-                  Free to start · No credit card · Self-hostable
+                  7 days free · Card on file · Self-hostable
                 </p>
               </Reveal>
             </div>
@@ -406,7 +406,7 @@ export default function Page() {
         </section>
       </div>
 
-      {/* 02 — STACK STRIP: the ecosystem it plugs into */}
+      {/* 02. STACK STRIP: the ecosystem it plugs into */}
       <section className="border-y border-white/8 bg-navy-900">
         <div className="mx-auto max-w-6xl px-6 py-12">
           <Reveal>
@@ -428,7 +428,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 03 — HOW IT WORKS */}
+      {/* 03. HOW IT WORKS */}
       <section id="how-it-works" className="bg-navy-950 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal>
@@ -457,7 +457,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 04 — FEATURES BENTO */}
+      {/* 04. FEATURES BENTO */}
       <section id="features" className="bg-navy-900 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal>
@@ -477,12 +477,12 @@ export default function Page() {
                       Governance from the first node.
                     </h3>
                     <p className="mt-3 text-sm leading-relaxed text-fog">
-                      You are node 001. Every agent below you inherits authority from your Constitution —
+                      You are node 001. Every agent below you inherits authority from your Constitution.
                       what it can do, what it can spend, what it must ask about. The tree grows, the rules hold.
                     </p>
                     <ul className="mt-6 space-y-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white/55">
                       <li className="flex items-center gap-2">
-                        <span className="h-1 w-1 rounded-full bg-emerald" aria-hidden /> You · CEO — node 001
+                        <span className="h-1 w-1 rounded-full bg-emerald" aria-hidden /> You · CEO · node 001
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="h-1 w-1 rounded-full bg-emerald" aria-hidden /> Authority inherited, not guessed
@@ -539,7 +539,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 05 — THE ORGANIZATION: the tree grows */}
+      {/* 05. THE ORGANIZATION: the tree grows */}
       <section id="organization" className="bg-navy-950 py-20 sm:py-28">
         <div className="mx-auto max-w-4xl px-6">
           <Reveal className="text-center">
@@ -549,7 +549,7 @@ export default function Page() {
               <span className="text-emerald">grows around you.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-2xl leading-relaxed text-fog">
-              Start with one Executive Agent and a goal. Hire specialists when the work demands them —
+              Start with one Executive Agent and a goal. Hire specialists when the work demands them.
               a researcher, an engineer, a writer, an analyst. They form departments. They join teams.
               They report to you.
             </p>
@@ -572,7 +572,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 06 — CONTROL: the trust story */}
+      {/* 06. CONTROL: the trust story */}
       <section id="control" className="bg-navy-900 py-20 sm:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 lg:grid-cols-2 lg:gap-20">
           <Reveal>
@@ -644,7 +644,7 @@ export default function Page() {
         </Reveal>
       </section>
 
-      {/* 07 — THE WEEKLY REPORT */}
+      {/* 07. THE WEEKLY REPORT */}
       <section className="bg-navy-950 py-20 sm:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 lg:grid-cols-2 lg:gap-20">
           <Reveal>
@@ -698,25 +698,27 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 08 — PRICING TEASER */}
+      {/* 08. PRICING TEASER */}
       <section className="bg-navy-900 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal className="text-center">
             <Eyebrow index="06" text="Pricing" />
             <h2 className="mx-auto mt-6 max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-white text-balance sm:text-5xl">
-              Free to start. <span className="text-emerald">$49 when it earns its keep.</span>
+              Every plan starts with 7 days free.{" "}
+              <span className="text-emerald">$49 when it earns its keep.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-fog">
-              No credit card to begin. Bring your own model keys and pay exactly what the work costs.
+              Card on file, nothing charged until day 8. Bring your own model keys and pay
+              exactly what the work costs.
             </p>
           </Reveal>
           <div className="mx-auto mt-14 grid max-w-3xl gap-5 sm:grid-cols-2">
             <Reveal delay={60}>
               <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-navy-surface p-7">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Free</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Starter</p>
                 <p className="mt-3 text-4xl font-semibold tracking-tight text-white">
                   $0
-                  <span className="text-base font-normal text-fog"> /mo</span>
+                  <span className="text-base font-normal text-fog"> for 7 days</span>
                 </p>
                 <ul className="mt-6 space-y-2.5 text-sm text-fog">
                   <li>Your first 3 agents</li>
@@ -725,7 +727,7 @@ export default function Page() {
                   <li>Community support</li>
                 </ul>
                 <a href="#start" className={`${ghostCta} mt-8 w-full`}>
-                  Start free
+                  Join the waitlist
                 </a>
               </div>
             </Reveal>
@@ -743,10 +745,10 @@ export default function Page() {
                   <li>Unlimited agents</li>
                   <li>All departments + teams</li>
                   <li>Budgets + company Constitution</li>
-                  <li>BYOK — bring your own keys</li>
+                  <li>BYOK: bring your own keys</li>
                 </ul>
                 <a href="#start" className={`${primaryCta} mt-8 w-full`}>
-                  Start Pro
+                  Join the waitlist
                 </a>
               </div>
             </Reveal>
@@ -762,7 +764,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 09 — FAQ */}
+      {/* 09. FAQ */}
       <section className="bg-navy-950 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl px-6">
           <Reveal>
@@ -789,7 +791,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 10 — FINAL CTA */}
+      {/* 10. FINAL CTA */}
       <section
         id="start"
         className="bg-mesh grain relative overflow-hidden py-28 sm:py-36"
@@ -809,7 +811,7 @@ export default function Page() {
           </Reveal>
           <Reveal delay={120} className="mx-auto mt-10 max-w-md">
             <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.22em] text-white/50">
-              Join the waitlist — first cohort opens soon
+              Join the waitlist. First cohort opens soon
             </p>
             <WaitlistForm variant="dark" />
           </Reveal>

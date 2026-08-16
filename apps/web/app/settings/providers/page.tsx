@@ -6,8 +6,8 @@ import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Providers" };
 
-// docs/23.3 — settings UX: provider cards, masked keys, add/rotate/revoke/test.
-// Full keys never reach this server component — the API returns masks only.
+// docs/23.3: settings UX for provider cards, masked keys, add/rotate/revoke/test.
+// Full keys never reach this server component. The API returns masks only.
 export default async function SettingsProvidersPage() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) redirect("/login");
@@ -43,7 +43,7 @@ export default async function SettingsProvidersPage() {
         <h1 className="mt-1 text-2xl font-semibold text-ink">Model providers</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Bring your own keys (BYOK). Keys are encrypted at rest (AES-256-GCM) and never shown
-          again after saving — only a mask is stored and displayed. Access is audited.
+          again after saving. Only a mask is stored and displayed. Access is audited.
         </p>
         <ProvidersClient catalog={catalog} keys={keys} />
       </main>

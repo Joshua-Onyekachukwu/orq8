@@ -22,18 +22,18 @@ const Cta: React.FC = () => {
       const data = await res.json();
       if (!res.ok) {
         setStatus("error");
-        setMessage(data?.error?.message ?? "Could not sign you up — try again.");
+        setMessage(data?.error?.message ?? "Could not sign you up. Try again.");
         return;
       }
       setStatus("done");
       setMessage(
         data?.data?.already
-          ? "You're already on the list — we'll be in touch."
+          ? "You're already on the list. We'll be in touch."
           : "You're on the list. We'll email you when your cohort opens."
       );
     } catch {
       setStatus("error");
-      setMessage("Network error — the waitlist service is unavailable.");
+      setMessage("Network error. The waitlist service is unavailable.");
     }
   }
 
@@ -47,7 +47,7 @@ const Cta: React.FC = () => {
             </h2>
 
             <p className="text-black dark:text-white lg:text-[15px] xl:text-md">
-              Join the waitlist. The first cohort opens soon — we&apos;ll email
+              Join the waitlist. The first cohort opens soon. We&apos;ll email
               you when it&apos;s your turn.
             </p>
 
@@ -96,7 +96,7 @@ const Cta: React.FC = () => {
             <ul className="mt-[15px] md:mt-[20px] lg:mt-[25px] lg:text-[15px] xl:text-md">
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
                 <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                No credit card required
+                7 days free on every plan
               </li>
 
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
@@ -106,7 +106,7 @@ const Cta: React.FC = () => {
 
               <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
                 <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                Cancel anytime
+                Leave the list any time
               </li>
             </ul>
 
