@@ -34,10 +34,11 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 | 019 | Permission namespace `{domain}:{resource}:{action}` canonicalized in the Approval Engine (19) | Accepted |
 | 020 | Event catalog extended: `spend.executed`, `payment.executed`, `simulation.run/completed`, `hiring.proposed/approved/rejected`, `import.*`, `sandbox.*`, `eval.*` (36) | Accepted |
 | 021 | No AI-agent marketplace; revenue from platform (tiers, capacity, enterprise, usage) — never agent commissions; hiring initiated within the org per authority + budget (01, 55, 00, 09) | Accepted |
+| 022 | Supabase is the platform backend: Postgres 16 + pgvector via Drizzle, session auth (not Supabase Auth), web→API→DB, RLS deferred, Supabase Storage, billing external (58, ADR-001/002/005/006/007/008) | Accepted |
 
 ## Records
 
-Full standalone records for **all 21 ADRs live in `docs/adr/ADR-001.md` … `ADR-021.md`** (context / decision / consequences / links). This index is the summary + status tracker.
+Full standalone records for **all 22 ADRs live in `docs/adr/ADR-001.md` … `ADR-022.md`** (context / decision / consequences / links). This index is the summary + status tracker.
 
 ## Process
 
