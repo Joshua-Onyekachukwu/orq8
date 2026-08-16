@@ -43,6 +43,11 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Anchor targets land below the sticky header, not under it (a11y review) */
+[id] {
+  scroll-margin-top: 5rem;
+}
+
 body {
   @apply bg-white font-sans text-ink antialiased;
 }
@@ -294,6 +299,7 @@ body {
  ---break---
  */
 :root {
+  color-scheme: light;
   /* ORQ8 light semantic layer — brand tokens → semantic tokens (docs/00 §5.7).
      Navy command-center surfaces, amber reserved for accent/charts. */
   --background: oklch(1 0 0);
@@ -332,6 +338,7 @@ body {
 /*
  ---break---
  */.dark {
+  color-scheme: dark;
   /* ORQ8 dark semantic layer — navy command center with the emerald brand accent
      (marketing/DESIGN_DIRECTION.md §2). Product CTAs go emerald in dark mode. */
   --background: var(--color-void);
