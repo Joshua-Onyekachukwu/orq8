@@ -102,7 +102,7 @@ const Pricing: React.FC = () => {
                 return (
                   <div
                     key={index}
-                    className={`relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[35px] ${
+                    className={`lift-card relative border-[2px] md:border-[5px] lg:border-[10px] ${s.border} rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[35px] ${
                       popular ? "lg:-mt-[30px] lg:pb-[60px]" : ""
                     }`}
                   >

@@ -15,14 +15,15 @@ const CommandCenter: React.FC = () => {
         aria-hidden
         className="absolute -inset-6 rounded-[30px] bg-[radial-gradient(60%_60%_at_70%_0%,rgba(96,93,255,0.35),transparent_70%)] blur-2xl"
       />
-      <div aria-hidden className="relative rounded-[20px] bg-navy-800 border border-white/10 p-[22px] md:p-[28px]">
+      <div aria-hidden className="relative rounded-[26px] bg-white/5 ring-1 ring-white/10 p-[7px] shadow-[0_24px_70px_-24px_rgba(0,0,0,0.7)]">
+        <div className="rounded-[20px] bg-navy-800 border border-white/10 p-[22px] md:p-[28px]">
         {/* header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-[16px]">
           <span className="uppercase font-bold tracking-[1.8px] text-[11px] text-white/60">
             ORQ8 · Command Center
           </span>
           <span className="flex items-center gap-[6px]">
-            <span className="w-[7px] h-[7px] rounded-full bg-lime"></span>
+            <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
             <span className="w-[7px] h-[7px] rounded-full bg-white/25"></span>
             <span className="w-[7px] h-[7px] rounded-full bg-white/25"></span>
           </span>
@@ -63,8 +64,8 @@ const CommandCenter: React.FC = () => {
               <p className="font-medium text-white/85 text-[13px] -tracking-[0.2px]">
                 {a.n}
               </p>
-              <p className="flex items-center gap-[7px] text-white/50 text-[13px]">
-                <span className="w-[6px] h-[6px] rounded-full bg-lime"></span>
+              <p className="flex items-center gap-[7px] text-white/55 text-[13px]">
+                <span className="w-[6px] h-[6px] rounded-full bg-lime animate-pulse-dot"></span>
                 {a.s}
               </p>
             </div>
@@ -125,13 +126,14 @@ const CommandCenter: React.FC = () => {
         </div>
 
         <div className="mt-[16px] flex items-center gap-[10px] rounded-[14px] bg-white/5 border border-white/10 px-[16px] py-[12px]">
-          <span className="w-[7px] h-[7px] rounded-full bg-lime"></span>
+          <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
           <p className="uppercase font-bold tracking-[1.8px] text-[10px] text-white/60">
             Monday report · Ready
           </p>
-          <span className="ml-auto uppercase tracking-[1.4px] text-[10px] text-white/30">
+          <span className="ml-auto uppercase tracking-[1.4px] text-[10px] text-white/35">
             Aug 15
           </span>
+        </div>
         </div>
       </div>
     </div>
@@ -187,7 +189,7 @@ const HeroBanner: React.FC = () => {
                   THE AI ORGANIZATION OPERATING SYSTEM
                 </span>
 
-                <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px]">
+                <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
                   Run your company with{" "}
                   <span className="font-bold text-lime">AI employees</span>
                 </h1>
@@ -200,15 +202,15 @@ const HeroBanner: React.FC = () => {
 
                 <Link
                   href="/#waitlist"
-                  className="btn-press inline-block text-center bg-orange-500 border border-orange-500 rounded-[50px] text-white font-medium md:text-[15px] lg:text-md xl:text-[17px] py-[9px] px-[22px] hover:bg-primary-500 hover:border-primary-500 mt-[5px] md:mt-[10px] lg:mt-[18px] xl:mt-[22px]"
+                  className="btn-press group inline-block text-center bg-lime rounded-[50px] text-navy-950 font-semibold md:text-[15px] lg:text-md xl:text-[17px] py-[11px] px-[26px] hover:bg-emerald mt-[5px] md:mt-[10px] lg:mt-[18px] xl:mt-[22px]"
                 >
-                  <span className="inline-block relative ltr:pr-[27px] rtl:pl-[27px]">
+                  <span className="inline-flex items-center gap-[10px] ltr:pr-[6px] rtl:pl-[6px]">
                     Start Free — No Credit Card{" "}
-                    <i className="ri-arrow-right-long-line text-[20px] absolute top-1/2 -translate-y-1/2 ltr:-right-[2px] rtl:-left-[2px]"></i>
+                    <i className="ri-arrow-right-line text-[20px] transition-transform duration-300 group-hover:translate-x-[3px]"></i>
                   </span>
                 </Link>
 
-                <div className="mt-[25px] lg:mt-[45px] flex items-center gap-[10px] md:gap-[15px] border border-white/15 bg-white/10 rounded-[100px] p-[10px] md:p-[13px] max-w-[360px] backdrop-blur-sm">
+                <div className="mt-[25px] lg:mt-[45px] flex items-center gap-[10px] md:gap-[15px] border border-white/15 bg-white/10 rounded-[100px] p-[10px] md:p-[13px] max-w-[380px] backdrop-blur-md">
                   <div className="flex items-center">
                     <Image
                       src="/images/users/user1.jpg"

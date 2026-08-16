@@ -5,6 +5,7 @@ import FunFacts from "@/components/Common/FunFacts";
 import Integrations from "@/components/Common/Integrations";
 import Partners from "@/components/Common/Partners";
 import Pricing from "@/components/Common/Pricing";
+import { Reveal } from "@/components/Common/Reveal";
 import Testimonials from "@/components/Common/Testimonials";
 import Cta from "@/components/Common/Cta";
 import HeroBanner from "@/components/Home/HeroBanner";
@@ -14,23 +15,41 @@ export default function Home() {
     <>
       <HeroBanner />
 
-      <Partners />
+      <Reveal>
+        <Partners />
+      </Reveal>
 
-      <About />
+      <Reveal>
+        <About />
+      </Reveal>
 
-      <Features />
+      <Reveal>
+        <Features />
+      </Reveal>
 
-      <Integrations />
+      <Reveal>
+        <Integrations />
+      </Reveal>
 
-      <Testimonials />
+      <Reveal>
+        <Testimonials />
+      </Reveal>
 
-      <FunFacts />
+      <Reveal>
+        <FunFacts />
+      </Reveal>
 
-      <Pricing />
+      <Reveal>
+        <Pricing />
+      </Reveal>
 
-      <Faqs />
+      <Reveal>
+        <Faqs />
+      </Reveal>
 
-      <Cta />
+      <Reveal>
+        <Cta />
+      </Reveal>
     </>
   );
 }

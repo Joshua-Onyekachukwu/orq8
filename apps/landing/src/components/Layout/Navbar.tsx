@@ -16,7 +16,7 @@ const menuItems = [
 const Navbar: React.FC = () => {
   const pathname = usePathname();
 
-  // Sticky navbar
+  // Sticky navbar — glass command-bar once you scroll
   useEffect(() => {
     const elementId = document.getElementById("navbar");
     const handleScroll = () => {
@@ -27,13 +27,9 @@ const Navbar: React.FC = () => {
       }
     };
 
-    document.addEventListener("scroll", handleScroll);
-
-    // Cleanup event listener on component unmount
-    return () => {
-      document.removeEventListener("scroll", handleScroll);
-    };
-  }, []); // Added empty dependency array to avoid repeated effect calls
+    document.addEventListener("scroll", handleScroll, { passive: true });
+    return () => document.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Add active class to mobile menu
   const [isActiveMobileMenu, setActiveMobileMenu] = useState<boolean>(true);
@@ -47,36 +43,38 @@ const Navbar: React.FC = () => {
       className={`inline-flex items-center gap-[7px] text-[24px] font-bold tracking-[-1.2px] leading-none text-black dark:text-white ${className}`}
     >
       ORQ8
-      <span className="w-[8px] h-[8px] rounded-full bg-orange-400 inline-block"></span>
+      <span className="w-[8px] h-[8px] rounded-full bg-lime inline-block"></span>
     </span>
   );
 
   return (
     <>
       <div
-        className="finance-navbar fixed top-0 right-0 left-0 transition-all h-auto z-[5] py-[20px] md:py-[25px]"
+        className="finance-navbar fixed top-0 right-0 left-0 transition-[background-color,box-shadow,padding] duration-300 h-auto z-[5] py-[20px] md:py-[25px]"
         id="navbar"
       >
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] 2xl:max-w-[1744px] mx-auto px-[12px]">
           <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between lg:justify-start">
-            <Link href="/" className="inline-block">
+            <Link href="/" className="inline-block" aria-label="ORQ8 home">
               <Wordmark />
             </Link>
 
             <button
               type="button"
+              aria-label="Toggle menu"
+              aria-expanded={!isActiveMobileMenu}
               className="inline-block relative leading-none lg:hidden"
               onClick={handleToggleMobileMenu}
             >
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white"></span>
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white"></span>
-              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white"></span>
+              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-transform duration-300"></span>
+              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-opacity duration-300"></span>
+              <span className="h-[3px] w-[30px] my-[5px] block bg-dark dark:bg-white transition-transform duration-300"></span>
             </button>
 
             {/* For Big Devices */}
             <div className="hidden lg:flex items-center grow basis-full">
               <ul
-                className="navbar-nav flex mx-auto flex-row gap-[25px] xl:gap-[50px] bg-white dark:bg-dark rounded-[60px] lg:py-[20px] lg:px-[30px] xl:py-[30px] xl:px-[50px] 2xl:px-[100px]"
+                className="navbar-nav flex mx-auto flex-row gap-[25px] xl:gap-[50px] bg-white dark:bg-navy-900 rounded-[60px] lg:py-[20px] lg:px-[30px] xl:py-[30px] xl:px-[50px] 2xl:px-[100px]"
                 style={{
                   boxShadow: "0px 4px 30px 0px rgba(146, 139, 221, 0.10)",
                 }}
@@ -85,9 +83,9 @@ const Navbar: React.FC = () => {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-primary-500 ${
+                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
                         pathname === item.href
-                          ? "text-primary-500"
+                          ? "text-emerald"
                           : "text-black dark:text-white"
                       }`}
                     >
@@ -98,34 +96,37 @@ const Navbar: React.FC = () => {
               </ul>
 
               <Link
-                href="/#waitlist"
-                className="btn-press inline-block rounded-[60px] bg-primary-500 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] hover:bg-lime hover:text-black"
-              >
+                href="/#waitlist"                className="btn-press group inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime"
+                >
                 <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                   START FREE{" "}
-                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
+                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-navy-950/15 text-navy-950 flex items-center justify-center text-md transition-transform duration-300 group-hover:translate-x-[2px] group-hover:-translate-y-[1px]"></i>
                 </span>
               </Link>
             </div>
 
             {/* For Responsive */}
             <div
-              className={`bg-white dark:bg-navy-900 rounded-[15px] border border-gray-200 dark:border-[#202c4b] mt-[20px] p-[20px] md:p-[30px] w-full hidden lg:!hidden ${
+              className={`bg-white dark:bg-navy-900 rounded-[15px] border border-gray-200 dark:border-white/10 mt-[20px] p-[20px] md:p-[30px] w-full hidden lg:!hidden ${
                 isActiveMobileMenu ? "" : "active"
               }`}
               id="navbar-collapse"
             >
               <ul>
-                {menuItems.map((item) => (
+                {menuItems.map((item, i) => (
                   <li
                     key={item.href}
-                    className="my-[14px] md:my-[16px] first:mt-0 last:mb-0"
+                    className={`my-[14px] md:my-[16px] first:mt-0 last:mb-0 transition-all duration-300 ${
+                      isActiveMobileMenu ? "opacity-0 translate-y-3" : "opacity-100 translate-y-0"
+                    }`}
+                    style={{ transitionDelay: isActiveMobileMenu ? "0ms" : `${60 + i * 45}ms` }}
                   >
                     <Link
                       href={item.href}
-                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-primary-500 ${
+                      onClick={() => setActiveMobileMenu(true)}
+                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
                         pathname === item.href
-                          ? "text-primary-500"
+                          ? "text-emerald"
                           : "text-black dark:text-white"
                       }`}
                     >
@@ -137,11 +138,12 @@ const Navbar: React.FC = () => {
 
               <Link
                 href="/#waitlist"
-                className="btn-press inline-block rounded-[60px] bg-primary-500 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] hover:bg-lime hover:text-black mt-[15px]"
+                onClick={() => setActiveMobileMenu(true)}
+                className="btn-press inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime mt-[15px]"
               >
                 <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                   START FREE{" "}
-                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
+                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-navy-950/15 text-navy-950 flex items-center justify-center text-md"></i>
                 </span>
               </Link>
             </div>

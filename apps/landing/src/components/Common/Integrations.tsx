@@ -85,7 +85,7 @@ const Integrations: React.FC = () => {
                 {group.cards.map((card, i) => (
                   <div
                     key={card.title}
-                    className={`px-[20px] md:px-[25px] py-[25px] md:py-[35px] mb-[25px] lg:mb-[40px] last:mb-0 rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] ${
+                    className={`lift-card px-[20px] md:px-[25px] py-[25px] md:py-[35px] mb-[25px] lg:mb-[40px] last:mb-0 rounded-[10px] md:rounded-[20px] flex items-center gap-[15px] md:gap-[20px] ${
                       i === 0
                         ? "md:mx-[50px] lg:mx-0 xl:mx-[50px]"
                         : i === 1
