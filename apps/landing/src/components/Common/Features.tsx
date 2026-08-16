@@ -16,7 +16,7 @@ const Features: React.FC = () => {
       icon: "ri-verified-badge-fill",
       title: "Approval gates",
       description:
-        "Consequential actions route to you — a spend, a publish, a deploy. Approve or reject in one tap. Everything else runs.",
+        "Consequential actions route to you: a spend, a publish, a deploy. Approve or reject in one tap. Everything else runs.",
     },
     {
       id: 2,
@@ -30,7 +30,7 @@ const Features: React.FC = () => {
       icon: "ri-file-text-fill",
       title: "Audit trail",
       description:
-        "Every decision, action, and cost — time-stamped and immutable. Your company has a memory you can trust.",
+        "Every decision, action, and cost, time-stamped and immutable. Your company has a memory you can trust.",
     },
     {
       id: 4,
@@ -44,7 +44,7 @@ const Features: React.FC = () => {
       icon: "ri-pie-chart-2-fill",
       title: "Cost-aware routing",
       description:
-        "Every task knows its budget. Costs tracked per department and per agent — no surprises on the invoice.",
+        "Every task knows its budget. Costs tracked per department and per agent. No surprises on the invoice.",
     },
     {
       id: 6,

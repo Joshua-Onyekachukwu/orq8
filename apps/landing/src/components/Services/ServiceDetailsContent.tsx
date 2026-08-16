@@ -30,9 +30,9 @@ const ServiceDetailsContent: React.FC = () => {
 
               <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                 ORQ8’s Multi-Account Aggregation service allows users to
-                connect all of their financial accounts—bank accounts, credit
+                connect all of their financial accounts: bank accounts, credit
                 cards, digital wallets, loans, and even investment
-                platforms—into a single, unified dashboard. This means you no
+                platforms, into a single, unified dashboard. This means you no
                 longer have to jump between apps or websites to understand your
                 financial picture.
               </p>
@@ -60,7 +60,7 @@ const ServiceDetailsContent: React.FC = () => {
                   </h5>
                   <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                     View your total balance, cash flow, debts, and savings in
-                    one place—updated in real-time.
+                    one place, updated in real-time.
                   </p>
                 </li>
                 <li className="mb-[20px] md:mb-[25px] last:mb-0">
@@ -80,7 +80,7 @@ const ServiceDetailsContent: React.FC = () => {
                   <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                     ORQ8 connects to your accounts through bank-level
                     encryption and read-only access, meaning we can view your
-                    data—but never touch your money.
+                    data but never touch your money.
                   </p>
                 </li>
                 <li className="mb-[20px] md:mb-[25px] last:mb-0">
@@ -109,7 +109,7 @@ const ServiceDetailsContent: React.FC = () => {
                   </h5>
                   <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                     ORQ8 automatically converts foreign balances into your
-                    primary currency using live exchange rates—great for digital
+                    primary currency using live exchange rates, great for digital
                     nomads and global users.
                   </p>
                 </li>
@@ -161,8 +161,8 @@ const ServiceDetailsContent: React.FC = () => {
 
               <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                 ORQ8’s Multi-Account Aggregation feature brings all your
-                financial accounts—banking, credit cards, wallets, and
-                investments—into one unified dashboard. Track your total
+                financial accounts: banking, credit cards, wallets, and
+                investments, into one unified dashboard. Track your total
                 balance, cash flow, and spending in real time without switching
                 between apps. Enjoy secure, read-only access with bank-level
                 encryption for complete peace of mind. Automatic syncing ensures

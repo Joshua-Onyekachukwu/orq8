@@ -33,7 +33,7 @@ const ContactInfo: React.FC = () => {
       </span>
 
       <span className="block font-light md:-tracking-[.44px] lg:-tracking-[1.44px] text-md md:text-[22px] lg:text-xl">
-        Mon-Fri 9:00AM — 4:00PM
+        Mon-Fri 9:00AM to 4:00PM
       </span>
 
       <span className="block text-black dark:text-white font-medium text-xs uppercase tracking-[1.8px] mb-[5px] md:mb-[8px] mt-[20px] md:mt-[30px] lg:mt-[40px]">

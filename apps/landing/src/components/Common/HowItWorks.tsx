@@ -14,28 +14,28 @@ const steps: Step[] = [
     icon: "ri-chat-3-line",
     title: "Give direction",
     description:
-      "Say it in plain words — “I think we should build an AI support product.” No specs, no project plans. That’s the whole brief.",
+      "Say it in plain words: “I think we should build an AI support product.” No specs, no project plans. That’s the whole brief.",
   },
   {
     id: 2,
     icon: "ri-team-line",
     title: "The Executive Agent plans and hires",
     description:
-      "Your Exec gathers what the company knows, turns your direction into a plan, and hires the specialists it needs — inside your budget.",
+      "Your Exec gathers what the company knows, turns your direction into a plan, and hires the specialists it needs, inside your budget.",
   },
   {
     id: 3,
     icon: "ri-terminal-box-line",
     title: "Agents do the work",
     description:
-      "Researchers, writers, and engineers execute across your tools. Spend, publish, and deploy stop at your approval gate — everything else runs.",
+      "Researchers, writers, and engineers execute across your tools. Spend, publish, and deploy stop at your approval gate. Everything else runs.",
   },
   {
     id: 4,
     icon: "ri-calendar-check-line",
     title: "You approve. The Monday report closes the loop",
     description:
-      "Consequential decisions come to you — approve or reject in one tap. Every Monday: what happened, what it cost, what needs your decision.",
+      "Consequential decisions come to you. Approve or reject in one tap. Every Monday: what happened, what it cost, what needs your decision.",
   },
 ];
 
@@ -55,7 +55,7 @@ const HowItWorks: React.FC = () => {
             <span className="text-lime">The company does the rest.</span>
           </h2>
           <p className="text-white/70 lg:text-[15px] xl:text-md">
-            Four steps, one loop. Most of it runs without you — the
+            Four steps, one loop. Most of it runs without you. The
             consequential always comes back to you.
           </p>
         </div>
@@ -95,7 +95,7 @@ const HowItWorks: React.FC = () => {
               </h3>
               <p className="text-white/65 md:text-[15px] lg:text-md -tracking-[0.16px] max-w-[560px]">
                 Your company keeps working while you sleep. Every Monday the
-                report brings you back up to speed — then you give the next
+                report brings you back up to speed. Then you give the next
                 direction.
               </p>
             </div>

@@ -8,21 +8,20 @@ import Link from "next/link";
 const aboutContent = {
   tagline: "About ORQ8",
   heading: {
-    part1: "An organization that runs itself —",
-    highlighted: "under your control",
+    part1: "An organization that runs itself.",
+    highlighted: "Under your control."
   },
   description:
-    "ORQ8 is the AI organization operating system. You set the direction. Your Executive Agent plans the work, hires the specialists, and reports back. You stay in command — every consequential decision comes to you.",
+    "ORQ8 is the AI organization operating system. You set the direction. Your Executive Agent plans the work, hires the specialists, and          reports back. You stay in command. Every consequential decision comes to you.",
   features: [
     {
       title: "Hire on demand",
-      description:
-        "No headcount, no interviews. When the work needs a researcher, a writer, or an engineer, ORQ8 hires them within your budget — and releases them when the job is done.",
+      description:         "No headcount, no interviews. When the work needs a researcher, a writer, or an engineer, ORQ8 hires them within your budget and releases them when the job is done.",
     },
     {
       title: "Approvals you control",
       description:
-        "Spend, publish, deploy — anything consequential routes to you. Approve, reject, or modify in one tap. Everything else runs without interrupting you.",
+        "Spend, publish, deploy. Anything consequential routes to you. Approve, reject, or modify in one tap. Everything else runs without interrupting you.",
     },
     {
       title: "Budgets that hold",
@@ -32,7 +31,7 @@ const aboutContent = {
     {
       title: "Everything audited",
       description:
-        "Every decision, every action, every cost — time-stamped and immutable. Your company has a memory you can trust from day one.",
+        "Every decision, every action, every cost, time-stamped and immutable. Your company has a memory you can trust from day one.",
     },
   ],
   cta: {
@@ -61,7 +60,7 @@ const About: React.FC = () => {
               <Image
                 src="/images/about.jpg"
                 className="inline-block rounded-[10px] md:rounded-[20px]"
-                alt="the ORQ8 headquarters — one desk, one CEO"
+                alt="the ORQ8 headquarters, one desk, one CEO"
                 width={670}
                 height={810}
               />

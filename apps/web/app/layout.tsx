@@ -8,7 +8,7 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrai
 
 export const metadata: Metadata = {
   title: {
-    default: "ORQ8 — The AI Organization Operating System",
+    default: "ORQ8: The AI Organization Operating System",
     template: "%s · ORQ8",
   },
   description:

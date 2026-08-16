@@ -27,7 +27,7 @@ export function SiteFooter({ variant = "light" }: { variant?: "light" | "dark" }
   return (
     <footer className="border-t border-hairline bg-white">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-muted sm:flex-row">
-        <p>ORQ8 — The AI Organization Operating System</p>
+        <p>ORQ8. The AI Organization Operating System</p>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <a href="/#start" className="transition-colors hover:text-ink">About</a>
           <a href="/#how-it-works" className="transition-colors hover:text-ink">How it works</a>

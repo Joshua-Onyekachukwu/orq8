@@ -18,12 +18,12 @@ const FunFacts: React.FC = () => {
     {
       id: 2,
       value: "100%",
-      description: "Decisions stay with you — the CEO",
+      description: "Decisions stay with you, the CEO",
     },
     {
       id: 3,
-      value: "$0",
-      description: "To join. No credit card required",
+      value: "7",
+      description: "Days free to try. Card required, cancel any time",
     },
     {
       id: 4,

@@ -70,7 +70,7 @@ export function SiteHeader({ variant = "light", cta }: HeaderProps) {
             </Button>
           ) : (
             <Button href="/register" size="sm" variant={navy ? "emerald" : dark ? "amber" : "default"}>
-              Get started — free
+              Get started free
             </Button>
           )}
         </div>

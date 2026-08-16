@@ -14,7 +14,7 @@ type MeData = {
   active_org_id: string | null;
 };
 
-// docs/35.3 — GET /v1/auth/me with the session cookie; unauthenticated → /login
+// docs/35.3: GET /v1/auth/me with the session cookie; unauthenticated → /login
 export default async function AppPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
@@ -68,7 +68,7 @@ export default async function AppPage() {
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-hairline bg-white p-5">
             <p className="text-xs font-medium uppercase tracking-wide text-muted">Organization</p>
-            <p className="mt-2 font-medium text-ink">{active?.org.name ?? "—"}</p>
+            <p className="mt-2 font-medium text-ink">{active?.org.name ?? "N/A"}</p>
             <p className="mt-0.5 text-sm text-muted">{active?.org.slug ?? ""}</p>
             <span className="mt-3 inline-block rounded-full bg-canvas px-2.5 py-0.5 text-xs font-medium text-navy-800">
               {active?.org.plan ?? ""}
@@ -76,7 +76,7 @@ export default async function AppPage() {
           </div>
           <div className="rounded-xl border border-hairline bg-white p-5">
             <p className="text-xs font-medium uppercase tracking-wide text-muted">Your role</p>
-            <p className="mt-2 font-medium capitalize text-ink">{active?.role ?? "—"}</p>
+            <p className="mt-2 font-medium capitalize text-ink">{active?.role ?? "N/A"}</p>
             <p className="mt-0.5 text-sm text-muted">Full authority over this organization</p>
           </div>
           <div className="rounded-xl border border-hairline bg-white p-5">
@@ -87,7 +87,7 @@ export default async function AppPage() {
         </div>
 
         <div className="mt-8 rounded-xl border border-dashed border-hairline bg-white p-6 text-sm text-muted">
-          <p className="font-medium text-ink">Phase 1 shell — what&apos;s next</p>
+          <p className="font-medium text-ink">Phase 1 shell: what&apos;s next</p>
           <p className="mt-1">
             Departments, the organization explorer, and hiring arrive in Phase 2; the Executive
             Agent and Decision Center land in Phase 3. Everything you do here is audited and

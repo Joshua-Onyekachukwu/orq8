@@ -33,7 +33,7 @@ const plans: Plan[] = [
       { text: "Company Constitution + audit trail" },
       { text: "One integration" },
     ],
-    cta: "Start free — no card required",
+    cta: "Start free, no card required",
     ctaVariant: "outline",
   },
   {
@@ -41,21 +41,21 @@ const plans: Plan[] = [
     price: { monthly: "$49/mo", annual: "$39/mo" },
     note: {
       monthly: "or $39/mo billed annually",
-      annual: "billed annually — save 20%",
+      annual: "billed annually, save 20%",
     },
     blurb: "For the solo founder who wants their whole operation run.",
     featured: true,
     features: [
-      { lead: "10 AI employees", text: " — hire per business case, not per headcount tax" },
+      { lead: "10 AI employees", text: ". Hire per business case, not per headcount tax" },
       { text: "Unlimited departments, teams, and temporary project teams" },
       {
         lead: "Bring Your Own Key",
-        text: " — route work across OpenAI, Anthropic, Gemini, DeepSeek, Groq, OpenRouter (or stay on free/local models)",
+        text: ". Route work across OpenAI, Anthropic, Gemini, DeepSeek, Groq, OpenRouter (or stay on free/local models)",
       },
       { text: "Full governance: approval tiers, spending authority, emergency controls" },
-      { text: "CEO Decision Center — approve or reject with full context, not notification noise" },
+      { text: "CEO Decision Center: approve or reject with full context, not notification noise" },
       { text: "Councils & debate: get adversarial, evidence-backed recommendations" },
-      { text: "Simulation — forecast workforce, workload, and cost before you commit" },
+      { text: "Simulation: forecast workforce, workload, and cost before you commit" },
       { text: "Weekly executive report + cost tracking by department, project, and agent" },
     ],
     cta: "Get Pro",
@@ -66,7 +66,7 @@ const plans: Plan[] = [
     price: { monthly: "$199/mo", annual: "$159/mo" },
     note: {
       monthly: "or $159/mo billed annually",
-      annual: "billed annually — save 20%",
+      annual: "billed annually, save 20%",
     },
     blurb: "For growing companies with real operations.",
     features: [
@@ -102,15 +102,15 @@ const plans: Plan[] = [
 const everyPlan = [
   {
     lead: "Governance in code, not prompts.",
-    text: "Company Constitution, approval tiers, forbidden actions — enforced server-side.",
+    text: "Company Constitution, approval tiers, forbidden actions, enforced server-side.",
   },
   {
     lead: "CEO attention protection.",
-    text: "A Decision Center, weekly briefings, and a monthly report — instead of an agent zoo.",
+    text: "A Decision Center, weekly briefings, and a monthly report, instead of an agent zoo.",
   },
   {
     lead: "Company memory.",
-    text: "Decisions, lessons, and precedents persist — your organization gets smarter over time.",
+    text: "Decisions, lessons, and precedents persist. Your organization gets smarter over time.",
   },
   {
     lead: "Model-agnostic.",
@@ -118,7 +118,7 @@ const everyPlan = [
   },
   {
     lead: "Everything audited.",
-    text: "Every significant action, approval, and dollar tracked — tamper-evident.",
+    text: "Every significant action, approval, and dollar tracked, tamper-evident.",
   },
   {
     lead: "No commissions.",
@@ -132,8 +132,8 @@ const pricingSteps = [
     text: "Covers the operating system: governance, orchestration, memory, reporting, approvals, and audit. Billed monthly or annually. That's your only ORQ8 bill.",
   },
   {
-    title: "Model usage — your choice",
-    text: "Free path: local models (Ollama) and free tiers — $0 model cost. BYOK path: connect your own provider keys; you pay the provider directly at their rates. No markup, no hidden margin.",
+    title: "Model usage: your choice",
+    text: "Free path: local models (Ollama) and free tiers, $0 model cost. BYOK path: connect your own provider keys; you pay the provider directly at their rates. No markup, no hidden margin.",
   },
   {
     title: "Capacity scales with your org",
@@ -145,26 +145,26 @@ const comparison = [
   ["AI employees", "3", "10", "50", "Unlimited"],
   ["Departments / teams", "1 dept", "Unlimited", "Unlimited", "Unlimited"],
   ["Free/local models", "✓", "✓", "✓", "✓"],
-  ["Bring Your Own Key", "—", "✓", "✓", "✓"],
+  ["Bring Your Own Key", "×", "✓", "✓", "✓"],
   ["Constitution + governance", "✓", "✓", "✓", "✓"],
   ["Approval tiers + Decision Center", "✓", "✓", "✓", "✓"],
-  ["Councils & debate", "—", "✓", "✓", "✓"],
-  ["Simulation", "—", "✓", "✓", "✓"],
+  ["Councils & debate", "×", "✓", "✓", "✓"],
+  ["Simulation", "×", "✓", "✓", "✓"],
   ["Company memory & precedents", "✓", "✓", "✓", "✓"],
   ["Weekly report", "✓", "✓", "✓", "✓"],
-  ["Monthly report + org health", "—", "—", "✓", "✓"],
-  ["Audit exports", "—", "—", "✓", "✓"],
-  ["Integrations (GitHub, email, PM)", "1", "—", "✓", "✓"],
-  ["SSO", "—", "—", "Coming soon", "✓"],
-  ["Priority support", "—", "—", "✓", "✓"],
-  ["Private deployment", "—", "—", "—", "✓"],
-  ["SLA + dedicated onboarding", "—", "—", "—", "✓"],
+  ["Monthly report + org health", "×", "×", "✓", "✓"],
+  ["Audit exports", "×", "×", "✓", "✓"],
+  ["Integrations (GitHub, email, PM)", "1", "×", "✓", "✓"],
+  ["SSO", "×", "×", "Coming soon", "✓"],
+  ["Priority support", "×", "×", "✓", "✓"],
+  ["Private deployment", "×", "×", "×", "✓"],
+  ["SLA + dedicated onboarding", "×", "×", "×", "✓"],
 ] as const;
 
 const faqs = [
   {
     q: "Do I need my own API keys?",
-    a: "No. You can run entirely on free/local models. Add your own keys when you want frontier models — you pay the provider directly, we never mark up.",
+    a: "No. You can run entirely on free/local models. Add your own keys when you want frontier models. You pay the provider directly, we never mark up.",
   },
   {
     q: "Is there a per-agent fee?",
@@ -172,7 +172,7 @@ const faqs = [
   },
   {
     q: "What counts as an \u201CAI employee\u201D?",
-    a: "Any hired agent — full-time or temporary (project teams archive after the project). Archive and rehire as work demands; capacity limits apply to active employees.",
+    a: "Any hired agent, full-time or temporary (project teams archive after the project). Archive and rehire as work demands; capacity limits apply to active employees.",
   },
   {
     q: "What happens if I hit the agent limit?",
@@ -188,7 +188,7 @@ const faqs = [
   },
   {
     q: "Can I change or cancel my plan?",
-    a: "Yes — upgrades are prorated, downgrades apply at renewal, and you can cancel anytime. Your data and audit trail remain yours.",
+    a: "Yes. Upgrades are prorated, downgrades apply at renewal, and you can cancel anytime. Your data and audit trail remain yours.",
   },
   {
     q: "What about voice and infrastructure usage?",
@@ -218,7 +218,7 @@ export function PricingPage() {
           <div className="mx-auto max-w-4xl px-6 pt-16 text-center sm:pt-24">
             <p className="animate-fade-up eyebrow inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-white/70">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Pricing — one platform price
+              Pricing: one platform price
             </p>
             <h1 className="animate-fade-up mt-6 text-4xl font-semibold leading-[1.08] tracking-tight text-white [animation-delay:0.08s] sm:text-6xl">
               Run your company with an AI workforce.
@@ -226,12 +226,12 @@ export function PricingPage() {
               <span className="text-white/85">One platform price. You own the models.</span>
             </h1>
             <p className="animate-fade-up mx-auto mt-6 max-w-2xl text-lg text-white/70 [animation-delay:0.16s]">
-              ORQ8 is the operating system for an AI-staffed organization — governance, approvals,
+              ORQ8 is the operating system for an AI-staffed organization: governance, approvals,
               memory, and executive reporting built in. A simple platform price. Bring your own
               model keys, or run on free local models.
             </p>
 
-            {/* Billing toggle — drives the cards and the comparison table */}
+            {/* Billing toggle, drives the cards and the comparison table */}
             <div className="animate-fade-up mt-9 inline-flex items-center rounded-full border border-white/15 bg-white/5 p-1 text-sm [animation-delay:0.24s]">
               <button
                 type="button"
@@ -370,7 +370,7 @@ export function PricingPage() {
         </ol>
         <blockquote className="mt-10 rounded-xl border border-navy-800 bg-canvas p-6 text-navy-800">
           <strong className="font-semibold">Why no per-agent commissions?</strong> Because we sell
-          the operating system, not the employees. Your AI workforce works for you — not for us.
+          the operating system, not the employees. Your AI workforce works for you, not for us.
         </blockquote>
       </section>
 
@@ -423,7 +423,7 @@ export function PricingPage() {
                         } ${
                           v === "✓"
                             ? "font-semibold text-emerald-600"
-                            : v === "—"
+                            : v === "×"
                               ? "text-muted/40"
                               : "text-ink"
                         }`}

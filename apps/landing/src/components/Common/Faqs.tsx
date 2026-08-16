@@ -19,8 +19,7 @@ const Faqs: React.FC = () => {
           <p>
             No. A chatbot waits for a prompt and answers. ORQ8 is an
             organization: an Executive Agent plans the work, hires the right
-            specialists, coordinates them, and reports back. You steer it like a
-            CEO — not type at it like a search bar.
+            specialists, coordinates them, and reports back.            You steer it like a CEO, not type at it like a search bar.
           </p>
         </>
       ),
@@ -30,7 +29,7 @@ const Faqs: React.FC = () => {
       question: "What can the agents actually do?",
       answer: (
         <p>
-          Research, writing, code, analysis, planning, and coordination — with
+          Research, writing, code, analysis, planning, and coordination, with
           real tools, real files, and real output. Agents form departments,
           join projects, and work together on the goals you set. If a job needs
           a capability, ORQ8 hires it.
@@ -54,7 +53,7 @@ const Faqs: React.FC = () => {
       question: "Can I bring my own keys or self-host?",
       answer: (
         <p>
-          Yes. BYOK is built in — connect your own model providers and pay
+          Yes. BYOK is built in. Connect your own model providers and pay
           exactly what the work costs, no markup. The full stack is also
           self-hostable with the free local version.
         </p>
@@ -65,9 +64,9 @@ const Faqs: React.FC = () => {
       question: "What does it cost to start?",
       answer: (
         <p>
-          Nothing. The Free plan gives you your first three agents, one
-          department, approvals, and the audit trail. No credit card required.
-          When your organization earns its keep, Pro is $49/month.
+          You start with 7 days free. We take a credit card up front, you pay
+          nothing until day 8, and you can cancel any time. When your
+          organization earns its keep, Pro is $49/month.
         </p>
       ),
     },
@@ -91,9 +90,7 @@ const Faqs: React.FC = () => {
               <h2 className="!mb-[15px] md:!mb-[20px] lg:!mb-[30px] !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
                 Questions, before you ask them
               </h2>
-              <p className="md:text-[15px] lg:text-md -tracking-[0.16px] mb-[25px]">
-                Something else on your mind? We read every message — ask us
-                anything about how ORQ8 would run your company.
+              <p className="md:text-[15px] lg:text-md -tracking-[0.16px] mb-[25px]">            Something else on your mind? We read every message. Ask us anything about how ORQ8 would run your company.
               </p>
               <Link
                 href="/contact"

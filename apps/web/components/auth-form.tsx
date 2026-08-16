@@ -45,14 +45,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       if (!res.ok) {
         setError(
           (data as { error?: string } | null)?.error ??
-            "That didn't work — check your details and try again. If it persists, the API may be down."
+            "That didn't work. Check your details and try again. If it persists, the API may be down."
         );
         return;
       }
       router.push("/app");
       router.refresh();
     } catch {
-      setError("Network error — is the API running?");
+      setError("Network error. Is the API running?");
     } finally {
       setPending(false);
     }

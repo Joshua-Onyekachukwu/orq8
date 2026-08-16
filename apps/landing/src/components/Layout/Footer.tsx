@@ -52,11 +52,11 @@ const Footer: React.FC = () => {
 
               {status === "done" ? (
                 <p role="status" className="text-lime font-medium">
-                  You&apos;re on the list — we&apos;ll email you.
+                  You&apos;re on the list. We&apos;ll email you.
                 </p>
               ) : status === "error" ? (
                 <p role="alert" className="text-red-400 font-medium">
-                  Signup failed — please try again.
+                  Signup failed. Please try again.
                 </p>
               ) : (
                 <form onSubmit={handleSubscribe} className="relative">
@@ -165,7 +165,7 @@ const Footer: React.FC = () => {
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
           <p className="font-medium text-[#b8b8b8]">
             © {new Date().getFullYear()}{" "}
-            <span className="text-lime">ORQ8</span> — The AI Organization
+            <span className="text-lime">ORQ8</span>. The AI Organization
             Operating System. Built by a company of one, running on ORQ8.
           </p>
         </div>

@@ -54,7 +54,7 @@ const BlogDetailsContent: React.FC = () => {
                 </h5>
                 <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                   View your total balance, cash flow, debts, and savings in one
-                  place—updated in real-time.
+                  place, updated in real-time.
                 </p>
               </li>
               <li className="mb-[20px] md:mb-[25px] last:mb-0">
@@ -73,7 +73,7 @@ const BlogDetailsContent: React.FC = () => {
                 </h5>
                 <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                   ORQ8 connects to your accounts through bank-level encryption
-                  and read-only access, meaning we can view your data—but never
+                  and read-only access, meaning we can view your data but never
                   touch your money.
                 </p>
               </li>
@@ -102,7 +102,7 @@ const BlogDetailsContent: React.FC = () => {
                 </h5>
                 <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
                   ORQ8 automatically converts foreign balances into your
-                  primary currency using live exchange rates—great for digital
+                  primary currency using live exchange rates, great for digital
                   nomads and global users.
                 </p>
               </li>
@@ -154,8 +154,8 @@ const BlogDetailsContent: React.FC = () => {
 
             <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
               ORQ8&apos;s Multi-Account Aggregation feature brings all your
-              financial accounts—banking, credit cards, wallets, and
-              investments—into one unified dashboard. Track your total balance,
+              financial accounts: banking, credit cards, wallets, and
+              investments, into one unified dashboard. Track your total balance,
               cash flow, and spending in real time without switching between
               apps. Enjoy secure, read-only access with bank-level encryption
               for complete peace of mind. Automatic syncing ensures your data is
@@ -168,7 +168,7 @@ const BlogDetailsContent: React.FC = () => {
             
             <p className="md:text-[15px] lg:text-md -tracking-[0.16px]">
               The future belongs to marketers who adapt, automate, and analyze.
-              With tools like ORQ8, data is no longer intimidating — it’s
+              With tools like ORQ8, data is no longer intimidating. It’s
               empowering. If your marketing decisions aren’t data-backed, you’re
               already behind.
             </p>

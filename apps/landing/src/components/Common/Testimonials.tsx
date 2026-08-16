@@ -17,26 +17,26 @@ const Testimonials: React.FC = () => {
     {
       id: 1,
       quote:
-        "I spend Sundays doing six jobs nobody hired me for — accounting, marketing, ops, support. ORQ8 is the first thing that treats my business like a company instead of a to-do list.",
+        "I spend Sundays doing six jobs nobody hired me for: accounting, marketing, ops, support. ORQ8 is the first thing that treats my business like a company instead of a to-do list.",
       role: "Solo founder",
     },
     {
       id: 2,
       quote:
-        "I've tried every AI tool. They answer questions. None of them does the work. ORQ8 is the difference between a chatbot and an employee — it plans, it hires, it reports back.",
+        "I've tried every AI tool. They answer questions. None of them does the work. ORQ8 is the difference between a chatbot and an employee. It plans, it hires, it reports back.",
       role: "Product founder",
     },
     {
       id: 3,
       quote:
-        "The Monday report alone is worth it. For the first time I actually know what my company did this week — what it cost, what's blocked, and what needs my decision.",
+        "The Monday report alone is worth it. For the first time I actually know what my company did this week: what it cost, what's blocked, and what needs my decision.",
       role: "E-commerce founder",
     },
   ];
 
   const reducedMotion = usePrefersReducedMotion();
 
-  // Swiper's default prev/next buttons have no accessible names — label them once mounted.
+  // Swiper's default prev/next buttons have no accessible names, so label them once mounted.
   useEffect(() => {
     const root = document.getElementById("financeTestimonialsSlides");
     if (!root) return;
@@ -66,7 +66,7 @@ const Testimonials: React.FC = () => {
             <span className="text-primary-500">They need a company.</span>
           </h2>
           <p className="mt-[10px] lg:mt-[14px] text-sm md:text-[15px] text-gray-500 dark:text-gray-400">
-            What early founders tell us — paraphrased, names kept private.
+            What early founders tell us. Paraphrased, names kept private.
           </p>
         </div>
 

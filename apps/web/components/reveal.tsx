@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Calm scroll reveal — one idea per section, nothing bouncy.
+// Calm scroll reveal. One idea per section, nothing bouncy.
 // Falls back to fully visible under prefers-reduced-motion.
 export function Reveal({
   children,

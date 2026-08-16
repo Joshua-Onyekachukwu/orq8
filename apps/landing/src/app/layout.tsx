@@ -22,9 +22,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "ORQ8 — Run your company with AI employees",
+  title: "ORQ8: Run your company with AI employees",
   description:
-    "You set the direction. ORQ8 hires the team, does the work, and reports back — under your approvals, your budgets, your audit trail.",
+    "You set the direction. ORQ8 hires the team, does the work, and reports back under your approvals and your budget.",
   other: {
     "theme-color": "#0d1427",
   },

@@ -89,7 +89,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       if (!res.ok) {
         setNotice({
           kind: "err",
-          text: data?.error?.message ?? "Failed to save key — check the key is valid and the API is running on :3001.",
+          text: data?.error?.message ?? "Failed to save key. Check the key is valid and the API is running on :3001.",
         });
         return;
       }
@@ -99,7 +99,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       setNotice({ kind: "ok", text: `${data?.data?.provider_name ?? "Provider"} key saved (encrypted at rest).` });
       await refresh();
     } catch {
-      setNotice({ kind: "err", text: "Network error — is the API running on :3001?" });
+      setNotice({ kind: "err", text: "Network error. Is the API running on :3001?" });
     } finally {
       setBusy(false);
     }
@@ -118,7 +118,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       if (!res.ok) {
         setNotice({
           kind: "err",
-          text: data?.error?.message ?? `${action} failed — check the API is running on :3001.`,
+          text: data?.error?.message ?? `${action} failed. Check the API is running on :3001.`,
         });
         return;
       }
@@ -138,7 +138,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       }
       await refresh();
     } catch {
-      setNotice({ kind: "err", text: "Network error — is the API running on :3001?" });
+      setNotice({ kind: "err", text: "Network error. Is the API running on :3001?" });
     } finally {
       setActionBusy(null);
     }
@@ -164,7 +164,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       <section className="rounded-xl border border-hairline bg-white p-6">
         <h2 className="text-base font-semibold text-ink">Add a provider key</h2>
         <p className="mt-1 text-sm text-muted">
-          Paste your API key — it is encrypted before storage and never shown again.
+          Paste your API key. It is encrypted before storage and never shown again.
         </p>
         <form onSubmit={handleSave} className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>

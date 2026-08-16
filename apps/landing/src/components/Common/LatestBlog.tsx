@@ -35,7 +35,7 @@ const blogData: BlogPost[] = [
     imageUrl: "/images/blogs/blog3.jpg",
     date: "FEB 15, 2025",
     readTime: "3 MIN READ",
-    title: "Why Traditional Budgeting Doesn't Work—and What ORQ8 Does Differently",
+    title: "Why Traditional Budgeting Doesn't Work, and What ORQ8 Does Differently",
     slug: "/blog/details",
   },
 ];

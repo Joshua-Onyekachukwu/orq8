@@ -16,7 +16,7 @@ const menuItems = [
 const Navbar: React.FC = () => {
   const pathname = usePathname();
 
-  // Sticky navbar — glass command-bar once you scroll.
+  // Sticky navbar. Glass command-bar once you scroll.
   // The transparent bar sits over the navy hero on the homepage (white
   // wordmark) and over light banners on subpages (dark wordmark); once
   // sticky it gets its own background, so the wordmark follows that.

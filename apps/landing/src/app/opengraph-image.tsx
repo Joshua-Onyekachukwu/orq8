@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "ORQ8 — Run your company with AI employees";
+export const alt = "ORQ8: Run your company with AI employees";
 
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -80,7 +80,7 @@ export default function OpengraphImage() {
         >
           You set the direction. ORQ8 hires the team, does the work,
           <br />
-          and reports back — under your approvals, your budgets, your audit trail.
+          and reports back under your approvals, your budgets, your audit trail.
         </div>
       </div>
     ),

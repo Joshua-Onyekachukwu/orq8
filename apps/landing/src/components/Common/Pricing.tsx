@@ -13,10 +13,10 @@ interface PricingPlan {
 const Pricing: React.FC = () => {
   const pricingPlans: PricingPlan[] = [
     {
-      title: "Free",
+      title: "Trial",
       description:
-        "Everything you need to see ORQ8 run a real company — your first agents, working.",
-      price: "$0",
+        "Seven days with your first agents working. Card on file, nothing charged until day 8.",
+      price: "7 days",
       features: [
         "Your first 3 agents",
         "1 department",
@@ -34,7 +34,7 @@ const Pricing: React.FC = () => {
         "Unlimited agents",
         "All departments + teams",
         "Budgets + company Constitution",
-        "BYOK — bring your own keys",
+        "BYOK: bring your own keys",
         "Priority support",
       ],
     },
@@ -54,7 +54,7 @@ const Pricing: React.FC = () => {
   ];
 
   const styles: Record<string, { border: string; text: string; button: string; buttonHover: string; buttonText: string }> = {
-    Free: {
+    Trial: {
       border: "border-white/20",
       text: "text-white/60",
       button: "bg-white/10",
@@ -89,7 +89,7 @@ const Pricing: React.FC = () => {
               Pricing
             </span>
             <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] !text-white">
-              Free to join. <span className="text-lime">$49 when it earns its keep.</span>
+              7 days free. <span className="text-lime">$49 when it earns its keep.</span>
             </h2>
           </div>
 
@@ -122,7 +122,7 @@ const Pricing: React.FC = () => {
                     <div className="mt-[20px] md:mt-[30px] mb-[6px] block leading-none text-white text-[40px] md:text-[45px] lg:text-[55px] font-light -tracking-[2.5px] md:-tracking-[3.6px]">
                       {plan.price}{" "}
                       <span className="text-base md:text-[15px] tracking-[.5px] md:tracking-[1.5px] font-normal text-[#8F8F99] ltr:-ml-[4px] rtl:-mr-[4px]">
-                        {plan.title === "Free" ? "" : "/ MO"}
+                        {plan.title === "Trial" ? "" : "/ MO"}
                       </span>
                     </div>
                     <p className="text-[#8f8f99] -tracking-[0.14px]">

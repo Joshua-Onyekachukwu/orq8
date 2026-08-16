@@ -19,7 +19,7 @@ const Integrations: React.FC = () => {
           iconBg: "#EDEDF6",
           iconColor: "#24292f",
           title: "GitHub",
-          text: "Agents open PRs, review code, and ship — every deploy routed through your approval.",
+          text: "Agents open PRs, review code, and ship. Every deploy routes through your approval.",
         },
         {
           icon: "ri-google-fill",
@@ -38,7 +38,7 @@ const Integrations: React.FC = () => {
           iconBg: "#F9EAE0",
           iconColor: "#000000",
           title: "Notion",
-          text: "Company memory lives where you read it — docs, wikis, and decisions in sync.",
+          text: "Company memory lives where you read it: docs, wikis, and decisions in sync.",
         },
         {
           icon: "ri-stripe-line",
