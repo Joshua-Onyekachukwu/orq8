@@ -225,6 +225,22 @@
     transform: translateX(-50%);
   }
 }
+.logo-marquee {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
 .logo-marquee-track {
   animation: marquee-scroll 32s linear infinite;
 }
