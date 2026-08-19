@@ -10,6 +10,13 @@ name: Deploy landing (retry until quota frees)
 # only fails on real errors.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/landing/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/vercel-landing-deploy.yml"
   schedule:
     # Every 2 hours; the daily cap resets on a rolling 24h window.
     - cron: "17 */2 * * *"

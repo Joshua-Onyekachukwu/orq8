@@ -10,7 +10,8 @@
 
 ```
 Browser
-   │  https://orq8-web.vercel.app (Next.js — marketing site + app shell + route handlers)
+   │  https://orq8.vercel.app (Marketing landing — apps/landing)
+   │  https://orq8-web.vercel.app (Product shell — apps/web)
    │        │  (server-side fetch, API_URL env)
    │        ▼
    │  https://orq8-api.vercel.app (Fastify, one serverless function via apps/api/api/index.ts)
@@ -25,7 +26,8 @@ Three moving parts, all free-tier friendly:
 
 | Part | Host | What it runs |
 |---|---|---|
-| Web | **Vercel** (project `orq8-web`, root `apps/web`) | Landing + pricing + auth pages, `/app` shell, `/api/*` route handlers that proxy to the API |
+| Landing | **Vercel** (project `orq8-landing`, root `apps/landing`) | Marketing site: hero, pricing, waitlist form, testimonials, FAQ |
+| Web | **Vercel** (project `orq8-web`, root `apps/web`) | Product shell: pricing + auth pages, `/app` shell, `/api/*` route handlers that proxy to the API |
 | API | **Vercel** (project `orq8-api`, root `apps/api`) | Fastify via `api/index.ts` serverless function; all `/v1/*` routes |
 | DB | **Supabase** | Managed Postgres 16 + pgvector; Drizzle migrations from `packages/db` |
 
@@ -75,6 +77,16 @@ No other services needed. Ollama/LiteLLM stay **local-only** (dev stack, docs/42
 3. **Framework Preset:** Next.js (auto-detected).
 4. **Environment Variables:** `API_URL=https://orq8-api.vercel.app` (or your custom domain), `NODE_ENV=production` (set automatically).
 5. Deploy. Visit the URL → `/login` → register → the whole flow is live.
+
+### Project 3 — `orq8-landing` (root: `apps/landing`)
+1. Vercel → Add New Project → import the repo again.
+2. **Root Directory:** `apps/landing`.
+3. **Framework Preset:** Next.js (auto-detected).
+4. **Build Command:** `npx next build` (override if Vercel's default includes turbopack).
+5. **No environment variables needed** — the landing is a static marketing site with a waitlist API route that proxies to the web project.
+6. Deploy. The URL becomes the public marketing site.
+
+> The landing deploy is also triggered by the `vercel-landing-deploy.yml` GitHub Action on every push to `main` that touches `apps/landing/**` or `packages/**`. The scheduled retry (every 2 hours) handles Hobby-plan quota exhaustion.
 
 ### Optional — custom domain + CORS
 - Point your domain at the web project (Vercel does DNS for you).
