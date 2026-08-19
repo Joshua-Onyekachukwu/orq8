@@ -59,7 +59,7 @@ Every brief shares the same skeleton — that consistency is the signal worth ta
 
 **Ready-to-paste prompts** (free tier is enough for these):
 
-> *Hero section, dark navy command-center aesthetic (#0A1628 bg, subtle aurora glow, hairline borders), 64px Inter display headline "Run your company with AI employees", JetBrains Mono eyebrow "ORQ8 — AI organization operating system", primary CTA + secondary ghost link, right side a product mockup of a CEO dashboard with status dots and a weekly-cost widget. Keep it calm and executive, no gradients over-saturation, no particles.*
+> *Hero section, dark navy command-center aesthetic (#0A1628 bg, subtle aurora glow, hairline borders), 64px Space Grotesk display headline "RUN AN ACTUAL COMPANY OF ONE", JetBrains Mono eyebrow "THE AI ORGANIZATION OPERATING SYSTEM", primary CTA + secondary ghost link, right side a product mockup of a CEO dashboard with status dots and a weekly-cost widget. Keep it calm and executive, no gradients over-saturation, no particles.*
 
 > *Bento feature grid for a governance-first AI platform: 6 cards on dark background, mono labels ("Approval gates", "Encrypted keys", "Audit trail", "Company memory", "Cost-aware routing", "Weekly report"), one wide flagship card with a mini org-chart visual, emerald accent, 16px radius, hairline borders.*
 

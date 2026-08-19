@@ -60,7 +60,7 @@ export default async function RegisterPage({
           className="h-9 w-auto"
         />
         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald">
-          command center
+          Company of One
         </span>
       </Link>
 

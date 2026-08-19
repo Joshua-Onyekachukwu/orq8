@@ -2,7 +2,7 @@
 
 **One-liner:** ORQ8 lets a human CEO hire an AI workforce, organize it into departments and teams, govern it with a constitution and approval system, and receive executive reporting — while every action is budgeted, audited, and explainable.
 
-**Tagline:** *Tell ORQ8 what you want. It hires the team, does the work, and reports back.*
+**Tagline:** *Run an actual company of One.*
 
 ---
 
