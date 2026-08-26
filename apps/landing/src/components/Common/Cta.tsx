@@ -1,13 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+
+// Seeded pseudo-random: same email always gets the same waitlist number
+function seededRandom(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+  }
+  return 1000 + Math.abs(h % 9000);
+}
 
 const Cta: React.FC = () => {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
-    "idle"
-  );
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [isAlready, setIsAlready] = useState(false);
+
+  const waitlistNumber = useMemo(() => {
+    return submittedEmail ? seededRandom(submittedEmail) : null;
+  }, [submittedEmail]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,12 +38,9 @@ const Cta: React.FC = () => {
         setMessage(data?.error?.message ?? "Could not sign you up. Try again.");
         return;
       }
+      setSubmittedEmail(email);
+      setIsAlready(data?.data?.already === true);
       setStatus("done");
-      setMessage(
-        data?.data?.already
-          ? "You're already on the list. We'll be in touch."
-          : "You're on the list. We'll email you when your cohort opens."
-      );
     } catch {
       setStatus("error");
       setMessage("Network error. The waitlist service is unavailable.");
@@ -42,84 +52,90 @@ const Cta: React.FC = () => {
       <div id="waitlist" className="relative z-[1] pt-[60px]">
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
           <div className="rounded-[15px] dark:bg-black relative z-[1] py-[60px] md:py-[80px] lg:py-[100px] xl:py-[120px] px-[20px] md:px-[40px] lg:px-[60px] xl:px-[80px] text-center">
-            <h2 className="!mb-[12px] md:!mb-[15px] !text-[26px] md:!text-3xl lg:!text-4xl">
-              Your Company of One, one decision away
-            </h2>
-
-            <p className="text-black dark:text-white lg:text-[15px] xl:text-md">
-              Join the waitlist. The first cohort opens soon. We&apos;ll email
-              you when it&apos;s your turn.
-            </p>
-
-            <div className="max-w-[560px] mx-auto mt-[5px] md:mt-[15px] lg:mt-[25px]">
-              {status === "done" ? (
-                <div
-                  role="status"
-                  className="rounded-[50px] border border-lime bg-lime/10 text-black dark:text-white py-[14px] px-[24px] font-medium"
-                >
-                  {message}
+            {status === "done" && waitlistNumber ? (
+              /* Premium waitlist confirmation */
+              <div className="max-w-lg mx-auto">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-lime/10 animate-fade-in">
+                  <svg className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
                 </div>
-              ) : (
-                <form
-                  onSubmit={handleSubmit}
-                  className="flex flex-col sm:flex-row gap-[10px] md:gap-[12px]"
-                >
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    aria-label="Email address"
-                    name="email"
-                    autoComplete="email"
-                    spellCheck={false}
-                    className="flex-1 h-[52px] rounded-[50px] border border-[#d5d9e2] dark:border-gray-700 bg-white dark:bg-navy-900 px-[24px] text-sm md:text-base text-black dark:text-white outline-0 focus:border-primary-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={status === "loading"}
-                    className="btn-press inline-flex items-center justify-center gap-[12px] rounded-[50px] bg-orange-500 text-white font-bold uppercase text-xs tracking-[1.8px] px-[28px] h-[52px] hover:bg-primary-500 disabled:opacity-60"
-                  >
-                    {status === "loading" ? "Submitting…" : "Join the waitlist"}
-                    <i className="ri-arrow-right-up-line text-[20px]"></i>
-                  </button>
-                </form>
-              )}
-              {status === "error" && (
-                <p role="alert" className="mt-[12px] text-red-500 text-sm">
-                  {message}
+                <h2 className="!mb-[8px] !text-[26px] md:!text-3xl lg:!text-4xl">
+                  {isAlready ? "You're already on the list" : "You're officially on the list"}
+                </h2>
+                <div className="my-6">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] mb-2 text-black/40 dark:text-white/50">Your place</p>
+                  <p className="text-5xl font-bold tracking-tight tabular-nums text-black dark:text-white animate-fade-in">
+                    #{waitlistNumber.toLocaleString()}
+                  </p>
+                </div>
+                <p className="text-black dark:text-white lg:text-[15px] xl:text-md leading-relaxed">
+                  {isAlready
+                    ? "We have your details. We'll be in touch when your cohort opens."
+                    : "Congratulations. We're building ORQ8 for you. Your place in the first cohort is reserved. We'll email you when it's your turn."}
                 </p>
-              )}
-            </div>
-
-            <ul className="mt-[15px] md:mt-[20px] lg:mt-[25px] lg:text-[15px] xl:text-md">
-              <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
-                <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                7 days free on every plan
-              </li>
-
-              <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
-                <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                Priority access when the cohort opens
-              </li>
-
-              <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
-                <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
-                Leave the list any time
-              </li>
-            </ul>
-
+                <div className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Company of One · First Cohort</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="!mb-[12px] md:!mb-[15px] !text-[26px] md:!text-3xl lg:!text-4xl">
+                  Your Company of One, one decision away
+                </h2>
+                <p className="text-black dark:text-white lg:text-[15px] xl:text-md">
+                  Join the waitlist. The first cohort opens soon. We&apos;ll email you when it&apos;s your turn.
+                </p>
+                <div className="max-w-[560px] mx-auto mt-[5px] md:mt-[15px] lg:mt-[25px]">
+                  <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-[10px] md:gap-[12px]">
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      aria-label="Email address"
+                      name="email"
+                      autoComplete="email"
+                      spellCheck={false}
+                      className="flex-1 h-[52px] rounded-[50px] border border-[#d5d9e2] dark:border-gray-700 bg-white dark:bg-navy-900 px-[24px] text-sm md:text-base text-black dark:text-white outline-0 focus:border-primary-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={status === "loading"}
+                      className="btn-press inline-flex items-center justify-center gap-[12px] rounded-[50px] bg-orange-500 text-white font-bold uppercase text-xs tracking-[1.8px] px-[28px] h-[52px] hover:bg-primary-500 disabled:opacity-60"
+                    >
+                      {status === "loading" ? "Submitting…" : "Join the waitlist"}
+                      <i className="ri-arrow-right-up-line text-[20px]"></i>
+                    </button>
+                  </form>
+                </div>
+                <ul className="mt-[15px] md:mt-[20px] lg:mt-[25px] lg:text-[15px] xl:text-md">
+                  <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
+                    <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
+                    7 days free on every plan
+                  </li>
+                  <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
+                    <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
+                    Priority access when the cohort opens
+                  </li>
+                  <li className="mx-[10px] md:mx-[15px] ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 inline-block relative ltr:pl-[15px] rtl:pr-[15px]">
+                    <span className="w-[6px] h-[6px] ltr:left-0 rtl:right-0 rounded-full bg-primary-500 absolute top-1/2 -translate-y-1/2"></span>
+                    Leave the list any time
+                  </li>
+                </ul>
+                {status === "error" && (
+                  <p role="alert" className="mt-[12px] text-red-500 text-sm">{message}</p>
+                )}
+              </>
+            )}
             <div
               className="absolute top-0 left-0 right-0 bottom-0 -z-[1] rounded-[15px] dark:hidden"
-              style={{
-                background:
-                  "radial-gradient(49.42% 65.08% at 50% 100%, #FFF 0%, #BCD5CE 100%)",
-              }}
+              style={{ background: "radial-gradient(49.42% 65.08% at 50% 100%, #FFF 0%, #BCD5CE 100%)" }}
             ></div>
           </div>
         </div>
-
         <div className="absolute bottom-0 h-[50%] left-0 right-0 -z-[1] bg-navy-950"></div>
       </div>
     </>
