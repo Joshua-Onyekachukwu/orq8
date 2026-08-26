@@ -132,6 +132,8 @@ const Core: React.FC<{ compact?: boolean }> = ({ compact }) => {
 };
 
 const Features: React.FC = () => {
+  const [hoveredId, setHoveredId] = React.useState<number | null>(null);
+
   return (
     <>
       <div
@@ -166,8 +168,11 @@ const Features: React.FC = () => {
                   x2={f.end[0]}
                   y2={f.end[1]}
                   stroke="rgba(96,93,255,0.30)"
-                  strokeWidth="0.22"
-                  className="orbit-connector"
+                  strokeWidth={hoveredId === f.id ? '0.4' : '0.22'}
+                  className="orbit-connector transition-all duration-300"
+                  style={{
+                    stroke: hoveredId === f.id ? 'rgba(96,93,255,0.85)' : undefined,
+                  }}
                 />
               ))}
             </svg>
@@ -182,11 +187,19 @@ const Features: React.FC = () => {
                     { "--float-delay": `${(i % 3) * 0.9}s` } as React.CSSProperties
                   }
                 >
-                  <div className="lift-card group w-[280px] xl:w-[300px] rounded-[16px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 shadow-sm dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)] px-[20px] py-[20px]">
+                  <div
+                    className="lift-card group w-[280px] xl:w-[300px] rounded-[16px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 shadow-sm dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)] px-[20px] py-[20px] transition-all duration-300"
+                    style={{
+                      boxShadow: hoveredId === f.id ? '0 8px 32px -8px rgba(96,93,255,0.3), 0 4px 16px -4px rgba(96,93,255,0.15)' : undefined,
+                      borderColor: hoveredId === f.id ? 'rgba(96,93,255,0.4)' : undefined,
+                    }}
+                    onMouseEnter={() => setHoveredId(f.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                  >
                     <div className="flex items-center gap-[12px] mb-[12px]">
-                      <div className="w-[42px] h-[42px] rounded-[12px] flex items-center justify-center flex-none bg-[#eef] dark:bg-white/10 transition-colors group-hover:bg-primary-500">
+                      <div className={`w-[42px] h-[42px] rounded-[12px] flex items-center justify-center flex-none transition-colors duration-300 ${hoveredId === f.id ? 'bg-primary-500' : 'bg-[#eef] dark:bg-white/10'}`}>
                         <i
-                          className={`${f.icon} text-[22px] leading-none text-primary-500 transition-colors group-hover:text-white`}
+                          className={`${f.icon} text-[22px] leading-none transition-colors duration-300 ${hoveredId === f.id ? 'text-white' : 'text-primary-500'}`}
                         ></i>
                       </div>
                       <h3 className="!mb-0 !font-semibold !text-[17px] -tracking-[0.3px]">

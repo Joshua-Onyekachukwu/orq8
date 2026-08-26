@@ -220,7 +220,7 @@ const HeroBanner: React.FC = () => {
                     "radial-gradient(80% 80% at 50% 40%, black, transparent 85%)",
                 }}
               />
-              <div className="relative flex h-full items-center justify-center px-[20px] py-[60px]">
+              <div className="relative flex h-full items-center justify-center px-[20px] pt-[120px] pb-[60px] sm:pt-[80px] lg:pt-[60px]">
                 <CommandCenter />
               </div>
               <div className="absolute top-[18%] ltr:right-[6%] rtl:left-[6%] animate-bounce-slow rounded-[14px] bg-navy-800 border border-white/10 px-[16px] py-[12px] shadow-2xl">
