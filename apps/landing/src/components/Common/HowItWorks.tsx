@@ -48,7 +48,7 @@ const HowItWorks: React.FC = () => {
           </span>
           <h2 className="!mb-[12px] md:!mb-[15px] !font-light !text-[28px] md:!text-4xl lg:!text-[46px] !leading-[1.15] !text-white -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
             You give direction.{" "}
-            <span className="text-lime">The company does the rest.</span>
+            <span className="text-lime">Your Company of One does the rest.</span>
           </h2>
           <p className="text-white/70 lg:text-[15px] xl:text-md">
             Four steps, one loop. Most of it runs without you. The

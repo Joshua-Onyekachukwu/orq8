@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Apply the deferred findings from the emil-design-eng, anti-ui-slop, and high-end-visual-design audits to the Trezo-based landing — explicit transitions, tokenized brand colors, contrast fixes, image alt semantics, contact-form semantics, reduced-motion and touch-target fixes, Open Graph metadata, and swiper slimming.
+**Goal:** Apply the deferred findings from the emil-design-eng, anti-ui-slop, and high-end-visual-design audits to the landing — explicit transitions, tokenized brand colors, contrast fixes, image alt semantics, contact-form semantics, reduced-motion and touch-target fixes, Open Graph metadata, and swiper slimming.
 
 **Architecture:** Pure markup/CSS changes in `apps/landing` (Next.js 15 app router + Tailwind v4). No new dependencies, no new routes, no behavior change beyond semantics and motion. Each task is independently verifiable via `tsc --noEmit` plus a grep/DOM probe against the running dev server on `:3002`.
 
@@ -59,7 +59,7 @@ Expected: hits in the 13 files listed above. Classify each hit: color-only hover
 
 - [ ] **Step 2: Convert color-only hovers to `transition-colors`**
 
-For every hit that only transitions `background-color`/`border-color`/`color` (the Trezo boilerplate hovers — `hover:bg-*`, `hover:text-*`, `hover:border-*`), replace `transition-all` with `transition-colors` in that class string. This is a mechanical find/replace; apply per file.
+For every hit that only transitions `background-color`/`border-color`/`color` (the boilerplate hovers — `hover:bg-*`, `hover:text-*`, `hover:border-*`), replace `transition-all` with `transition-colors` in that class string. This is a mechanical find/replace; apply per file.
 
 - [ ] **Step 3: Convert the mobile-menu stagger to an explicit list**
 

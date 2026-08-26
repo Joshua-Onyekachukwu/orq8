@@ -11,8 +11,9 @@
 ```
 orq8/
 ├── apps/
-│   ├── web/          # Next.js frontend (App Router, TypeScript, Tailwind, shadcn/ui)
-│   └── api/          # Fastify API server (modular service architecture)
+│   ├── landing/      # Marketing site (apps/landing → orq8-landing on Vercel)
+│   ├── web/          # Product shell (apps/web → orq8-web on Vercel)
+│   └── api/          # Fastify API server (apps/api → orq8 on Vercel)
 ├── packages/
 │   ├── db/           # Drizzle ORM schema, migrations, seed data
 │   ├── domain/       # Shared domain types, Zod schemas, constants

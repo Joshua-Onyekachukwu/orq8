@@ -43,7 +43,7 @@ const Cta: React.FC = () => {
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
           <div className="rounded-[15px] dark:bg-black relative z-[1] py-[60px] md:py-[80px] lg:py-[100px] xl:py-[120px] px-[20px] md:px-[40px] lg:px-[60px] xl:px-[80px] text-center">
             <h2 className="!mb-[12px] md:!mb-[15px] !text-[26px] md:!text-3xl lg:!text-4xl">
-              Your company, one decision away
+              Your Company of One, one decision away
             </h2>
 
             <p className="text-black dark:text-white lg:text-[15px] xl:text-md">

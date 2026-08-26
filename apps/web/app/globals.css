@@ -37,6 +37,72 @@
   --color-muted: #59616b;
   --color-hairline: #d1d6e0;
   --color-canvas: #f7f8fb;
+
+  /* Status and accent color scales for the dashboard components */
+  --color-secondary-50: #eef6ff;
+  --color-secondary-100: #daebff;
+  --color-secondary-200: #bddcff;
+  --color-secondary-300: #90c7ff;
+  --color-secondary-400: #5da8ff;
+  --color-secondary-500: #3584fc;
+  --color-secondary-600: #1f64f1;
+  --color-secondary-700: #174ede;
+  --color-secondary-800: #1940b4;
+  --color-secondary-900: #1a3a8e;
+  --color-purple-50: #faf5ff;
+  --color-purple-100: #f3e8ff;
+  --color-purple-200: #e9d5ff;
+  --color-purple-300: #d7b5fd;
+  --color-purple-400: #bf85fb;
+  --color-purple-500: #ad63f6;
+  --color-purple-600: #9135e8;
+  --color-purple-700: #7c24cc;
+  --color-purple-800: #6a22a7;
+  --color-purple-900: #571d86;
+  --color-success-50: #eeffe5;
+  --color-success-100: #d8ffc8;
+  --color-success-200: #b2ff97;
+  --color-success-300: #82fc5a;
+  --color-success-400: #58f229;
+  --color-success-500: #37d80a;
+  --color-success-600: #25b003;
+  --color-success-700: #1e8308;
+  --color-success-800: #1d670d;
+  --color-success-900: #1a5710;
+  --color-warning-50: #fff8e1;
+  --color-warning-100: #ffecb3;
+  --color-warning-200: #ffe082;
+  --color-warning-300: #ffd54f;
+  --color-warning-400: #ffca28;
+  --color-warning-500: #ffc107;
+  --color-warning-600: #ffb300;
+  --color-warning-700: #ffa000;
+  --color-warning-800: #ff8f00;
+  --color-warning-900: #ff6f00;
+  --color-danger-50: #fff2f0;
+  --color-danger-100: #ffe1dd;
+  --color-danger-200: #ffc8c0;
+  --color-danger-300: #ffa294;
+  --color-danger-400: #ff6d57;
+  --color-danger-500: #ff4023;
+  --color-danger-600: #ec1f00;
+  --color-danger-700: #d71c00;
+  --color-danger-800: #b11a03;
+  --color-danger-900: #921c0a;
+  --color-orange-50: #fff5ed;
+  --color-orange-100: #ffe8d4;
+  --color-orange-200: #ffcea9;
+  --color-orange-300: #ffaa72;
+  --color-orange-400: #fe7a36;
+  --color-orange-500: #fd5812;
+  --color-orange-600: #ee3e08;
+  --color-orange-700: #c52b09;
+  --color-orange-800: #9c2410;
+  --color-orange-900: #7e2010;
+  --shadow-3xl: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+
+  /* orq8-card spacing helper used by the dashboard cards */
+  --spacing-card: 1.5625rem;
 }
 
 html {
