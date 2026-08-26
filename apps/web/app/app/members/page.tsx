@@ -5,9 +5,9 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, Eye, Pencil, Search, Trash2 } from "lucide-react";
 
 /**
- * Members & Roles: a searchable, paginated roster. The org's members are
- * the humans plus the agents they hire. Sample data until the members API
- * lands in Phase 2 (docs/49).
+ * Members & Roles, adapted from the Trezo MembersTable base: a searchable,
+ * paginated roster. The org's members are the humans plus the agents they
+ * hire. Sample data until the members API lands in Phase 2 (docs/49).
  */
 type Member = {
   id: string;

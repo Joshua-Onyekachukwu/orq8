@@ -7,11 +7,11 @@ import Link from "next/link";
 const aboutContent = {
   tagline: "About ORQ8",
   heading: {
-    part1: "One person. One Company",
-    highlighted: "of One.",
+    part1: "An organization that runs itself.",
+    highlighted: "Under your control."
   },
   description:
-    "ORQ8 is the operating system for a Company of One. You set the direction. Your Executive Agent plans the work, hires the specialists, and reports back. You stay in command. Every consequential decision comes to you.",
+    "ORQ8 is the AI organization operating system. You set the direction. Your Executive Agent plans the work, hires the specialists, and          reports back. You stay in command. Every consequential decision comes to you.",
   features: [
     {
       title: "Hire on demand",

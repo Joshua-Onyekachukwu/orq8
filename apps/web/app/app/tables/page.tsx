@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 /**
- * Tables: a sortable, searchable, paginated projects table, and an agent
- * performance table with satisfaction bars.
+ * Tables, adapted from the Trezo DataTable + PerformanceOfAgents base: a
+ * sortable, searchable, paginated projects table, and an agent performance
+ * table with satisfaction bars.
  */
 type Project = {
   id: string;

@@ -7,12 +7,12 @@ import Image from "next/image";
 const aboutContent = {
   tagline: "About ORQ8",
   heading: {
-    part1: "One founder. One Company",
-    highlighted: "of One.",
+    part1: "One founder. A company",
+    highlighted: "that runs itself",
     part2: "",
   },
   description:
-    "ORQ8 is the operating system for a Company of One. You set the direction. It hires the team, does the work, and reports back under your approvals and your budget.",
+    "ORQ8 is the operating system for a company of one. You set the direction. It hires the team, does the work, and reports back under your approvals and your budget.",
   features: [
     {
       title: "Human sovereignty",

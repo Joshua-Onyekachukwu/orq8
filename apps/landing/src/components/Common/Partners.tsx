@@ -157,10 +157,10 @@ const Partners: React.FC = () => {
         {/* Infinite right-to-left marquee. The track is duplicated so the loop
             never jumps; reduced-motion users get a static row. */}
         <div
-          className="logo-marquee relative overflow-hidden mt-[35px] md:mt-[50px] ltr:pl-[28px] rtl:pr-[28px]"
+          className="logo-marquee relative overflow-hidden mt-[35px] md:mt-[50px]"
           role="presentation"
         >
-          <div className="logo-marquee-track flex items-center gap-[56px] md:gap-[84px] w-max">
+          <div className="logo-marquee-track flex items-center gap-[56px] md:gap-[84px] w-max ltr:pl-[28px] rtl:pr-[28px]">
             {trackItems.map((brand, i) => (
               <div
                 key={`${brand.name}-${i}`}

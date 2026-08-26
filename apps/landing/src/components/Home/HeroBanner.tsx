@@ -23,16 +23,9 @@ const CommandCenter: React.FC = () => {
         <div className="rounded-[20px] bg-navy-800 border border-white/10 p-[20px] md:p-[24px]">
           {/* header */}
           <div className="flex items-center justify-between border-b border-white/10 pb-[14px]">
-            <span className="flex items-center gap-[10px]">
-              <img
-                src="/images/logo-white.png"
-                alt=""
-                aria-hidden
-                className="h-5 w-auto"
-              />
-              <span className="uppercase font-bold tracking-[1.8px] text-[11px] text-white/60">
-                Command Center
-              </span>
+            <span className="flex items-center gap-[8px] uppercase font-bold tracking-[1.8px] text-[11px] text-white/60">
+              <span className="w-[8px] h-[8px] rounded-full bg-lime inline-block"></span>
+              ORQ8 · Command Center
             </span>
             <span className="flex items-center gap-[6px]">
               <span className="w-[7px] h-[7px] rounded-full bg-lime animate-pulse-dot"></span>
@@ -220,7 +213,7 @@ const HeroBanner: React.FC = () => {
                     "radial-gradient(80% 80% at 50% 40%, black, transparent 85%)",
                 }}
               />
-              <div className="relative flex h-full items-center justify-center px-[20px] pt-[120px] pb-[60px] sm:pt-[80px] lg:pt-[60px]">
+              <div className="relative flex h-full items-center justify-center px-[20px] py-[60px]">
                 <CommandCenter />
               </div>
               <div className="absolute top-[18%] ltr:right-[6%] rtl:left-[6%] animate-bounce-slow rounded-[14px] bg-navy-800 border border-white/10 px-[16px] py-[12px] shadow-2xl">
@@ -240,7 +233,7 @@ const HeroBanner: React.FC = () => {
                   THE AI ORGANIZATION OPERATING SYSTEM
                 </span>
 
-                <h1 className="font-display !mb-[15px] lg:!mb-[20px] !text-white !font-medium uppercase !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.04] -tracking-[1px] md:-tracking-[1.5px] xl:-tracking-[2px] text-balance">
+                <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light uppercase !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
                   Run an actual company of{" "}
                   <span className="font-bold text-lime">One</span>
                 </h1>
