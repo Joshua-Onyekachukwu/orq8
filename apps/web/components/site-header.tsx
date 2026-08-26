@@ -69,7 +69,7 @@ export function SiteHeader({ variant = "light", cta }: HeaderProps) {
               {cta.label}
             </Button>
           ) : (
-            <Button href="/#start" size="sm" variant={navy ? "emerald" : dark ? "amber" : "default"}>
+            <Button href="/#waitlist" size="sm" variant={navy ? "emerald" : dark ? "amber" : "default"}>
               Join the waitlist
             </Button>
           )}

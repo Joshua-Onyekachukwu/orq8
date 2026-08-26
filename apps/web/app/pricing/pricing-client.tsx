@@ -340,7 +340,7 @@ export function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Button href="#" variant={plan.ctaVariant} className="mt-6 w-full">
+              <Button href="/register?next=/app" variant={plan.ctaVariant} className="mt-6 w-full">
                 {plan.cta}
               </Button>
             </article>
@@ -376,7 +376,7 @@ export function PricingPage() {
               ))}
             </ul>
             <div className="lg:flex-shrink-0">
-              <Button href="#" variant="outline-light" className="w-full lg:w-auto">
+              <Button href="/contact" variant="outline-light" className="w-full lg:w-auto">
                 {enterprise.cta}
               </Button>
             </div>
@@ -539,10 +539,10 @@ export function PricingPage() {
             when you want frontier models. No commissions. No agent marketplace. Ever.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Button href="#" variant="outline-light" size="lg">
+            <Button href="/#waitlist" variant="outline-light" size="lg">
               Join the waitlist
             </Button>
-            <Button href="#" variant="ghost-light" size="lg">
+            <Button href="/contact" variant="ghost-light" size="lg">
               Talk to sales
             </Button>
           </div>
