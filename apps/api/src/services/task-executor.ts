@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
+import { broadcastToOrg } from './realtime.js';
 import type { AppConfig } from '@orq8/core';
 
 /**
@@ -121,6 +122,9 @@ export async function executeTask(
     }
   }
 
+  // Broadcast: task started
+  broadcastToOrg(orgId, { type: 'task.started', taskId: task.id, agentId: task.agentId ?? '', agentName });
+
   // 4. Build the prompt
   const systemPrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
   const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
@@ -160,6 +164,9 @@ export async function executeTask(
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
+
+  // Broadcast: task completed
+  broadcastToOrg(orgId, { type: 'task.completed', taskId: task.id, agentId: task.agentId ?? '', agentName, result: result.slice(0, 200) });
 
   // 7. Update agent stats
   if (task.agentId) {

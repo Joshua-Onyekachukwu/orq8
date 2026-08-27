@@ -37,6 +37,17 @@ const envSchema = z.object({
   // Redis — session cache, rate limiting, idempotency (docs/42)
   REDIS_URL: z.string().optional(),
 
+  // Stripe — billing and subscriptions
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_FOUNDER_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_FOUNDER_ANNUAL: z.string().optional(),
+  STRIPE_PRICE_TEAM_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_TEAM_ANNUAL: z.string().optional(),
+  STRIPE_PRICE_COMPANY_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_COMPANY_ANNUAL: z.string().optional(),
+  APP_URL: z.string().url().optional(),
+
   // Internal endpoints (e.g. POST /v1/internal/waitlist/process-due) — required
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),

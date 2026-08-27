@@ -18,8 +18,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** List all agents for the current org. */
   app.get('/v1/agents', async (request) => {
     const ctx = await requireAuth(request, deps);
-    const list = await agents.findByOrg(db, ctx.orgId);
-    return { data: list };
+    const url = new URL(request.url, 'http://localhost');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const list = await agents.findByOrg(db, ctx.orgId, { limit, offset });
+    return { data: list, meta: { limit, offset } };
   });
 
   /** Get a single agent. */

@@ -4,6 +4,7 @@ import { chatCompletion, chatJson, type ChatMessage } from './llm.js';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
+import { broadcastToOrg } from './realtime.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -452,6 +453,9 @@ export async function executeCommand(
     );
     creditsConsumed = creditResult.consumed;
     creditsRemaining = creditResult.balance.remaining;
+
+    // Broadcast credit consumption
+    broadcastToOrg(orgId, { type: 'credits.consumed', amount: creditResult.consumed, remaining: creditResult.balance.remaining, operationType });
   } catch (error) {
     if (error instanceof CreditExhaustedError) {
       return {

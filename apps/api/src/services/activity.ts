@@ -5,7 +5,7 @@ import { activityEvents, type ActivityEvent, type NewActivityEvent, type Db } fr
 export async function findByOrg(
   db: Db,
   orgId: string,
-  opts: { agentId?: string; limit?: number } = {},
+  opts: { agentId?: string; limit?: number; offset?: number } = {},
 ): Promise<ActivityEvent[]> {
   const conditions = [eq(activityEvents.orgId, orgId)];
   if (opts.agentId) conditions.push(eq(activityEvents.agentId, opts.agentId));
@@ -14,7 +14,8 @@ export async function findByOrg(
     .from(activityEvents)
     .where(and(...conditions))
     .orderBy(desc(activityEvents.occurredAt))
-    .limit(opts.limit ?? 50);
+    .limit(opts.limit ?? 50)
+    .offset(opts.offset ?? 0);
 }
 
 /** Create a new activity event. */

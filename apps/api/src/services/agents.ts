@@ -5,12 +5,15 @@ import { agents, type Agent, type NewAgent, type Db } from '@orq8/db';
 export async function findByOrg(
   db: Db,
   orgId: string,
+  opts: { limit?: number; offset?: number } = {},
 ): Promise<Agent[]> {
   return db
     .select()
     .from(agents)
     .where(eq(agents.orgId, orgId))
-    .orderBy(desc(agents.createdAt));
+    .orderBy(desc(agents.createdAt))
+    .limit(opts.limit ?? 50)
+    .offset(opts.offset ?? 0);
 }
 
 /** Find a single agent by id, scoped to org. */

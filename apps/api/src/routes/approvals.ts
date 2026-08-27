@@ -3,6 +3,7 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
+import { broadcastToOrg } from '../services/realtime.js';
 import * as approvals from '../services/approvals.js';
 import type { AppDeps } from '../types.js';
 
@@ -55,8 +56,10 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
     const ctx = await requireAuth(request, deps);
     const url = new URL(request.url, 'http://localhost');
     const status = url.searchParams.get('status') ?? undefined;
-    const list = await approvals.findByOrg(db, ctx.orgId, status);
-    return { data: list };
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const list = await approvals.findByOrg(db, ctx.orgId, { status, limit, offset });
+    return { data: list, meta: { limit, offset } };
   });
 
   /** Get a single approval. */
@@ -98,6 +101,9 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         action: `approval.${parsed.data.status}`,
         outcome: 'success',
       });
+
+      // Broadcast approval decision
+      broadcastToOrg(ctx.orgId, { type: 'approval.decided', approvalId: request.params.id, status: parsed.data.status });
 
       return { data: decided };
     },

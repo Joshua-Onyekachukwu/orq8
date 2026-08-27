@@ -44,12 +44,17 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** List all goals for the current org. */
   app.get('/v1/goals', async (request) => {
     const ctx = await requireAuth(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
     const list = await db
       .select()
       .from(goals)
       .where(eq(goals.orgId, ctx.orgId))
-      .orderBy(goals.createdAt);
-    return { data: list };
+      .orderBy(goals.createdAt)
+      .limit(limit)
+      .offset(offset);
+    return { data: list, meta: { limit, offset } };
   });
 
   /** Get a single goal. */

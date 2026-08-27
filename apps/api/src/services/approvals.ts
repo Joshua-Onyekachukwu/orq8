@@ -5,15 +5,17 @@ import { approvals, type Approval, type NewApproval, type Db } from '@orq8/db';
 export async function findByOrg(
   db: Db,
   orgId: string,
-  status?: string,
+  opts: { status?: string; limit?: number; offset?: number } = {},
 ): Promise<Approval[]> {
   const conditions = [eq(approvals.orgId, orgId)];
-  if (status) conditions.push(eq(approvals.status, status));
+  if (opts.status) conditions.push(eq(approvals.status, opts.status));
   return db
     .select()
     .from(approvals)
     .where(and(...conditions))
-    .orderBy(desc(approvals.createdAt));
+    .orderBy(desc(approvals.createdAt))
+    .limit(opts.limit ?? 50)
+    .offset(opts.offset ?? 0);
 }
 
 /** Find a single approval by id, scoped to org. */

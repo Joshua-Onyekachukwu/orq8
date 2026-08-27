@@ -25,9 +25,11 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerProviderRoutes } from './routes/providers.js';
 import { registerCommandRoutes } from './routes/commands.js';
 import { registerCreditRoutes } from './routes/credits.js';
+import { registerBillingRoutes } from './routes/billing.js';
 import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
+import { registerRealtimeEndpoint } from './services/realtime.js';
 import type { AppDeps } from './types.js';
 
 export async function buildApp(
@@ -137,7 +139,9 @@ export async function buildApp(
   registerGoalRoutes(app, deps);
   registerCommandRoutes(app, deps);
   registerCreditRoutes(app, deps);
+  registerBillingRoutes(app, deps);
   registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
+  registerRealtimeEndpoint(app, deps);
   return app;
 }

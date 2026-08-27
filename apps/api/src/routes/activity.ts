@@ -13,9 +13,10 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
     const ctx = await requireAuth(request, deps);
     const url = new URL(request.url, 'http://localhost');
     const agentId = url.searchParams.get('agent_id') ?? undefined;
-    const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
-    const list = await activity.findByOrg(db, ctx.orgId, { agentId, limit });
-    return { data: list };
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const list = await activity.findByOrg(db, ctx.orgId, { agentId, limit, offset });
+    return { data: list, meta: { limit, offset } };
   });
 
   /** Dashboard summary stats for the current org. */
