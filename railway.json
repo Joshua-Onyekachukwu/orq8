@@ -7,7 +7,7 @@
   "deploy": {
     "startCommand": "pnpm --filter @orq8/db migrate && pnpm --filter @orq8/api start",
     "healthcheckPath": "/healthz",
-    "healthcheckTimeout": 30,
+    "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
   }
