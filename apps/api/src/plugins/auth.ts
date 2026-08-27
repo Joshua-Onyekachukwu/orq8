@@ -11,7 +11,7 @@ export async function requireAuth(request: FastifyRequest, deps: AppDeps): Promi
     extractBearer(request.headers.authorization) ?? request.cookies?.orq8_session ?? null;
   if (!token) throw unauthorized();
 
-  const found = await findSessionByToken(deps.db, token);
+  const found = await findSessionByToken(deps.db, token, deps.redis);
   if (!found) throw unauthorized('Invalid session');
 
   const { session, user, role } = found;

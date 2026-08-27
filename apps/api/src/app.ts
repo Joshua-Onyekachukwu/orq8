@@ -10,6 +10,9 @@ import {
   validation,
   type IdempotencyStore,
 } from '@orq8/core';
+import { getRedis } from './services/redis.js';
+import { rateLimitLoginRedis, rateLimitRouteRedis } from './plugins/rate-limit-redis.js';
+import { RedisIdempotencyStore } from '@orq8/core';
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { idempotencyPlugin } from './plugins/idempotency.js';
@@ -49,12 +52,25 @@ export async function buildApp(
     reply.header('x-request-id', request.id);
   });
 
+  // Initialize Redis client (falls back to in-memory if REDIS_URL not set)
+  const redis = getRedis(deps.config, deps.logger);
+
   // docs/35.1 — Idempotency-Key on mutating endpoints
-  idempotencyPlugin(app, opts.idempotencyStore ?? new InMemoryIdempotencyStore());
+  // Use Redis-backed store if Redis is available, otherwise in-memory
+  const idempotencyStore: IdempotencyStore = redis.isConnected()
+    ? new RedisIdempotencyStore(redis)
+    : new InMemoryIdempotencyStore();
+  idempotencyPlugin(app, idempotencyStore);
 
   // Security: rate-limit sensitive auth endpoints
-  rateLimitLogin(app);
-  rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
+  // Use Redis-backed rate limiting if available, otherwise in-memory
+  if (redis.isConnected()) {
+    rateLimitLoginRedis(app, redis);
+    rateLimitRouteRedis(app, redis, { path: '/v1/auth/register', max: 3, label: 'registration' });
+  } else {
+    rateLimitLogin(app);
+    rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
+  }
 
   // Security headers on every response
   app.addHook('onSend', async (_request, reply) => {

@@ -14,14 +14,30 @@ function safeParse(value: unknown): unknown {
   }
 }
 
+/**
+ * Check if a store supports async operations (Redis-backed).
+ */
+function isAsyncStore(store: IdempotencyStore): store is IdempotencyStore & {
+  getAsync(key: string): Promise<import('@orq8/core').IdempotencyEntry | undefined>;
+  putAsync(key: string, entry: import('@orq8/core').IdempotencyEntry): Promise<void>;
+} {
+  return typeof (store as any).getAsync === 'function';
+}
+
 export function idempotencyPlugin(app: FastifyInstance, store: IdempotencyStore): void {
+  const useAsync = isAsyncStore(store);
+
   app.addHook('onRequest', async (request, reply) => {
     if (!MUTATING.has(request.method)) return;
     const header = request.headers['idempotency-key'];
     if (typeof header !== 'string' || header.length === 0) return;
     keys.set(request, header);
 
-    const existing = store.get(header);
+    // Use async store if available (Redis), fall back to sync (in-memory)
+    const existing = useAsync
+      ? await (store as any).getAsync(header)
+      : store.get(header);
+
     if (!existing) return;
     if (existing.payloadHash !== stablePayloadHash(request.body)) {
       throw new AppError(409, 'idempotency.conflict', 'Idempotency-Key was already used with a different payload', { key: header });
@@ -34,12 +50,20 @@ export function idempotencyPlugin(app: FastifyInstance, store: IdempotencyStore)
     const key = keys.get(request);
     if (!key) return;
     if (reply.statusCode < 200 || reply.statusCode >= 300) return;
-    store.put(key, {
+
+    const entry = {
       payloadHash: stablePayloadHash(request.body),
       status: reply.statusCode,
       headers: { 'content-type': String(reply.getHeader('content-type') ?? 'application/json') },
       body: safeParse(payload),
       storedAt: Date.now(),
-    });
+    };
+
+    // Use async store if available (Redis), fall back to sync (in-memory)
+    if (useAsync) {
+      await (store as any).putAsync(key, entry);
+    } else {
+      store.put(key, entry);
+    }
   });
 }

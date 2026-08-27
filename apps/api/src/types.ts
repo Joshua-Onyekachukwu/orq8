@@ -2,12 +2,14 @@ import type { AppConfig } from '@orq8/core';
 import type { Db } from '@orq8/db';
 import type { Logger } from 'pino';
 import type { Pool } from 'pg';
+import type { RedisClient } from './services/redis.js';
 
 export interface AppDeps {
   config: AppConfig;
   db: Db;
   pool: Pool;
   logger: Logger;
+  redis?: RedisClient | null;
 }
 
 // docs/35.1 — org_id always comes from the session, never the client

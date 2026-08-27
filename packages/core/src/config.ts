@@ -34,6 +34,9 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('ORQ8 <founder@orq8.ai>'),
 
+  // Redis — session cache, rate limiting, idempotency (docs/42)
+  REDIS_URL: z.string().optional(),
+
   // Internal endpoints (e.g. POST /v1/internal/waitlist/process-due) — required
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),
