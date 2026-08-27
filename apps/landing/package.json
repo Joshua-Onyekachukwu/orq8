@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "material-symbols": "^0.31.3",
-    "next": "15.3.2",
+    "next": "15.5.23",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remixicon": "^4.6.0",
