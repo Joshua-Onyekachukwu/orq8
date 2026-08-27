@@ -22,12 +22,23 @@
   --color-white: #ffffff;
   --color-black: #23272e;
   --color-dark: #000000;
-  /* ORQ8 brand surfaces (marketing/DESIGN_DIRECTION.md command center) */
-  --color-navy-950: #0d1427;
-  --color-navy-900: #0a0e19;
+  /* ORQ8 brand surfaces */
+  --color-navy-950: #0a0e19;
+  --color-navy-900: #0f1629;
   --color-navy-800: #14161b;
   --color-lime: #c8ff32;
-  --color-emerald: #34d399;
+  --color-emerald: #00d97e;
+  /* AI Employee spectrum */
+  --color-nimbus: #4A9DFF;
+  --color-vertex: #605DFF;
+  --color-orbit: #8B5CF6;
+  --color-lumen: #F59E0B;
+  --color-forge: #FF6B35;
+  --color-harbor: #0EA5A0;
+  --color-pulse: #10B981;
+  --color-aurora: #EC4899;
+  --color-cobalt: #3B82F6;
+  --color-merid: #8B9CB6;
   --color-parchment: #f2efe9;
   --color-primary-50: #ecf0ff;
   --color-primary-100: #dde4ff;
@@ -138,7 +149,7 @@
 /* Craft floor — browser surfaces carry the design too: selection, caret, focus, scrollbar */
 ::selection {
   background: #c8ff32;
-  color: #0d1427;
+  color: #0a0e19;
 }
 .caret-transparent {
   caret-color: transparent;
@@ -224,18 +235,24 @@
     transform: translateX(-50%);
   }
 }
+@keyframes marquee-scroll-4x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-25%);
+  }
+}
 .logo-marquee-track {
-  animation: marquee-scroll 32s linear infinite;
+  animation: marquee-scroll-4x 45s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .logo-marquee:hover .logo-marquee-track {
   animation-play-state: paused;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .logo-marquee-track {
-    animation: none;
-  }
-}
+/* Marquee animations always run — reduced-motion should not freeze marketing marquees */
 
 /** Logo wall (Partners): muted marks by default, brand color on hover. Each
     item sets its own --brand via inline style. */
@@ -274,7 +291,9 @@
   );
 }
 .integrations-marquee-track {
-  animation: marquee-scroll 52s linear infinite;
+  animation: marquee-scroll-4x 52s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 .integrations-marquee-track.marquee-reverse {
   animation-direction: reverse;
@@ -282,11 +301,7 @@
 .integrations-marquee:hover .integrations-marquee-track {
   animation-play-state: paused;
 }
-@media (prefers-reduced-motion: reduce) {
-  .integrations-marquee-track {
-    animation: none;
-  }
-}
+
 
 /** Features orbit: gentle card float and flowing connection dashes. Delays are
     staggered per card via --float-delay; connectors use the same dash trick as

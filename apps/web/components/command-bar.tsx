@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X } from "lucide-react";
 
 interface PlanStep {
   action: string;
@@ -38,6 +38,7 @@ export function CommandBar() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
+  const [approvalStatus, setApprovalStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input on mount
@@ -63,6 +64,7 @@ export function CommandBar() {
 
     setIsProcessing(true);
     setResult(null);
+    setApprovalStatus("idle");
 
     try {
       const response = await fetch("/api/commands", {
@@ -80,7 +82,7 @@ export function CommandBar() {
       setResult(newResult);
       setHistory((prev) => [newResult, ...prev].slice(0, 10));
       setCommand("");
-    } catch (error) {
+    } catch {
       setResult({
         command,
         plan: { action: "error", description: "Failed to process command" },
@@ -95,6 +97,22 @@ export function CommandBar() {
   const handleSuggestionClick = (suggestion: string) => {
     setCommand(suggestion);
     inputRef.current?.focus();
+  };
+
+  const handleApprovalDecision = async (decision: "approved" | "rejected") => {
+    if (!result?.approvalRequest?.id || approvalStatus === "submitting") return;
+    setApprovalStatus("submitting");
+    try {
+      const res = await fetch(`/api/approvals/${result.approvalRequest.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: decision }),
+      });
+      if (!res.ok) throw new Error("Failed to submit decision");
+      setApprovalStatus("submitted");
+    } catch {
+      setApprovalStatus("error");
+    }
   };
 
   return (
@@ -194,26 +212,44 @@ export function CommandBar() {
                 <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
                   <p className="text-xs font-medium text-amber-800">Approval Required</p>
                   <p className="mt-1 text-sm text-amber-700">{result.approvalRequest.reason}</p>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg bg-emerald px-3 py-1.5 text-xs font-medium text-navy-950 transition-colors hover:bg-emerald/80"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
-                    >
-                      Modify
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-canvas"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                  {approvalStatus === "submitted" ? (
+                    <p className="mt-3 text-sm font-medium text-emerald-700">
+                      ✓ Decision recorded. The approval queue has been updated.
+                    </p>
+                  ) : approvalStatus === "error" ? (
+                    <p className="mt-3 text-sm text-red-600">
+                      Failed to record decision. Please try again or visit the Decision Center.
+                    </p>
+                  ) : (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApprovalDecision("approved")}
+                        disabled={approvalStatus === "submitting"}
+                        className="flex items-center gap-1.5 rounded-lg bg-emerald px-3 py-1.5 text-xs font-medium text-navy-950 transition-colors hover:bg-emerald/80 disabled:opacity-50"
+                      >
+                        {approvalStatus === "submitting" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApprovalDecision("rejected")}
+                        disabled={approvalStatus === "submitting"}
+                        className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {approvalStatus === "submitting" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <X className="h-3.5 w-3.5" />
+                        )}
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -54,7 +54,7 @@ const About: React.FC = () => {
             {/* soft backdrop: indigo glow + grid mesh, same language as the hero */}
             <div
               aria-hidden
-              className="absolute -inset-4 md:-inset-6 rounded-[30px] bg-[radial-gradient(55%_55%_at_25%_0%,rgba(96,93,255,0.28),transparent_70%),radial-gradient(45%_45%_at_85%_100%,rgba(200,255,50,0.12),transparent_70%)]"
+              className="absolute -inset-4 md:-inset-6 rounded-[30px] bg-[radial-gradient(55%_55%_at_25%_0%,rgba(96,93,255,0.28),transparent_70%),radial-gradient(45%_45%_at_85%_100%,rgba(167,139,250,0.12),transparent_70%)]"
             />
             <div
               aria-hidden
@@ -139,7 +139,7 @@ const About: React.FC = () => {
                   <p className="text-[26px] font-light leading-none text-navy-950 dark:text-white -tracking-[0.8px]">
                     $14.20
                   </p>
-                  <p className="mt-[6px] text-[11px] text-lime font-semibold">
+                  <p className="mt-[6px] text-[11px] text-emerald-600 font-semibold">
                     Within budget
                   </p>
                   <div className="mt-[14px] space-y-[8px]">
@@ -180,7 +180,7 @@ const About: React.FC = () => {
 
               {/* floating badge */}
               <div className="absolute -top-[14px] ltr:-right-[10px] rtl:-left-[10px] animate-bounce-slow rounded-[14px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/15 px-[14px] py-[10px] shadow-xl">
-                <p className="uppercase font-bold tracking-[1.6px] text-[10px] text-lime">
+                <p className="uppercase font-bold tracking-[1.6px] text-[10px] text-emerald-600">
                   +1 agent hired
                 </p>
                 <p className="mt-[3px] text-[11px] text-gray-500 dark:text-gray-400">
@@ -214,7 +214,7 @@ const About: React.FC = () => {
                 key={index}
                 className="relative mb-[20px] md:mb-[25px] last:mb-0 ltr:pl-[48px] rtl:pr-[48px] ltr:md:pl-[64px] rtl:md:pr-[64px] md:pt-[7px]"
               >
-                <div className="rounded-full flex items-center justify-center w-[35px] h-[35px] md:w-[44px] md:h-[44px] text-primary-500 border border-[#c8ff32] dark:border-gray-800 text-lg md:text-[22px] absolute top-0 ltr:left-0 rtl:right-0">
+                <div className="rounded-full flex items-center justify-center w-[35px] h-[35px] md:w-[44px] md:h-[44px] text-primary-500 border border-lime dark:border-gray-800 text-lg md:text-[22px] absolute top-0 ltr:left-0 rtl:right-0">
                   <i className="ri-check-double-line"></i>
                 </div>
                 <h3 className="!font-light !text-[20px] md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] md:!mb-[12px]">
@@ -229,7 +229,7 @@ const About: React.FC = () => {
 
           <Link
             href={aboutContent.cta.href}
-            className="inline-block rounded-[60px] bg-orange-400 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-[#c8ff32] hover:text-black"
+            className="inline-block rounded-[60px] bg-orange-400 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-lime hover:text-black"
           >
             <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
               {aboutContent.cta.text}{" "}

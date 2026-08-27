@@ -172,11 +172,13 @@ const Navbar: React.FC = () => {
         id="navbar"
       >
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] 2xl:max-w-[1744px] mx-auto px-[12px]">
-          <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between lg:justify-start">
-            <Link href="/" className="inline-block" aria-label="ORQ8 home">
+          <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between">
+            {/* Logo — far left */}
+            <Link href="/" className="inline-block flex-none" aria-label="ORQ8 home">
               <Wordmark />
             </Link>
 
+            {/* Mobile hamburger */}
             <div className="flex items-center gap-[14px] ml-auto lg:hidden">
               <button
                 type="button"
@@ -191,42 +193,46 @@ const Navbar: React.FC = () => {
               </button>
             </div>
 
-            {/* For Big Devices */}
+            {/* Desktop: menu centered, button far right */}
             <div className="hidden lg:flex items-center grow basis-full">
-              <ul
-                className="navbar-nav flex mx-auto flex-row gap-[18px] xl:gap-[30px] 2xl:gap-[46px] bg-white dark:bg-navy-900 rounded-[60px] lg:py-[20px] lg:px-[24px] xl:py-[30px] xl:px-[40px] 2xl:px-[80px]"
-                style={{
-                  boxShadow: "0px 4px 30px 0px rgba(146, 139, 221, 0.10)",
-                }}
-              >
-                {menuItems.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={
-                        item.section
-                          ? (e) => handleSectionClick(e, item.section!)
-                          : undefined
-                      }
-                      aria-current={
-                        isItemActive(item) ? "true" : undefined
-                      }
-                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
-                        isItemActive(item)
-                          ? "text-emerald"
-                          : "text-black dark:text-white"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {/* Centered menu */}
+              <div className="flex-1 flex justify-center">
+                <ul
+                  className="navbar-nav flex flex-row gap-[18px] xl:gap-[30px] 2xl:gap-[46px] bg-white dark:bg-navy-900 rounded-[60px] lg:py-[20px] lg:px-[24px] xl:py-[30px] xl:px-[40px] 2xl:px-[80px]"
+                  style={{
+                    boxShadow: "0px 4px 30px 0px rgba(146, 139, 221, 0.10)",
+                  }}
+                >
+                  {menuItems.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={
+                          item.section
+                            ? (e) => handleSectionClick(e, item.section!)
+                            : undefined
+                        }
+                        aria-current={
+                          isItemActive(item) ? "true" : undefined
+                        }
+                        className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
+                          isItemActive(item)
+                            ? "text-emerald"
+                            : "text-black dark:text-white"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
+              {/* Waitlist button — far right */}
               <Link
                 href="/#waitlist"
                 onClick={(e) => handleSectionClick(e, "waitlist")}
-                className="btn-press group inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime ltr:ml-[16px] rtl:mr-[16px] xl:ltr:ml-[26px] xl:rtl:mr-[26px]"
+                className="btn-press group inline-block flex-none rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime"
               >
                 <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                   JOIN THE WAITLIST{" "}

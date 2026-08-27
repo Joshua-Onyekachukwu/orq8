@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
-  Shield,
   Users,
   ArrowRight,
   ArrowLeft,
@@ -76,30 +74,35 @@ const defaultAgents = [
     name: "Athena",
     description: "Gathers and analyzes information. Monitors competitors, markets, and opportunities. Provides intelligence for decision-making.",
     selected: true,
+    required: false,
   },
   {
     role: "Operations Agent",
     name: "Atlas",
     description: "Manages day-to-day execution. Coordinates tasks, tracks progress, and ensures projects stay on schedule and within budget.",
     selected: true,
+    required: false,
   },
   {
     role: "Marketing Agent",
     name: "Mercury",
     description: "Handles marketing communications, content creation, and campaign management. Builds your brand presence.",
     selected: false,
+    required: false,
   },
   {
     role: "Engineering Agent",
     name: "Forge",
     description: "Manages technical development, code review, and deployment. Handles engineering tasks and technical infrastructure.",
     selected: false,
+    required: false,
   },
   {
     role: "Finance Agent",
     name: "Ledger",
     description: "Manages budgets, tracks expenses, and provides financial reporting. Monitors spending across all departments.",
     selected: false,
+    required: false,
   },
 ];
 
@@ -115,34 +118,58 @@ export default function OnboardingPage() {
   const [agents, setAgents] = useState(defaultAgents);
   const [isSaving, setIsSaving] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load saved state on mount
+  // Load saved state from API on mount
   useEffect(() => {
-    const saved = localStorage.getItem("orq8-onboarding");
-    if (saved) {
-      const state = JSON.parse(saved);
-      if (state.organization) setOrganization(state.organization);
-      if (state.constitution) {
-        const found = constitutionTypes.find((c) => c.type === state.constitution.type);
-        setConstitution(found || null);
-      }
-      if (state.agents) setAgents(state.agents);
-      if (state.completedAt) {
-        setIsComplete(true);
-        router.push("/app");
+    async function loadState() {
+      try {
+        const res = await fetch("/api/onboarding");
+        if (res.ok) {
+          const json = await res.json();
+          const state = json.data;
+          if (state?.completedAt) {
+            setIsComplete(true);
+            router.push("/app");
+            return;
+          }
+          if (state?.organization) setOrganization(state.organization);
+          if (state?.constitution) {
+            const found = constitutionTypes.find((c) => c.type === state.constitution.type);
+            setConstitution(found || null);
+          }
+          if (state?.agents) setAgents(state.agents);
+        }
+      } catch {
+        // Ignore errors — start fresh
       }
     }
+    loadState();
   }, [router]);
 
-  // Save state on change
+  // Save state to API on change (debounced via effect)
   useEffect(() => {
-    if (!isComplete) {
-      localStorage.setItem(
-        "orq8-onboarding",
-        JSON.stringify({ organization, constitution, agents })
-      );
-    }
-  }, [organization, constitution, agents, isComplete]);
+    if (isComplete) return;
+    const timeout = setTimeout(async () => {
+      try {
+        await fetch("/api/onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            step: currentStep === 0 ? "organization" : currentStep === 1 ? "constitution" : "agents",
+            data: {
+              organization,
+              constitution,
+              agents,
+            },
+          }),
+        });
+      } catch {
+        // Best-effort save — don't block the UI
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [organization, constitution, agents, currentStep, isComplete]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -160,37 +187,68 @@ export default function OnboardingPage() {
 
   const handleComplete = async () => {
     setIsSaving(true);
+    setError(null);
     try {
-      // Save final state to API
+      // Hire selected agents via the real API
+      const selectedAgents = agents.filter((a) => a.selected);
+      const hirePromises = selectedAgents.map((a) =>
+        fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: a.name,
+            role: a.role,
+            department: a.role.includes("Executive")
+              ? "Executive"
+              : a.role.includes("Research")
+              ? "Research"
+              : a.role.includes("Operations")
+              ? "Operations"
+              : a.role.includes("Marketing")
+              ? "Marketing"
+              : a.role.includes("Engineering")
+              ? "Engineering"
+              : a.role.includes("Finance")
+              ? "Finance"
+              : undefined,
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(hirePromises);
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        console.warn(`${failures.length} agent hires failed:`, failures);
+      }
+
+      // Mark onboarding as complete
       await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "current-user",
           step: "complete",
           data: {
             organization,
             constitution,
-            agents: agents.filter((a) => a.selected),
+            agents: selectedAgents,
             complete: true,
           },
         }),
       });
 
       setIsComplete(true);
-      localStorage.removeItem("orq8-onboarding");
       router.push("/app");
-    } catch (error) {
-      console.error("Failed to save onboarding state:", error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to complete onboarding");
       setIsSaving(false);
     }
   };
 
   const toggleAgent = (index: number) => {
     const agent = agents[index];
-    if (agent.required) return; // Can't deselect required agents
+    if (!agent || agent.required) return;
     const newAgents = [...agents];
-    newAgents[index] = { ...newAgents[index], selected: !newAgents[index].selected };
+    newAgents[index] = { ...agent, selected: !agent.selected };
     setAgents(newAgents);
   };
 
@@ -248,10 +306,17 @@ export default function OnboardingPage() {
             Step {currentStep + 1}
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-white">
-            {steps[currentStep].title}
+            {steps[currentStep]?.title}
           </h1>
-          <p className="mt-2 text-white/60">{steps[currentStep].description}</p>
+          <p className="mt-2 text-white/60">{steps[currentStep]?.description}</p>
         </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-900/30 border border-red-700/50 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
         {/* Step 1: Organization */}
         {currentStep === 0 && (
@@ -402,7 +467,7 @@ export default function OnboardingPage() {
             {isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
+                Setting up...
               </>
             ) : currentStep === steps.length - 1 ? (
               <>

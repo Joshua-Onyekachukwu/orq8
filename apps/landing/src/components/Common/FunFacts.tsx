@@ -4,64 +4,67 @@ import React from "react";
 
 interface FunFactItem {
   id: number;
-  icon: string;
   value: string;
+  label: string;
   description: string;
 }
 
-const FunFacts: React.FC = () => {
-  const funFacts: FunFactItem[] = [
-    {
-      id: 1,
-      icon: "ri-user-3-line",
-      value: "03",
-      description: "Agents working from your first day",
-    },
-    {
-      id: 2,
-      icon: "ri-shield-check-line",
-      value: "100%",
-      description: "Decisions stay with you, the CEO",
-    },
-    {
-      id: 3,
-      icon: "ri-calendar-check-line",
-      value: "7",
-      description: "Days free on every plan. Card required, cancel any time",
-    },
-    {
-      id: 4,
-      icon: "ri-time-line",
-      value: "24/7",
-      description: "Your company keeps working while you sleep",
-    },
-  ];
+const funFacts: FunFactItem[] = [
+  {
+    id: 1,
+    value: "03",
+    label: "AI Employees",
+    description: "Working from your first day",
+  },
+  {
+    id: 2,
+    value: "100%",
+    label: "Decisions",
+    description: "Stay with you, the CEO",
+  },
+  {
+    id: 3,
+    value: "7",
+    label: "Days free",
+    description: "On every plan. Cancel any time",
+  },
+  {
+    id: 4,
+    value: "24/7",
+    label: "Always on",
+    description: "Your company works while you sleep",
+  },
+];
 
+const FunFacts: React.FC = () => {
   return (
-    <>
-      <div className="py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[25px]">
-            {funFacts.map((fact) => (
-              <div
-                key={fact.id}
-                className="lift-card text-center rounded-[15px] md:rounded-[20px] bg-white dark:bg-navy-900 border border-gray-100 dark:border-white/10 shadow-sm px-[20px] py-[30px] md:py-[40px]"
-              >
-                <span className="w-[54px] h-[54px] md:w-[60px] md:h-[60px] rounded-full bg-lime/15 text-lime flex items-center justify-center text-[24px] md:text-[28px] leading-none mx-auto mb-[18px] md:mb-[22px]">
-                  <i className={fact.icon}></i>
-                </span>
-                <h3 className="!font-light !text-[38px] md:!text-[46px] lg:!text-[54px] leading-none -tracking-[2.8px] md:-tracking-[3.8px] !mb-[10px] lg:!mb-[14px]">
-                  <span className="text-primary-500">{fact.value}</span>
-                </h3>
-                <span className="block text-sm md:text-[15px] text-gray-500 dark:text-gray-400 -tracking-[0.16px] leading-[1.6]">
-                  {fact.description}
-                </span>
-              </div>
-            ))}
-          </div>
+    <div className="py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px] bg-navy-950 relative overflow-hidden">
+      <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-[20px] md:gap-[30px]">
+          {funFacts.map((fact) => (
+            <div
+              key={fact.id}
+              className="text-center rounded-[16px] border border-white/10 bg-white/[0.04] p-[24px] md:p-[30px]"
+            >
+              <h3 className="!font-bold !text-[36px] md:!text-[42px] leading-none !mb-[8px] !text-white">
+                {fact.value}
+              </h3>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-lime mb-[8px]">
+                {fact.label}
+              </span>
+              <p className="!text-white/50 !text-[13px] !leading-[1.5] !m-0">
+                {fact.description}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
-    </>
+
+      {/* Background glow */}
+      <div className="absolute -z-[1] pointer-events-none">
+        <div className="bg-blue-500 blur-[300px] opacity-[0.06] rounded-full w-[500px] h-[400px] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+      </div>
+    </div>
   );
 };
 

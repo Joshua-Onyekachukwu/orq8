@@ -1,0 +1,89 @@
+import { z } from 'zod';
+import { validation } from '@orq8/core';
+import type { FastifyInstance } from 'fastify';
+import { requireAuth } from '../plugins/auth.js';
+import { appendAudit } from '../services/audit.js';
+import * as agents from '../services/agents.js';
+import type { AppDeps } from '../types.js';
+
+const hireBody = z.object({
+  name: z.string().trim().min(1).max(100),
+  role: z.string().trim().min(1).max(100),
+  department: z.string().trim().max(100).optional(),
+});
+
+export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
+  const { db, logger } = deps;
+
+  /** List all agents for the current org. */
+  app.get('/v1/agents', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const list = await agents.findByOrg(db, ctx.orgId);
+    return { data: list };
+  });
+
+  /** Get a single agent. */
+  app.get<{ Params: { id: string } }>('/v1/agents/:id', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const agent = await agents.findById(db, ctx.orgId, request.params.id);
+    if (!agent) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found' } };
+    }
+    return { data: agent };
+  });
+
+  /** Hire a new agent. */
+  app.post('/v1/agents', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = hireBody.safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const agent = await agents.createAgent(db, {
+      orgId: ctx.orgId,
+      name: parsed.data.name,
+      role: parsed.data.role,
+      department: parsed.data.department ?? null,
+      status: 'active',
+    });
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'agent.hired',
+      outcome: 'success',
+    });
+
+    reply.code(201);
+    return { data: agent };
+  });
+
+  /** Pause or resume an agent. */
+  app.patch<{ Params: { id: string }; Body: { status: string } }>(
+    '/v1/agents/:id',
+    async (request, reply) => {
+      const ctx = await requireAuth(request, deps);
+      const { status } = request.body;
+      if (!['active', 'paused', 'archived'].includes(status)) {
+        throw validation({ status: ['Invalid status'] });
+      }
+
+      const updated = await agents.updateStatus(db, ctx.orgId, request.params.id, status);
+      if (!updated) {
+        reply.code(404);
+        return { error: { code: 'not_found', message: 'Agent not found' } };
+      }
+
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'user',
+        actorId: ctx.userId,
+        action: `agent.${status === 'paused' ? 'paused' : 'resumed'}`,
+        outcome: 'success',
+      });
+
+      return { data: updated };
+    },
+  );
+}

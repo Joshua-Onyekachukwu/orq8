@@ -1,8 +1,7 @@
 import About from "@/components/Common/About";
 import Faqs from "@/components/Common/Faqs";
-import Features from "@/components/Common/Features";
+import FeaturesOrbital from "@/components/Common/Features";
 import HowItWorks from "@/components/Common/HowItWorks";
-import FunFacts from "@/components/Common/FunFacts";
 import Integrations from "@/components/Common/Integrations";
 import Partners from "@/components/Common/Partners";
 import Pricing from "@/components/Common/Pricing";
@@ -29,7 +28,7 @@ export default function Home() {
       </Reveal>
 
       <Reveal>
-        <Features />
+        <FeaturesOrbital />
       </Reveal>
 
       <Reveal>
@@ -38,10 +37,6 @@ export default function Home() {
 
       <Reveal>
         <Testimonials />
-      </Reveal>
-
-      <Reveal>
-        <FunFacts />
       </Reveal>
 
       <Reveal>

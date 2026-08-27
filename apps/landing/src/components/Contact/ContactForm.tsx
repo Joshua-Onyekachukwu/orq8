@@ -1,9 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import ContactInfo from "./ContactInfo";
 
 const ContactForm: React.FC = () => {
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      const form = e.currentTarget;
+      const data = new FormData(form);
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.get("email"),
+          name: data.get("name"),
+          source: "contact",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setStatus("done");
+    } catch {
+      setStatus("error");
+    }
+  }
+
   return (
     <>
       <div className="pt-[70px] md:pt-[90px] lg:pt-[110px] xl:pt-[130px] 2xl:pt-[150px]">
@@ -14,12 +38,17 @@ const ContactForm: React.FC = () => {
             </div>
 
             <div>
-              <div className="bg-[#f4f4f4] dark:bg-[#0a0e19] rounded-[10px] md:rounded-[20px] p-[25px] md:p-[35px] lg:p-[45px]">
+              <div className="bg-[#f4f4f4] dark:bg-navy-950 rounded-[10px] md:rounded-[20px] p-[25px] md:p-[35px] lg:p-[45px]">
                 <h3 className="!font-light !text-[20px] md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[20px] md:!mb-[25px] lg:!mb-[35px]">
                   Send us a message
                 </h3>
 
-                <form>
+                {status === "done" ? (
+                  <div className="text-center py-8">
+                    <p className="text-lg font-medium text-navy-950">Thank you! We will get back to you soon.</p>
+                  </div>
+                ) : (
+                <form onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-[20px] md:gap-[25px]">
                     <div>
                       <label
@@ -105,10 +134,16 @@ const ContactForm: React.FC = () => {
                       </label>
                     </div>
 
+                    {status === "error" && (
+                      <div className="md:col-span-2 text-red-500 text-sm">
+                        Something went wrong. Please try again.
+                      </div>
+                    )}
                     <div className="md:col-span-2">
                       <button
                         type="submit"
-                        className="inline-block rounded-[60px] bg-primary-500 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-[#c8ff32] hover:text-black"
+                        disabled={status === "loading"}
+                        className="inline-block rounded-[60px] bg-primary-500 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-lime hover:text-black disabled:opacity-60"
                       >
                         <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
                           Submit Message{" "}
@@ -118,6 +153,7 @@ const ContactForm: React.FC = () => {
                     </div>
                   </div>
                 </form>
+                )}
               </div>
             </div>
           </div>

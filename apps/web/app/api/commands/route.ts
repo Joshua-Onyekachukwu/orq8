@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+
+// SECURITY: This endpoint requires authentication.
+// The command bar is a privileged interface that can trigger AI actions.
 
 interface CommandPlan {
   action: string;
@@ -7,6 +11,32 @@ interface CommandPlan {
   estimatedCost?: number;
   requiresApproval: boolean;
   approvalReason?: string;
+}
+
+/**
+ * Verify the request is authenticated via session cookie.
+ * Returns the authenticated user context or null if unauthorized.
+ */
+async function requireAuth(request: NextRequest): Promise<{ userId: string; orgId: string } | null> {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/v1/auth/me`, {
+      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      data?: { user?: { id?: string }; active_org_id?: string };
+    };
+    const userId = data?.data?.user?.id;
+    const orgId = data?.data?.active_org_id;
+    if (!userId || !orgId) return null;
+    return { userId, orgId };
+  } catch {
+    return null;
+  }
 }
 
 // In production, this would connect to the Executive Agent orchestration layer
@@ -71,8 +101,17 @@ function analyzeCommand(input: string): CommandPlan {
   };
 }
 
-// POST /api/commands - Process a natural language command
+// POST /api/commands - Process a natural language command (requires authentication)
 export async function POST(request: NextRequest) {
+  // SECURITY: Require authentication before processing any command
+  const auth = await requireAuth(request);
+  if (!auth) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   if (!body?.command) {
@@ -94,24 +133,33 @@ export async function POST(request: NextRequest) {
   // The agent would analyze the command, create a plan, and determine if approval is needed
   const plan = analyzeCommand(command);
 
-  // Create an approval request if needed
+  // Create a real approval request via the backend API
   let approvalRequest = null;
   if (plan.requiresApproval) {
-    approvalRequest = {
-      id: `RQ-${Date.now().toString(36).toUpperCase()}`,
-      agent: plan.agents?.[0] || "Executive Agent",
-      agentInitials: plan.agents?.[0]?.charAt(0) || "E",
-      what: plan.description,
-      cost: plan.estimatedCost || 0,
-      reason: plan.approvalReason || "",
-      risk: "medium",
-      reversible: false,
-      status: "awaiting" as const,
-      createdAt: new Date().toISOString(),
-    };
-
-    // In production, this would save to the database
-    // await db.approvals.create(approvalRequest);
+    try {
+      const token = request.cookies.get(SESSION_COOKIE)?.value;
+      if (token) {
+        const approvalRes = await fetch(`${API_URL}/v1/approvals`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cookie: `${SESSION_COOKIE}=${token}`,
+          },
+          body: JSON.stringify({
+            action: plan.description,
+            description: plan.approvalReason || null,
+            cost: (plan.estimatedCost || 0) * 100, // convert to cents
+            risk_level: "medium",
+          }),
+        });
+        if (approvalRes.ok) {
+          const approvalData = (await approvalRes.json()) as { data?: { id: string; action: string; cost: number; riskLevel: string; status: string; createdAt: string } };
+          approvalRequest = approvalData?.data ?? null;
+        }
+      }
+    } catch {
+      // Approval creation failed — continue without approval
+    }
   }
 
   return NextResponse.json({

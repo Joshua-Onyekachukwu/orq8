@@ -10,7 +10,7 @@ interface PageBannerProps {
 const PageBanner: React.FC<PageBannerProps> = ({ pageTitle }) => {
   return (
     <>
-      <div className="relative z-[1] pt-[120px] md:pt-[140px] lg:pt-[200px] xl:pt-[220px] pb-[70px] md:pb-[90px] lg:pb-[110px] dark:bg-[#0a0e19] overflow-hidden">
+      <div className="relative z-[1] pt-[120px] md:pt-[140px] lg:pt-[200px] xl:pt-[220px] pb-[70px] md:pb-[90px] lg:pb-[110px] dark:bg-navy-950 overflow-hidden">
         <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
           <div className="text-center">
             <ul className="mb-[5px] md:mb-[8px]">

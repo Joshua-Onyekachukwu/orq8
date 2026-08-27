@@ -65,9 +65,9 @@ const Faqs: React.FC = () => {
       answer: (
         <p>
           Joining the waitlist is free. When your cohort opens, every plan
-          starts with 7 days free, Starter through Enterprise. We take a credit
-          card up front, you pay nothing until day 8, and you can cancel any
-          time. When your organization earns its keep, Pro is $49/month.
+          starts with 7 days free. Founder is $39/month, Team is $99/month,
+          and Company is $249/month. We take a credit card up front, you pay
+          nothing until day 8, and you can cancel any time.
         </p>
       ),
     },

@@ -1,5 +1,8 @@
 import { hashPassword, verifyPassword } from '@orq8/auth';
 import { conflict, forbidden, unauthorized, validation } from '@orq8/core';
+import { eq } from 'drizzle-orm';
+import { users as usersTable } from '@orq8/db';
+import { z } from 'zod';
 import { loginBody, registerBody } from '@orq8/domain';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -107,6 +110,28 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     await appendAudit(db, { orgId: ctx.orgId, actorType: 'user', actorId: ctx.userId, action: 'auth.logout', outcome: 'success' });
     reply.code(204);
     return reply.send();
+  });
+
+  app.post('/v1/auth/change-password', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({
+      current_password: z.string().min(1),
+      new_password: z.string().min(8),
+    }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    const { current_password, new_password } = parsed.data;
+
+    const user = await users.findById(db, ctx.userId);
+    if (!user) throw unauthorized();
+
+    const ok = await verifyPassword(user.passwordHash, current_password);
+    if (!ok) throw unauthorized('Current password is incorrect');
+
+    const newHash = await hashPassword(new_password);
+    await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, ctx.userId));
+    await appendAudit(db, { orgId: ctx.orgId, actorType: 'user', actorId: ctx.userId, action: 'auth.password_changed', outcome: 'success' });
+
+    return { data: { ok: true } };
   });
 
   app.get('/v1/auth/me', async (request) => {

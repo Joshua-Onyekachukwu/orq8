@@ -18,46 +18,81 @@ type MeData = {
  * Authenticated app shell: the sidebar carries the full (phased) ORQ8 feature
  * surface, and each route renders inside it. Unauthenticated → /login.
  *
- * Dev-only fallback: while the deployed API is unreachable, local development
- * renders the shell with sample data so the dashboard design stays previewable.
- * Production always redirects to /login when the session cannot be confirmed.
+ * In production, always requires a valid session from the deployed API.
+ * In development, allows a fallback mode for previewing the dashboard.
  */
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) redirect("/login");
+
+  // No session token → redirect to login with return URL
+  if (!token) {
+    redirect("/login?next=/app");
+  }
 
   let me: MeData | null = null;
-  let apiDown = false;
+  let apiError: string | null = null;
+  let isApiReachable = true;
+
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: { cookie: `${SESSION_COOKIE}=${token}` },
       cache: "no-store",
     });
+
     if (res.ok) {
       const data = (await res.json()) as { data?: MeData };
       me = data?.data ?? null;
     } else if (res.status === 401) {
-      redirect("/login");
+      // Session expired or invalid → clear cookie and redirect to login
+      redirect("/login?next=/app");
     } else {
-      apiDown = true;
+      // API returned an error (500, 503, etc.)
+      isApiReachable = false;
+      apiError = `API error (${res.status}): Service temporarily unavailable.`;
     }
   } catch {
-    apiDown = true;
+    // Network error - API is completely unreachable
+    isApiReachable = false;
+    apiError = "Could not connect to the ORQ8 API. The service may be temporarily unavailable.";
   }
 
-  const allowDemo = process.env.NODE_ENV === "development";
-  if (!me && !(apiDown && allowDemo)) redirect("/login");
+  // SECURITY: Always require valid session. No dev fallback to sample data.
+  if (!me) {
+    if (!isApiReachable) {
+      // API unreachable: show service unavailable (never bypass auth)
+      return (
+        <div id="main" className="min-h-screen bg-canvas flex items-center justify-center">
+          <div className="max-w-md text-center px-6">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-semibold text-ink">Service Unavailable</h1>
+            <p className="mt-2 text-sm text-muted">{apiError}</p>
+            <p className="mt-4 text-sm text-muted">Please try again in a few moments, or contact support if the issue persists.</p>
+            <a href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-navy-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-navy-800">
+              Return to Login
+            </a>
+          </div>
+        </div>
+      );
+    }
+    // API reachable but session invalid → redirect to login
+    redirect("/login?next=/app");
+  }
 
   const active =
     me?.memberships.find((m) => m.org.id === me.active_org_id) ??
     me?.memberships[0];
 
-  const orgName = active?.org.name ?? "Sample Org";
-  const plan = active?.org.plan ?? "pro";
+  const orgName = active?.org.name ?? "My Organization";
+  const plan = active?.org.plan ?? "starter";
   const userName = me?.user.name ?? me?.user.email ?? "Founder";
+  const hasSession = !!me;
 
   return (
     <div id="main" className="min-h-screen bg-canvas">
@@ -65,22 +100,11 @@ export default async function AppLayout({
         orgName={orgName}
         plan={plan}
         userName={userName}
-        sampleMode={!me}
+        sampleMode={false}
       />
 
       <div className="lg:pl-64">
         <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-          {apiDown && !me && (
-            <div
-              role="status"
-              className="mb-6 flex items-center gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-            >
-              <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
-              API unreachable — showing sample data so you can preview the
-              dashboard. Production will redirect to sign-in until the API is
-              back.
-            </div>
-          )}
           {children}
         </main>
       </div>

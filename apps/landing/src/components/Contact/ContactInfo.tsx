@@ -42,29 +42,17 @@ const ContactInfo: React.FC = () => {
 
       <div className="mt-[15px] flex items-center gap-[10px]">
         <a
-          href="#"
+          href="https://twitter.com/orq8"
           target="_blank"
-          className="leading-none inline-block text-orange-400 text-lg transition-all hover:text-primary-500"
-        >
-          <i className="ri-facebook-fill"></i>
-        </a>
-        <a
-          href="#"
-          target="_blank"
+          rel="noopener noreferrer"
           className="leading-none inline-block text-orange-400 text-lg transition-all hover:text-primary-500"
         >
           <i className="ri-twitter-x-fill"></i>
         </a>
         <a
-          href="#"
+          href="https://linkedin.com/company/orq8"
           target="_blank"
-          className="leading-none inline-block text-orange-400 text-lg transition-all hover:text-primary-500"
-        >
-          <i className="ri-instagram-fill"></i>
-        </a>
-        <a
-          href="#"
-          target="_blank"
+          rel="noopener noreferrer"
           className="leading-none inline-block text-orange-400 text-lg transition-all hover:text-primary-500"
         >
           <i className="ri-linkedin-fill"></i>

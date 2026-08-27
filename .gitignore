@@ -19,7 +19,6 @@ out/
 
 # Vercel CLI/build artifacts
 .vercel/
-apps/api/.vercel/
 
 # Reference pack — local only; not part of the codebase
 /Trezo/
@@ -45,3 +44,11 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+
+# Freebuff artifacts
+.freebuff/

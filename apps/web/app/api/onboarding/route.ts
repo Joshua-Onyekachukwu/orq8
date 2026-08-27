@@ -1,98 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 
-// Onboarding state management
-// In production, this would be stored in the database
-interface OnboardingState {
-  userId: string;
-  step: "organization" | "constitution" | "agents" | "complete";
-  organization?: {
-    name: string;
-    description?: string;
-    objective?: string;
-  };
-  constitution?: {
-    type: "founder_led" | "growth" | "efficiency" | "custom";
-    name: string;
-    principles: string[];
-  };
-  agents?: Array<{
-    role: string;
-    name: string;
-    description: string;
-    selected: boolean;
-  }>;
-  completedAt?: string;
+// SECURITY: userId is derived from the authenticated session, never from the client body.
+// Onboarding state is persisted to the database via the backend API.
+
+function getSessionCookie(request: NextRequest): string | null {
+  return request.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
-// In-memory store for demo purposes
-// In production, this would be a database table
-const onboardingStates: Map<string, OnboardingState> = new Map();
-
-// GET /api/onboarding - Get current onboarding state
+// GET /api/onboarding — Get current onboarding state (proxied to backend)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  const token = getSessionCookie(request);
+  if (!token) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  const state = onboardingStates.get(userId);
-
-  if (!state) {
-    return NextResponse.json({
-      data: {
-        step: "organization",
-        organization: null,
-        constitution: null,
-        agents: null,
-      },
+  try {
+    const res = await fetch(`${API_URL}/v1/onboarding`, {
+      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      cache: "no-store",
     });
+    if (!res.ok) {
+      return NextResponse.json({ error: "Failed to load onboarding" }, { status: res.status });
+    }
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch {
+    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
   }
-
-  return NextResponse.json({ data: state });
 }
 
-// POST /api/onboarding - Update onboarding state
+// POST /api/onboarding — Update onboarding state (proxied to backend)
 export async function POST(request: NextRequest) {
+  const token = getSessionCookie(request);
+  if (!token) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
-  if (!body?.userId || !body?.step) {
-    return NextResponse.json(
-      { error: "userId and step are required" },
-      { status: 400 }
-    );
+  if (!body?.step) {
+    return NextResponse.json({ error: "step is required" }, { status: 400 });
   }
 
-  const { userId, step, data } = body;
-
-  // Get existing state or create new
-  const existing = onboardingStates.get(userId) || {
-    userId,
-    step: "organization" as const,
-  };
-
-  // Update state
-  const newState: OnboardingState = {
-    ...existing,
-    userId,
-    step: step as OnboardingState["step"],
-  };
-
-  // Apply step-specific data
-  if (step === "organization" && data) {
-    newState.organization = data;
-  } else if (step === "constitution" && data) {
-    newState.constitution = data;
-  } else if (step === "agents" && data) {
-    newState.agents = data.agents;
-    // If completing onboarding
-    if (data.complete) {
-      newState.step = "complete";
-      newState.completedAt = new Date().toISOString();
+  try {
+    const res = await fetch(`${API_URL}/v1/onboarding`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `${SESSION_COOKIE}=${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      return NextResponse.json({ error: "Failed to save onboarding" }, { status: res.status });
     }
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch {
+    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
   }
-
-  onboardingStates.set(userId, newState);
-
-  return NextResponse.json({ data: newState });
 }

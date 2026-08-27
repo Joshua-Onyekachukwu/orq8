@@ -36,7 +36,7 @@ export const organizations = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     slug: text('slug').notNull(),
-    plan: text('plan').notNull().default('free'), // Free / Pro / Business / Enterprise (docs/00 §6)
+    plan: text('plan').notNull().default('trial'), // trial | founder | team | company | enterprise
     status: text('status').notNull().default('active'),
     constitutionVersionRef: uuid('constitution_version_ref'),
     settings: jsonb('settings').notNull().default({}),
@@ -205,6 +205,191 @@ export type Provider = typeof providers.$inferSelect;
 export type NewProvider = typeof providers.$inferInsert;
 export type UserProviderKey = typeof userProviderKeys.$inferSelect;
 export type NewUserProviderKey = typeof userProviderKeys.$inferInsert;
+// ---- ORQ8 Billing & Credits ----
+// Work Credits: every plan includes monthly credits; additional can be purchased.
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    plan: text('plan').notNull(), // founder | team | company | enterprise
+    billingCycle: text('billing_cycle').notNull().default('monthly'), // monthly | annual
+    status: text('status').notNull().default('active'), // active | trial | past_due | cancelled | paused
+    trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+    includedCredits: integer('included_credits').notNull().default(0), // monthly included credits
+    maxAgents: integer('max_agents').notNull().default(3), // max AI employees for this plan
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    cancelAt: timestamp('cancel_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('subscriptions_org_idx').on(t.orgId),
+    index('subscriptions_status_idx').on(t.status),
+  ],
+);
+
+export const creditBalances = pgTable(
+  'credit_balances',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    subscriptionId: uuid('subscription_id')
+      .notNull()
+      .references(() => subscriptions.id),
+    includedCredits: integer('included_credits').notNull().default(0), // monthly allocation
+    purchasedCredits: integer('purchased_credits').notNull().default(0), // additional bought credits
+    usedCredits: integer('used_credits').notNull().default(0), // consumed this period
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('credit_balances_org_period_idx').on(t.orgId, t.periodStart)],
+);
+
+export const creditTransactions = pgTable(
+  'credit_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    type: text('type').notNull(), // usage | purchase | adjustment | rollover
+    amount: integer('amount').notNull(), // positive = add, negative = consume
+    description: text('description'), // e.g. 'Task execution', 'Credit top-up'
+    referenceId: uuid('reference_id'), // taskId, subscriptionId, etc.
+    referenceType: text('reference_type'), // task | subscription | purchase
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('credit_transactions_org_idx').on(t.orgId, t.createdAt),
+    index('credit_transactions_type_idx').on(t.orgId, t.type),
+  ],
+);
+
+// ---- ORQ8 Work Domain (Phase 2+) ----
+// Agents, approvals, goals, tasks, activity events.
+// All tables follow docs/34.1 conventions: uuid PKs, org_id on every table,
+// created_at/updated_at, status as constrained text.
+
+export const agents = pgTable(
+  'agents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    name: text('name').notNull(), // e.g. 'Researcher', 'Writer', 'Engineer'
+    role: text('role').notNull(), // e.g. 'market_researcher', 'content_writer', 'software_engineer'
+    department: text('department'), // e.g. 'Marketing', 'Engineering', 'Operations'
+    status: text('status').notNull().default('active'), // active | paused | archived
+    weeklyCost: integer('weekly_cost').notNull().default(0), // cost in cents
+    tasksCompleted: integer('tasks_completed').notNull().default(0),
+    currentTask: text('current_task'), // short description of what they're doing now
+    capabilities: jsonb('capabilities').notNull().default([]), // array of capability strings
+    config: jsonb('config').notNull().default({}), // agent-specific config
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('agents_org_idx').on(t.orgId),
+    index('agents_status_idx').on(t.orgId, t.status),
+  ],
+);
+
+export const goals = pgTable(
+  'goals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('active'), // active | completed | paused | cancelled
+    progress: integer('progress').notNull().default(0), // 0-100
+    priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('goals_org_idx').on(t.orgId)],
+);
+
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    goalId: uuid('goal_id').references(() => goals.id),
+    agentId: uuid('agent_id').references(() => agents.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('pending'), // pending | in_progress | completed | failed | cancelled
+    cost: integer('cost').notNull().default(0), // cost in cents
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('tasks_org_idx').on(t.orgId),
+    index('tasks_status_idx').on(t.orgId, t.status),
+    index('tasks_agent_idx').on(t.agentId),
+  ],
+);
+
+export const approvals = pgTable(
+  'approvals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    agentId: uuid('agent_id').references(() => agents.id),
+    action: text('action').notNull(), // what the agent wants to do
+    description: text('description'), // detailed description / context
+    cost: integer('cost').notNull().default(0), // cost in cents
+    riskLevel: text('risk_level').notNull().default('low'), // low | medium | high
+    status: text('status').notNull().default('pending'), // pending | approved | rejected | modified | expired
+    decisionNote: text('decision_note'), // CEO's note when approving/modifying/rejecting
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('approvals_org_idx').on(t.orgId),
+    index('approvals_status_idx').on(t.orgId, t.status),
+  ],
+);
+
+export const activityEvents = pgTable(
+  'activity_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    agentId: uuid('agent_id').references(() => agents.id),
+    taskId: uuid('task_id').references(() => tasks.id),
+    type: text('type').notNull(), // analyzed | drafted | reviewed | deployed | approved | rejected | filed
+    summary: text('summary').notNull(), // plain-language description
+    reason: text('reason'), // the 'because' — why this action was taken
+    cost: integer('cost').notNull().default(0), // cost in cents
+    department: text('department'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('activity_events_org_idx').on(t.orgId, t.occurredAt),
+    index('activity_events_agent_idx').on(t.agentId),
+  ],
+);
+
 // Drip outbox for waitlist emails (docs/00 GTM, marketing/design_partner_application.md §4).
 // DB-as-queue: rows carry scheduled_at + status; a process-due pass (API endpoint or
 // local timer) sends due rows. No external queue dependency — works on serverless too.
@@ -237,3 +422,75 @@ export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
 export type NewWaitlistSignup = typeof waitlistSignups.$inferInsert;
 export type WaitlistEmail = typeof waitlistEmails.$inferSelect;
 export type NewWaitlistEmail = typeof waitlistEmails.$inferInsert;
+export type Agent = typeof agents.$inferSelect;
+export type NewAgent = typeof agents.$inferInsert;
+export type Goal = typeof goals.$inferSelect;
+export type NewGoal = typeof goals.$inferInsert;
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+export type Approval = typeof approvals.$inferSelect;
+export type NewApproval = typeof approvals.$inferInsert;
+export type ActivityEvent = typeof activityEvents.$inferSelect;
+export type NewActivityEvent = typeof activityEvents.$inferInsert;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;
+export type CreditBalance = typeof creditBalances.$inferSelect;
+export type NewCreditBalance = typeof creditBalances.$inferInsert;
+export type CreditTransaction = typeof creditTransactions.$inferSelect;
+export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
+
+// ---- ORQ8 Onboarding ----
+// Persisted onboarding state per user — survives refresh, browser close, login/logout.
+export const onboardingStates = pgTable(
+  'onboarding_states',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    step: text('step').notNull().default('organization'), // organization | constitution | agents | complete
+    organization: jsonb('organization'), // { name, description, objective, industry, stage, teamSize }
+    constitution: jsonb('constitution'), // { type, name, principles[] }
+    agentSelections: jsonb('agent_selections'), // [{ role, name, description, selected }]
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('onboarding_states_user_idx').on(t.userId),
+    index('onboarding_states_org_idx').on(t.orgId),
+  ],
+);
+
+export type OnboardingState = typeof onboardingStates.$inferSelect;
+export type NewOnboardingState = typeof onboardingStates.$inferInsert;
+
+// ---- ORQ8 Company Memory ----
+// Persistent organizational memory — facts, decisions, lessons, preferences.
+export const companyMemory = pgTable(
+  'company_memory',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    category: text('category').notNull(), // fact | decision | lesson | preference | workflow | context
+    content: text('content').notNull(),
+    source: text('source'), // which agent or user created this
+    agentId: uuid('agent_id').references(() => agents.id),
+    taskId: uuid('task_id').references(() => tasks.id),
+    importance: integer('importance').notNull().default(5), // 1-10
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('company_memory_org_idx').on(t.orgId),
+    index('company_memory_category_idx').on(t.orgId, t.category),
+  ],
+);
+
+export type CompanyMemoryEntry = typeof companyMemory.$inferSelect;
+export type NewCompanyMemoryEntry = typeof companyMemory.$inferInsert;

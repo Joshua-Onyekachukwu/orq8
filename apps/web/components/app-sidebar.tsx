@@ -47,8 +47,8 @@ const navGroups: NavGroup[] = [
     title: "Command",
     items: [
       { label: "Dashboard", href: "/app", icon: LayoutDashboard, built: true },
-      { label: "Decision Center", href: "/app/approvals", icon: ShieldCheck, phase: "Phase 3–5" },
-      { label: "Weekly Report", href: "/app/report", icon: CalendarDays, phase: "Phase 3" },
+      { label: "Decision Center", href: "/app/approvals", icon: ShieldCheck, built: true },
+      { label: "Weekly Report", href: "/app/report", icon: CalendarDays, built: true },
     ],
   },
   {
@@ -57,15 +57,16 @@ const navGroups: NavGroup[] = [
       { label: "Org Explorer", href: "/app/org", icon: Building2, phase: "Phase 2" },
       { label: "Agents", href: "/app/agents", icon: Users, built: true },
       { label: "Departments & Teams", href: "/app/teams", icon: GitBranch, phase: "Phase 2" },
-      { label: "Goals & Tasks", href: "/app/goals", icon: Target, phase: "Phase 4" },
+      { label: "Goals & Tasks", href: "/app/goals", icon: Target, built: true },
     ],
   },
   {
     title: "Governance",
     items: [
       { label: "Company Constitution", href: "/app/constitution", icon: ScrollText, phase: "Phase 5" },
-      { label: "Budgets & Limits", href: "/app/budgets", icon: Wallet, phase: "Phase 2" },
-      { label: "Audit Trail", href: "/app/audit", icon: ShieldCheck, phase: "Phase 5" },
+      { label: "Budgets & Limits", href: "/app/budgets", icon: Wallet, built: true },
+      { label: "Audit Trail", href: "/app/audit", icon: ShieldCheck, built: true },
+      { label: "Company Memory", href: "/app/memory", icon: ScrollText, built: true },
       { label: "Agent Activity", href: "/app/activity", icon: Activity, built: true },
     ],
   },

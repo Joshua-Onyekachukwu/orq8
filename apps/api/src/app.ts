@@ -13,9 +13,15 @@ import {
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { idempotencyPlugin } from './plugins/idempotency.js';
+import { rateLimitLogin, rateLimitRoute } from './plugins/rate-limit.js';
+import { registerActivityRoutes } from './routes/activity.js';
+import { registerAgentRoutes } from './routes/agents.js';
+import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProviderRoutes } from './routes/providers.js';
+import { registerGoalRoutes } from './routes/goals.js';
+import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
 import type { AppDeps } from './types.js';
 
@@ -43,6 +49,20 @@ export async function buildApp(
 
   // docs/35.1 — Idempotency-Key on mutating endpoints
   idempotencyPlugin(app, opts.idempotencyStore ?? new InMemoryIdempotencyStore());
+
+  // Security: rate-limit sensitive auth endpoints
+  rateLimitLogin(app);
+  rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
+
+  // Security headers on every response
+  app.addHook('onSend', async (_request, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('X-XSS-Protection', '1; mode=block');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    // Note: CSP is better handled at the web app / CDN layer
+  });
 
   // docs/35.1 — unmatched routes still return the envelope
   app.setNotFoundHandler((request, reply) => {
@@ -92,7 +112,12 @@ export async function buildApp(
 
   registerHealthRoutes(app, deps);
   registerAuthRoutes(app, deps);
+  registerAgentRoutes(app, deps);
+  registerApprovalRoutes(app, deps);
+  registerActivityRoutes(app, deps);
   registerProviderRoutes(app, deps);
+  registerGoalRoutes(app, deps);
+  registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
   return app;
 }
