@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -118,9 +118,10 @@ export default function OnboardingPage() {
   const [agents, setAgents] = useState(defaultAgents);
   const [isSaving, setIsSaving] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load saved state from API on mount
+  // Load saved state from API on mount — restores step + all data
   useEffect(() => {
     async function loadState() {
       try {
@@ -133,47 +134,79 @@ export default function OnboardingPage() {
             router.push("/app");
             return;
           }
-          if (state?.organization) setOrganization(state.organization);
+          // Restore step number
+          if (typeof state?.stepNumber === "number") {
+            setCurrentStep(state.stepNumber);
+          }
+          // Restore organization data
+          if (state?.organization) {
+            setOrganization({
+              name: state.organization.name ?? "",
+              description: state.organization.description ?? "",
+              objective: state.organization.objective ?? "",
+            });
+          }
+          // Restore constitution
           if (state?.constitution) {
             const found = constitutionTypes.find((c) => c.type === state.constitution.type);
             setConstitution(found || null);
           }
-          if (state?.agents) setAgents(state.agents);
+          // Restore agents
+          if (state?.agents && Array.isArray(state.agents)) {
+            // Merge with defaults to preserve required flags and descriptions
+            const restored = defaultAgents.map((def) => {
+              const saved = state.agents.find((a: any) => a.role === def.role);
+              return saved ? { ...def, selected: saved.selected ?? def.selected } : def;
+            });
+            setAgents(restored);
+          }
         }
       } catch {
         // Ignore errors — start fresh
+      } finally {
+        setIsLoading(false);
       }
     }
     loadState();
   }, [router]);
 
-  // Save state to API on change (debounced via effect)
+  // Save state to API on every change (debounced)
+  const saveState = useCallback(async (step: number, org: typeof organization, con: typeof constitution, ag: typeof agents) => {
+    const stepId = steps[step]?.id ?? "organization";
+    try {
+      await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: stepId,
+          data: {
+            stepNumber: step,
+            organization: org,
+            constitution: con,
+            agents: ag,
+          },
+        }),
+      });
+    } catch {
+      // Best-effort save — don't block the UI
+    }
+  }, []);
+
+  // Debounced auto-save on any data change
   useEffect(() => {
-    if (isComplete) return;
-    const timeout = setTimeout(async () => {
-      try {
-        await fetch("/api/onboarding", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            step: currentStep === 0 ? "organization" : currentStep === 1 ? "constitution" : "agents",
-            data: {
-              organization,
-              constitution,
-              agents,
-            },
-          }),
-        });
-      } catch {
-        // Best-effort save — don't block the UI
-      }
+    if (isComplete || isLoading) return;
+    const timeout = setTimeout(() => {
+      saveState(currentStep, organization, constitution, agents);
     }, 500);
     return () => clearTimeout(timeout);
-  }, [organization, constitution, agents, currentStep, isComplete]);
+  }, [organization, constitution, agents, currentStep, isComplete, isLoading, saveState]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      // Save immediately on step advance
+      saveState(nextStep, organization, constitution, agents);
     } else {
       handleComplete();
     }
@@ -181,7 +214,9 @@ export default function OnboardingPage() {
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+      saveState(prevStep, organization, constitution, agents);
     }
   };
 
@@ -215,11 +250,7 @@ export default function OnboardingPage() {
         })
       );
 
-      const results = await Promise.allSettled(hirePromises);
-      const failures = results.filter((r) => r.status === "rejected");
-      if (failures.length > 0) {
-        console.warn(`${failures.length} agent hires failed:`, failures);
-      }
+      await Promise.allSettled(hirePromises);
 
       // Mark onboarding as complete
       await fetch("/api/onboarding", {
@@ -228,6 +259,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           step: "complete",
           data: {
+            stepNumber: 3,
             organization,
             constitution,
             agents: selectedAgents,
@@ -264,6 +296,18 @@ export default function OnboardingPage() {
         return false;
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-navy-950 p-6">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald" />
+          <p className="mt-4 text-sm text-white/60">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isComplete) {
     return (

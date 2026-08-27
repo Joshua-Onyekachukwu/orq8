@@ -31,9 +31,10 @@ export function registerOnboardingRoutes(app: FastifyInstance, deps: AppDeps): v
     const updateData: Parameters<typeof onboarding.update>[2] = { step };
 
     if (step === 'organization' && data) {
-      updateData.organization = data;
+      // Frontend sends { organization: {...}, constitution: {...}, agents: [...] }
+      updateData.organization = (data.organization as Record<string, unknown>) ?? { name: '', description: '', objective: '' };
     } else if (step === 'constitution' && data) {
-      updateData.constitution = data;
+      updateData.constitution = (data.constitution as Record<string, unknown>) ?? null;
     } else if (step === 'agents' && data) {
       updateData.agentSelections = (data.agents as Array<Record<string, unknown>>) ?? [];
       if (data.complete) {

@@ -4,6 +4,7 @@ import { onboardingStates } from '@orq8/db';
 
 export interface OnboardingData {
   step: string;
+  stepNumber: number; // 0-based step index for UI restoration
   organization?: Record<string, unknown>;
   constitution?: Record<string, unknown>;
   agentSelections?: Array<Record<string, unknown>>;
@@ -24,8 +25,10 @@ export async function getOrCreate(
 
   const row = existing[0];
   if (row) {
+    const stepMap: Record<string, number> = { organization: 0, constitution: 1, agents: 2, complete: 3 };
     return {
       step: row.step,
+      stepNumber: stepMap[row.step] ?? 0,
       organization: (row.organization as Record<string, unknown>) ?? undefined,
       constitution: (row.constitution as Record<string, unknown>) ?? undefined,
       agentSelections: (row.agentSelections as Array<Record<string, unknown>>) ?? undefined,
@@ -40,7 +43,7 @@ export async function getOrCreate(
     step: 'organization',
   });
 
-  return { step: 'organization' };
+  return { step: 'organization', stepNumber: 0 };
 }
 
 /** Update onboarding state for a user. */

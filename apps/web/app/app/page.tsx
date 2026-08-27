@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   Activity,
   ArrowUpRight,
@@ -153,7 +154,37 @@ function riskBadge(risk: string) {
   return "bg-emerald/15 text-emerald-700";
 }
 
+/** Check if onboarding is complete. Redirect if not. */
+async function checkOnboarding(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) return true; // Let auth middleware handle unauthenticated
+
+  try {
+    const res = await fetch(`${API_URL}/v1/onboarding`, {
+      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return true; // Can't check — let dashboard render
+    const json = await res.json();
+    const state = json.data;
+    // If onboarding exists and is NOT complete, redirect
+    if (state && !state.completedAt) {
+      return false;
+    }
+    return true;
+  } catch {
+    return true; // API unreachable — let dashboard render
+  }
+}
+
 export default async function AppPage() {
+  // Check onboarding before rendering dashboard
+  const onboardingComplete = await checkOnboarding();
+  if (!onboardingComplete) {
+    redirect("/onboarding");
+  }
+
   const [dashboard, agents, approvals] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
