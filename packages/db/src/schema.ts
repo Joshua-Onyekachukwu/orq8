@@ -468,6 +468,30 @@ export const onboardingStates = pgTable(
 export type OnboardingState = typeof onboardingStates.$inferSelect;
 export type NewOnboardingState = typeof onboardingStates.$inferInsert;
 
+// ---- ORQ8 Password Reset ----
+// Secure token-based password reset. Tokens are SHA-256 hashed before storage;
+// the plaintext is only ever sent via email and never persisted.
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(), // SHA-256 of the plaintext token
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('password_reset_tokens_user_idx').on(t.userId),
+    index('password_reset_tokens_hash_idx').on(t.tokenHash),
+  ],
+);
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
 // ---- ORQ8 Company Memory ----
 // Persistent organizational memory — facts, decisions, lessons, preferences.
 export const companyMemory = pgTable(

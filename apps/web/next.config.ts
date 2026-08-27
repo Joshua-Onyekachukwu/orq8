@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Transpile workspace packages if the web app starts importing them.
-  // Nothing shared yet — the public site is static for now.
   reactStrictMode: true,
+  // Transpile workspace packages used by the web app
+  transpilePackages: ["@orq8/core", "@orq8/auth", "@orq8/domain"],
 };
 
 export default nextConfig;

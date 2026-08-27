@@ -246,6 +246,12 @@ export function AuthForm({
             />
             Remember me
           </label>
+          <Link
+            href="/forgot-password"
+            className="font-medium text-emerald/70 transition-colors hover:text-emerald"
+          >
+            Forgot password?
+          </Link>
         </div>
       )}
 

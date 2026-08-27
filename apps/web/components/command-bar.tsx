@@ -1,27 +1,44 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X, Bot, ListTodo } from "lucide-react";
 
-interface PlanStep {
-  action: string;
+interface TaskStep {
+  title: string;
   description: string;
-  agents?: string[];
-  estimatedCost?: number;
+  suggestedAgentRole: string;
+  priority: string;
+}
+
+interface AgentResult {
+  agentName: string;
+  taskTitle: string;
+  status: "pending" | "completed" | "failed";
+  result?: string;
 }
 
 interface CommandResult {
+  commandId: string;
   command: string;
-  plan: PlanStep;
-  status: "ready_to_execute" | "awaiting_approval" | "error";
-  message: string;
-  approvalRequest?: {
-    id: string;
-    agent: string;
-    what: string;
-    cost: number;
-    reason: string;
+  plan: {
+    action: string;
+    description: string;
+    agents: string[];
+    estimatedCost: number;
+    requiresApproval: boolean;
+    riskLevel?: string;
+    taskDecomposition?: TaskStep[];
   };
+  approvalRequest: {
+    id: string;
+    action: string;
+    reason: string;
+    riskLevel: string;
+  } | null;
+  status: "completed" | "awaiting_approval" | "error";
+  message: string;
+  taskIds: string[];
+  agentResults?: AgentResult[];
 }
 
 const SAMPLE_COMMANDS = [
@@ -73,21 +90,23 @@ export function CommandBar() {
         body: JSON.stringify({ command: command.trim() }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to process command");
-      }
-
       const data = await response.json();
-      const newResult = data.data;
+      // The API returns { data: { ... } } — unwrap it
+      const newResult = data?.data ?? data;
       setResult(newResult);
-      setHistory((prev) => [newResult, ...prev].slice(0, 10));
+      if (newResult && newResult.status !== "error") {
+        setHistory((prev) => [newResult, ...prev].slice(0, 10));
+      }
       setCommand("");
     } catch {
       setResult({
+        commandId: "",
         command,
-        plan: { action: "error", description: "Failed to process command" },
+        plan: { action: "error", description: "Failed to process command", agents: [], estimatedCost: 0, requiresApproval: false },
+        approvalRequest: null,
         status: "error",
         message: "Something went wrong. Please try again.",
+        taskIds: [],
       });
     } finally {
       setIsProcessing(false);
@@ -184,30 +203,71 @@ export function CommandBar() {
             <div className="flex-1">
               <p className="text-sm font-medium text-ink">{result.message}</p>
 
-              {result.plan && (
+              {/* Agent Results */}
+              {result.agentResults && result.agentResults.length > 0 && (
                 <div className="mt-4 rounded-lg bg-canvas p-4">
-                  <p className="text-xs font-medium text-muted">Executive Agent Plan</p>
-                  <p className="mt-1 text-sm text-ink">{result.plan.description}</p>
-                  {result.plan.agents && result.plan.agents.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {result.plan.agents.map((agent) => (
-                        <span
-                          key={agent}
-                          className="rounded-full bg-emerald/10 px-2.5 py-1 text-xs font-medium text-emerald"
-                        >
-                          {agent}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {result.plan.estimatedCost !== undefined && result.plan.estimatedCost > 0 && (
-                    <p className="mt-2 text-xs text-muted">
-                      Estimated cost: <span className="font-medium text-ink">${result.plan.estimatedCost}</span>
-                    </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Bot className="h-4 w-4 text-muted" />
+                    <p className="text-xs font-medium text-muted uppercase tracking-wide">Agent Assignments</p>
+                  </div>
+                  <div className="space-y-2">
+                    {result.agentResults.map((ar, i) => (
+                      <div key={i} className="flex items-center justify-between rounded-md bg-white px-3 py-2 border border-hairline">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-ink">{ar.taskTitle}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                            {ar.agentName.replace(/_/g, " ")}
+                          </span>
+                          {ar.status === "pending" && <Clock className="h-3.5 w-3.5 text-amber-500" />}
+                          {ar.status === "completed" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald" />}
+                          {ar.status === "failed" && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Task Decomposition */}
+              {result.plan.taskDecomposition && result.plan.taskDecomposition.length > 1 && (
+                <div className="mt-3 rounded-lg bg-canvas p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ListTodo className="h-4 w-4 text-muted" />
+                    <p className="text-xs font-medium text-muted uppercase tracking-wide">Task Breakdown</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {result.plan.taskDecomposition.map((step, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald" />
+                        <span className="text-ink">{step.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Plan Summary */}
+              {result.plan && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-navy-900/5 px-2.5 py-1 text-xs font-medium text-navy-900">
+                    {result.plan.action}
+                  </span>
+                  {result.plan.agents?.map((agent) => (
+                    <span key={agent} className="rounded-full bg-emerald/10 px-2.5 py-1 text-xs font-medium text-emerald">
+                      {agent.replace(/_/g, " ")}
+                    </span>
+                  ))}
+                  {result.plan.estimatedCost > 0 && (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                      ~${result.plan.estimatedCost}
+                    </span>
                   )}
                 </div>
               )}
 
+              {/* Approval Request */}
               {result.approvalRequest && (
                 <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
                   <p className="text-xs font-medium text-amber-800">Approval Required</p>

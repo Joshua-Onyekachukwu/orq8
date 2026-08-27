@@ -3,8 +3,8 @@ import { z } from 'zod';
 // docs/42.5 — configuration via env vars, validated at boot; defaults target the free local stack.
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  // empty-string PORT (common in some shells/CI) falls back to the dev default
-  PORT: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().positive().default(3001)),
+  // empty-string or zero PORT (common in some shells/CI/hosting) falls back to the dev default
+  PORT: z.preprocess((v) => (v === '' || v === '0' ? undefined : v), z.coerce.number().int().positive().default(3001)),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   DATABASE_URL: z
@@ -20,6 +20,7 @@ const envSchema = z.object({
 
   // Model gateway + local models (docs/22, 51.3)
   LITELLM_BASE_URL: z.string().url().optional(),
+  LITELLM_MASTER_KEY: z.string().optional(),
   OLLAMA_BASE_URL: z.string().url().optional(),
 
   // Observability (docs/39)

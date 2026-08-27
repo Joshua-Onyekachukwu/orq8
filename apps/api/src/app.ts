@@ -20,6 +20,7 @@ import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProviderRoutes } from './routes/providers.js';
+import { registerCommandRoutes } from './routes/commands.js';
 import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
@@ -117,6 +118,7 @@ export async function buildApp(
   registerActivityRoutes(app, deps);
   registerProviderRoutes(app, deps);
   registerGoalRoutes(app, deps);
+  registerCommandRoutes(app, deps);
   registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
   return app;
