@@ -2,6 +2,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { agents, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chatCompletion, chatJson, type ChatMessage } from './llm.js';
 import { appendAudit } from './audit.js';
+import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -48,6 +49,8 @@ export interface ExecutionResult {
     status: 'pending' | 'completed' | 'failed';
     result?: string;
   }>;
+  creditsConsumed?: number;
+  creditsRemaining?: number;
 }
 
 // ─── System Prompts ─────────────────────────────────────────────────────────
@@ -392,13 +395,62 @@ export async function executeCommand(
   // 2. Analyze intent via LLM
   const intent = await analyzeIntent(config, ctx, command);
 
-  // 3. Create tasks
+  // 3. Check credits before creating tasks
+  const operationType = `task.${intent.category}`;
+  const creditCheck = await hasEnoughCredits(db, orgId, operationType);
+
+  if (!creditCheck.allowed) {
+    return {
+      commandId,
+      intent,
+      taskIds: [],
+      status: 'error' as const,
+      message: `Work Credits exhausted. You have ${creditCheck.balance.remaining} credits remaining but this operation requires ${creditCheck.required}. Upgrade your plan or purchase additional credits.`,
+      agentResults: [],
+      creditsConsumed: 0,
+      creditsRemaining: creditCheck.balance.remaining,
+    };
+  }
+
+  // 4. Create tasks
   const taskIds = await createTasksFromIntent(db, orgId, intent);
 
-  // 4. Create approval if needed
+  // 5. Create approval if needed
   const approvalId = await createApprovalIfNeeded(db, orgId, intent);
 
-  // 5. Audit the command
+  // 6. Consume credits for task execution
+  let creditsConsumed = 0;
+  let creditsRemaining = creditCheck.balance.remaining;
+  try {
+    const result = await consumeCredits(
+      db,
+      orgId,
+      operationType,
+      `Command: ${command.slice(0, 100)}`,
+      taskIds[0],
+      'task',
+    );
+    creditsConsumed = result.consumed;
+    creditsRemaining = result.balance.remaining;
+  } catch (error) {
+    if (error instanceof CreditExhaustedError) {
+      // Credits exhausted — still record the command but warn the CEO
+      return {
+        commandId,
+        intent,
+        taskIds,
+        approvalId,
+        status: 'error',
+        message: `Work Credits exhausted. ${error.message}`,
+        agentResults: [],
+        creditsConsumed: 0,
+        creditsRemaining: error.remaining,
+      };
+    }
+    throw error;
+  }
+
+  // 7. Audit the command
   await appendAudit(db, {
     orgId,
     actorType: 'user',
@@ -408,27 +460,27 @@ export async function executeCommand(
     inputRef: command.slice(0, 500),
     resultRef: JSON.stringify({ intent: intent.category, taskCount: taskIds.length }),
     approvalId: approvalId ?? null,
-    cost: intent.estimatedCost,
+    cost: creditsConsumed,
     outcome: 'success',
   });
 
-  // 6. Build agent results summary
+  // 8. Build agent results summary
   const agentResults = intent.taskDecomposition.map((task, i) => ({
     agentName: task.suggestedAgentRole,
     taskTitle: task.title,
     status: (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
   }));
 
-  // 7. Determine status
+  // 9. Determine status
   const status: ExecutionResult['status'] = intent.requiresApproval
     ? 'awaiting_approval'
     : 'completed';
 
-  // 8. Store the command result as company memory
+  // 10. Store the command result as company memory
   await db.insert(companyMemory).values({
     orgId,
     category: 'context',
-    content: `CEO command: "${command}" — Intent: ${intent.intent}, Category: ${intent.category}, Tasks created: ${taskIds.length}`,
+    content: `CEO command: "${command}" — Intent: ${intent.intent}, Category: ${intent.category}, Tasks created: ${taskIds.length}, Credits: ${creditsConsumed}`,
     source: 'executive_agent',
     agentId: null,
     taskId: taskIds[0] ?? null,
@@ -443,6 +495,8 @@ export async function executeCommand(
     status,
     message: intent.response,
     agentResults,
+    creditsConsumed,
+    creditsRemaining,
   };
 }
 

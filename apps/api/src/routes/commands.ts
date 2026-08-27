@@ -71,6 +71,10 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           message: result.message,
           taskIds: result.taskIds,
           agentResults: result.agentResults,
+          credits: {
+            consumed: result.creditsConsumed ?? 0,
+            remaining: result.creditsRemaining ?? 0,
+          },
         },
       };
     } catch (error) {
