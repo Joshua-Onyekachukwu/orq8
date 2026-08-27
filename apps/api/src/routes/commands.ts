@@ -3,6 +3,7 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as executiveAgent from '../services/executive-agent.js';
+import { getTaskStatus, executeTask } from '../services/task-executor.js';
 import type { AppDeps } from '../types.js';
 
 const commandBody = z.object({
@@ -101,6 +102,33 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           agentResults: [],
         },
       };
+    }
+  });
+
+  /**
+   * GET /v1/commands/tasks/:taskId — Get task execution status.
+   */
+  app.get<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const task = await getTaskStatus(db, ctx.orgId, request.params.taskId);
+    if (!task) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Task not found' } };
+    }
+    return { data: task };
+  });
+
+  /**
+   * POST /v1/commands/tasks/:taskId/execute — Manually trigger task execution.
+   */
+  app.post<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId/execute', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    try {
+      const result = await executeTask(config, db, ctx.orgId, request.params.taskId);
+      return { data: result };
+    } catch (error) {
+      reply.code(500);
+      return { error: { code: 'execution.failed', message: 'Task execution failed' } };
     }
   });
 

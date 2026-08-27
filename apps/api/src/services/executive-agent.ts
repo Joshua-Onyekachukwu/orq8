@@ -3,6 +3,7 @@ import { agents, goals, tasks, approvals, activityEvents, companyMemory, type Db
 import { chatCompletion, chatJson, type ChatMessage } from './llm.js';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
+import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -418,11 +419,30 @@ export async function executeCommand(
   // 5. Create approval if needed
   const approvalId = await createApprovalIfNeeded(db, orgId, intent);
 
-  // 6. Consume credits for task execution
+  // 6. Execute tasks immediately if no approval needed
+  const taskExecutionResults: TaskExecutionResult[] = [];
+  if (!intent.requiresApproval && taskIds.length > 0) {
+    for (const taskId of taskIds) {
+      try {
+        const result = await executeTask(config, db, orgId, taskId);
+        taskExecutionResults.push(result);
+      } catch {
+        taskExecutionResults.push({
+          taskId,
+          status: 'failed',
+          result: 'Execution failed',
+          cost: 0,
+          tokensUsed: 0,
+        });
+      }
+    }
+  }
+
+  // 7. Consume credits for task execution
   let creditsConsumed = 0;
   let creditsRemaining = creditCheck.balance.remaining;
   try {
-    const result = await consumeCredits(
+    const creditResult = await consumeCredits(
       db,
       orgId,
       operationType,
@@ -430,11 +450,10 @@ export async function executeCommand(
       taskIds[0],
       'task',
     );
-    creditsConsumed = result.consumed;
-    creditsRemaining = result.balance.remaining;
+    creditsConsumed = creditResult.consumed;
+    creditsRemaining = creditResult.balance.remaining;
   } catch (error) {
     if (error instanceof CreditExhaustedError) {
-      // Credits exhausted — still record the command but warn the CEO
       return {
         commandId,
         intent,
@@ -450,7 +469,7 @@ export async function executeCommand(
     throw error;
   }
 
-  // 7. Audit the command
+  // 8. Audit the command
   await appendAudit(db, {
     orgId,
     actorType: 'user',
@@ -464,23 +483,45 @@ export async function executeCommand(
     outcome: 'success',
   });
 
-  // 8. Build agent results summary
-  const agentResults = intent.taskDecomposition.map((task, i) => ({
-    agentName: task.suggestedAgentRole,
-    taskTitle: task.title,
-    status: (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
-  }));
+  // 9. Build agent results from actual execution
+  const agentResults = intent.taskDecomposition.map((task, i) => {
+    const executionResult = taskExecutionResults.find(r => r.taskId === taskIds[i]);
+    return {
+      agentName: task.suggestedAgentRole,
+      taskTitle: task.title,
+      status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
+      result: executionResult?.result,
+    };
+  });
 
-  // 9. Determine status
-  const status: ExecutionResult['status'] = intent.requiresApproval
-    ? 'awaiting_approval'
-    : 'completed';
+  // 10. Determine status
+  const allCompleted = taskExecutionResults.every(r => r.status === 'completed');
+  const anyFailed = taskExecutionResults.some(r => r.status === 'failed');
 
-  // 10. Store the command result as company memory
+  let status: ExecutionResult['status'];
+  if (intent.requiresApproval) {
+    status = 'awaiting_approval';
+  } else if (anyFailed) {
+    status = 'error';
+  } else if (allCompleted || taskExecutionResults.length === 0) {
+    status = 'completed';
+  } else {
+    status = 'completed';
+  }
+
+  // 11. Build response message
+  let message = intent.response;
+  if (taskExecutionResults.length > 0) {
+    const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
+    const totalCost = taskExecutionResults.reduce((sum, r) => sum + r.cost, 0);
+    message += `\n\n**Execution:** ${completedCount}/${taskExecutionResults.length} tasks completed. ${totalCost > 0 ? `${totalCost} credits consumed.` : ''}`;
+  }
+
+  // 12. Store the command result as company memory
   await db.insert(companyMemory).values({
     orgId,
     category: 'context',
-    content: `CEO command: "${command}" — Intent: ${intent.intent}, Category: ${intent.category}, Tasks created: ${taskIds.length}, Credits: ${creditsConsumed}`,
+    content: `CEO command: "${command}" — Intent: ${intent.intent}, Category: ${intent.category}, Tasks: ${taskIds.length}, Executed: ${taskExecutionResults.length}, Credits: ${creditsConsumed}`,
     source: 'executive_agent',
     agentId: null,
     taskId: taskIds[0] ?? null,
@@ -493,7 +534,7 @@ export async function executeCommand(
     taskIds,
     approvalId,
     status,
-    message: intent.response,
+    message,
     agentResults,
     creditsConsumed,
     creditsRemaining,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X, Bot, ListTodo } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X, Bot, ListTodo, RefreshCw } from "lucide-react";
 
 interface TaskStep {
   title: string;
@@ -13,7 +13,7 @@ interface TaskStep {
 interface AgentResult {
   agentName: string;
   taskTitle: string;
-  status: "pending" | "completed" | "failed";
+  status: "pending" | "in_progress" | "completed" | "failed";
   result?: string;
 }
 
@@ -39,6 +39,10 @@ interface CommandResult {
   message: string;
   taskIds: string[];
   agentResults?: AgentResult[];
+  credits?: {
+    consumed: number;
+    remaining: number;
+  };
 }
 
 const SAMPLE_COMMANDS = [
@@ -56,7 +60,9 @@ export function CommandBar() {
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
+  const [pollingTasks, setPollingTasks] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Focus input on mount
   useEffect(() => {
@@ -75,6 +81,82 @@ export function CommandBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Poll for task status updates
+  const pollTaskStatus = useCallback(async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/commands/tasks/${taskId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.data ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Update agent results with polled status
+  const updateAgentResults = useCallback((taskStatuses: Map<string, { status: string; result?: string }>) => {
+    setResult((prev) => {
+      if (!prev?.agentResults) return prev;
+      const updated = prev.agentResults.map((ar, i) => {
+        const taskId = prev.taskIds[i];
+        if (!taskId) return ar;
+        const status = taskStatuses.get(taskId);
+        if (status) {
+          return {
+            ...ar,
+            status: status.status as AgentResult["status"],
+            result: status.result ?? ar.result,
+          };
+        }
+        return ar;
+      });
+      return { ...prev, agentResults: updated };
+    });
+  }, []);
+
+  // Start polling for pending tasks
+  useEffect(() => {
+    if (pollingTasks.size === 0) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      return;
+    }
+
+    pollIntervalRef.current = setInterval(async () => {
+      const statuses = new Map<string, { status: string; result?: string }>();
+      for (const taskId of pollingTasks) {
+        const status = await pollTaskStatus(taskId);
+        if (status) {
+          statuses.set(taskId, { status: status.status, result: status.result });
+        }
+      }
+
+      if (statuses.size > 0) {
+        updateAgentResults(statuses);
+
+        // Remove completed/failed tasks from polling
+        setPollingTasks((prev) => {
+          const next = new Set(prev);
+          for (const [taskId, status] of statuses) {
+            if (status.status === "completed" || status.status === "failed") {
+              next.delete(taskId);
+            }
+          }
+          return next;
+        });
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [pollingTasks, pollTaskStatus, updateAgentResults]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!command.trim() || isProcessing) return;
@@ -91,12 +173,23 @@ export function CommandBar() {
       });
 
       const data = await response.json();
-      // The API returns { data: { ... } } — unwrap it
       const newResult = data?.data ?? data;
       setResult(newResult);
       if (newResult && newResult.status !== "error") {
         setHistory((prev) => [newResult, ...prev].slice(0, 10));
       }
+
+      // Start polling for any pending tasks
+      if (newResult?.taskIds && newResult?.agentResults) {
+        const pendingTaskIds = newResult.taskIds.filter((id: string, i: number) => {
+          const agentResult = newResult.agentResults[i];
+          return agentResult?.status === "pending" || agentResult?.status === "in_progress";
+        });
+        if (pendingTaskIds.length > 0) {
+          setPollingTasks(new Set(pendingTaskIds));
+        }
+      }
+
       setCommand("");
     } catch {
       setResult({
@@ -129,8 +222,31 @@ export function CommandBar() {
       });
       if (!res.ok) throw new Error("Failed to submit decision");
       setApprovalStatus("submitted");
+
+      // After approval, start polling for tasks
+      if (result.taskIds) {
+        setPollingTasks(new Set(result.taskIds));
+      }
     } catch {
       setApprovalStatus("error");
+    }
+  };
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case "completed": return <CheckCircle2 className="h-3.5 w-3.5 text-emerald" />;
+      case "failed": return <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
+      case "in_progress": return <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />;
+      default: return <Clock className="h-3.5 w-3.5 text-amber-500" />;
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "completed": return "Completed";
+      case "failed": return "Failed";
+      case "in_progress": return "Running";
+      default: return "Pending";
     }
   };
 
@@ -201,29 +317,61 @@ export function CommandBar() {
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald" />
             )}
             <div className="flex-1">
-              <p className="text-sm font-medium text-ink">{result.message}</p>
+              <p className="text-sm font-medium text-ink whitespace-pre-wrap">{result.message}</p>
 
-              {/* Agent Results */}
+              {/* Credits consumed */}
+              {result.credits && result.credits.consumed > 0 && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted">
+                  <span className="rounded-full bg-emerald/10 px-2 py-0.5 text-emerald font-medium">
+                    {result.credits.consumed} credits used
+                  </span>
+                  <span>{result.credits.remaining} remaining</span>
+                </div>
+              )}
+
+              {/* Agent Results — Real Execution Status */}
               {result.agentResults && result.agentResults.length > 0 && (
                 <div className="mt-4 rounded-lg bg-canvas p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Bot className="h-4 w-4 text-muted" />
-                    <p className="text-xs font-medium text-muted uppercase tracking-wide">Agent Assignments</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-muted" />
+                      <p className="text-xs font-medium text-muted uppercase tracking-wide">Execution</p>
+                    </div>
+                    {pollingTasks.size > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-blue-500">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Running...
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     {result.agentResults.map((ar, i) => (
-                      <div key={i} className="flex items-center justify-between rounded-md bg-white px-3 py-2 border border-hairline">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-ink">{ar.taskTitle}</span>
+                      <div key={i} className="rounded-md bg-white px-3 py-2.5 border border-hairline">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {statusIcon(ar.status)}
+                            <span className="text-sm font-medium text-ink">{ar.taskTitle}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                              {ar.agentName.replace(/_/g, " ")}
+                            </span>
+                            <span className={`text-[10px] font-medium ${
+                              ar.status === "completed" ? "text-emerald" :
+                              ar.status === "failed" ? "text-red-500" :
+                              ar.status === "in_progress" ? "text-blue-500" :
+                              "text-amber-500"
+                            }`}>
+                              {statusLabel(ar.status)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
-                            {ar.agentName.replace(/_/g, " ")}
-                          </span>
-                          {ar.status === "pending" && <Clock className="h-3.5 w-3.5 text-amber-500" />}
-                          {ar.status === "completed" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald" />}
-                          {ar.status === "failed" && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
-                        </div>
+                        {/* Show result preview when completed */}
+                        {ar.status === "completed" && ar.result && (
+                          <div className="mt-2 rounded bg-canvas p-2 text-xs text-muted max-h-20 overflow-hidden">
+                            {ar.result.slice(0, 200)}{ar.result.length > 200 ? "..." : ""}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -259,11 +407,6 @@ export function CommandBar() {
                       {agent.replace(/_/g, " ")}
                     </span>
                   ))}
-                  {result.plan.estimatedCost > 0 && (
-                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                      ~${result.plan.estimatedCost}
-                    </span>
-                  )}
                 </div>
               )}
 
@@ -274,7 +417,7 @@ export function CommandBar() {
                   <p className="mt-1 text-sm text-amber-700">{result.approvalRequest.reason}</p>
                   {approvalStatus === "submitted" ? (
                     <p className="mt-3 text-sm font-medium text-emerald-700">
-                      ✓ Decision recorded. The approval queue has been updated.
+                      ✓ Decision recorded. Tasks will execute now.
                     </p>
                   ) : approvalStatus === "error" ? (
                     <p className="mt-3 text-sm text-red-600">
@@ -330,7 +473,7 @@ export function CommandBar() {
                 className="w-full rounded-lg border border-hairline bg-white p-3 text-left transition-colors hover:bg-canvas"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-ink">{item.command}</span>
+                  <span className="text-sm text-ink truncate max-w-[80%]">{item.command}</span>
                   <span
                     className={`text-xs ${
                       item.status === "awaiting_approval"
