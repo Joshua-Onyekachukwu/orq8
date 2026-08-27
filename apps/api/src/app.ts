@@ -28,6 +28,7 @@ import { registerCreditRoutes } from './routes/credits.js';
 import { registerBillingRoutes } from './routes/billing.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerFileRoutes } from './routes/files.js';
+import { registerAdminRoutes } from './routes/admin.js';
 import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
@@ -144,6 +145,7 @@ export async function buildApp(
   registerBillingRoutes(app, deps);
   registerMemoryRoutes(app, deps);
   registerFileRoutes(app, deps);
+  registerAdminRoutes(app, deps);
   registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
