@@ -48,6 +48,14 @@ const envSchema = z.object({
   STRIPE_PRICE_COMPANY_ANNUAL: z.string().optional(),
   APP_URL: z.string().url().optional(),
 
+  // S3/R2 — file storage (Cloudflare R2, AWS S3, or local fallback)
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  LOCAL_STORAGE_DIR: z.string().optional(),
+
   // Internal endpoints (e.g. POST /v1/internal/waitlist/process-due) — required
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),

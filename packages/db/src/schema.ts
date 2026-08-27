@@ -518,3 +518,33 @@ export const companyMemory = pgTable(
 
 export type CompanyMemoryEntry = typeof companyMemory.$inferSelect;
 export type NewCompanyMemoryEntry = typeof companyMemory.$inferInsert;
+
+// ─── File Storage ──────────────────────────────────────────────────────────
+
+export const files = pgTable(
+  'files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    name: text('name').notNull(), // original filename
+    key: text('key').notNull(), // storage key (S3 path or local path)
+    mimeType: text('mime_type').notNull(),
+    size: integer('size').notNull(), // bytes
+    bucket: text('bucket').notNull().default('orq8-files'),
+    uploadedBy: uuid('uploaded_by').references(() => users.id),
+    agentId: uuid('agent_id').references(() => agents.id),
+    taskId: uuid('task_id').references(() => tasks.id),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('files_org_idx').on(t.orgId),
+    index('files_key_idx').on(t.key),
+  ],
+);
+
+export type FileRecord = typeof files.$inferSelect;
+export type NewFileRecord = typeof files.$inferInsert;
