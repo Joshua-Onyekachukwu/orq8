@@ -25,6 +25,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { NotificationsBell } from "./notifications-bell";
 
 /**
  * The full ORQ8 feature surface, navigable from day one. Features land in
@@ -197,14 +198,17 @@ export function AppSidebar({
       {/* Mobile top bar */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hairline bg-white px-4 lg:hidden">
         {Wordmark}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Open menu"
-          className="rounded-lg border border-hairline p-2 text-ink transition-colors hover:bg-canvas"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <NotificationsBell />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+            className="rounded-lg border border-hairline p-2 text-ink transition-colors hover:bg-canvas"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}

@@ -32,6 +32,7 @@ import { registerAdminRoutes } from './routes/admin.js';
 import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
+import { registerNotificationRoutes } from './routes/notifications.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
 import type { AppDeps } from './types.js';
 
@@ -154,6 +155,7 @@ export async function buildApp(
   registerAdminRoutes(app, deps);
   registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
+  registerNotificationRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
   return app;
 }

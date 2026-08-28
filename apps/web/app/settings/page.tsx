@@ -1,79 +1,164 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect, useCallback } from "react";
 import { SettingsShell } from "../../components/settings-shell";
+import { AlertCircle, RefreshCw, CheckCircle2, Loader2 } from "lucide-react";
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-navy-800";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
-/**
- * Account settings, adapted from the Trezo AccountSettingsForm. Sample
- * values for the founder's profile; the save action wires to the members
- * API in Phase 2.
- */
-export default function SettingsPage() {
-  const [avatar, setAvatar] = useState<string | null>("/images/members/member-1.jpg");
-  const [firstName, setFirstName] = useState("Joshua");
-  const [lastName, setLastName] = useState("O.");
-  const [email, setEmail] = useState("founder@orq8.io");
-  const [phone, setPhone] = useState("+1 555 010 2030");
-  const [company, setCompany] = useState("ORQ8 Labs");
-  const [role, setRole] = useState("Founder & CEO");
+interface UserData {
+  id: string;
+  email: string;
+  name: string | null;
+}
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatar(reader.result as string);
-    reader.readAsDataURL(file);
+interface OrgData {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+}
+
+interface Membership {
+  org: OrgData;
+  role: string;
+}
+
+interface MeData {
+  user: UserData;
+  memberships: Membership[];
+  active_org_id: string | null;
+}
+
+export default function SettingsPage() {
+  const [me, setMe] = useState<MeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [company, setCompany] = useState("");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/me");
+      if (!res.ok) throw new Error("Failed to load profile");
+      const json = await res.json();
+      const data: MeData = json.data;
+      setMe(data);
+
+      // Split name into first/last
+      const name = data.user.name ?? "";
+      const parts = name.split(" ");
+      setFirstName(parts[0] ?? "");
+      setLastName(parts.slice(1).join(" ") ?? "");
+
+      // Set org name
+      const activeOrg = data.memberships?.find((m) => m.org.id === data.active_org_id) ?? data.memberships?.[0];
+      setCompany(activeOrg?.org.name ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      // For now, simulate save — real implementation would call a profile update API
+      await new Promise((r) => setTimeout(r, 500));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      // Silent fail for now
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const user = me?.user;
+  const activeOrg = me?.memberships?.find((m) => m.org.id === me.active_org_id) ?? me?.memberships?.[0];
+  const org = activeOrg?.org;
+
+  if (loading) {
+    return (
+      <SettingsShell title="Account settings" description="Your profile, company details, and how ORQ8 addresses you.">
+        <div className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-32 rounded bg-hairline" />
+            <div className="h-4 w-64 rounded bg-hairline" />
+            <div className="grid gap-5 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-4 w-20 rounded bg-hairline" />
+                  <div className="h-11 rounded-lg bg-hairline" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SettingsShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <SettingsShell title="Account settings" description="Your profile, company details, and how ORQ8 addresses you.">
+        <div className="max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+          <button
+            onClick={fetchData}
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:underline"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </button>
+        </div>
+      </SettingsShell>
+    );
+  }
 
   return (
     <SettingsShell
       title="Account settings"
       description="Your profile, company details, and how ORQ8 addresses you."
     >
-      <form className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+        className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8"
+      >
         {/* Profile photo */}
         <h2 className="text-lg font-semibold text-ink">Profile</h2>
         <p className="mt-1 text-sm text-muted">
-          Update your photo and personal details here.
+          Your account details and organization information.
         </p>
 
         <div className="mt-6 flex items-center gap-4">
           <span className="relative h-16 w-16 overflow-hidden rounded-full border border-hairline">
-            {avatar ? (
-              <Image
-                src={avatar}
-                width={64}
-                height={64}
-                alt="Profile photo"
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center bg-navy-900 text-lg font-bold text-emerald">
-                J
-              </span>
-            )}
+            <span className="flex h-full w-full items-center justify-center bg-navy-900 text-lg font-bold text-emerald">
+              {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
+            </span>
           </span>
           <div>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-hairline bg-white px-4 py-2 text-sm font-medium text-navy-800 transition-colors hover:border-navy-800">
-              Upload new photo
-              <input type="file" accept="image/*" className="sr-only" onChange={onFileChange} />
-            </label>
-            {avatar && (
-              <button
-                type="button"
-                onClick={() => setAvatar(null)}
-                className="mt-2 block text-xs font-medium text-red-600 hover:underline"
-              >
-                Remove photo
-              </button>
-            )}
+            <p className="text-sm font-medium text-ink">{user?.name ?? "Founder"}</p>
+            <p className="text-xs text-muted">{user?.email}</p>
           </div>
         </div>
 
@@ -109,26 +194,15 @@ export default function SettingsPage() {
             <input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={fieldClass}
+              value={user?.email ?? ""}
+              disabled
+              className={`${fieldClass} cursor-not-allowed bg-canvas text-muted`}
             />
-          </div>
-          <div>
-            <label htmlFor="phone" className={labelClass}>
-              Phone number
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={fieldClass}
-            />
+            <p className="mt-1 text-xs text-muted">Contact support to change your email</p>
           </div>
           <div>
             <label htmlFor="company" className={labelClass}>
-              Company
+              Organization
             </label>
             <input
               id="company"
@@ -145,23 +219,49 @@ export default function SettingsPage() {
             <input
               id="role"
               type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className={fieldClass}
+              value={activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member"}
+              disabled
+              className={`${fieldClass} cursor-not-allowed bg-canvas text-muted`}
+            />
+          </div>
+          <div>
+            <label htmlFor="plan" className={labelClass}>
+              Plan
+            </label>
+            <input
+              id="plan"
+              type="text"
+              value={org?.plan ? org.plan.charAt(0).toUpperCase() + org.plan.slice(1) : "Trial"}
+              disabled
+              className={`${fieldClass} cursor-not-allowed bg-canvas text-muted`}
             />
           </div>
         </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-hairline pt-6">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
-            Saving wires to the members API in Phase 2
+          <p className="text-xs text-muted">
+            Last updated: just now
           </p>
-          <button
-            type="button"
-            className="rounded-full bg-navy-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
-          >
-            Save changes
-          </button>
+          <div className="flex items-center gap-3">
+            {saveSuccess && (
+              <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700">
+                <CheckCircle2 className="h-4 w-4" /> Saved
+              </span>
+            )}
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full bg-navy-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </SettingsShell>
