@@ -72,9 +72,15 @@ export async function buildApp(
   if (redis.isConnected()) {
     rateLimitLoginRedis(app, redis);
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/register', max: 3, label: 'registration' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
   } else {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
+    rateLimitRoute(app, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
+    rateLimitRoute(app, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
+    rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
   }
 
   // Security headers on every response

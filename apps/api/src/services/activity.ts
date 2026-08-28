@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { activityEvents, type ActivityEvent, type NewActivityEvent, type Db } from '@orq8/db';
 
 /** Find activity events for an org, optionally filtered by agent. */
@@ -34,9 +34,10 @@ export async function countThisWeek(
   db: Db,
   orgId: string,
 ): Promise<number> {
-  const rows = await db
-    .select({ id: activityEvents.id })
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [result] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(activityEvents)
-    .where(eq(activityEvents.orgId, orgId));
-  return rows.length;
+    .where(and(eq(activityEvents.orgId, orgId), gte(activityEvents.occurredAt, weekAgo)));
+  return result?.count ?? 0;
 }

@@ -55,6 +55,19 @@ export function registerRealtimeEndpoint(app: FastifyInstance, deps: AppDeps): v
     const { requireAuth } = await import('../plugins/auth.js');
     const ctx = await requireAuth(request, deps);
 
+    // Limit per-user concurrent SSE connections to prevent memory exhaustion
+    const MAX_CONNECTIONS_PER_USER = 3;
+    let userCount = 0;
+    for (const clients of connections.values()) {
+      for (const c of clients) {
+        if (c.userId === ctx.userId) userCount++;
+      }
+    }
+    if (userCount >= MAX_CONNECTIONS_PER_USER) {
+      reply.code(429).send({ error: { code: 'too_many_connections', message: 'Maximum concurrent connections reached' } });
+      return reply;
+    }
+
     // Set SSE headers
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',

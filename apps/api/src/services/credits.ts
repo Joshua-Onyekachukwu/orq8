@@ -1,4 +1,4 @@
-import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import {
   creditBalances,
   creditTransactions,
@@ -309,8 +309,11 @@ export async function consumeCredits(
     throw new CreditExhaustedError(orgId, balance.remaining, cost, operationType);
   }
 
-  // Atomically update the balance
-  await db
+  // Atomically update the balance with a guard against overspend.
+  // The WHERE clause ensures usedCredits + cost <= total, preventing race conditions
+  // where two concurrent requests both see enough credits and both consume.
+  const total = balance.included + balance.purchased;
+  const result = await db
     .update(creditBalances)
     .set({
       usedCredits: balance.used + cost,
@@ -320,8 +323,16 @@ export async function consumeCredits(
       and(
         eq(creditBalances.orgId, orgId),
         gte(creditBalances.periodStart, balance.periodStart),
+        // Atomic guard: only update if we won't overspend
+        sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
       ),
-    );
+    )
+    .returning();
+
+  if (result.length === 0) {
+    // The guard failed — another request consumed the credits first
+    throw new CreditExhaustedError(orgId, 0, cost, operationType);
+  }
 
   // Record the transaction
   await db.insert(creditTransactions).values({

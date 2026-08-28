@@ -1,4 +1,4 @@
-import { eq, and, desc, gte } from 'drizzle-orm';
+import { eq, and, desc, gte, isNull, sql } from 'drizzle-orm';
 import { creditAlerts, organizations, type Db } from '@orq8/db';
 import type { CreditBalanceInfo } from './credits.js';
 
@@ -286,7 +286,7 @@ export async function getAlerts(
 ): Promise<CreditAlertRecord[]> {
   const conditions = [eq(creditAlerts.orgId, orgId)];
   if (unreadOnly) {
-    conditions.push(/* readAt is null */ eq(creditAlerts.readAt, new Date(0)));
+    conditions.push(isNull(creditAlerts.readAt));
   }
 
   const list = await db
@@ -306,17 +306,17 @@ export async function getUnreadCount(
   db: Db,
   orgId: string,
 ): Promise<number> {
-  const list = await db
-    .select({ id: creditAlerts.id })
+  const [result] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(creditAlerts)
     .where(
       and(
         eq(creditAlerts.orgId, orgId),
-        eq(creditAlerts.readAt, new Date(0)),
+        isNull(creditAlerts.readAt),
       ),
     );
 
-  return list.length;
+  return result?.count ?? 0;
 }
 
 /**
@@ -354,7 +354,7 @@ export async function markAllAsRead(
     .where(
       and(
         eq(creditAlerts.orgId, orgId),
-        eq(creditAlerts.readAt, new Date(0)),
+        isNull(creditAlerts.readAt),
       ),
     )
     .returning();
