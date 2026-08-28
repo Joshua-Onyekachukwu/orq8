@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SettingsShell } from "../../components/settings-shell";
-import { AlertCircle, RefreshCw, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell } from "lucide-react";
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-navy-800";
@@ -33,6 +33,16 @@ interface MeData {
   active_org_id: string | null;
 }
 
+interface NotificationPrefs {
+  emailOnApproval: boolean;
+  emailOnTaskComplete: boolean;
+  emailOnAgentError: boolean;
+  emailOnLowCredits: boolean;
+  emailOnWeeklyReport: boolean;
+  browserNotifications: boolean;
+  soundEnabled: boolean;
+}
+
 export default function SettingsPage() {
   const [me, setMe] = useState<MeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +52,17 @@ export default function SettingsPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
+    emailOnApproval: true,
+    emailOnTaskComplete: true,
+    emailOnAgentError: true,
+    emailOnLowCredits: true,
+    emailOnWeeklyReport: true,
+    browserNotifications: true,
+    soundEnabled: true,
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifSaved, setNotifSaved] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -62,6 +83,17 @@ export default function SettingsPage() {
       // Set org name
       const activeOrg = data.memberships?.find((m) => m.org.id === data.active_org_id) ?? data.memberships?.[0];
       setCompany(activeOrg?.org.name ?? "");
+
+      // Load notification preferences
+      try {
+        const settingsRes = await fetch("/api/settings");
+        if (settingsRes.ok) {
+          const settingsJson = await settingsRes.json();
+          if (settingsJson.data?.notifications) {
+            setNotifPrefs(settingsJson.data.notifications);
+          }
+        }
+      } catch { /* Notification prefs are optional */ }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile");
     } finally {
@@ -264,6 +296,70 @@ export default function SettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* Notification Preferences */}
+      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted" />
+          <h2 className="text-lg font-semibold text-ink">Notification Preferences</h2>
+        </div>
+        <p className="mt-1 text-sm text-muted">
+          Control how ORQ8 notifies you about agent activity and important events.
+        </p>
+
+        <div className="mt-6 space-y-4">
+          {([
+            ["emailOnApproval", "Approval requests", "Email when an AI employee needs your decision"],
+            ["emailOnTaskComplete", "Task completions", "Email when an AI employee finishes a task"],
+            ["emailOnAgentError", "Agent errors", "Email when an AI employee encounters a problem"],
+            ["emailOnLowCredits", "Low credits", "Email when your Work Credits run low"],
+            ["emailOnWeeklyReport", "Weekly report", "Email with your executive summary each week"],
+            ["browserNotifications", "Browser notifications", "Push notifications in your browser"],
+            ["soundEnabled", "Sound alerts", "Play a sound for urgent notifications"],
+          ] as const).map(([key, title, desc]) => (
+            <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-hairline p-4">
+              <div>
+                <p className="text-sm font-medium text-ink">{title}</p>
+                <p className="text-xs text-muted">{desc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }))}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-emerald" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={notifPrefs[key]}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${notifPrefs[key] ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            type="button"
+            onClick={async () => {
+              setNotifSaving(true);
+              setNotifSaved(false);
+              try {
+                await fetch("/api/settings", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ notifications: notifPrefs }),
+                });
+                setNotifSaved(true);
+                setTimeout(() => setNotifSaved(false), 2000);
+              } catch { /* silent */ }
+              setNotifSaving(false);
+            }}
+            disabled={notifSaving}
+            className="inline-flex items-center gap-2 rounded-full bg-navy-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-navy-800 disabled:opacity-50"
+          >
+            {notifSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : notifSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {notifSaved ? "Saved" : "Save preferences"}
+          </button>
+        </div>
+      </div>
     </SettingsShell>
   );
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "../../components/app-sidebar";
+import { AppErrorBoundary } from "../../components/app-error-boundary";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -105,7 +106,7 @@ export default async function AppLayout({
 
       <div className="lg:pl-64">
         <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-          {children}
+          <AppErrorBoundary>{children}</AppErrorBoundary>
         </main>
       </div>
     </div>

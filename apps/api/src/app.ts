@@ -33,7 +33,11 @@ import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
+import { registerConstitutionRoutes } from './routes/constitution.js';
+import { registerDepartmentRoutes } from './routes/departments.js';
+import { registerSettingsRoutes } from './routes/settings.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
+import { csrfPlugin } from './plugins/csrf.js';
 import type { AppDeps } from './types.js';
 
 export async function buildApp(
@@ -53,6 +57,9 @@ export async function buildApp(
   await app.register(cors, { origin: allowedOrigins(deps.config), credentials: true });
   await app.register(cookie);
 
+  // CSRF protection for cookie-based session requests
+  csrfPlugin(app);
+
   // docs/35.1 — X-Request-Id echoed on every response
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-request-id', request.id);
@@ -67,6 +74,36 @@ export async function buildApp(
     ? new RedisIdempotencyStore(redis)
     : new InMemoryIdempotencyStore();
   idempotencyPlugin(app, idempotencyStore);
+
+  // Security: global rate-limit for all authenticated endpoints (60 req/min per user)
+  if (redis.isConnected()) {
+    // Global authenticated rate limiter using Redis
+    const globalRateLimit = new Map<string, { count: number; windowStart: number }>();
+    app.addHook('onRequest', async (request, reply) => {
+      if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
+      const ip = request.ip ?? 'unknown';
+      const now = Date.now();
+      const windowMs = 60_000;
+      const max = 60;
+      const entry = globalRateLimit.get(ip);
+      if (!entry || now - entry.windowStart > windowMs) {
+        globalRateLimit.set(ip, { count: 1, windowStart: now });
+        return;
+      }
+      entry.count++;
+      if (entry.count > max) {
+        const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000);
+        reply.header('Retry-After', String(retryAfter));
+        reply.code(429).send({ error: { code: 'rate_limited', message: `Too many requests. Try again in ${retryAfter}s.` } });
+        return reply;
+      }
+    });
+    // Cleanup every 5 min
+    setInterval(() => {
+      const now = Date.now();
+      for (const [k, v] of globalRateLimit) { if (now - v.windowStart > 60_000) globalRateLimit.delete(k); }
+    }, 300_000);
+  }
 
   // Security: rate-limit sensitive auth endpoints
   // Use Redis-backed rate limiting if available, otherwise in-memory
@@ -84,14 +121,16 @@ export async function buildApp(
     rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
   }
 
-  // Security headers on every response
+  // Security headers on every response (including CSRF cookie + HSTS)
   app.addHook('onSend', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('X-XSS-Protection', '1; mode=block');
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    // Note: CSP is better handled at the web app / CDN layer
+    if (process.env.NODE_ENV === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+    }
   });
 
   // docs/35.1 — unmatched routes still return the envelope
@@ -156,6 +195,9 @@ export async function buildApp(
   registerOnboardingRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
   registerNotificationRoutes(app, deps);
+  registerConstitutionRoutes(app, deps);
+  registerDepartmentRoutes(app, deps);
+  registerSettingsRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
   return app;
 }

@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardList,
+  FileText,
   GitBranch,
   KeyRound,
   LayoutDashboard,
@@ -55,20 +56,21 @@ const navGroups: NavGroup[] = [
   {
     title: "Organization",
     items: [
-      { label: "Org Explorer", href: "/app/org", icon: Building2, phase: "Phase 2" },
+      { label: "Org Explorer", href: "/app/org", icon: Building2, built: true },
       { label: "Agents", href: "/app/agents", icon: Users, built: true },
-      { label: "Departments & Teams", href: "/app/teams", icon: GitBranch, phase: "Phase 2" },
+      { label: "Departments & Teams", href: "/app/teams", icon: GitBranch, built: true },
       { label: "Goals & Tasks", href: "/app/goals", icon: Target, built: true },
     ],
   },
   {
     title: "Governance",
     items: [
-      { label: "Company Constitution", href: "/app/constitution", icon: ScrollText, phase: "Phase 5" },
+      { label: "Company Constitution", href: "/app/constitution", icon: ScrollText, built: true },
       { label: "Budgets & Limits", href: "/app/budgets", icon: Wallet, built: true },
       { label: "Audit Trail", href: "/app/audit", icon: ShieldCheck, built: true },
       { label: "Company Memory", href: "/app/memory", icon: ScrollText, built: true },
       { label: "Agent Activity", href: "/app/activity", icon: Activity, built: true },
+      { label: "Files & Documents", href: "/app/files", icon: FileText, built: true },
     ],
   },
   {

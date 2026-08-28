@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 import { ShieldCheck } from "lucide-react";
+import { AuditExport } from "./audit-export";
 
 export const metadata = { title: "Audit Trail" };
 
@@ -9,7 +10,7 @@ async function fetchActivity() {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return [];
   try {
-    const res = await fetch(`${API_URL}/v1/activity`, {
+    const res = await fetch(`${API_URL}/v1/activity?limit=500`, {
       headers: { cookie: `${SESSION_COOKIE}=${token}` },
       cache: "no-store",
     });
@@ -34,16 +35,19 @@ export default async function AuditPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <header>
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
-          Governance
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-          Audit Trail
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Immutable record of every action, decision, and change across your organization.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+            Governance
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+            Audit Trail
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Immutable record of every action, decision, and change across your organization.
+          </p>
+        </div>
+        <AuditExport events={events} />
       </header>
 
       {events.length === 0 ? (
