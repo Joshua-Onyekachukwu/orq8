@@ -114,9 +114,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Audit dependencies
-        run: pnpm audit --audit-level=high || true
-        continue-on-error: true
+      - name: Audit dependencies (high+ severity)
+        run: pnpm audit --audit-level=high
+        continue-on-error: false
+
+      - name: Check for known vulnerabilities
+        run: |
+          echo "Running npm audit..."
+          pnpm audit --audit-level=critical || echo "::warning::Critical vulnerabilities found — review before merge"
 
       - name: Check for secrets in code
         run: |

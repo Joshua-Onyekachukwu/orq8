@@ -12,6 +12,7 @@ import { createEmailTransport } from '../email/transport.js';
 import * as orgs from '../services/orgs.js';
 import * as sessions from '../services/sessions.js';
 import * as users from '../services/users.js';
+import { checkLoginAllowed, recordFailedLogin, resetFailedLogins } from '../plugins/brute-force.js';
 import type { AppDeps } from '../types.js';
 
 function sha256hex(value: string): string {
@@ -66,19 +67,37 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
-  app.post('/v1/auth/login', async (request) => {
+  app.post('/v1/auth/login', async (request, reply) => {
     const parsed = loginBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
     const { email, password } = parsed.data;
 
+    // Brute-force protection: check if account is locked
+    const redis = (deps as { redis?: { isConnected(): boolean } }).redis;
+    const lockCheck = await checkLoginAllowed(redis as any, email);
+    if (!lockCheck.allowed) {
+      const retryAfterMs = lockCheck.lockedUntil ? Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000) : 900;
+      reply.header('Retry-After', String(retryAfterMs));
+      reply.code(429).send({
+        error: {
+          code: 'account_locked',
+          message: `Too many failed login attempts. Please try again in ${Math.ceil(retryAfterMs / 60)} minutes.`,
+          policy_ref: 'docs/37',
+        },
+      });
+      return reply;
+    }
+
     const user = await users.findByEmail(db, email);
     if (!user) {
       logger.warn({ email }, 'login failed: unknown email');
+      await recordFailedLogin(redis as any, email);
       throw unauthorized('Invalid email or password');
     }
 
     const ok = await verifyPassword(user.passwordHash, password);
     if (!ok) {
+      await recordFailedLogin(redis as any, email);
       // audit the failure against the user's org when determinable (pre-org events are skipped)
       const memberships = await orgs.findMembershipsByUser(db, user.id);
       const orgId = memberships[0]?.org.id;
@@ -87,6 +106,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       }
       throw unauthorized('Invalid email or password');
     }
+
+    // Successful login — reset brute-force counter
+    await resetFailedLogins(redis as any, email);
 
     const memberships = await orgs.findMembershipsByUser(db, user.id);
     const active = memberships[0];

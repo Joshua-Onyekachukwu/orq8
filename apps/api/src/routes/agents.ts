@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { validation } from '@orq8/core';
+import { validation, forbidden } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import * as agents from '../services/agents.js';
+import { getPlanLimits } from '../services/billing.js';
 import type { AppDeps } from '../types.js';
 
 const hireBody = z.object({
@@ -41,6 +42,13 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const ctx = await requireAuth(request, deps);
     const parsed = hireBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
+
+    // Plan enforcement: check agent limit
+    const currentAgents = await agents.findByOrg(db, ctx.orgId, { limit: 1000 });
+    const planLimits = await getPlanLimits(db, ctx.orgId);
+    if (planLimits.maxAgents > 0 && currentAgents.length >= planLimits.maxAgents) {
+      throw forbidden(`Your plan allows ${planLimits.maxAgents} agents. Upgrade to hire more.`);
+    }
 
     const agent = await agents.createAgent(db, {
       orgId: ctx.orgId,

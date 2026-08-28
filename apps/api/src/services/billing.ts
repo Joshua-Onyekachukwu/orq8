@@ -62,6 +62,39 @@ export const PLANS: Record<string, PlanConfig> = {
   },
 };
 
+// ─── Plan Limits ─────────────────────────────────────────────────────────
+
+/** Get the plan limits for an organization based on its subscription. */
+export async function getPlanLimits(
+  db: Db,
+  orgId: string,
+): Promise<{ maxAgents: number; credits: number; plan: string }> {
+  try {
+    const { subscriptions: subs } = await import('@orq8/db');
+    const { eq } = await import('drizzle-orm');
+    const result = await db
+      .select({ plan: subs.plan, maxAgents: subs.maxAgents, includedCredits: subs.includedCredits })
+      .from(subs)
+      .where(eq(subs.orgId, orgId))
+      .limit(1);
+
+    if (result.length === 0) {
+      // No subscription — use trial/free plan limits
+      return { maxAgents: 3, credits: 100, plan: 'trial' };
+    }
+
+    const sub = result[0]!; // Safe: checked result.length above
+    const planConfig = PLANS[sub.plan];
+    return {
+      maxAgents: sub.maxAgents ?? planConfig?.maxAgents ?? 3,
+      credits: sub.includedCredits ?? planConfig?.credits ?? 100,
+      plan: sub.plan,
+    };
+  } catch {
+    return { maxAgents: 3, credits: 100, plan: 'trial' };
+  }
+}
+
 // ─── Stripe Client ──────────────────────────────────────────────────────────
 
 let stripeClient: any = null;

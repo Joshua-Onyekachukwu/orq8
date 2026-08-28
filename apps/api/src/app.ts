@@ -11,7 +11,7 @@ import {
   type IdempotencyStore,
 } from '@orq8/core';
 import { getRedis } from './services/redis.js';
-import { rateLimitLoginRedis, rateLimitRouteRedis } from './plugins/rate-limit-redis.js';
+import { rateLimitHookRedis, rateLimitLoginRedis, rateLimitRouteRedis } from './plugins/rate-limit-redis.js';
 import { RedisIdempotencyStore } from '@orq8/core';
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
@@ -52,6 +52,8 @@ export async function buildApp(
     // Trust X-Forwarded-* from Vercel/nginx so request.ip is the real client IP
     // (docs/58). The API never sets cookies, so this has no auth implications.
     trustProxy: true,
+    // Limit request body size to 5MB to prevent abuse
+    bodyLimit: 5 * 1024 * 1024,
   });
 
   await app.register(cors, { origin: allowedOrigins(deps.config), credentials: true });
@@ -75,33 +77,32 @@ export async function buildApp(
     : new InMemoryIdempotencyStore();
   idempotencyPlugin(app, idempotencyStore);
 
-  // Security: global rate-limit for all authenticated endpoints (60 req/min per user)
+  // Security: global rate-limit for all endpoints (60 req/min per IP)
+  // Uses Redis sorted sets when available for multi-instance support
   if (redis.isConnected()) {
-    // Global authenticated rate limiter using Redis
-    const globalRateLimit = new Map<string, { count: number; windowStart: number }>();
+    rateLimitHookRedis(app, redis, { windowMs: 60_000, max: 60, prefix: 'rl:global' });
+  } else {
+    const globalRL = new Map<string, { count: number; windowStart: number }>();
     app.addHook('onRequest', async (request, reply) => {
       if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
       const ip = request.ip ?? 'unknown';
       const now = Date.now();
-      const windowMs = 60_000;
-      const max = 60;
-      const entry = globalRateLimit.get(ip);
-      if (!entry || now - entry.windowStart > windowMs) {
-        globalRateLimit.set(ip, { count: 1, windowStart: now });
+      const entry = globalRL.get(ip);
+      if (!entry || now - entry.windowStart > 60_000) {
+        globalRL.set(ip, { count: 1, windowStart: now });
         return;
       }
       entry.count++;
-      if (entry.count > max) {
-        const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000);
+      if (entry.count > 60) {
+        const retryAfter = Math.ceil((entry.windowStart + 60_000 - now) / 1000);
         reply.header('Retry-After', String(retryAfter));
         reply.code(429).send({ error: { code: 'rate_limited', message: `Too many requests. Try again in ${retryAfter}s.` } });
         return reply;
       }
     });
-    // Cleanup every 5 min
     setInterval(() => {
       const now = Date.now();
-      for (const [k, v] of globalRateLimit) { if (now - v.windowStart > 60_000) globalRateLimit.delete(k); }
+      for (const [k, v] of globalRL) { if (now - v.windowStart > 60_000) globalRL.delete(k); }
     }, 300_000);
   }
 
@@ -131,6 +132,18 @@ export async function buildApp(
     if (process.env.NODE_ENV === 'production') {
       reply.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
     }
+    // Content-Security-Policy: restrict sources to prevent XSS and data exfiltration
+    reply.header('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '));
   });
 
   // docs/35.1 — unmatched routes still return the envelope
