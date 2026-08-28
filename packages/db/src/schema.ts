@@ -448,6 +448,33 @@ export type NewCreditBalance = typeof creditBalances.$inferInsert;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
 
+// ---- ORQ8 Credit Alerts ----
+// Tracks usage threshold alerts sent to organizations.
+// Prevents duplicate alerts within a cooldown window.
+export const creditAlerts = pgTable(
+  'credit_alerts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    type: text('type').notNull(), // low_balance | critical_balance | exhausted | renewal_reminder
+    threshold: integer('threshold').notNull(), // percentage threshold that triggered this (e.g. 80, 95, 100)
+    message: text('message').notNull(), // human-readable alert message
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }), // when the user acknowledged it
+    emailSent: boolean('email_sent').notNull().default(false), // whether an email was sent
+    metadata: jsonb('metadata').notNull().default({}), // { remaining, total, utilizationPercent, plan }
+  },
+  (t) => [
+    index('credit_alerts_org_idx').on(t.orgId, t.sentAt),
+    index('credit_alerts_type_idx').on(t.orgId, t.type),
+  ],
+);
+
+export type CreditAlert = typeof creditAlerts.$inferSelect;
+export type NewCreditAlert = typeof creditAlerts.$inferInsert;
+
 // ---- ORQ8 Onboarding ----
 // Persisted onboarding state per user — survives refresh, browser close, login/logout.
 export const onboardingStates = pgTable(

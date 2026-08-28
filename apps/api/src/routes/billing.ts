@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { sql } from 'drizzle-orm';
 import { validation } from '@orq8/core';
+import { agents } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import * as billing from '../services/billing.js';
+import * as credits from '../services/credits.js';
 import type { AppDeps } from '../types.js';
 
 const checkoutBody = z.object({
@@ -120,4 +123,63 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
       return { error: { code: 'internal', message: 'Webhook processing failed' } };
     }
   });
+
+  /**
+   * GET /v1/billing/limits — Get current plan limits and usage.
+   * Shows what the org is allowed vs what they're using.
+   */
+  app.get('/v1/billing/limits', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const subscription = await billing.getSubscription(db, ctx.orgId);
+    const balance = await credits.getOrCreateBalance(db, ctx.orgId);
+
+    // Count current agents
+    const { agents: agentsTable } = await import('@orq8/db');
+    const { eq: eqOp } = await import('drizzle-orm');
+    const agentCount = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(agentsTable)
+      .where(eqOp(agentsTable.orgId, ctx.orgId));
+
+    const planConfig = subscription ? billing.PLANS[subscription.plan] : null;
+    const maxAgents = planConfig?.maxAgents ?? 3;
+    const currentAgents = agentCount[0]?.count ?? 0;
+
+    return {
+      data: {
+        plan: subscription?.plan ?? 'trial',
+        planName: subscription?.planName ?? 'Trial',
+        maxAgents,
+        currentAgents,
+        agentLimitReached: currentAgents >= maxAgents,
+        credits: {
+          included: balance.included,
+          purchased: balance.purchased,
+          used: balance.used,
+          remaining: balance.remaining,
+          total: balance.total,
+          utilizationPercent: balance.utilizationPercent,
+          isLow: balance.isLow,
+          isCritical: balance.isCritical,
+        },
+        period: {
+          start: balance.periodStart,
+          end: balance.periodEnd,
+          daysRemaining: balance.daysRemaining,
+        },
+        upgradeAvailable: subscription?.plan !== 'company',
+        nextPlan: getNextPlan(subscription?.plan ?? 'trial'),
+      },
+    };
+  });
+}
+
+/** Get the next plan in the upgrade path. */
+function getNextPlan(currentPlan: string): { name: string; key: string } | null {
+  const upgradePath: Record<string, { name: string; key: string }> = {
+    trial: { name: 'Founder', key: 'founder' },
+    founder: { name: 'Team', key: 'team' },
+    team: { name: 'Company', key: 'company' },
+  };
+  return upgradePath[currentPlan] ?? null;
 }

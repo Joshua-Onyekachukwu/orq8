@@ -3,6 +3,7 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as credits from '../services/credits.js';
+import * as creditAlerts from '../services/credit-alerts.js';
 import type { AppDeps } from '../types.js';
 
 export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -117,5 +118,51 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
     logger.info({ orgId: ctx.orgId, amount: parsed.data.amount }, 'Credits top-up');
 
     return { data: balance };
+  });
+
+  // ── CREDIT ALERTS ──
+
+  /**
+   * GET /v1/credits/alerts — Get credit usage alerts for the org.
+   */
+  app.get('/v1/credits/alerts', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 100);
+    const unreadOnly = url.searchParams.get('unread') === 'true';
+
+    const alerts = await creditAlerts.getAlerts(db, ctx.orgId, limit, unreadOnly);
+    return { data: alerts };
+  });
+
+  /**
+   * GET /v1/credits/alerts/unread — Get unread alert count.
+   */
+  app.get('/v1/credits/alerts/unread', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const count = await creditAlerts.getUnreadCount(db, ctx.orgId);
+    return { data: { count } };
+  });
+
+  /**
+   * PATCH /v1/credits/alerts/:id/read — Mark an alert as read.
+   */
+  app.patch<{ Params: { id: string } }>('/v1/credits/alerts/:id/read', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const updated = await creditAlerts.markAsRead(db, request.params.id, ctx.orgId);
+    if (!updated) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Alert not found' } };
+    }
+    return { data: { success: true } };
+  });
+
+  /**
+   * POST /v1/credits/alerts/read-all — Mark all alerts as read.
+   */
+  app.post('/v1/credits/alerts/read-all', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const count = await creditAlerts.markAllAsRead(db, ctx.orgId);
+    return { data: { marked: count } };
   });
 }

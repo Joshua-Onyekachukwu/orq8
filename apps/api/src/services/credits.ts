@@ -344,6 +344,15 @@ export async function consumeCredits(
 
   // Return updated balance
   const updatedBalance = await getOrCreateBalance(db, orgId);
+
+  // Check if we should fire a usage alert (non-blocking)
+  try {
+    const { checkAndAlert } = await import('./credit-alerts.js');
+    await checkAndAlert(db, orgId, updatedBalance);
+  } catch {
+    // Alert check failure should not block credit consumption
+  }
+
   return { balance: updatedBalance, consumed: cost };
 }
 
