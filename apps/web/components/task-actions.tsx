@@ -6,12 +6,19 @@ import { Plus, Loader2, X } from "lucide-react";
 interface TaskActionsProps {
   taskId?: string;
   currentStatus?: string;
+  goalId?: string; // pre-fill goal when creating from a goal card
 }
 
-export function TaskActions({ taskId, currentStatus }: TaskActionsProps) {
+export function TaskActions({ taskId, currentStatus, goalId }: TaskActionsProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "" });
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    priority: "normal",
+    dueDate: "",
+    agentId: "",
+  });
 
   // If editing an existing task's status
   if (taskId && currentStatus) {
@@ -63,10 +70,18 @@ export function TaskActions({ taskId, currentStatus }: TaskActionsProps) {
                   e.preventDefault();
                   if (!form.title.trim()) return;
                   setLoading(true);
+                  const body: Record<string, unknown> = {
+                    title: form.title,
+                    description: form.description || undefined,
+                    priority: form.priority,
+                  };
+                  if (goalId) body.goalId = goalId;
+                  if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
+                  if (form.agentId) body.agentId = form.agentId;
                   await fetch("/api/tasks", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(form),
+                    body: JSON.stringify(body),
                   });
                   window.location.reload();
                 }}
@@ -92,6 +107,30 @@ export function TaskActions({ taskId, currentStatus }: TaskActionsProps) {
                     rows={3}
                     className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink">Priority</label>
+                    <select
+                      value={form.priority}
+                      onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                    >
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink">Due Date</label>
+                    <input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button

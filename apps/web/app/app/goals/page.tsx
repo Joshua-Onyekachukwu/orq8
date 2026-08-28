@@ -22,6 +22,7 @@ interface Goal {
   status: string;
   progress: number;
   priority: string;
+  dueDate: string | null;
   createdAt: string;
 }
 
@@ -30,10 +31,19 @@ interface Task {
   title: string;
   description: string | null;
   status: string;
+  priority: string;
   goalId: string | null;
   agentId: string | null;
   cost: number;
+  dueDate: string | null;
+  result: string | null;
   createdAt: string;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  role: string;
 }
 
 async function fetchGoals(): Promise<Goal[]> {
@@ -88,8 +98,57 @@ function statusIcon(status: string) {
   }
 }
 
+async function fetchAgents(): Promise<Agent[]> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) return [];
+  try {
+    const res = await fetch(`${API_URL}/v1/agents`, {
+      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { data: Agent[] };
+    return json.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function formatDueDate(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = d.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (days < 0) return `${Math.abs(days)}d overdue`;
+    if (days === 0) return "Due today";
+    if (days === 1) return "Due tomorrow";
+    return `${days}d left`;
+  } catch {
+    return null;
+  }
+}
+
+function dueDateBadge(dateStr: string | null) {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = d.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (days < 0) return "bg-red-50 text-red-600";
+    if (days <= 2) return "bg-amber-50 text-amber-700";
+    return "bg-gray-100 text-gray-600";
+  } catch {
+    return "bg-gray-100 text-gray-600";
+  }
+}
+
 export default async function GoalsPage() {
-  const [goals, tasks] = await Promise.all([fetchGoals(), fetchTasks()]);
+  const [goals, tasks, agents] = await Promise.all([fetchGoals(), fetchTasks(), fetchAgents()]);
+  const agentMap = new Map(agents.map((a) => [a.id, a]));
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -147,6 +206,11 @@ export default async function GoalsPage() {
                         {goal.description}
                       </p>
                     )}
+                    {goal.dueDate && (
+                      <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${dueDateBadge(goal.dueDate)}`}>
+                        {formatDueDate(goal.dueDate)}
+                      </span>
+                    )}
                   </div>
                   <GoalActions goalId={goal.id} currentStatus={goal.status} />
                 </div>
@@ -179,6 +243,16 @@ export default async function GoalsPage() {
                           <li key={task.id} className="flex items-center gap-2 text-xs">
                             {statusIcon(task.status)}
                             <span className="truncate text-ink">{task.title}</span>
+                            {task.agentId && agentMap.get(task.agentId) && (
+                              <span className="shrink-0 rounded-full bg-navy-900/5 px-1.5 py-0.5 text-[9px] font-medium text-navy-900">
+                                {agentMap.get(task.agentId)!.name}
+                              </span>
+                            )}
+                            {task.dueDate && (
+                              <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${dueDateBadge(task.dueDate)}`}>
+                                {formatDueDate(task.dueDate)}
+                              </span>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -216,45 +290,68 @@ export default async function GoalsPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-canvas text-left">
-                  {['Task', 'Status', 'Created'].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {['Task', 'Agent', 'Priority', 'Due', 'Status', 'Created'].map((h) => (
+                  <th
+                    key={h}
+                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                  >
+                    {h}
+                  </th>
+                ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-hairline">
+            {tasks
+              .filter((t) => !t.goalId)
+              .slice(0, 10)
+              .map((task) => (
+                <tr key={task.id}>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      {statusIcon(task.status)}
+                      <div>
+                        <p className="text-sm font-medium text-ink">{task.title}</p>
+                        {task.description && (
+                          <p className="text-xs text-muted truncate max-w-[300px]">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    {task.agentId && agentMap.get(task.agentId) ? (
+                      <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                        {agentMap.get(task.agentId)!.name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${priorityBadge(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    {task.dueDate ? (
+                      <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${dueDateBadge(task.dueDate)}`}>
+                        {formatDueDate(task.dueDate)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] uppercase">
+                      {task.status.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted">
+                    {new Date(task.createdAt).toLocaleDateString()}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-hairline">
-                {tasks
-                  .filter((t) => !t.goalId)
-                  .slice(0, 10)
-                  .map((task) => (
-                    <tr key={task.id}>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          {statusIcon(task.status)}
-                          <div>
-                            <p className="text-sm font-medium text-ink">{task.title}</p>
-                            {task.description && (
-                              <p className="text-xs text-muted truncate max-w-[300px]">
-                                {task.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3">
-                        <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] uppercase">
-                          {task.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted">
-                        {new Date(task.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
+              ))}
               </tbody>
             </table>
           </div>

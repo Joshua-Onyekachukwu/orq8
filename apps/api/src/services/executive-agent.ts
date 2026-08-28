@@ -322,6 +322,7 @@ export async function createTasksFromIntent(
         title: task.title,
         description: task.description,
         agentId,
+        priority: (task as any).priority ?? 'normal',
         status: 'pending',
         cost: 0,
       })

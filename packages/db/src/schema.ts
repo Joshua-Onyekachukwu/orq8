@@ -316,10 +316,14 @@ export const goals = pgTable(
     status: text('status').notNull().default('active'), // active | completed | paused | cancelled
     progress: integer('progress').notNull().default(0), // 0-100
     priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
+    dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('goals_org_idx').on(t.orgId)],
+  (t) => [
+    index('goals_org_idx').on(t.orgId),
+    index('goals_due_date_idx').on(t.dueDate),
+  ],
 );
 
 export const tasks = pgTable(
@@ -334,7 +338,10 @@ export const tasks = pgTable(
     title: text('title').notNull(),
     description: text('description'),
     status: text('status').notNull().default('pending'), // pending | in_progress | completed | failed | cancelled
+    priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
+    dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
     cost: integer('cost').notNull().default(0), // cost in cents
+    result: text('result'), // execution result when completed
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -342,6 +349,8 @@ export const tasks = pgTable(
     index('tasks_org_idx').on(t.orgId),
     index('tasks_status_idx').on(t.orgId, t.status),
     index('tasks_agent_idx').on(t.agentId),
+    index('tasks_priority_idx').on(t.orgId, t.priority),
+    index('tasks_due_date_idx').on(t.dueDate),
   ],
 );
 
