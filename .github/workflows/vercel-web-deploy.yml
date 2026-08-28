@@ -1,0 +1,57 @@
+name: Deploy web app (Vercel)
+
+# Deploys the ORQ8 web app to Vercel on push to main.
+# Uses the same retry logic as the landing deploy to handle Hobby plan limits.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/vercel-web-deploy.yml"
+  schedule:
+    # Every 2 hours as fallback for quota exhaustion
+    - cron: "47 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger production deployment for orq8-web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -u
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "$PROJECT_ID" ]; then
+            echo "::error::VERCEL_WEB_PROJECT_ID secret not set"
+            exit 1
+          fi
+          RESP=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.vercel.com/v13/deployments" \
+            -d "{\"name\":\"orq8-web\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
+          BODY=$(echo "$RESP" | head -n -1)
+          CODE=$(echo "$RESP" | tail -n 1)
+          echo "HTTP $CODE"
+          echo "$BODY" | head -c 600
+          echo
+          if [ "$CODE" = "200" ]; then
+            echo "Deployment created."
+            exit 0
+          fi
+          if echo "$BODY" | grep -q "api-deployments-free-per-day"; then
+            echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
+            exit 0
+          fi
+          echo "::error::Deployment failed with HTTP $CODE"
+          exit 1
