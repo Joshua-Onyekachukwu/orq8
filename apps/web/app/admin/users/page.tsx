@@ -1,8 +1,22 @@
 import { cookies } from "next/headers";
-import { Users, Search } from "lucide-react";
+import { Users } from "lucide-react";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 
 export const metadata = { title: "Users — Admin — ORQ8" };
+
+interface UserWithMemberships {
+  id: string;
+  email: string;
+  name: string | null;
+  status: string;
+  createdAt: string;
+  memberships: Array<{
+    role: string;
+    orgId: string;
+    orgName: string;
+  }>;
+  primaryRole: string;
+}
 
 async function fetchUsers(token: string) {
   try {
@@ -10,18 +24,29 @@ async function fetchUsers(token: string) {
       headers: { cookie: `${SESSION_COOKIE}=${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { data?: unknown[] };
-    return data?.data ?? [];
+    if (!res.ok) return { data: [], meta: { total: 0 } };
+    const data = (await res.json()) as { data?: UserWithMemberships[]; meta?: { total: number } };
+    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0 } };
   } catch {
-    return [];
+    return { data: [], meta: { total: 0 } };
+  }
+}
+
+function roleBadge(role: string) {
+  switch (role) {
+    case "owner":
+      return "bg-lime/10 text-lime";
+    case "admin":
+      return "bg-purple-50 text-purple-600";
+    default:
+      return "bg-gray-100 text-gray-600";
   }
 }
 
 export default async function AdminUsersPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value ?? "";
-  const users = await fetchUsers(token);
+  const { data: users, meta } = await fetchUsers(token);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -29,7 +54,7 @@ export default async function AdminUsersPage() {
         <div>
           <h1 className="text-xl font-bold text-ink">Users</h1>
           <p className="mt-1 text-sm text-muted">
-            Manage platform users and their access.
+            Manage platform users and their access. {meta.total > 0 ? `${meta.total} total users.` : ""}
           </p>
         </div>
       </div>
@@ -38,7 +63,7 @@ export default async function AdminUsersPage() {
         <table className="w-full">
           <thead>
             <tr className="bg-canvas text-left">
-              {["User", "Email", "Role", "Status", "Joined"].map((h) => (
+              {["User", "Email", "Role", "Organization", "Status", "Joined"].map((h) => (
                 <th
                   key={h}
                   className="whitespace-nowrap px-5 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
@@ -49,8 +74,8 @@ export default async function AdminUsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
-            {Array.isArray(users) && users.length > 0 ? (
-              (users as Array<{ id: string; email: string; name: string | null; status: string; createdAt: string }>).map((u) => (
+            {users.length > 0 ? (
+              users.map((u) => (
                 <tr key={u.id} className="hover:bg-canvas/50">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -62,9 +87,14 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="px-5 py-3 text-sm text-muted">{u.email}</td>
                   <td className="px-5 py-3">
-                    <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] uppercase text-muted">
-                      member
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${roleBadge(u.primaryRole)}`}>
+                      {u.primaryRole}
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-xs text-muted">
+                    {u.memberships.length > 0
+                      ? u.memberships.map((m) => m.orgName).join(", ")
+                      : "—"}
                   </td>
                   <td className="px-5 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -80,7 +110,7 @@ export default async function AdminUsersPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center">
+                <td colSpan={6} className="px-5 py-10 text-center">
                   <Users className="mx-auto h-8 w-8 text-muted/30" />
                   <p className="mt-3 text-sm text-muted">No users found</p>
                 </td>

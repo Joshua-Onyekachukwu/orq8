@@ -44,10 +44,12 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-ink">Default Model</p>
-                <p className="text-xs text-muted">Model used for general tasks</p>
+                <p className="text-sm font-medium text-ink">Default Gateway</p>
+                <p className="text-xs text-muted">LiteLLM proxy for model routing</p>
               </div>
-              <span className="font-mono text-xs text-muted">GPT-4o</span>
+              <span className="font-mono text-xs text-muted">
+                {process.env.LITELLM_BASE_URL ? "Connected" : "Not configured"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -86,10 +88,70 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-ink">Password Reset</p>
-                <p className="text-xs text-muted">Allow users to reset passwords</p>
+                <p className="text-xs text-muted">Email-based token reset flow</p>
               </div>
-              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-600">
-                Coming Soon
+              <span className="rounded-full bg-emerald/10 px-2.5 py-0.5 text-xs font-medium text-emerald">
+                Active
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink">Idempotency</p>
+                <p className="text-xs text-muted">Redis-backed for mutating endpoints</p>
+              </div>
+              <span className="rounded-full bg-emerald/10 px-2.5 py-0.5 text-xs font-medium text-emerald">
+                Active
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* External services */}
+        <div className="rounded-xl border border-hairline bg-white p-6">
+          <h2 className="text-sm font-semibold text-ink mb-4">External Services</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink">Stripe Billing</p>
+                <p className="text-xs text-muted">Subscriptions and payment processing</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                process.env.STRIPE_SECRET_KEY ? "bg-emerald/10 text-emerald" : "bg-gray-100 text-gray-500"
+              }`}>
+                {process.env.STRIPE_SECRET_KEY ? "Configured" : "Not configured"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink">SMTP (Email)</p>
+                <p className="text-xs text-muted">Transactional and drip emails</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                process.env.SMTP_HOST ? "bg-emerald/10 text-emerald" : "bg-gray-100 text-gray-500"
+              }`}>
+                {process.env.SMTP_HOST ? "Configured" : "Not configured"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink">File Storage (S3/R2)</p>
+                <p className="text-xs text-muted">Agent file uploads and documents</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                process.env.S3_ENDPOINT ? "bg-emerald/10 text-emerald" : "bg-blue-50 text-blue-600"
+              }`}>
+                {process.env.S3_ENDPOINT ? "S3/R2" : "Local fallback"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ink">Redis</p>
+                <p className="text-xs text-muted">Sessions, rate limiting, idempotency</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                process.env.REDIS_URL ? "bg-emerald/10 text-emerald" : "bg-blue-50 text-blue-600"
+              }`}>
+                {process.env.REDIS_URL ? "Connected" : "In-memory fallback"}
               </span>
             </div>
           </div>

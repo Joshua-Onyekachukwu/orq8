@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Activity,
   Settings,
+  HeartPulse,
   LogOut,
   Menu,
   X,
@@ -29,8 +30,9 @@ const navItems: NavItem[] = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Organizations", href: "/admin/organizations", icon: Building2 },
   { label: "AI Agents", href: "/admin/agents", icon: Bot },
-  { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck, badge: 3 },
+  { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
   { label: "Activity Log", href: "/admin/activity", icon: Activity },
+  { label: "System Health", href: "/admin/health", icon: HeartPulse },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

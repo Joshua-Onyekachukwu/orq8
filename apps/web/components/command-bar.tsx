@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ArrowRight, Loader2, CheckCircle2, AlertCircle, Clock, Check, X, Bot, ListTodo, RefreshCw } from "lucide-react";
+import { useRealtime } from "../hooks/use-realtime";
 
 interface TaskStep {
   title: string;
@@ -60,9 +61,7 @@ export function CommandBar() {
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
-  const [pollingTasks, setPollingTasks] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Focus input on mount
   useEffect(() => {
@@ -81,81 +80,47 @@ export function CommandBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Poll for task status updates
-  const pollTaskStatus = useCallback(async (taskId: string) => {
-    try {
-      const res = await fetch(`/api/commands/tasks/${taskId}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.data ?? null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // Update agent results with polled status
-  const updateAgentResults = useCallback((taskStatuses: Map<string, { status: string; result?: string }>) => {
-    setResult((prev) => {
-      if (!prev?.agentResults) return prev;
-      const updated = prev.agentResults.map((ar, i) => {
-        const taskId = prev.taskIds[i];
-        if (!taskId) return ar;
-        const status = taskStatuses.get(taskId);
-        if (status) {
-          return {
+  // Real-time SSE connection for live task updates
+  const { connected } = useRealtime({
+    onEvent: useCallback((event: any) => {
+      // Update agent results in real-time via SSE
+      if (event.type === "task.completed" || event.type === "task.failed" || event.type === "task.started") {
+        setResult((prev) => {
+          if (!prev?.agentResults) return prev;
+          const taskIdx = prev.taskIds.indexOf(event.taskId);
+          if (taskIdx === -1) return prev;
+          const ar = prev.agentResults[taskIdx];
+          if (!ar) return prev;
+          const updated = [...prev.agentResults];
+          updated[taskIdx] = {
             ...ar,
-            status: status.status as AgentResult["status"],
-            result: status.result ?? ar.result,
+            status: event.type === "task.completed" ? "completed" as const : event.type === "task.failed" ? "failed" as const : "in_progress" as const,
+            result: event.type === "task.completed" ? (event as any).result ?? ar.result : ar.result,
           };
-        }
-        return ar;
-      });
-      return { ...prev, agentResults: updated };
-    });
-  }, []);
-
-  // Start polling for pending tasks
-  useEffect(() => {
-    if (pollingTasks.size === 0) {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      return;
-    }
-
-    pollIntervalRef.current = setInterval(async () => {
-      const statuses = new Map<string, { status: string; result?: string }>();
-      for (const taskId of pollingTasks) {
-        const status = await pollTaskStatus(taskId);
-        if (status) {
-          statuses.set(taskId, { status: status.status, result: status.result });
-        }
-      }
-
-      if (statuses.size > 0) {
-        updateAgentResults(statuses);
-
-        // Remove completed/failed tasks from polling
-        setPollingTasks((prev) => {
-          const next = new Set(prev);
-          for (const [taskId, status] of statuses) {
-            if (status.status === "completed" || status.status === "failed") {
-              next.delete(taskId);
-            }
-          }
-          return next;
+          return { ...prev, agentResults: updated };
         });
       }
-    }, 2000); // Poll every 2 seconds
 
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
+      // Handle approval decisions
+      if (event.type === "approval.decided") {
+        setApprovalStatus("submitted");
       }
-    };
-  }, [pollingTasks, pollTaskStatus, updateAgentResults]);
+
+      // Handle credit consumption
+      if (event.type === "credits.consumed") {
+        setResult((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            credits: {
+              consumed: (prev.credits?.consumed ?? 0) + event.amount,
+              remaining: event.remaining,
+            },
+          };
+        });
+      }
+    }, []),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,16 +144,7 @@ export function CommandBar() {
         setHistory((prev) => [newResult, ...prev].slice(0, 10));
       }
 
-      // Start polling for any pending tasks
-      if (newResult?.taskIds && newResult?.agentResults) {
-        const pendingTaskIds = newResult.taskIds.filter((id: string, i: number) => {
-          const agentResult = newResult.agentResults[i];
-          return agentResult?.status === "pending" || agentResult?.status === "in_progress";
-        });
-        if (pendingTaskIds.length > 0) {
-          setPollingTasks(new Set(pendingTaskIds));
-        }
-      }
+      // SSE will handle real-time updates for any pending tasks
 
       setCommand("");
     } catch {
@@ -223,10 +179,7 @@ export function CommandBar() {
       if (!res.ok) throw new Error("Failed to submit decision");
       setApprovalStatus("submitted");
 
-      // After approval, start polling for tasks
-      if (result.taskIds) {
-        setPollingTasks(new Set(result.taskIds));
-      }
+      // SSE will handle real-time updates for task execution after approval
     } catch {
       setApprovalStatus("error");
     }
@@ -337,12 +290,20 @@ export function CommandBar() {
                       <Bot className="h-4 w-4 text-muted" />
                       <p className="text-xs font-medium text-muted uppercase tracking-wide">Execution</p>
                     </div>
-                    {pollingTasks.size > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-blue-500">
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                        Running...
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {connected && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-pulse" />
+                          Live
+                        </div>
+                      )}
+                      {result.agentResults.some((ar) => ar.status === "in_progress") && (
+                        <div className="flex items-center gap-1.5 text-xs text-blue-500">
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          Running...
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {result.agentResults.map((ar, i) => (
