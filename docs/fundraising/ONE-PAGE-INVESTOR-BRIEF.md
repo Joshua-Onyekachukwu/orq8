@@ -14,16 +14,35 @@
 
 **Business model:** Subscription ($39–$249/mo) + usage credits. 75–85% gross margins.
 
-**Traction:** V1 functional. 18-table database. 58 API endpoints. Real LLM execution. Pre-revenue.
+**Traction:** V1 functional. 23 database tables. 66 API endpoints. 20+ frontend pages. Real LLM execution. 82 tests passing. CI/CD active. Security hardened. Pre-revenue.
+
+**Product proof points:**
+- Executive Agent with real LLM integration
+- AI employees with hire → configure → execute → monitor lifecycle
+- Approval gates with audit trail
+- Persistent company memory
+- Work Credits with atomic consumption guards
+- Company Constitution and department management
+- Admin dashboard with platform oversight
+- CSRF, brute-force protection, rate limiting, CSP, HSTS
 
 **Competitive advantage:** Company-wide scope. Approval gates. Persistent memory. Executive agent. Not a wrapper.
 
-**Team:** Solo founder + AI
+**Team:** Solo founder + AI (capital-efficient, AI-augmented development)
 
 **Fundraise:** $500K–$750K on post-money SAFE, $10M cap
 
-**Use of funds:** 50% product, 15% AI infrastructure, 15% sales/marketing, 10% operations, 10% reserve
+**Use of funds:**
+| Category | % | Purpose |
+|----------|---|---------|
+| Product & Engineering | 50% | Complete V1, onboarding, Stripe |
+| AI Infrastructure | 15% | LiteLLM, model costs, caching |
+| Sales & Marketing | 15% | Launch, first 50 customers |
+| Operations | 10% | Legal, accounting, admin |
+| Reserve | 10% | Contingency |
 
 **Milestone:** 50+ paying customers, $10K MRR in 12 months
+
+**Next round:** $2M–$3M seed at $20M–$30M cap
 
 **Contact:** [Founder name] — [email]

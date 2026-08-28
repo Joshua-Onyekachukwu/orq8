@@ -6,98 +6,51 @@
 
 ---
 
-## Repository layout
+## What ORQ8 Does
+
+A solo founder or lean team CEO directs their AI organization through natural language. The Executive Agent decomposes instructions into tasks, selects the right AI employees, executes work, routes sensitive actions through approval gates, records results in persistent memory, and reports outcomes at an executive level.
+
+**Core capabilities:**
+
+- **Executive Agent** — Central orchestration layer that plans, coordinates, and reports
+- **AI Employees** — Hire by role (Market Researcher, Content Writer, Financial Analyst, etc.) with capabilities, permissions, memory, and execution history
+- **Approval Gates** — Sensitive actions require CEO approval before execution
+- **Company Memory** — Persistent organizational knowledge that accumulates over time
+- **Work Credits** — Usage-based economic system tracking AI execution costs
+- **Billing & Subscriptions** — Plan-based access with Stripe-ready architecture
+- **Company Constitution** — Define company rules, values, and agent policies
+- **Departments & Teams** — Organize AI employees into functional groups
+- **Organization Explorer** — Visual org chart with departments, agents, and stats
+- **Command Center** — Real-time command interface with SSE live updates
+- **Audit Trail** — Immutable record of all organizational actions
+- **File Management** — Upload, store, and share documents with your AI organization
+- **Notifications** — Real-time alerts with configurable preferences
+- **Admin Dashboard** — Platform management for operators
+
+---
+
+## Repository Layout
 
 ```
 orq8/
 ├── apps/
-│   ├── landing/      # Marketing site (apps/landing → orq8-landing on Vercel)
-│   ├── web/          # Product shell (apps/web → orq8-web on Vercel)
-│   └── api/          # Fastify API server (apps/api → orq8 on Vercel)
+│   ├── landing/          # Marketing site → orq8-landing on Vercel
+│   ├── web/              # Product shell → orq8-web on Vercel
+│   └── api/              # Fastify API → orq8-api on Railway
 ├── packages/
-│   ├── db/           # Drizzle ORM schema, migrations, seed data
-│   ├── domain/       # Shared domain types, Zod schemas, constants
-│   ├── auth/         # Authentication + session primitives
-│   ├── agents/       # Agent runtime (execution loop, tool layer)
-│   └── core/         # Shared utilities, config, logging, errors
+│   ├── db/               # Drizzle ORM schema, migrations, seed data
+│   ├── domain/           # Shared domain types, Zod schemas, constants
+│   ├── auth/             # Authentication + session primitives
+│   ├── agents/           # Agent runtime (execution loop, tool layer)
+│   └── core/             # Shared utilities, config, logging, errors
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
-│   └── deploy/              # Deployment manifests (VPS → managed cloud later)
-
-## Quick start
-
-- **Local dev (free stack):** `docker compose -f infra/docker-compose.yml up -d` then `pnpm install` and `pnpm dev` — see docs/51_COMMANDS.md.
-- **Production (online):** Supabase (managed Postgres) + Vercel (web + API) + GitHub Actions (CI + migrations) — see **docs/58_DEPLOYMENT.md** for the full setup, env tables, and secret generation.
-├── marketing/        # Landing + pricing copy, brand guide, design-partner kit, application + outreach plan
-├── ORQ8_OVERVIEW.pdf         # One-page executive overview (tools/pdf_build.js)
-├── ORQ8_DESIGN_PARTNER.pdf   # One-pager for recruiting solo-founder beta users (tools/pdf_build_design_partner.js)
-└── docs/             # Phase 0 documentation set (this repository's source of truth)
+│   └── deploy/              # Deployment manifests
+├── docs/                 # 59 documentation files + 21 ADRs
+└── marketing/            # Landing copy, brand guide, design-partner kit
 ```
 
-## Core principles
-
-1. **Human sovereignty** — the human CEO is the final authority. Governance, authorization, and financial control are enforced in code, never by prompts.
-2. **Organizational, not conversational** — intent → understand → context → plan → deliberate → recommend → authorize → execute → verify → report → learn.
-3. **Dynamic, not hard-coded** — departments, teams, and agent roles are reusable primitives, not fixed types.
-4. **Model-agnostic & provider-agnostic** — routing across providers via LiteLLM; local models (Ollama) and BYOK supported from day one.
-5. **FOSS-first, no lock-in** — self-hosted Postgres/pgvector, MinIO (S3-compatible), pg-boss queues, Docker sandboxing. Every layer has a funded upgrade path that does not require rework.
-
-## Documentation
-
-The complete Phase 0 documentation set lives in `docs/`. The **core foundation set** (this batch) is:
-
-| # | Doc | Purpose |
-|---|-----|---------|
-| 01 | PRODUCT_VISION | Vision, positioning, differentiators, commercial model |
-| 02 | PRODUCT_REQUIREMENTS | Functional + non-functional requirements (traced to brief) |
-| 03 | PERSONAS_AND_USER_STORIES | Personas and user stories |
-| 04 | GOLDEN_WORKFLOW | Canonical end-to-end workflow (architecture validation) |
-| 05 | DOMAIN_MODEL | Terminology, entities, relationships, domain boundaries |
-| 06 | SYSTEM_ARCHITECTURE | Services, tech stack, ADRs |
-| 07 | AGENT_RUNTIME | Agent execution loop, tool layer, sandbox |
-| 08 | EXECUTIVE_AGENT_SPEC | Executive Agent, intent engine, modes |
-| 17 | COMPANY_CONSTITUTION | Constitution design and versioning |
-| 17a | CONSTITUTION_TEMPLATE | Default constitution template (human-readable) |
-| 17b | CONSTITUTION_SEED | Machine-readable constitution seed (Phase 5 JSON w/ enforcement metadata) |
-| 17c | SEED_LOADER | Phase 5 seed loader spec — 17b → constitutions/approval_rules/permissions/financial_controls rows |
-| 17d | AGENT_TEMPLATES_SEED | Phase 2 seed — 7 department shapes + 21 hire-ready agent role templates (aligned with 17b authority defaults) |
-| 18 | GOVERNANCE_AUTHORIZATION | Authority model, approvals, delegation, kill switches |
-| 21 | MEMORY_KNOWLEDGE | Company memory, decision precedent, evidence types |
-| 33 | UI_UX_SYSTEM | Design direction, information architecture, workspaces |
-| 34 | DATABASE_SCHEMA | ERD and table definitions |
-| 35 | API_SPECIFICATION | API conventions and endpoint contracts |
-| 36 | EVENT_ARCHITECTURE | Event catalog and durable workflows |
-| 37 | SECURITY_ARCHITECTURE | Security model and threat model |
-| 44 | TESTING_STRATEGY | Test plan and agent evaluation framework |
-| 49 | IMPLEMENTATION_PLAN | Phased plan, dependency graph, definition of done |
-
-The full set (09–56) is now complete. Index:
-
-| # | Doc | | # | Doc | | # | Doc |
-|---|---|---|---|---|---|---|---|
-| 09 | AGENT_HIRING_SYSTEM | | 25 | TOOLS_INTEGRATIONS | | 41 | SIMULATION |
-| 10 | AGENT_LIFECYCLE | | 26 | BUILD_VS_BUY | | 42 | INFRASTRUCTURE |
-| 11 | AGENT_PERFORMANCE | | 27 | INTERNAL_TOOLS | | 43 | DEPLOYMENT |
-| 12 | ORGANIZATION_ENGINE | | 28 | EXISTING_BUSINESS_IMPORT | | 44 | TESTING_STRATEGY |
-| 13 | DEPARTMENT_SYSTEM | | 29 | ENGINEERING_IDE | | 45 | EVALUATION_FRAMEWORK |
-| 14 | TEAM_AND_COUNCIL_SYSTEM | | 30 | CODE_EXECUTION_SANDBOX | | 46 | OPEN_SOURCE_ASSESSMENT |
-| 15 | TASK_WORKFLOW_ENGINE | | 31 | VOICE_SYSTEM | | 47 | THIRD_PARTY_LICENSES |
-| 16 | GOALS_KPI_STRATEGY | | 32 | DEPARTMENT_UX | | 48 | INTEGRATION_ROADMAP |
-| 19 | APPROVAL_ENGINE | | 38 | PRIVACY_DATA_GOVERNANCE | | 50 | DEVELOPMENT_CHECKLIST |
-| 20 | AUDIT_TRAIL | | 39 | OBSERVABILITY | | 51 | ENVIRONMENT_SETUP |
-| 22 | MODEL_ROUTING | | 40 | REPORTING | | 52 | OPERATIONS_RUNBOOK |
-| 23 | PROVIDER_API_KEYS | | | | | 53 | DISASTER_RECOVERY |
-| 24 | COST_RESOURCE_MANAGEMENT | | | | | 54 | COST_MODEL |
-| | | | | | | 55 | PRODUCT_ROADMAP |
-| | | | | | | 56 | ADR_INDEX |
-
-All **59 markdown docs** (56 numbered + 00 + 17a + 17c) and the **17b/17d seed JSONs** are internally consistent (ADR-001–021 in 56_ADR_INDEX). **docs/00_MARKET_GTM.md** holds the market analysis + go-to-market (wedge = solo founders, pricing Free/$49/$199/custom, hosting ~$7–15/mo, ORQ8 brand confirmed).
-
-## Environment setup (dev)
-
-> **Status note:** Phase 1 (Foundation) is underway. The monorepo, Drizzle schema + migrations, auth, the Fastify API shell, and the Next.js web shell (`/` + `/pricing` from the marketing copy) are in place — **all steps work now** (`pnpm dev` boots the API at `:3001`; `pnpm dev:web` boots the site at `:3000`). See 51_ENVIRONMENT_SETUP.md for the full guide.
-
-> **Shortcuts:** `make help` lists the dev targets (`infra-up`, `infra-down`, `db-migrate`, `db-seed`, `dev-api`, `dev-web`, plus `setup` for a one-shot bootstrap) — all delegating to the pnpm scripts below. On Windows without `make`, call the pnpm scripts directly.
+## Quick Start
 
 **Prerequisites:** Node.js ≥ 20, pnpm ≥ 9, Docker (with compose).
 
@@ -108,7 +61,7 @@ pnpm install
 # 2. Start local infrastructure (Postgres+pgvector, MinIO, Ollama, LiteLLM)
 docker compose -f infra/docker-compose.yml up -d
 
-# 3. Copy env files and fill in your provider keys (optional for local-only dev)
+# 3. Copy env files and fill in your provider keys
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 
@@ -116,13 +69,126 @@ cp apps/web/.env.example apps/web/.env
 pnpm --filter @orq8/db migrate
 
 # 5. Start the API and web app
-pnpm --filter @orq8/api dev
-pnpm --filter @orq8/web dev
+pnpm --filter @orq8/api dev     # API at :3001
+pnpm --filter @orq8/web dev     # Web at :3000
 ```
 
 With Ollama running locally you can operate with **zero model cost**. To use frontier models, add your own provider keys (OpenAI, Anthropic, Gemini, DeepSeek, Groq, OpenRouter) in Settings → AI Providers — keys are encrypted at rest and never exposed to the frontend.
 
-## Current status
+---
 
-- **Phase 0 (Documentation & Architecture):** **complete** — full documentation set (59 markdown docs + 17b seed + 21 ADRs) delivered, reviewed, and pushed to GitHub.
-- **Phase 1 (Foundation):** **in progress** — pnpm monorepo, Drizzle schema + migrations (users, orgs, memberships, sessions, hash-chained audit), Argon2id auth (register/login/logout/me, ADR-007 sessions), Fastify shell with error envelope + idempotency, and the Next.js web shell with the `/` + `/pricing` routes built from the marketing copy (docs/33 palette, monthly/annual toggle, comparison table, FAQ). All tested (28 tests green) and verified against the free local stack (Postgres via `infra/docker-compose.yml`). Next: provider config + encrypted secrets, pg-boss + outbox, SSE.
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS |
+| Backend | Fastify, TypeScript, Drizzle ORM |
+| Database | PostgreSQL + pgvector (Supabase or self-hosted) |
+| Auth | Argon2id password hashing, session tokens, cookie-based |
+| AI Routing | LiteLLM (OpenAI, Anthropic, Gemini, Ollama, etc.) |
+| File Storage | MinIO (S3-compatible) |
+| Deployment | Vercel (web/landing), Railway (API), GitHub Actions (CI/CD) |
+| Testing | Vitest, React Testing Library |
+
+---
+
+## Project Status
+
+### Platform Stats
+
+| Metric | Count |
+|--------|-------|
+| Database tables | 23 |
+| API endpoints | 66 |
+| Unit tests | 82 (all passing) |
+| Documentation files | 59 markdown + 21 ADRs |
+| User-facing pages | 20+ (landing, auth, app, settings, admin) |
+| Admin pages | 6 (dashboard, users, organizations, activity, health, settings) |
+| Security score | 9/10 (CSRF, brute-force lockout, rate limiting, CSP, HSTS) |
+
+### Feature Status
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Landing Page | ✅ Production | Responsive, animated, conversions-optimized |
+| Authentication | ✅ Production | Register, login, logout, forgot/reset password, brute-force lockout |
+| Onboarding | ✅ Production | Multi-step flow, backend-persisted, resume on login |
+| CEO Dashboard | ✅ Production | Real API data, SSE live updates, metrics |
+| Command Center | ✅ Production | Real LLM execution, credit tracking, live status |
+| AI Employees | ✅ Production | Hire, configure, assign, monitor, pause, plan-enforced limits |
+| Executive Agent | ✅ Production | Real LLM integration, task decomposition, credit-aware |
+| Approval Gates | ✅ Production | Create, approve, reject, audit trail, organization-scoped |
+| Goals & Tasks | ✅ Production | CRUD, priority, status, due dates, agent assignment |
+| Work Credits | ✅ Production | Balance, consumption, alerts, atomic guard, history |
+| Billing/Entitlements | ✅ Ready | Plan enforcement, limits, Stripe skeleton (keys needed) |
+| Company Memory | ✅ Production | Create, view, delete, stats, agent-driven, org-scoped |
+| Constitution | ✅ Production | Company rules, agent policies, budget limits |
+| Departments | ✅ Production | Department management, agent counts, budgets |
+| Org Explorer | ✅ Production | Visual org chart, departments, agents, goals, stats |
+| Files & Documents | ✅ Production | Upload, list, download, delete |
+| Notifications | ✅ Production | Bell, unread badge, preferences, 30s polling |
+| Settings | ✅ Production | Real profile data, notification preferences |
+| Profile | ✅ Production | Real user data, edit name |
+| Audit Trail | ✅ Production | Activity log, CSV/JSON export |
+| Activity | ✅ Production | Real API data, filtering |
+| Reports | ✅ Production | CEO weekly/monthly briefings |
+| Admin Dashboard | ✅ Production | Users, organizations, activity, health |
+| Security | ✅ Hardened | CSRF, brute-force, rate limiting, CSP, HSTS, IDOR protection |
+| Error Resilience | ✅ Production | React ErrorBoundary, graceful API errors |
+| CI/CD | ✅ Active | GitHub Actions, automated testing, Vercel/Railway deploy |
+
+### What's Pending
+
+| Item | Priority | Notes |
+|------|----------|-------|
+| Stripe payment integration | P1 | Architecture ready, need Stripe keys |
+| Real LLM tool execution | P1 | Agent CRUD and execution lifecycle exists; specific tool integrations TBD |
+| Onboarding persistence improvements | P2 | Backend save works; refine multi-step resume |
+| Account lockout display | P2 | Lockout logic works; add user-facing lockout message |
+| Pagination on admin lists | P2 | Most lists paginated; some admin views need pagination |
+| Additional unit tests | P2 | 82 tests covering core logic; expand coverage |
+| Members page → real API | P3 | Currently uses sample data |
+
+---
+
+## Documentation
+
+The complete documentation set lives in `docs/`. Key documents:
+
+| # | Doc | Purpose |
+|---|-----|---------|
+| 00 | MARKET_GTM | Market analysis + go-to-market strategy |
+| 01 | PRODUCT_VISION | Vision, positioning, differentiators |
+| 02 | PRODUCT_REQUIREMENTS | Functional + non-functional requirements |
+| 06 | SYSTEM_ARCHITECTURE | Services, tech stack, ADRs |
+| 08 | EXECUTIVE_AGENT_SPEC | Executive Agent design and modes |
+| 17 | COMPANY_CONSTITUTION | Constitution design and versioning |
+| 34 | DATABASE_SCHEMA | ERD and table definitions |
+| 35 | API_SPECIFICATION | API conventions and endpoint contracts |
+| 37 | SECURITY_ARCHITECTURE | Security model and threat model |
+| 49 | IMPLEMENTATION_PLAN | Phased plan and dependency graph |
+| 55 | PRODUCT_ROADMAP | Product roadmap |
+
+**Fundraising materials:** `docs/fundraising/`
+
+| Doc | Purpose |
+|-----|---------|
+| ONE-PAGE-INVESTOR-BRIEF | One-page summary for quick investor reads |
+| INVESTOR-READINESS | Full fundraising strategy, valuation, and outreach plan |
+| PITCH-DECK | Complete pitch deck content and narrative |
+
+---
+
+## Core Principles
+
+1. **Human sovereignty** — the human CEO is the final authority. Governance, authorization, and financial control are enforced in code, never by prompts.
+2. **Organizational, not conversational** — intent → understand → context → plan → deliberate → recommend → authorize → execute → verify → report → learn.
+3. **Dynamic, not hard-coded** — departments, teams, and agent roles are reusable primitives, not fixed types.
+4. **Model-agnostic & provider-agnostic** — routing across providers via LiteLLM; local models (Ollama) and BYOK supported from day one.
+5. **FOSS-first, no lock-in** — self-hosted Postgres/pgvector, MinIO (S3-compatible), Docker sandboxing. Every layer has a funded upgrade path that does not require rework.
+
+---
+
+## License
+
+Proprietary — All rights reserved. © 2026 ORQ8 Labs.
