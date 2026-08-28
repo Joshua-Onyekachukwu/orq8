@@ -34,7 +34,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // Paths that don't need CSRF (webhooks, health, etc.)
-const EXEMPT_PATHS = ['/v1/healthz', '/v1/webhooks', '/v1/waitlist'];
+const EXEMPT_PATHS = ['/v1/healthz', '/v1/webhooks', '/v1/waitlist', '/v1/auth/register', '/v1/auth/login', '/v1/auth/forgot-password', '/v1/auth/reset-password'];
 
 export function csrfPlugin(app: FastifyInstance): void {
   // Set CSRF cookie on safe (GET) requests if missing
