@@ -10,7 +10,9 @@ import {
   Clock,
   ShieldCheck,
   RefreshCw,
+  Zap,
 } from "lucide-react";
+import { useRealtime } from "../../../hooks/use-realtime";
 
 interface Approval {
   id: string;
@@ -83,6 +85,21 @@ export default function ApprovalsPage() {
     fetchApprovals();
   }, [fetchApprovals]);
 
+  // Auto-refresh when new approvals arrive via SSE
+  const { connected } = useRealtime({
+    onEvent: useCallback(
+      (event: any) => {
+        if (
+          event.type === "approval.created" ||
+          event.type === "approval.decided"
+        ) {
+          fetchApprovals();
+        }
+      },
+      [fetchApprovals]
+    ),
+  });
+
   const handleDecision = async (id: string, status: "approved" | "rejected") => {
     if (processingId) return; // Prevent double-click
     setProcessingId(id);
@@ -120,6 +137,12 @@ export default function ApprovalsPage() {
         <div>
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
             Decision Center · {pending.length} pending
+            {connected && (
+              <span className="ml-2 inline-flex items-center gap-1 text-emerald/70">
+                <span className="h-1 w-1 rounded-full bg-emerald animate-pulse" />
+                Live
+              </span>
+            )}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             Approval Queue
