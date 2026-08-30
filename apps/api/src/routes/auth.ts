@@ -293,4 +293,40 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       },
     };
   });
+
+  /** PATCH /v1/auth/me — Update user profile (name, email). */
+  app.patch('/v1/auth/me', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({
+      name: z.string().trim().min(1).max(200).optional(),
+      email: z.string().email().optional(),
+    }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+    if (parsed.data.email !== undefined) {
+      const newEmail = parsed.data.email.trim().toLowerCase();
+      // Check if email is already taken by another user
+      const existing = await users.findByEmail(db, newEmail);
+      if (existing && existing.id !== ctx.userId) {
+        throw conflict('An account with this email already exists');
+      }
+      updates.email = newEmail;
+    }
+
+    await db.update(usersTable).set(updates).where(eq(usersTable.id, ctx.userId));
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'user.profile_updated',
+      outcome: 'success',
+    });
+
+    const user = await users.findById(db, ctx.userId);
+    return {
+      data: { id: user!.id, email: user!.email, name: user!.name },
+    };
+  });
 }

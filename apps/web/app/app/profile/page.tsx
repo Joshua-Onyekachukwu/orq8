@@ -11,6 +11,9 @@ import {
   Users,
   Activity,
   CreditCard,
+  Save,
+  Loader2,
+  X,
 } from "lucide-react";
 
 interface UserData {
@@ -56,6 +59,10 @@ export default function ProfilePage() {
   const [credits, setCredits] = useState<CreditBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -137,12 +144,71 @@ export default function ProfilePage() {
                 {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
               </span>
               <div className="pb-1">
-                <p className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink sm:text-xl">
-                  {user?.name ?? "Founder"}
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-lime text-navy-950" title="Verified">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  </span>
-                </p>
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Your name"
+                      className="rounded-lg border border-hairline bg-white px-3 py-1.5 text-lg font-bold text-ink outline-none focus:border-navy-800"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setSaving(true);
+                        try {
+                          const res = await fetch("/api/auth/me", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: editName.trim() }),
+                          });
+                          if (res.ok) {
+                            const json = await res.json();
+                            setMe((prev) => prev ? { ...prev, user: { ...prev.user, name: json.data.name } } : prev);
+                            setEditing(false);
+                            setSaveSuccess(true);
+                            setTimeout(() => setSaveSuccess(false), 2000);
+                          }
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving || !editName.trim()}
+                      className="rounded-lg bg-navy-900 p-1.5 text-white hover:bg-navy-800 disabled:opacity-50"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(false)}
+                      className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink sm:text-xl">
+                      {user?.name ?? "Founder"}
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-lime text-navy-950" title="Verified">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setEditing(true); setEditName(user?.name ?? ""); }}
+                        className="rounded p-1 text-muted transition-colors hover:bg-canvas hover:text-ink"
+                        title="Edit name"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                      </button>
+                    </p>
+                    {saveSuccess && (
+                      <p className="mt-1 text-xs text-emerald-600">Profile updated successfully</p>
+                    )}
+                  </>
+                )}
                 <p className="text-sm text-muted">
                   {activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member"} · {org?.name ?? "ORQ8"}
                 </p>
