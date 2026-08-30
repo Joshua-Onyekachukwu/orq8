@@ -53,6 +53,19 @@ interface DashboardData {
   active_agents: number;
   pending_approvals: number;
   weekly_spend: number;
+  total_goals: number;
+  active_goals: number;
+  total_tasks: number;
+  completed_tasks: number;
+  credits: {
+    total: number;
+    used: number;
+    remaining: number;
+    utilizationPercent: number;
+    isLow: boolean;
+    isCritical: boolean;
+    daysRemaining: number | null;
+  } | null;
   recent_activity: ActivityEvent[];
 }
 
@@ -173,6 +186,11 @@ export default async function AppPage() {
   const activeAgents = dashboard?.active_agents ?? 0;
   const pendingApprovals = dashboard?.pending_approvals ?? 0;
   const weeklySpend = dashboard?.weekly_spend ?? 0;
+  const totalGoals = dashboard?.total_goals ?? 0;
+  const activeGoals = dashboard?.active_goals ?? 0;
+  const totalTasks = dashboard?.total_tasks ?? 0;
+  const completedTasks = dashboard?.completed_tasks ?? 0;
+  const credits = dashboard?.credits ?? null;
   const recentActivity = dashboard?.recent_activity ?? [];
 
   return (
@@ -257,6 +275,11 @@ export default async function AppPage() {
             pendingApprovals,
             weeklySpend,
             recentActivityCount: recentActivity.length,
+            totalGoals,
+            activeGoals,
+            totalTasks,
+            completedTasks,
+            credits,
           }}
           initialApprovals={approvals}
           initialAgents={agents}

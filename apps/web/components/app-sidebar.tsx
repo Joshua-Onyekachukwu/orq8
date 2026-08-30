@@ -7,20 +7,16 @@ import {
   Activity,
   Building2,
   CalendarDays,
-  ClipboardList,
   FileText,
   GitBranch,
   KeyRound,
   LayoutDashboard,
-  LayoutGrid,
   LogOut,
   Menu,
   ScrollText,
   Settings,
   ShieldCheck,
-  Table2,
   Target,
-  UserRound,
   Users,
   Wallet,
   X,
@@ -73,15 +69,7 @@ const navGroups: NavGroup[] = [
       { label: "Files & Documents", href: "/app/files", icon: FileText, built: true },
     ],
   },
-  {
-    title: "UI Kit",
-    items: [
-      { label: "Profile", href: "/app/profile", icon: UserRound, built: true },
-      { label: "Forms", href: "/app/forms", icon: ClipboardList, built: true },
-      { label: "Tables", href: "/app/tables", icon: Table2, built: true },
-      { label: "Widgets", href: "/app/widgets", icon: LayoutGrid, built: true },
-    ],
-  },
+
   {
     title: "Settings",
     items: [

@@ -265,6 +265,28 @@ export default function AgentsPage() {
                 )}
               </p>
 
+              {a.currentTask && (
+                <div className="mt-3 rounded-lg bg-canvas px-3 py-2">
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Current task</p>
+                  <p className="mt-0.5 text-xs text-ink line-clamp-2">{a.currentTask}</p>
+                </div>
+              )}
+
+              {a.capabilities && a.capabilities.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {a.capabilities.slice(0, 4).map((cap) => (
+                    <span key={cap} className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                      {cap}
+                    </span>
+                  ))}
+                  {a.capabilities.length > 4 && (
+                    <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                      +{a.capabilities.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-canvas px-3 py-2.5">
                   <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">

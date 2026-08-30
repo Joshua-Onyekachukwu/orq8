@@ -58,6 +58,19 @@ interface DashboardRealtimeProps {
     pendingApprovals: number;
     weeklySpend: number;
     recentActivityCount: number;
+    totalGoals: number;
+    activeGoals: number;
+    totalTasks: number;
+    completedTasks: number;
+    credits: {
+      total: number;
+      used: number;
+      remaining: number;
+      utilizationPercent: number;
+      isLow: boolean;
+      isCritical: boolean;
+      daysRemaining: number | null;
+    } | null;
   };
   initialApprovals: Approval[];
   initialAgents: Agent[];
@@ -194,6 +207,7 @@ export function DashboardRealtime({
   const pendingApprovals = stats.pendingApprovals;
   const weeklySpend = stats.weeklySpend;
   const recentActivityCount = stats.recentActivityCount;
+  const credits = stats.credits;
 
   const statCards = [
     {
@@ -204,9 +218,9 @@ export function DashboardRealtime({
       accent: "bg-emerald/10 text-emerald-700",
     },
     {
-      label: "Tasks this week",
-      value: String(recentActivityCount).padStart(2, "0"),
-      note: `${recentActivityCount} recent actions`,
+      label: "Tasks completed",
+      value: String(stats.completedTasks).padStart(2, "0"),
+      note: `${stats.totalTasks} total tasks`,
       icon: ListChecks,
       accent: "bg-indigo-50 text-indigo-700",
     },
@@ -218,14 +232,11 @@ export function DashboardRealtime({
       accent: "bg-amber-50 text-amber-700",
     },
     {
-      label: "Approvals pending",
-      value: String(pendingApprovals).padStart(2, "0"),
-      note:
-        pendingApprovals === 1
-          ? "needs your sign-off"
-          : "need your sign-off",
+      label: "Credits remaining",
+      value: credits ? String(credits.remaining) : "—",
+      note: credits ? `${credits.utilizationPercent}% used` : "no credits yet",
       icon: ClipboardCheck,
-      accent: "bg-red-50 text-red-600",
+      accent: credits?.isCritical ? "bg-red-50 text-red-600" : "bg-red-50 text-red-600",
     },
   ];
 
@@ -293,6 +304,72 @@ export function DashboardRealtime({
           );
         })}
       </div>
+
+      {/* Goals Progress + Credits */}
+      {(stats.totalGoals > 0 || credits) && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {/* Goals */}
+          {stats.totalGoals > 0 && (
+            <Link
+              href="/app/goals"
+              className="rounded-xl border border-hairline bg-white p-5 transition-colors hover:border-emerald/30"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-ink">Goals Progress</h3>
+                <ArrowUpRight className="h-4 w-4 text-muted" />
+              </div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs text-muted mb-1">
+                  <span>{stats.activeGoals} active goals</span>
+                  <span className="font-mono">{stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}% task completion</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald transition-all"
+                    style={{ width: `${stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-muted">
+                {stats.completedTasks} of {stats.totalTasks} tasks completed
+              </p>
+            </Link>
+          )}
+
+          {/* Credits */}
+          {credits && (
+            <Link
+              href="/app/budgets"
+              className={`rounded-xl border bg-white p-5 transition-colors hover:border-emerald/30 ${
+                credits.isCritical ? 'border-red-200' : credits.isLow ? 'border-amber-200' : 'border-hairline'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-ink">Work Credits</h3>
+                <ArrowUpRight className="h-4 w-4 text-muted" />
+              </div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-xs text-muted mb-1">
+                  <span>{credits.used} of {credits.total} used</span>
+                  <span className="font-mono">{credits.utilizationPercent}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted/10 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      credits.isCritical ? 'bg-red-500' : credits.isLow ? 'bg-amber-400' : 'bg-emerald'
+                    }`}
+                    style={{ width: `${Math.min(credits.utilizationPercent, 100)}%` }}
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-muted">
+                {credits.remaining} credits remaining
+                {credits.daysRemaining != null && ` · ~${credits.daysRemaining} days left`}
+              </p>
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Decision Center + Agent Roster */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
