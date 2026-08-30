@@ -74,7 +74,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     // Brute-force protection: check if account is locked
     const redis = (deps as { redis?: { isConnected(): boolean } }).redis;
-    const lockCheck = await checkLoginAllowed(redis as any, email);
+    const lockCheck = await checkLoginAllowed(redis as any, email, db);
     if (!lockCheck.allowed) {
       const retryAfterMs = lockCheck.lockedUntil ? Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000) : 900;
       reply.header('Retry-After', String(retryAfterMs));
@@ -91,13 +91,13 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const user = await users.findByEmail(db, email);
     if (!user) {
       logger.warn({ email }, 'login failed: unknown email');
-      await recordFailedLogin(redis as any, email);
+      await recordFailedLogin(redis as any, email, db);
       throw unauthorized('Invalid email or password');
     }
 
     const ok = await verifyPassword(user.passwordHash, password);
     if (!ok) {
-      await recordFailedLogin(redis as any, email);
+      await recordFailedLogin(redis as any, email, db);
       // audit the failure against the user's org when determinable (pre-org events are skipped)
       const memberships = await orgs.findMembershipsByUser(db, user.id);
       const orgId = memberships[0]?.org.id;
@@ -108,7 +108,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     }
 
     // Successful login — reset brute-force counter
-    await resetFailedLogins(redis as any, email);
+    await resetFailedLogins(redis as any, email, db);
 
     const memberships = await orgs.findMembershipsByUser(db, user.id);
     const active = memberships[0];

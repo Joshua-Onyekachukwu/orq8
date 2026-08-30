@@ -584,3 +584,24 @@ export const files = pgTable(
 
 export type FileRecord = typeof files.$inferSelect;
 export type NewFileRecord = typeof files.$inferInsert;
+
+// ─── Login Lockouts ────────────────────────────────────────────────────────
+// Persists brute-force lockout state to the database so it survives restarts.
+// One row per email address. Rows are cleaned up after lockout expires.
+
+export const loginLockouts = pgTable(
+  'login_lockouts',
+  {
+    email: text('email').primaryKey(), // normalized lowercase email
+    failedCount: integer('failed_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    lastFailedAt: timestamp('last_failed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('login_lockouts_locked_idx').on(t.lockedUntil),
+  ],
+);
+
+export type LoginLockout = typeof loginLockouts.$inferSelect;
+export type NewLoginLockout = typeof loginLockouts.$inferInsert;
