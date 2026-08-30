@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -59,6 +59,10 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const conditions = [eq(goals.orgId, ctx.orgId)];
     if (status) conditions.push(eq(goals.status, status));
 
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(goals)
+      .where(and(...conditions));
     const list = await db
       .select()
       .from(goals)
@@ -66,7 +70,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       .orderBy(goals.createdAt)
       .limit(limit)
       .offset(offset);
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Get a single goal. */
@@ -194,6 +198,10 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       ? tasks.dueDate
       : tasks.createdAt;
 
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(and(...conditions));
     const list = await db
       .select()
       .from(tasks)
@@ -202,7 +210,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       .limit(limit)
       .offset(offset);
 
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Get a single task. */

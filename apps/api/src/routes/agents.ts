@@ -1,3 +1,5 @@
+import { eq, and, sql } from 'drizzle-orm';
+import { agents as agentsTable } from '@orq8/db';
 import { z } from 'zod';
 import { validation, forbidden } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -22,8 +24,12 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const url = new URL(request.url, 'http://localhost');
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(agentsTable)
+      .where(eq(agentsTable.orgId, ctx.orgId));
     const list = await agents.findByOrg(db, ctx.orgId, { limit, offset });
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Get a single agent. */

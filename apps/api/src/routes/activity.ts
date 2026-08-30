@@ -1,5 +1,5 @@
 import { eq, and, gte, sql } from 'drizzle-orm';
-import { goals, tasks, activityEvents } from '@orq8/db';
+import { goals, tasks, activityEvents, type Db } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as activity from '../services/activity.js';
@@ -18,8 +18,14 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
     const agentId = url.searchParams.get('agent_id') ?? undefined;
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const conditions = [eq(activityEvents.orgId, ctx.orgId)];
+    if (agentId) conditions.push(eq(activityEvents.agentId, agentId));
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(activityEvents)
+      .where(and(...conditions));
     const list = await activity.findByOrg(db, ctx.orgId, { agentId, limit, offset });
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Dashboard summary stats for the current org. */

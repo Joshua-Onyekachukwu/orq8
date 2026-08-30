@@ -1,3 +1,5 @@
+import { eq, and, sql } from 'drizzle-orm';
+import { creditTransactions } from '@orq8/db';
 import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -27,8 +29,12 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
 
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(creditTransactions)
+      .where(eq(creditTransactions.orgId, ctx.orgId));
     const history = await credits.getTransactionHistory(db, ctx.orgId, limit, offset);
-    return { data: history, meta: { limit, offset } };
+    return { data: history, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /**

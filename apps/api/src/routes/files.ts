@@ -1,3 +1,5 @@
+import { eq, sql } from 'drizzle-orm';
+import { files as filesTable } from '@orq8/db';
 import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -16,8 +18,12 @@ export function registerFileRoutes(app: FastifyInstance, deps: AppDeps): void {
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
 
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(filesTable)
+      .where(eq(filesTable.orgId, ctx.orgId));
     const list = await files.listFiles(db, ctx.orgId, { limit, offset });
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Get a single file record. */

@@ -46,7 +46,7 @@ export function registerMemoryRoutes(app: FastifyInstance, deps: AppDeps): void 
       offset,
     });
 
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: list.length } };
   });
 
   /** Get memory stats for the org. */

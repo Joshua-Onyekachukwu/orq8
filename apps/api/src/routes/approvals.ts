@@ -1,3 +1,5 @@
+import { and, eq, sql } from 'drizzle-orm';
+import { approvals as approvalsTable } from '@orq8/db';
 import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -58,8 +60,14 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
     const status = url.searchParams.get('status') ?? undefined;
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
+    const conditions = [eq(approvalsTable.orgId, ctx.orgId)];
+    if (status) conditions.push(eq(approvalsTable.status, status));
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(approvalsTable)
+      .where(and(...conditions));
     const list = await approvals.findByOrg(db, ctx.orgId, { status, limit, offset });
-    return { data: list, meta: { limit, offset } };
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
 
   /** Get a single approval. */
