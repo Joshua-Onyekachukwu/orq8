@@ -76,7 +76,7 @@ const Testimonials: React.FC = () => {
     setCurrent((c) => (c - 1 + testimonials.length) % testimonials.length);
   const next = () => setCurrent((c) => (c + 1) % testimonials.length);
 
-  const testimonial = testimonials[current];
+  const testimonial = testimonials[current]!; // Array is non-empty, current is always in bounds
 
   return (
     <div className="py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px] bg-white">

@@ -1,7 +1,8 @@
-name: Deploy web app (Vercel)
+name: Deploy to Vercel
 
-# Deploys the ORQ8 web app to Vercel on push to main.
-# Uses the same retry logic as the landing deploy to handle Hobby plan limits.
+# Unified Vercel deployment for ORQ8 web app (dashboard + landing page).
+# Single Vercel project: orq8-web
+# The web app serves both the landing page (/) and the dashboard (/app).
 
 on:
   push:
@@ -10,17 +11,17 @@ on:
       - "apps/web/**"
       - "packages/**"
       - "pnpm-lock.yaml"
-      - ".github/workflows/vercel-web-deploy.yml"
+      - ".github/workflows/vercel-deploy.yml"
   schedule:
-    # Every 2 hours as fallback for quota exhaustion
+    # Every 2 hours as fallback for Hobby plan quota exhaustion
     - cron: "47 */2 * * *"
   workflow_dispatch:
 
 jobs:
-  deploy-web:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger production deployment for orq8-web
+      - name: Trigger production deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}

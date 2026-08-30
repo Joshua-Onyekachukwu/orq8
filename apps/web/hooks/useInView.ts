@@ -17,7 +17,7 @@ export function useInView(threshold = 0.15) {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry?.isIntersecting) {
           setInView(true);
           observer.disconnect(); // one-shot: once visible, stay visible
         }

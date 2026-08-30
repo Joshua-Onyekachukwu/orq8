@@ -34,9 +34,6 @@ jobs:
       - name: Typecheck Web
         run: cd apps/web && npx tsc --noEmit
 
-      - name: Typecheck Landing
-        run: cd apps/landing && npx tsc --noEmit
-
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -86,9 +83,6 @@ jobs:
 
       - name: Build API
         run: cd apps/api && npx tsc --noEmit
-
-      - name: Build Landing
-        run: cd apps/landing && npx tsc --noEmit
 
       - name: Build Web (typecheck only — full Next.js build is slow)
         run: cd apps/web && npx tsc --noEmit
