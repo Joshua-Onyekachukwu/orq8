@@ -129,26 +129,38 @@ export async function executeTask(
   const systemPrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
   const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
 
-  // 5. Call the LLM
+  // 5. Call the LLM (with retry)
   const startTime = Date.now();
-  let result: string;
+  let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
   let tokensUsed = 0;
+  let llmAttempted = false;
 
-  try {
-    const llmResponse = await chat(config, systemPrompt, taskPrompt, {
-      temperature: 0.7,
-      max_tokens: 2048,
-    });
+  // Try up to 2 times for the LLM call
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Exponential backoff on retry
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
 
-    if (llmResponse) {
-      result = llmResponse;
-      // Estimate tokens (rough: 1 token ≈ 4 chars)
-      tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
-    } else {
-      // LLM unavailable — generate a structured placeholder
-      result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
+      const llmResponse = await chat(config, systemPrompt, taskPrompt, {
+        temperature: 0.7,
+        max_tokens: 2048,
+        retries: 0, // We handle retries at this level
+      });
+
+      if (llmResponse) {
+        result = llmResponse;
+        llmAttempted = true;
+        tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
+        break;
+      }
+    } catch {
+      // Continue to next attempt or fallback
     }
-  } catch {
+  }
+
+  if (!llmAttempted) {
     result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
   }
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 
 type AuthMode = "login" | "register";
 
@@ -36,8 +36,21 @@ export function AuthForm({
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [lockout, setLockout] = useState<{ secondsLeft: number; message: string } | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const target = safeNext(next);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (!lockout || lockout.secondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setLockout((prev) => {
+        if (!prev || prev.secondsLeft <= 1) return null;
+        return { ...prev, secondsLeft: prev.secondsLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockout?.secondsLeft]);
 
   // Move focus to the alert so keyboard + screen-reader users hear the failure.
   useEffect(() => {
@@ -81,10 +94,22 @@ export function AuthForm({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(
-          (data as { error?: string } | null)?.error ??
-            "That didn't work. Check your details and try again. If it persists, the API may be down."
-        );
+        // Check for account lockout (429 + Retry-After header)
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('Retry-After');
+          const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : 900;
+          const errorData = data as { error?: { code?: string; message?: string } } | null;
+          setLockout({
+            secondsLeft: retrySeconds,
+            message: errorData?.error?.message ?? `Too many failed attempts. Try again in ${Math.ceil(retrySeconds / 60)} minutes.`,
+          });
+          setError(null);
+        } else {
+          setError(
+            (data as { error?: string } | null)?.error ??
+              "That didn't work. Check your details and try again."
+          );
+        }
         return;
       }
       router.push(target ?? "/app");
@@ -146,7 +171,29 @@ export function AuthForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>
-      {error && (
+      {lockout && (
+        <div
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3"
+        >
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-200">Account temporarily locked</p>
+              <p className="mt-1 text-xs text-amber-300/80">
+                {lockout.message}
+              </p>
+              <p className="mt-2 font-mono text-lg font-bold text-amber-200 tabular-nums">
+                {Math.floor(lockout.secondsLeft / 60)}:{String(lockout.secondsLeft % 60).padStart(2, '0')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && !lockout && (
         <div
           ref={errorRef}
           tabIndex={-1}

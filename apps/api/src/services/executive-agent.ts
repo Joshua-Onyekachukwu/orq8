@@ -229,24 +229,26 @@ export async function analyzeIntent(
 
 /**
  * Rule-based fallback analysis when the LLM is not available.
+ * Creates multi-step task decompositions based on keyword analysis.
  */
 function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysis {
   const lower = command.toLowerCase();
 
   // Determine category
   let category: IntentAnalysis['category'] = 'plan';
-  if (lower.includes('research') || lower.includes('analyze') || lower.includes('investigate')) category = 'research';
-  else if (lower.includes('write') || lower.includes('draft') || lower.includes('create content')) category = 'write';
-  else if (lower.includes('send') || lower.includes('email') || lower.includes('notify') || lower.includes('publish')) category = 'communicate';
-  else if (lower.includes('report') || lower.includes('summary')) category = 'report';
-  else if (lower.includes('deploy') || lower.includes('release') || lower.includes('execute')) category = 'execute';
-  else if (lower.includes('manage') || lower.includes('organize') || lower.includes('hire')) category = 'manage';
-  else if (lower.includes('plan') || lower.includes('strategy')) category = 'plan';
+  if (lower.includes('research') || lower.includes('analyze') || lower.includes('investigate') || lower.includes('competitor') || lower.includes('market')) category = 'research';
+  else if (lower.includes('write') || lower.includes('draft') || lower.includes('create content') || lower.includes('blog') || lower.includes('article')) category = 'write';
+  else if (lower.includes('send') || lower.includes('email') || lower.includes('notify') || lower.includes('publish') || lower.includes('post')) category = 'communicate';
+  else if (lower.includes('report') || lower.includes('summary') || lower.includes('dashboard')) category = 'report';
+  else if (lower.includes('deploy') || lower.includes('release') || lower.includes('execute') || lower.includes('build')) category = 'execute';
+  else if (lower.includes('manage') || lower.includes('organize') || lower.includes('hire') || lower.includes('team')) category = 'manage';
+  else if (lower.includes('plan') || lower.includes('strategy') || lower.includes('roadmap')) category = 'plan';
+  else if (lower.includes('financ') || lower.includes('budget') || lower.includes('revenue') || lower.includes('cost')) category = 'analyze';
 
   // Determine approval requirements
-  const needsApproval = ['send', 'publish', 'deploy', 'buy', 'purchase', 'delete', 'remove', 'hire', 'fire', 'email'].some(w => lower.includes(w));
+  const needsApproval = ['send', 'publish', 'deploy', 'buy', 'purchase', 'delete', 'remove', 'hire', 'fire', 'email', 'post'].some(w => lower.includes(w));
 
-  // Determine best agent
+  // Determine best agent role
   const agentRoleMap: Record<string, string> = {
     research: 'market_researcher',
     write: 'content_writer',
@@ -255,7 +257,7 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
     report: 'data_analyst',
     manage: 'operations_manager',
     plan: 'executive_agent',
-    analyze: 'data_analyst',
+    analyze: 'financial_analyst',
   };
 
   const suggestedRole = agentRoleMap[category] ?? 'executive_agent';
@@ -264,13 +266,19 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
   const matchingAgent = ctx.agents.find(a => a.role === suggestedRole && a.status === 'active');
   const agentName = matchingAgent?.name ?? 'Executive Agent';
 
-  // Decompose into tasks
-  const taskDecomposition = [{
-    title: command.length > 100 ? command.slice(0, 97) + '...' : command,
-    description: command,
-    suggestedAgentRole: suggestedRole,
-    priority: needsApproval ? 'high' as const : 'normal' as const,
-  }];
+  // Build multi-step task decomposition based on category
+  const taskDecomposition = buildTaskDecomposition(command, category, suggestedRole, needsApproval);
+
+  // Calculate estimated cost based on task count and complexity
+  const estimatedCost = taskDecomposition.length * 2;
+
+  // Build a descriptive response
+  const taskCount = taskDecomposition.length;
+  const agentList = [...new Set(taskDecomposition.map(t => t.suggestedAgentRole))];
+  const agentNames = agentList.map(r => {
+    const a = ctx.agents.find(ag => ag.role === r && ag.status === 'active');
+    return a?.name ?? r.replace(/_/g, ' ');
+  });
 
   return {
     intent: command,
@@ -280,13 +288,84 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
       ? `This action involves ${category === 'communicate' ? 'external communications' : category === 'execute' ? 'production changes' : 'significant actions'} that require your approval.`
       : undefined,
     riskLevel: needsApproval ? 'medium' : 'low',
-    estimatedCost: 0,
+    estimatedCost,
     suggestedAgentRole: suggestedRole,
     taskDecomposition,
     response: needsApproval
-      ? `I've analyzed your command and created an approval request. Once you approve, ${agentName} will handle: "${command}"`
-      : `I've analyzed your command. ${agentName} will handle: "${command}"`,
+      ? `I've analyzed your command and broken it into ${taskCount} tasks across ${agentNames.join(', ')}. Once you approve, execution will begin.`
+      : `I've analyzed your command and created ${taskCount} tasks. ${agentNames.length === 1 ? agentNames[0] + ' will' : agentNames.join(' and ') + ' will'} handle execution.`,
   };
+}
+
+/**
+ * Build a multi-step task decomposition based on command category.
+ */
+function buildTaskDecomposition(
+  command: string,
+  category: string,
+  primaryRole: string,
+  needsApproval: boolean,
+): IntentAnalysis['taskDecomposition'] {
+  const truncatedCmd = command.length > 80 ? command.slice(0, 77) + '...' : command;
+
+  switch (category) {
+    case 'research':
+      return [
+        { title: `Define research scope: ${truncatedCmd}`, description: 'Clarify objectives, key questions, and success criteria', suggestedAgentRole: 'executive_agent', priority: 'high' },
+        { title: 'Gather primary data and sources', description: 'Collect relevant data from available sources', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Analyze findings and identify patterns', description: 'Synthesize data into actionable insights', suggestedAgentRole: 'data_analyst', priority: 'normal' },
+        { title: 'Deliver research report with recommendations', description: 'Compile findings into a structured deliverable', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    case 'write':
+      return [
+        { title: `Outline content structure: ${truncatedCmd}`, description: 'Create outline, identify key sections and messaging', suggestedAgentRole: 'executive_agent', priority: 'normal' },
+        { title: 'Draft content', description: 'Write the full content following the outline', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Review and refine', description: 'Proofread, polish, and ensure quality', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    case 'communicate':
+      return [
+        { title: `Draft communication: ${truncatedCmd}`, description: 'Compose the message with appropriate tone and content', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Review for accuracy and tone', description: 'Ensure the message is professional and accurate', suggestedAgentRole: 'executive_agent', priority: 'normal' },
+      ];
+
+    case 'report':
+      return [
+        { title: `Define report scope: ${truncatedCmd}`, description: 'Identify metrics, time range, and audience', suggestedAgentRole: 'executive_agent', priority: 'normal' },
+        { title: 'Gather and analyze data', description: 'Collect relevant metrics and performance data', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Format and deliver report', description: 'Structure findings into a clear, actionable report', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    case 'execute':
+      return [
+        { title: `Plan execution: ${truncatedCmd}`, description: 'Define steps, dependencies, and success criteria', suggestedAgentRole: 'executive_agent', priority: 'high' },
+        { title: 'Execute implementation', description: 'Carry out the planned changes', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Verify results', description: 'Confirm the execution achieved the desired outcome', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    case 'analyze':
+      return [
+        { title: `Define analysis framework: ${truncatedCmd}`, description: 'Identify metrics, data sources, and analytical approach', suggestedAgentRole: 'executive_agent', priority: 'normal' },
+        { title: 'Collect and process data', description: 'Gather relevant data points for analysis', suggestedAgentRole: 'data_analyst', priority: 'high' },
+        { title: 'Perform analysis and generate insights', description: 'Apply analytical methods and extract key findings', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Deliver findings with recommendations', description: 'Present results in an actionable format', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    case 'manage':
+      return [
+        { title: `Assess requirements: ${truncatedCmd}`, description: 'Understand what needs to be managed and current state', suggestedAgentRole: 'executive_agent', priority: 'high' },
+        { title: 'Develop action plan', description: 'Create a structured plan with timelines and responsibilities', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Execute and track', description: 'Implement the plan and monitor progress', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+
+    default: // plan
+      return [
+        { title: `Analyze objectives: ${truncatedCmd}`, description: 'Understand goals, constraints, and success criteria', suggestedAgentRole: 'executive_agent', priority: 'high' },
+        { title: 'Develop strategic plan', description: 'Create a structured plan with phases and milestones', suggestedAgentRole: primaryRole, priority: 'high' },
+        { title: 'Document plan and next steps', description: 'Compile the plan into an actionable deliverable', suggestedAgentRole: primaryRole, priority: 'normal' },
+      ];
+  }
 }
 
 // ─── Task Creation & Agent Selection ────────────────────────────────────────
@@ -500,37 +579,56 @@ export async function executeCommand(
   });
 
   // 10. Determine status
-  const allCompleted = taskExecutionResults.every(r => r.status === 'completed');
-  const anyFailed = taskExecutionResults.some(r => r.status === 'failed');
+  const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
+  const failedCount = taskExecutionResults.filter(r => r.status === 'failed').length;
+  const totalCount = taskExecutionResults.length;
 
   let status: ExecutionResult['status'];
   if (intent.requiresApproval) {
     status = 'awaiting_approval';
-  } else if (anyFailed) {
+  } else if (totalCount > 0 && completedCount === totalCount) {
+    status = 'completed';
+  } else if (totalCount > 0 && failedCount === totalCount) {
     status = 'error';
-  } else if (allCompleted || taskExecutionResults.length === 0) {
-    status = 'completed';
+  } else if (totalCount > 0 && failedCount > 0 && completedCount > 0) {
+    status = 'completed'; // partial success is still 'completed'
   } else {
-    status = 'completed';
+    status = 'completed'; // no execution (approval pending or no tasks)
   }
 
-  // 11. Build response message
+  // 11. Build response message with execution details
   let message = intent.response;
-  if (taskExecutionResults.length > 0) {
-    const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
+  if (totalCount > 0) {
     const totalCost = taskExecutionResults.reduce((sum, r) => sum + r.cost, 0);
-    message += `\n\n**Execution:** ${completedCount}/${taskExecutionResults.length} tasks completed. ${totalCost > 0 ? `${totalCost} credits consumed.` : ''}`;
+    const parts: string[] = [];
+    parts.push(`**Execution:** ${completedCount}/${totalCount} tasks completed.`);
+    if (failedCount > 0) {
+      parts.push(`${failedCount} task${failedCount > 1 ? 's' : ''} failed.`);
+    }
+    if (totalCost > 0) {
+      parts.push(`${totalCost} credits consumed.`);
+    }
+    message += `\n\n${parts.join(' ')}`;
   }
 
   // 12. Store the command result as company memory
+  const memoryParts = [
+    `CEO command: "${command}"`,
+    `Category: ${intent.category}`,
+    `Tasks created: ${taskIds.length}`,
+    `Completed: ${completedCount}`,
+    failedCount > 0 ? `Failed: ${failedCount}` : null,
+    `Credits consumed: ${creditsConsumed}`,
+  ].filter(Boolean).join(' | ');
+
   await db.insert(companyMemory).values({
     orgId,
     category: 'context',
-    content: `CEO command: "${command}" — Intent: ${intent.intent}, Category: ${intent.category}, Tasks: ${taskIds.length}, Executed: ${taskExecutionResults.length}, Credits: ${creditsConsumed}`,
+    content: memoryParts,
     source: 'executive_agent',
     agentId: null,
     taskId: taskIds[0] ?? null,
-    importance: 5,
+    importance: failedCount > 0 ? 3 : 5,
   });
 
   return {

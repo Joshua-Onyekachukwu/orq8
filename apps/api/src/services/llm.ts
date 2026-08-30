@@ -40,6 +40,8 @@ export interface LLMOptions {
   temperature?: number;
   max_tokens?: number;
   response_format?: { type: 'json_object' } | { type: 'text' };
+  retries?: number;
+  retryDelayMs?: number;
 }
 
 /**
@@ -55,39 +57,60 @@ export async function chatCompletion(
 ): Promise<ChatCompletionResponse | null> {
   const baseUrl = config.LITELLM_BASE_URL;
   const masterKey = config.LITELLM_MASTER_KEY ?? 'sk-orq8-dev-litellm';
+  const maxRetries = options.retries ?? 2;
+  const baseDelay = options.retryDelayMs ?? 1000;
 
   if (!baseUrl) {
     return null; // LiteLLM not configured
   }
 
-  try {
-    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${masterKey}`,
-      },
-      body: JSON.stringify({
-        model: options.model ?? 'llama3.2',
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.max_tokens ?? 2048,
-        ...(options.response_format ? { response_format: options.response_format } : {}),
-      }),
-      signal: AbortSignal.timeout(120_000), // 2-minute timeout
-    });
+  let lastError: string = 'unknown';
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'unknown');
-      return null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // Exponential backoff with jitter on retries
+      if (attempt > 0) {
+        const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 500;
+        await new Promise((r) => setTimeout(r, delay));
+      }
+
+      const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${masterKey}`,
+        },
+        body: JSON.stringify({
+          model: options.model ?? 'llama3.2',
+          messages: options.messages,
+          temperature: options.temperature ?? 0.7,
+          max_tokens: options.max_tokens ?? 2048,
+          ...(options.response_format ? { response_format: options.response_format } : {}),
+        }),
+        signal: AbortSignal.timeout(120_000), // 2-minute timeout
+      });
+
+      if (!response.ok) {
+        lastError = `HTTP ${response.status}`;
+        // Don't retry on 4xx client errors (except 429)
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+          return null;
+        }
+        continue; // Retry on 5xx or 429
+      }
+
+      const data = (await response.json()) as ChatCompletionResponse;
+      return data;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : 'network error';
+      // Don't retry on abort/timeout — fail fast
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return null;
+      }
     }
-
-    const data = (await response.json()) as ChatCompletionResponse;
-    return data;
-  } catch {
-    // Network error, timeout, etc.
-    return null;
   }
+
+  return null;
 }
 
 /**
@@ -98,7 +121,7 @@ export async function chat(
   config: AppConfig,
   systemPrompt: string,
   userMessage: string,
-  options: { model?: string; temperature?: number; max_tokens?: number } = {},
+  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number } = {},
 ): Promise<string | null> {
   const response = await chatCompletion(config, {
     model: options.model,
@@ -108,6 +131,7 @@ export async function chat(
     ],
     temperature: options.temperature ?? 0.7,
     max_tokens: options.max_tokens ?? 2048,
+    retries: options.retries,
   });
 
   return response?.choices?.[0]?.message?.content ?? null;
@@ -121,11 +145,12 @@ export async function chatJson<T = unknown>(
   config: AppConfig,
   systemPrompt: string,
   userMessage: string,
-  options: { model?: string; temperature?: number; max_tokens?: number } = {},
+  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number } = {},
 ): Promise<T | null> {
   const text = await chat(config, systemPrompt, userMessage, {
     ...options,
     temperature: options.temperature ?? 0.3, // Lower temp for structured output
+    retries: options.retries ?? 1, // JSON needs higher success rate
   });
 
   if (!text) return null;
