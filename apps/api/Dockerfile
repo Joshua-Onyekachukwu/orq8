@@ -22,7 +22,7 @@ COPY packages/core packages/core
 COPY packages/db packages/db
 COPY packages/domain packages/domain
 
-# ── Production ──
+# ── Production (skip devDependencies for smaller image) ──
 ENV NODE_ENV=production
 EXPOSE 3001
 
