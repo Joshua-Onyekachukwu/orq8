@@ -199,15 +199,18 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       expiresAt,
     });
 
-    // Send the reset email
+    // Send the reset email using the transactional template
+    const { passwordResetEmail } = await import('../email/transactional.js');
+    const { createEmailTransport } = await import('../email/transport.js');
     const transport = createEmailTransport(deps.config, deps.logger);
     const resetUrl = `${deps.config.ALLOWED_ORIGINS.split(',')[0]?.trim() ?? 'http://localhost:3000'}/reset-password?token=${plaintextToken}`;
+    const resetEmail = passwordResetEmail({ email: user.email, resetUrl });
 
     await transport.send({
       to: user.email,
-      subject: 'Reset your ORQ8 password',
-      text: `You requested a password reset. Click the link below to set a new password:\n\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
-      html: `<!doctype html><html><head><meta charset="utf-8" /></head><body style="margin:0;padding:0;background:#f7f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c2540;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f8fb;"><tr><td align="center" style="padding:32px 16px;"><table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e4e7ef;border-radius:12px;overflow:hidden;"><tr><td style="background:#0a1024;padding:20px 28px;"><span style="font-family:Consolas,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#b6e63d;">password reset</span><span style="float:right;color:#ffffff;font-weight:700;font-size:15px;">ORQ8</span></td></tr><tr><td style="padding:32px 28px;font-size:15px;line-height:1.6;"><p style="margin:8px 0;">Hi ${user.name ?? 'there'},</p><p style="margin:8px 0;">You requested a password reset for your ORQ8 account.</p><p style="margin:24px 0 8px;"><a href="${resetUrl}" style="display:inline-block;background:#b6e63d;color:#0a1024;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:8px;font-family:Consolas,monospace;font-size:13px;">Reset my password</a></p><p style="margin:16px 0 8px;color:#5b6478;font-size:13px;">This link expires in <strong>1 hour</strong>. If you didn't request this, you can safely ignore this email.</p></td></tr><tr><td style="padding:16px 28px;border-top:1px solid #e4e7ef;color:#5b6478;font-size:12px;">ORQ8 — the AI organization operating system.</td></tr></table></td></tr></table></body></html>`,
+      subject: resetEmail.subject,
+      text: resetEmail.text,
+      html: resetEmail.html,
     });
 
     await appendAudit(db, {

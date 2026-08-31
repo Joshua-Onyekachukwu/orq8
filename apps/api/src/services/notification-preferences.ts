@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { organizations, type Db } from '@orq8/db';
 import type { createNotification } from '../routes/notifications.js';
-import { creditAlertEmailHtml, type AlertType } from './credit-alerts.js';
+import { creditAlertEmail } from '../email/transactional.js';
+type AlertType = 'warning' | 'low' | 'critical' | 'exhausted';
 
 /**
  * Notification Preferences Service
@@ -156,19 +157,18 @@ export async function notifyWithPrefs(
 
   // Email notification
   if (email && shouldNotify(prefs, 'email', type)) {
-    const emailContent = creditAlertEmailHtml(
-      email.alertType,
-      email.orgName,
-      {
-        total: email.balance.total,
-        used: email.balance.used,
-        remaining: email.balance.remaining,
-        daysRemaining: email.balance.daysRemaining,
-        periodEnd: email.balance.periodEnd,
-      } as any,
-    );
+    const emailContent = creditAlertEmail({
+      orgName: email.orgName,
+      alertType: email.alertType,
+      remaining: email.balance.remaining,
+      total: email.balance.total,
+      utilizationPercent: email.balance.total > 0
+        ? Math.round((email.balance.used / email.balance.total) * 100)
+        : 0,
+      daysRemaining: email.balance.daysRemaining,
+    });
 
-    // Queue email for sending (for now, just log — SMTP integration is on hold)
+    // Queue email for sending
     const { createNotification } = await import('../routes/notifications.js');
     createNotification(
       orgId,

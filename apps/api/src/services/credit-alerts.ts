@@ -127,6 +127,7 @@ export async function checkAndAlert(
   db: Db,
   orgId: string,
   balance: CreditBalanceInfo,
+  opts?: { email?: { transporter: import('../email/transport.js').EmailTransport; founderEmail: string; orgName: string } },
 ): Promise<CreditAlertRecord | null> {
   const alertType = detectAlertType(balance);
   if (!alertType) return null;
@@ -175,6 +176,36 @@ export async function checkAndAlert(
       },
     });
   } catch { /* notification failure is non-fatal */ }
+
+  // Send email if transport provided and user preferences allow
+  if (opts?.email) {
+    try {
+      const { shouldNotify, getNotificationPrefs } = await import('./notification-preferences.js');
+      const prefs = await getNotificationPrefs(db, orgId);
+      if (shouldNotify(prefs, 'email', 'credit')) {
+        const { creditAlertEmail } = await import('../email/transactional.js');
+        const email = creditAlertEmail({
+          orgName: opts.email.orgName,
+          alertType,
+          remaining: balance.remaining,
+          total: balance.total,
+          utilizationPercent,
+          daysRemaining: balance.daysRemaining,
+        });
+        await opts.email.transporter.send({
+          to: opts.email.founderEmail,
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
+        });
+        // Mark email as sent in the alert record
+        await db
+          .update(creditAlerts)
+          .set({ emailSent: true })
+          .where(eq(creditAlerts.id, alert.id));
+      }
+    } catch { /* email failure is non-fatal */ }
+  }
 
   return alert;
 }
