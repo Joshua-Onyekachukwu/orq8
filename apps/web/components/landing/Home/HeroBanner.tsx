@@ -64,49 +64,17 @@ const HeroBanner: React.FC = () => {
             </div>
           </div>
 
-          {/* Right — dashboard mockup panel */}
-          <div className="relative order-2 h-[500px] sm:h-[600px] lg:h-full ltr:lg:mr-[100px] rtl:lg:ml-[100px] ltr:xl:mr-[215px] rtl:xl:ml-[215px] overflow-hidden rounded-l-[30px] lg:rounded-[30px] flex items-center justify-center">
-            {/* Gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-950 to-navy-900" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.08)_0%,transparent_70%)]" />
-            {/* Dashboard card mockup */}
-            <div className="relative z-10 w-[85%] max-w-[380px] rounded-2xl border border-white/10 bg-navy-surface/90 p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)] backdrop-blur">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/50">ORQ8 · Command Center</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-pulse"></span>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="text-xl font-semibold text-white">03</p>
-                  <p className="font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">Agents</p>
-                </div>
-                <div>
-                  <p className="text-xl font-semibold text-white">14</p>
-                  <p className="font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">Tasks</p>
-                </div>
-                <div>
-                  <p className="text-xl font-semibold text-white">$14</p>
-                  <p className="font-mono text-[8px] uppercase tracking-[0.15em] text-white/40">Spend</p>
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                {['Researcher · Analyzing data', 'Writer · Drafting post', 'Engineer · Reviewing PR'].map((t) => (
-                  <div key={t} className="flex items-center gap-2 rounded-lg border border-white/8 bg-navy-950/60 px-3 py-2">
-                    <span className="h-1 w-1 rounded-full bg-emerald shrink-0"></span>
-                    <span className="font-mono text-[9px] text-white/70 truncate">{t}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 rounded-xl border border-emerald/25 bg-navy-950/60 p-3">
-                <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-emerald">Approval required</p>
-                <p className="mt-1 text-[11px] text-white/80">Marketing requests <span className="text-emerald font-semibold">$250</span> for LinkedIn</p>
-              </div>
-            </div>
-            {/* Floating badge */}
-            <div className="absolute top-[15%] right-[5%] rounded-xl border border-emerald/30 bg-navy-950/95 px-3 py-2 shadow-lg">
-              <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-emerald">+1 agent hired</p>
-              <p className="text-[10px] text-white/60">Marketing · this week</p>
-            </div>
+          {/* Right — background image panel */}
+          <div className="relative order-2 h-[500px] sm:h-[600px] lg:h-full ltr:lg:mr-[100px] rtl:lg:ml-[100px] ltr:xl:mr-[215px] rtl:xl:ml-[215px] overflow-hidden rounded-l-[30px] lg:rounded-[30px]">
+            <Image
+              src="/images/hero-bg.png"
+              alt=""
+              fill
+              className="object-cover object-center"
+              priority
+            />
+            {/* Subtle gradient overlay for depth */}
+            <div className="absolute inset-0 bg-gradient-to-r from-navy-950/30 to-transparent" />
           </div>
         </div>
       </div>

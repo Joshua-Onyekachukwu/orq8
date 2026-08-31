@@ -23,6 +23,7 @@
   --color-navy-900: #0d1730;
   /* command-center depths (marketing/DESIGN_DIRECTION.md §2: hero #0A1628,
      slightly-lifted surface + hairline instead of heavy shadows) */
+  --color-dark: #1a1a2e;
   --color-navy-950: #0a1628;
   --color-navy-surface: #0f1d3c;
   --color-hairline-dark: #22304e;
@@ -451,5 +452,67 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ---- Swiper Slider overrides (from apps/landing) ---- */
+[dir="rtl"] {
+  .swiper {
+    direction: ltr;
+  }
+  .swiper .swiper-slide * {
+    direction: rtl;
+  }
+}
+
+.partner-slides .swiper-button-prev {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: 35px !important;
+  height: 35px !important;
+  border-radius: 9999px !important;
+  right: 50px !important;
+  left: auto !important;
+  margin-top: 0 !important;
+  background-color: white;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.partner-slides .swiper-button-prev::after {
+  font-size: 20px !important;
+}
+
+@media (min-width: 1024px) {
+  .partner-slides .swiper-button-prev {
+    width: 45px !important;
+    height: 45px !important;
+  }
+}
+
+.partner-slides .swiper-button-next {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: 35px !important;
+  height: 35px !important;
+  border-radius: 9999px !important;
+  right: 0 !important;
+  left: auto !important;
+  margin-top: 0 !important;
+  background-color: white;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.partner-slides .swiper-button-next::after {
+  font-size: 20px !important;
+}
+
+@media (min-width: 1024px) {
+  .partner-slides .swiper-button-next {
+    width: 45px !important;
+    height: 45px !important;
   }
 }
