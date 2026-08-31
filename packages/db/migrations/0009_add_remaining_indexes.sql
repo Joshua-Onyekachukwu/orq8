@@ -1,5 +1,5 @@
--- Performance indexes for frequently queried columns
--- All use IF NOT EXISTS to be idempotent
+-- 0008 partially failed. This migration adds the remaining indexes.
+-- All use IF NOT EXISTS to be safe
 CREATE INDEX IF NOT EXISTS "agents_org_status_idx" ON "agents" ("org_id", "status");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "tasks_org_status_idx" ON "tasks" ("org_id", "status");
