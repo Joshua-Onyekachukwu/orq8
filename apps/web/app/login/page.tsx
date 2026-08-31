@@ -4,11 +4,8 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "../../components/auth-form";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
-export const metadata = { title: "Sign in" };
+export const metadata = { title: "Sign in — ORQ8" };
 
-// Already signed in? Skip the form and head to the dashboard. The check is
-// cookie + live API only, so a stale cookie cannot trap the user (it falls
-// through to the form, and the app shell re-verifies on /app).
 async function isAuthenticated(): Promise<boolean> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return false;
@@ -19,7 +16,6 @@ async function isAuthenticated(): Promise<boolean> {
     });
     return res.ok;
   } catch {
-    // API unreachable (e.g. local dev): let the form show rather than bounce.
     return false;
   }
 }
@@ -32,60 +28,77 @@ export default async function LoginPage({
   if (await isAuthenticated()) redirect("/app");
 
   const { next } = await searchParams;
-  const title = next && next.startsWith("/") && !next.startsWith("//")
-    ? "Sign back in to continue"
-    : "Welcome back";
+  const title =
+    next && next.startsWith("/") && !next.startsWith("//")
+      ? "Sign back in to continue"
+      : "Welcome back";
 
   return (
-    <div
-      id="main"
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy-950 px-6 py-16"
-    >
-      {/* Command-center backdrop: grid + soft glows */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_68%)]"
-      />
-      <div
-        aria-hidden
-        className="absolute -top-48 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-navy-surface blur-[130px]"
-      />
-      <div
-        aria-hidden
-        className="absolute bottom-[-180px] right-[-120px] h-[360px] w-[360px] rounded-full bg-emerald/10 blur-[110px]"
-      />
+    <div id="main" className="flex min-h-screen bg-white">
+      {/* Left panel — branding */}
+      <div className="hidden w-1/2 flex-col justify-between bg-navy-950 p-10 lg:flex">
+        <Link
+          href="/"
+          className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
+        >
+          ORQ8
+          <span className="h-2 w-2 rounded-full bg-emerald" />
+        </Link>
 
-      <Link
-        href="/"
-        className="relative mb-10 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
-      >
-        ORQ8
-        <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald">
-          · command center
-        </span>
-      </Link>
-
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-navy-surface/80 p-8 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald">
-          Sign in
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-white">{title}</h1>
-        <p className="mt-1 text-sm text-fog">
-          {next ? "Your organization is waiting." : "Sign in to your organization."}
-        </p>
-        <div className="mt-6">
-          <AuthForm mode="login" next={next} />
+        <div className="max-w-md">
+          <h2 className="mb-4 text-3xl font-light leading-tight text-white">
+            Run your company with{" "}
+            <span className="text-emerald">AI employees</span>
+          </h2>
+          <p className="text-sm leading-relaxed text-white/50">
+            The AI organization operating system. One founder. One HQ. A whole
+            operation running itself.
+          </p>
         </div>
-        <p className="mt-6 text-center text-sm text-fog">
-          New to ORQ8?{" "}
-          <Link
-            href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"}
-            className="font-medium text-emerald transition-colors hover:text-lime"
-          >
-            Create an organization
-          </Link>
+
+        <p className="text-xs text-white/30">
+          © 2026 ORQ8. The AI Organization Operating System.
         </p>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        {/* Mobile logo */}
+        <Link
+          href="/"
+          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-navy-950 lg:hidden"
+        >
+          ORQ8
+          <span className="h-2 w-2 rounded-full bg-emerald" />
+        </Link>
+
+        <div className="w-full max-w-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald">
+            Sign in
+          </p>
+          <h1 className="mb-1 text-2xl font-semibold text-navy-950">
+            {title}
+          </h1>
+          <p className="mb-8 text-sm text-gray-500">
+            {next
+              ? "Your organization is waiting."
+              : "Sign in to your organization."}
+          </p>
+
+          <AuthForm mode="login" next={next} />
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            New to ORQ8?{" "}
+            <Link
+              href={
+                next ? `/register?next=${encodeURIComponent(next)}` : "/register"
+              }
+              className="font-medium text-emerald transition-colors hover:text-emerald/80"
+            >
+              Create an organization
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

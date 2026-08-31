@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Pause,
   Play,
@@ -133,6 +134,7 @@ export default function AgentsPage() {
   const activeCount = agents.filter((a) => a.status === "active").length;
 
   return (
+    <PageErrorBoundary pageName="AI Employees" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -415,5 +417,6 @@ export default function AgentsPage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

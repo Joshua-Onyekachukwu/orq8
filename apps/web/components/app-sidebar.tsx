@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Activity,
+  Bell,
   Building2,
   CalendarDays,
   FileText,
@@ -61,6 +62,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Governance",
     items: [
+      { label: "Notifications", href: "/app/notifications", icon: Bell, built: true },
       { label: "Company Constitution", href: "/app/constitution", icon: ScrollText, built: true },
       { label: "Budgets & Limits", href: "/app/budgets", icon: Wallet, built: true },
       { label: "Audit Trail", href: "/app/audit", icon: ShieldCheck, built: true },

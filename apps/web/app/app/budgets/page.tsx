@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Wallet,
   TrendingUp,
@@ -69,6 +70,7 @@ export default function BudgetsPage() {
   const daysLeft = balance?.daysLeft ?? 0;
 
   return (
+    <PageErrorBoundary pageName="Budgets & Limits" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -239,5 +241,6 @@ export default function BudgetsPage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

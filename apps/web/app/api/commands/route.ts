@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../lib/api";
 
 // POST /api/commands — Proxy CEO command to the ORQ8 API Executive Agent.
 // The real orchestration happens on the Fastify backend (Executive Agent service).
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        cookie: `${SESSION_COOKIE}=${token}`,
+        ...proxyAuthHeaders(token, "application/json"),
       },
       body: JSON.stringify({ command }),
     });
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await fetch(`${API_URL}/v1/commands/history?limit=${limit}`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token),
       cache: "no-store",
     });
 

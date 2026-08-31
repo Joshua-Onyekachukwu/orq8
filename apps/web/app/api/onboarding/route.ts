@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../lib/api";
 
 // SECURITY: userId is derived from the authenticated session, never from the client body.
 // Onboarding state is persisted to the database via the backend API.
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await fetch(`${API_URL}/v1/onboarding`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token),
       cache: "no-store",
     });
     if (!res.ok) {
@@ -45,10 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/onboarding`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: `${SESSION_COOKIE}=${token}`,
-      },
+      headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
     });
     if (!res.ok) {

@@ -12,6 +12,7 @@ import {
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 import { GoalActions } from "../../../components/goal-actions";
 import { TaskActions } from "../../../components/task-actions";
+import { PageShell } from "../../../components/page-shell";
 
 export const metadata = { title: "Goals & Tasks" };
 
@@ -151,6 +152,7 @@ export default async function GoalsPage() {
   const agentMap = new Map(agents.map((a) => [a.id, a]));
 
   return (
+    <PageShell pageName="Goals & Tasks" backHref="/app">
     <div className="mx-auto max-w-5xl">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -275,7 +277,7 @@ export default async function GoalsPage() {
               {tasks.filter((t) => !t.goalId).length}
             </span>
           </div>
-          <TaskActions />
+          <TaskActions agents={agents} />
         </div>
 
         {tasks.filter((t) => !t.goalId).length === 0 ? (
@@ -358,5 +360,6 @@ export default async function GoalsPage() {
         )}
       </section>
     </div>
+    </PageShell>
   );
 }

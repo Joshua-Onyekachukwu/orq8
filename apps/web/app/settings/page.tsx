@@ -314,8 +314,6 @@ export default function SettingsPage() {
             ["emailOnAgentError", "Agent errors", "Email when an AI employee encounters a problem"],
             ["emailOnLowCredits", "Low credits", "Email when your Work Credits run low"],
             ["emailOnWeeklyReport", "Weekly report", "Email with your executive summary each week"],
-            ["browserNotifications", "Browser notifications", "Push notifications in your browser"],
-            ["soundEnabled", "Sound alerts", "Play a sound for urgent notifications"],
           ] as const).map(([key, title, desc]) => (
             <div key={key} className="flex items-center justify-between gap-4 rounded-lg border border-hairline p-4">
               <div>
@@ -333,6 +331,93 @@ export default function SettingsPage() {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Browser Push Notifications */}
+        <div className="mt-6 rounded-lg border border-hairline p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink">Browser push notifications</p>
+              <p className="text-xs text-muted">Get notified even when the tab is in the background</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {typeof window !== "undefined" && "Notification" in window ? (
+                <>
+                  <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
+                    Notification.permission === "granted" ? "bg-emerald/10 text-emerald-700" :
+                    Notification.permission === "denied" ? "bg-red-50 text-red-600" :
+                    "bg-amber-50 text-amber-700"
+                  }`}>
+                    {Notification.permission === "granted" ? "Allowed" :
+                     Notification.permission === "denied" ? "Blocked" : "Not requested"}
+                  </span>
+                  {Notification.permission !== "granted" && Notification.permission !== "denied" && (
+                    <button
+                      type="button"
+                      onClick={() => Notification.requestPermission().then((p) => {
+                        // Force re-render to update the badge
+                        setNotifPrefs((prev) => ({ ...prev }));
+                      })}
+                      className="text-xs font-medium text-emerald-700 hover:underline"
+                    >
+                      Enable
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-[10px] uppercase text-gray-500">
+                  Not supported
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sound Test */}
+        <div className="mt-4 rounded-lg border border-hairline p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink">Sound alerts</p>
+              <p className="text-xs text-muted">Play a chime when new notifications arrive</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const ctx = new AudioContext();
+                    const now = ctx.currentTime;
+                    [523, 659].forEach((freq, i) => {
+                      const osc = ctx.createOscillator();
+                      const gain = ctx.createGain();
+                      osc.type = "sine";
+                      const start = now + i * 0.1;
+                      osc.frequency.setValueAtTime(freq, start);
+                      gain.gain.setValueAtTime(0, start);
+                      gain.gain.setValueAtTime(0.15, start);
+                      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+                      osc.connect(gain);
+                      gain.connect(ctx.destination);
+                      osc.start(start);
+                      osc.stop(start + 0.3);
+                    });
+                  } catch { /* silent */ }
+                }}
+                className="text-xs font-medium text-emerald-700 hover:underline"
+              >
+                Test sound
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotifPrefs((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-emerald" : "bg-gray-200"}`}
+                role="switch"
+                aria-checked={notifPrefs.soundEnabled}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${notifPrefs.soundEnabled ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">

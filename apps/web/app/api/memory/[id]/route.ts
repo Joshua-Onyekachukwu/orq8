@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE } from "../../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
 
 // DELETE /api/memory/:id — delete a memory entry
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +10,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const res = await fetch(`${API_URL}/v1/memory/${id}`, {
       method: "DELETE",
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token),
     });
     if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
     return new NextResponse(null, { status: 204 });

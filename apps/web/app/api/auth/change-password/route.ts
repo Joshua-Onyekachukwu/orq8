@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, parseApiError } from "../../../../lib/api";
+import { API_URL, SESSION_COOKIE, parseApiError, proxyAuthHeaders } from "../../../../lib/api";
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -27,10 +27,7 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/auth/change-password`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: `${SESSION_COOKIE}=${token}`,
-      },
+      headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
     const data = await res.json().catch(() => null);

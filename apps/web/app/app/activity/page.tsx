@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { Filter, Search, Activity, AlertCircle, RefreshCw } from "lucide-react";
 
 interface ActivityEvent {
@@ -83,6 +84,7 @@ export default function ActivityPage() {
   );
 
   return (
+    <PageErrorBoundary pageName="Agent Activity" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -235,5 +237,6 @@ export default function ActivityPage() {
         </section>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

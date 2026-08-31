@@ -1,59 +1,70 @@
 import Link from "next/link";
 import { ForgotPasswordForm } from "../../components/forgot-password-form";
 
-export const metadata = { title: "Reset your password" };
+export const metadata = { title: "Reset your password — ORQ8" };
 
 export default function ForgotPasswordPage() {
   return (
-    <div
-      id="main"
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy-950 px-6 py-16"
-    >
-      {/* Command-center backdrop: grid + soft glows */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_68%)]"
-      />
-      <div
-        aria-hidden
-        className="absolute -top-48 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-navy-surface blur-[130px]"
-      />
-      <div
-        aria-hidden
-        className="absolute bottom-[-180px] right-[-120px] h-[360px] w-[360px] rounded-full bg-emerald/10 blur-[110px]"
-      />
+    <div id="main" className="flex min-h-screen bg-white">
+      {/* Left panel — branding */}
+      <div className="hidden w-1/2 flex-col justify-between bg-navy-950 p-10 lg:flex">
+        <Link
+          href="/"
+          className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
+        >
+          ORQ8
+          <span className="h-2 w-2 rounded-full bg-emerald" />
+        </Link>
 
-      <Link
-        href="/"
-        className="relative mb-10 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
-      >
-        ORQ8
-        <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald">
-          · command center
-        </span>
-      </Link>
-
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-navy-surface/80 p-8 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald">
-          Password Reset
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-white">Forgot your password?</h1>
-        <p className="mt-1 text-sm text-fog">
-          Enter your email and we&apos;ll send you a reset link.
-        </p>
-        <div className="mt-6">
-          <ForgotPasswordForm />
+        <div className="max-w-md">
+          <h2 className="mb-4 text-3xl font-light leading-tight text-white">
+            Your AI organization is{" "}
+            <span className="text-emerald">waiting for you</span>
+          </h2>
+          <p className="text-sm leading-relaxed text-white/50">
+            Reset your password and get back to running your company with AI
+            employees.
+          </p>
         </div>
-        <p className="mt-6 text-center text-sm text-fog">
-          Remember your password?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-emerald transition-colors hover:text-lime"
-          >
-            Sign in
-          </Link>
+
+        <p className="text-xs text-white/30">
+          © 2026 ORQ8. The AI Organization Operating System.
         </p>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        <Link
+          href="/"
+          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-navy-950 lg:hidden"
+        >
+          ORQ8
+          <span className="h-2 w-2 rounded-full bg-emerald" />
+        </Link>
+
+        <div className="w-full max-w-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald">
+            Password Reset
+          </p>
+          <h1 className="mb-1 text-2xl font-semibold text-navy-950">
+            Forgot your password?
+          </h1>
+          <p className="mb-8 text-sm text-gray-500">
+            Enter your email and we&apos;ll send you a reset link.
+          </p>
+
+          <ForgotPasswordForm />
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Remember your password?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-emerald transition-colors hover:text-emerald/80"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

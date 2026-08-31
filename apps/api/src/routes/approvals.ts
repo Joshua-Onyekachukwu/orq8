@@ -7,6 +7,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { broadcastToOrg } from '../services/realtime.js';
 import * as approvals from '../services/approvals.js';
+import { createNotification } from '../routes/notifications.js';
 import type { AppDeps } from '../types.js';
 
 const decideBody = z.object({
@@ -48,6 +49,20 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       action: 'approval.created',
       outcome: 'success',
     });
+
+    // Create in-app notification for the new approval request
+    try {
+      const { shouldNotify, getNotificationPrefs } = await import('../services/notification-preferences.js');
+      const prefs = await getNotificationPrefs(db, ctx.orgId);
+      if (shouldNotify(prefs, 'inApp', 'approval')) {
+        createNotification(
+          ctx.orgId,
+          'approval',
+          'Approval Required',
+          `An AI employee requests your decision: ${parsed.data.action.slice(0, 120)}`,
+        );
+      }
+    } catch { /* notification failure is non-fatal */ }
 
     reply.code(201);
     return { data: approval };
@@ -112,6 +127,21 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
 
       // Broadcast approval decision
       broadcastToOrg(ctx.orgId, { type: 'approval.decided', approvalId: request.params.id, status: parsed.data.status });
+
+      // Create in-app notification for the decision
+      try {
+        const { shouldNotify, getNotificationPrefs } = await import('../services/notification-preferences.js');
+        const prefs = await getNotificationPrefs(db, ctx.orgId);
+        if (shouldNotify(prefs, 'inApp', 'approval')) {
+          const statusLabel = parsed.data.status === 'approved' ? 'Approved' : parsed.data.status === 'rejected' ? 'Rejected' : 'Modified';
+          createNotification(
+            ctx.orgId,
+            'approval',
+            `Approval ${statusLabel}`,
+            `Your decision on the approval request has been recorded.${parsed.data.note ? ` Note: ${parsed.data.note.slice(0, 100)}` : ''}`,
+          );
+        }
+      } catch { /* notification failure is non-fatal */ }
 
       return { data: decided };
     },

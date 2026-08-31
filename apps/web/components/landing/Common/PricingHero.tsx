@@ -1,0 +1,30 @@
+"use client";
+
+import React from "react";
+import { Reveal } from "./Reveal";
+
+const PricingHero: React.FC = () => {
+  return (
+    <section className="bg-white pt-[70px] md:pt-[90px] lg:pt-[110px] xl:pt-[130px] pb-[50px] md:pb-[70px] lg:pb-[90px]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Reveal>
+          <div className="max-w-3xl">
+            <span className="mb-4 block text-xs font-bold uppercase tracking-[0.2em] text-emerald">
+              Pricing
+            </span>
+            <h1 className="mb-6 text-4xl font-light leading-tight tracking-tight text-navy-950 md:text-5xl lg:text-6xl">
+              Your AI workforce.{" "}
+              <span className="text-emerald">One operating system.</span>
+            </h1>
+            <p className="max-w-xl text-base leading-relaxed text-gray-500 md:text-lg">
+              Start with a 7-day trial. Build your AI organization, delegate
+              real work, and see what ORQ8 can do for your company.
+            </p>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+};
+
+export default PricingHero;

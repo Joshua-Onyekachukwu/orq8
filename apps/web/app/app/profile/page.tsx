@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   CheckCircle2,
   Edit,
@@ -126,6 +127,7 @@ export default function ProfilePage() {
   }
 
   return (
+    <PageErrorBoundary pageName="Profile" backHref="/app">
     <div className="mx-auto max-w-5xl">
       {/* Cover card */}
       <div className="overflow-hidden rounded-xl border border-hairline bg-white">
@@ -325,5 +327,6 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

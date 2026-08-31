@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Check,
   X,
@@ -132,6 +133,7 @@ export default function ApprovalsPage() {
   const decided = approvals.filter((a) => a.status !== "pending");
 
   return (
+    <PageErrorBoundary pageName="Decision Center" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -357,5 +359,6 @@ export default function ApprovalsPage() {
         </section>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

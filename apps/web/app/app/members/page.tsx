@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useEffect } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { ChevronLeft, ChevronRight, Search, Users, AlertCircle, RefreshCw } from "lucide-react";
 
 interface Member {
@@ -91,6 +92,7 @@ export default function MembersPage() {
   const agentCount = members.filter((m) => m.type === "agent").length;
 
   return (
+    <PageErrorBoundary pageName="Members & Roles" backHref="/app">
     <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -289,5 +291,6 @@ export default function MembersPage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

@@ -1,10 +1,11 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { agents, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
-import { chatCompletion, chatJson, type ChatMessage } from './llm.js';
+import { chatJson } from './llm.js';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { broadcastToOrg } from './realtime.js';
+import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -53,6 +54,29 @@ export interface ExecutionResult {
   }>;
   creditsConsumed?: number;
   creditsRemaining?: number;
+  // New: workflow trace for debugging
+  workflowTrace?: WorkflowTrace;
+}
+
+// ─── Workflow Verification Types ────────────────────────────────────────────
+
+export interface WorkflowStep {
+  name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  startedAt?: Date;
+  completedAt?: Date;
+  durationMs?: number;
+  error?: string;
+  result?: unknown;
+}
+
+export interface WorkflowTrace {
+  commandId: string;
+  steps: WorkflowStep[];
+  totalDurationMs: number;
+  status: 'completed' | 'partial' | 'failed';
+  errorRecoveryAttempts: number;
+  llmTraceSummary?: LLMTraceSummary;
 }
 
 // ─── System Prompts ─────────────────────────────────────────────────────────
@@ -113,6 +137,74 @@ RESPOND IN THIS EXACT JSON FORMAT:
 }
 
 Be decisive, clear, and professional. You are the CEO's chief of staff.`;
+
+// ─── Workflow Verification ──────────────────────────────────────────────────
+
+/**
+ * Create a workflow trace for tracking the full command lifecycle.
+ */
+function createWorkflowTrace(commandId: string): WorkflowTrace {
+  return {
+    commandId,
+    steps: [],
+    totalDurationMs: 0,
+    status: 'completed',
+    errorRecoveryAttempts: 0,
+  };
+}
+
+/**
+ * Start a workflow step. Returns the step for later completion.
+ */
+function startStep(trace: WorkflowTrace, name: string): WorkflowStep {
+  const step: WorkflowStep = {
+    name,
+    status: 'running',
+    startedAt: new Date(),
+  };
+  trace.steps.push(step);
+  return step;
+}
+
+/**
+ * Complete a workflow step.
+ */
+function completeStep(step: WorkflowStep, result?: unknown, error?: string): void {
+  step.completedAt = new Date();
+  step.durationMs = step.completedAt.getTime() - (step.startedAt?.getTime() ?? step.completedAt.getTime());
+  step.status = error ? 'failed' : 'completed';
+  step.result = result;
+  step.error = error;
+}
+
+/**
+ * Validate that the workflow context is sane before proceeding.
+ * Returns null if valid, or an error message if not.
+ */
+function validateContext(ctx: ExecutiveContext): string | null {
+  if (!ctx.orgId) return 'Missing organization ID';
+  if (!ctx.userId) return 'Missing user ID';
+  // Context is valid even with no agents — the agent can recommend hiring one
+  return null;
+}
+
+/**
+ * Validate that an intent analysis result is complete and sane.
+ */
+function validateIntent(intent: IntentAnalysis): string | null {
+  if (!intent.intent) return 'Missing intent description';
+  if (!intent.category || intent.category === 'unknown') return 'Could not determine command category';
+  if (!intent.taskDecomposition || intent.taskDecomposition.length === 0) return 'No tasks decomposed from command';
+  if (intent.estimatedCost < 0) return 'Invalid cost estimate';
+
+  // Validate each task
+  for (const task of intent.taskDecomposition) {
+    if (!task.title) return 'Task missing title';
+    if (!task.suggestedAgentRole) return `Task "${task.title}" missing agent role`;
+  }
+
+  return null;
+}
 
 // ─── Context Building ───────────────────────────────────────────────────────
 
@@ -202,28 +294,39 @@ Always be specific about which agent should handle each task.`;
 // ─── Intent Analysis ────────────────────────────────────────────────────────
 
 /**
- * Analyze a CEO command using the LLM.
+ * Analyze a CEO command using the LLM with tracing.
  * Falls back to a basic rule-based analysis if LLM is unavailable.
  */
 export async function analyzeIntent(
   config: AppConfig,
   ctx: ExecutiveContext,
   command: string,
+  commandId?: string,
 ): Promise<IntentAnalysis> {
   const contextPrompt = buildContextPrompt(ctx);
   const fullSystemPrompt = `${EXECUTIVE_AGENT_SYSTEM_PROMPT}\n\n${contextPrompt}`;
 
-  // Try LLM first
+  // Try LLM with tracing
   const llmResult = await chatJson<IntentAnalysis>(config, fullSystemPrompt, command, {
     temperature: 0.3,
     max_tokens: 1024,
+    _trace: {
+      orgId: ctx.orgId,
+      phase: 'intent_analysis',
+      commandId,
+    },
   });
 
   if (llmResult && llmResult.intent && llmResult.category) {
-    return llmResult;
+    // Validate the LLM response
+    const validationError = validateIntent(llmResult);
+    if (!validationError) {
+      return llmResult;
+    }
+    // LLM returned invalid structure — fall through to fallback
   }
 
-  // Fallback: rule-based analysis (when LLM is unavailable)
+  // Fallback: rule-based analysis (when LLM is unavailable or returned invalid JSON)
   return fallbackAnalysis(command, ctx);
 }
 
@@ -372,6 +475,7 @@ function buildTaskDecomposition(
 
 /**
  * Create tasks from the intent analysis and assign them to agents.
+ * Returns task IDs and validates each creation step.
  */
 export async function createTasksFromIntent(
   db: Db,
@@ -453,6 +557,59 @@ export async function createApprovalIfNeeded(
   return created?.id;
 }
 
+// ─── Error Recovery ─────────────────────────────────────────────────────────
+
+/**
+ * Execute a single task with error recovery (retry + fallback).
+ * Returns a partial result if the task fails after retries.
+ */
+async function executeTaskWithRecovery(
+  config: AppConfig,
+  db: Db,
+  orgId: string,
+  taskId: string,
+  trace: WorkflowTrace,
+): Promise<TaskExecutionResult> {
+  const MAX_TASK_RETRIES = 2;
+  let lastError: string = '';
+
+  for (let attempt = 0; attempt <= MAX_TASK_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        trace.errorRecoveryAttempts++;
+        // Exponential backoff between retries
+        const delay = 1000 * Math.pow(2, attempt - 1);
+        await new Promise(r => setTimeout(r, delay));
+      }
+
+      const result = await executeTask(config, db, orgId, taskId);
+      return result;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : 'unknown error';
+
+      // On last attempt, return a failed result instead of throwing
+      if (attempt === MAX_TASK_RETRIES) {
+        return {
+          taskId,
+          status: 'failed',
+          result: `Task failed after ${MAX_TASK_RETRIES + 1} attempts: ${lastError}`,
+          cost: 0,
+          tokensUsed: 0,
+        };
+      }
+    }
+  }
+
+  // Should never reach here, but TypeScript needs it
+  return {
+    taskId,
+    status: 'failed',
+    result: 'Task failed: exceeded maximum retries',
+    cost: 0,
+    tokensUsed: 0,
+  };
+}
+
 // ─── Main Execution Pipeline ────────────────────────────────────────────────
 
 /**
@@ -460,6 +617,9 @@ export async function createApprovalIfNeeded(
  *
  *   CEO instruction → context building → LLM intent analysis → task creation →
  *   agent selection → approval gate (if needed) → audit trail → result
+ *
+ * Each stage is verified before proceeding to the next.
+ * Failures at any stage trigger error recovery or graceful fallback.
  */
 export async function executeCommand(
   config: AppConfig,
@@ -469,57 +629,125 @@ export async function executeCommand(
   command: string,
 ): Promise<ExecutionResult> {
   const commandId = crypto.randomUUID();
+  const startTime = Date.now();
+  const trace = createWorkflowTrace(commandId);
 
-  // 1. Build context
-  const ctx = await buildContext(db, orgId);
-  ctx.userId = userId;
+  // ── Step 1: Build Context ──
+  const ctxStep = startStep(trace, 'context_building');
+  let ctx: ExecutiveContext;
+  try {
+    ctx = await buildContext(db, orgId);
+    ctx.userId = userId;
 
-  // 2. Analyze intent via LLM
-  const intent = await analyzeIntent(config, ctx, command);
+    const ctxError = validateContext(ctx);
+    if (ctxError) {
+      completeStep(ctxStep, undefined, ctxError);
+      trace.status = 'failed';
+      return buildErrorResult(commandId, command, `Context validation failed: ${ctxError}`, trace, startTime);
+    }
+    completeStep(ctxStep, { agentCount: ctx.agents.length, goalCount: ctx.activeGoals.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    completeStep(ctxStep, undefined, msg);
+    trace.status = 'failed';
+    return buildErrorResult(commandId, command, `Failed to build context: ${msg}`, trace, startTime);
+  }
 
-  // 3. Check credits before creating tasks
+  // ── Step 2: Analyze Intent ──
+  const intentStep = startStep(trace, 'intent_analysis');
+  let intent: IntentAnalysis;
+  try {
+    intent = await analyzeIntent(config, ctx, command, commandId);
+
+    const intentError = validateIntent(intent);
+    if (intentError) {
+      completeStep(intentStep, undefined, intentError);
+      trace.status = 'failed';
+      return buildErrorResult(commandId, command, `Intent analysis failed: ${intentError}`, trace, startTime);
+    }
+    completeStep(intentStep, { category: intent.category, taskCount: intent.taskDecomposition.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    completeStep(intentStep, undefined, msg);
+    trace.status = 'failed';
+    return buildErrorResult(commandId, command, `Intent analysis error: ${msg}`, trace, startTime);
+  }
+
+  // ── Step 3: Check Credits ──
+  const creditStep = startStep(trace, 'credit_check');
   const operationType = `task.${intent.category}`;
-  const creditCheck = await hasEnoughCredits(db, orgId, operationType);
+  let creditCheck;
+  try {
+    creditCheck = await hasEnoughCredits(db, orgId, operationType);
+    completeStep(creditStep, { remaining: creditCheck.balance.remaining, required: creditCheck.required });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    completeStep(creditStep, undefined, msg);
+    trace.status = 'failed';
+    return buildErrorResult(commandId, command, `Credit check failed: ${msg}`, trace, startTime);
+  }
 
   if (!creditCheck.allowed) {
+    completeStep(creditStep, undefined, 'insufficient credits');
+    trace.status = 'failed';
     return {
       commandId,
       intent,
       taskIds: [],
-      status: 'error' as const,
+      status: 'error',
       message: `Work Credits exhausted. You have ${creditCheck.balance.remaining} credits remaining but this operation requires ${creditCheck.required}. Upgrade your plan or purchase additional credits.`,
       agentResults: [],
       creditsConsumed: 0,
       creditsRemaining: creditCheck.balance.remaining,
+      workflowTrace: finalizeTrace(trace, startTime),
     };
   }
 
-  // 4. Create tasks
-  const taskIds = await createTasksFromIntent(db, orgId, intent);
-
-  // 5. Create approval if needed
-  const approvalId = await createApprovalIfNeeded(db, orgId, intent);
-
-  // 6. Execute tasks immediately if no approval needed
-  const taskExecutionResults: TaskExecutionResult[] = [];
-  if (!intent.requiresApproval && taskIds.length > 0) {
-    for (const taskId of taskIds) {
-      try {
-        const result = await executeTask(config, db, orgId, taskId);
-        taskExecutionResults.push(result);
-      } catch {
-        taskExecutionResults.push({
-          taskId,
-          status: 'failed',
-          result: 'Execution failed',
-          cost: 0,
-          tokensUsed: 0,
-        });
-      }
-    }
+  // ── Step 4: Create Tasks ──
+  const taskStep = startStep(trace, 'task_creation');
+  let taskIds: string[];
+  try {
+    taskIds = await createTasksFromIntent(db, orgId, intent);
+    completeStep(taskStep, { created: taskIds.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    completeStep(taskStep, undefined, msg);
+    trace.status = 'failed';
+    return buildErrorResult(commandId, command, `Task creation failed: ${msg}`, trace, startTime);
   }
 
-  // 7. Consume credits for task execution
+  // ── Step 5: Create Approval if Needed ──
+  const approvalStep = startStep(trace, 'approval_gate');
+  let approvalId: string | undefined;
+  try {
+    approvalId = await createApprovalIfNeeded(db, orgId, intent);
+    completeStep(approvalStep, { approvalId: approvalId ?? 'none' });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown error';
+    completeStep(approvalStep, undefined, msg);
+    // Approval creation failure is non-fatal — continue without approval
+  }
+
+  // ── Step 6: Execute Tasks (with error recovery) ──
+  const execStep = startStep(trace, 'task_execution');
+  const taskExecutionResults: TaskExecutionResult[] = [];
+
+  if (!intent.requiresApproval && taskIds.length > 0) {
+    for (const taskId of taskIds) {
+      const result = await executeTaskWithRecovery(config, db, orgId, taskId, trace);
+      taskExecutionResults.push(result);
+    }
+    completeStep(execStep, {
+      completed: taskExecutionResults.filter(r => r.status === 'completed').length,
+      failed: taskExecutionResults.filter(r => r.status === 'failed').length,
+      total: taskExecutionResults.length,
+    });
+  } else {
+    completeStep(execStep, { skipped: true, reason: intent.requiresApproval ? 'awaiting_approval' : 'no_tasks' });
+  }
+
+  // ── Step 7: Consume Credits ──
+  const consumeStep = startStep(trace, 'credit_consumption');
   let creditsConsumed = 0;
   let creditsRemaining = creditCheck.balance.remaining;
   try {
@@ -533,11 +761,14 @@ export async function executeCommand(
     );
     creditsConsumed = creditResult.consumed;
     creditsRemaining = creditResult.balance.remaining;
+    completeStep(consumeStep, { consumed: creditsConsumed, remaining: creditsRemaining });
 
     // Broadcast credit consumption
     broadcastToOrg(orgId, { type: 'credits.consumed', amount: creditResult.consumed, remaining: creditResult.balance.remaining, operationType });
   } catch (error) {
     if (error instanceof CreditExhaustedError) {
+      completeStep(consumeStep, undefined, 'credits exhausted during consumption');
+      trace.status = 'failed';
       return {
         commandId,
         intent,
@@ -548,37 +779,51 @@ export async function executeCommand(
         agentResults: [],
         creditsConsumed: 0,
         creditsRemaining: error.remaining,
+        workflowTrace: finalizeTrace(trace, startTime),
       };
     }
-    throw error;
+    const msg = error instanceof Error ? error.message : 'unknown error';
+    completeStep(consumeStep, undefined, msg);
+    // Credit consumption failure is non-fatal — tasks were already executed
   }
 
-  // 8. Audit the command
-  await appendAudit(db, {
-    orgId,
-    actorType: 'user',
-    actorId: userId,
-    action: 'command.received',
-    tool: 'executive_agent',
-    inputRef: command.slice(0, 500),
-    resultRef: JSON.stringify({ intent: intent.category, taskCount: taskIds.length }),
-    approvalId: approvalId ?? null,
-    cost: creditsConsumed,
-    outcome: 'success',
-  });
+  // ── Step 8: Audit Trail ──
+  const auditStep = startStep(trace, 'audit_trail');
+  try {
+    await appendAudit(db, {
+      orgId,
+      actorType: 'user',
+      actorId: userId,
+      action: 'command.received',
+      tool: 'executive_agent',
+      inputRef: command.slice(0, 500),
+      resultRef: JSON.stringify({ intent: intent.category, taskCount: taskIds.length }),
+      approvalId: approvalId ?? null,
+      cost: creditsConsumed,
+      outcome: 'success',
+    });
 
-  // 9. Build agent results from actual execution
-  const agentResults = intent.taskDecomposition.map((task, i) => {
-    const executionResult = taskExecutionResults.find(r => r.taskId === taskIds[i]);
-    return {
-      agentName: task.suggestedAgentRole,
-      taskTitle: task.title,
-      status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
-      result: executionResult?.result,
-    };
-  });
+    // Also store detailed workflow trace as audit
+    await appendAudit(db, {
+      orgId,
+      actorType: 'system',
+      action: 'command.workflow_trace',
+      tool: 'executive_agent',
+      inputRef: commandId,
+      resultRef: JSON.stringify({
+        steps: trace.steps.map(s => ({ name: s.name, status: s.status, durationMs: s.durationMs })),
+        totalDurationMs: Date.now() - startTime,
+        errorRecoveryAttempts: trace.errorRecoveryAttempts,
+      }),
+      cost: creditsConsumed,
+      outcome: 'success',
+    });
+    completeStep(auditStep, { recorded: true });
+  } catch {
+    completeStep(auditStep, undefined, 'audit write failed (non-fatal)');
+  }
 
-  // 10. Determine status
+  // ── Step 9: Build Response ──
   const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
   const failedCount = taskExecutionResults.filter(r => r.status === 'failed').length;
   const totalCount = taskExecutionResults.length;
@@ -590,13 +835,10 @@ export async function executeCommand(
     status = 'completed';
   } else if (totalCount > 0 && failedCount === totalCount) {
     status = 'error';
-  } else if (totalCount > 0 && failedCount > 0 && completedCount > 0) {
-    status = 'completed'; // partial success is still 'completed'
   } else {
-    status = 'completed'; // no execution (approval pending or no tasks)
+    status = 'completed'; // partial success
   }
 
-  // 11. Build response message with execution details
   let message = intent.response;
   if (totalCount > 0) {
     const totalCost = taskExecutionResults.reduce((sum, r) => sum + r.cost, 0);
@@ -611,7 +853,7 @@ export async function executeCommand(
     message += `\n\n${parts.join(' ')}`;
   }
 
-  // 12. Store the command result as company memory
+  // ── Step 10: Store Memory ──
   const memoryParts = [
     `CEO command: "${command}"`,
     `Category: ${intent.category}`,
@@ -619,17 +861,43 @@ export async function executeCommand(
     `Completed: ${completedCount}`,
     failedCount > 0 ? `Failed: ${failedCount}` : null,
     `Credits consumed: ${creditsConsumed}`,
+    `Duration: ${Date.now() - startTime}ms`,
   ].filter(Boolean).join(' | ');
 
-  await db.insert(companyMemory).values({
-    orgId,
-    category: 'context',
-    content: memoryParts,
-    source: 'executive_agent',
-    agentId: null,
-    taskId: taskIds[0] ?? null,
-    importance: failedCount > 0 ? 3 : 5,
+  try {
+    await db.insert(companyMemory).values({
+      orgId,
+      category: 'context',
+      content: memoryParts,
+      source: 'executive_agent',
+      agentId: null,
+      taskId: taskIds[0] ?? null,
+      importance: failedCount > 0 ? 3 : 5,
+    });
+  } catch {
+    // Memory storage failure is non-fatal
+  }
+
+  // ── Step 11: Build Agent Results ──
+  const agentResults = intent.taskDecomposition.map((task, i) => {
+    const executionResult = taskExecutionResults.find(r => r.taskId === taskIds[i]);
+    return {
+      agentName: task.suggestedAgentRole,
+      taskTitle: task.title,
+      status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
+      result: executionResult?.result,
+    };
   });
+
+  // ── Step 12: Finalize ──
+  const workflowTrace = finalizeTrace(trace, startTime);
+
+  // Get LLM trace summary for this command
+  try {
+    workflowTrace.llmTraceSummary = getTraceSummary(orgId);
+  } catch {
+    // Trace summary is optional
+  }
 
   return {
     commandId,
@@ -641,6 +909,45 @@ export async function executeCommand(
     agentResults,
     creditsConsumed,
     creditsRemaining,
+    workflowTrace,
+  };
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function finalizeTrace(trace: WorkflowTrace, startTime: number): WorkflowTrace {
+  trace.totalDurationMs = Date.now() - startTime;
+  const hasFailure = trace.steps.some(s => s.status === 'failed');
+  const hasSuccess = trace.steps.some(s => s.status === 'completed');
+  trace.status = hasFailure && hasSuccess ? 'partial' : hasFailure ? 'failed' : 'completed';
+  return trace;
+}
+
+function buildErrorResult(
+  commandId: string,
+  command: string,
+  errorMessage: string,
+  trace: WorkflowTrace,
+  startTime: number,
+): ExecutionResult {
+  return {
+    commandId,
+    intent: {
+      intent: command,
+      category: 'unknown',
+      requiresApproval: false,
+      riskLevel: 'low',
+      estimatedCost: 0,
+      taskDecomposition: [],
+      response: errorMessage,
+    },
+    taskIds: [],
+    status: 'error',
+    message: errorMessage,
+    agentResults: [],
+    creditsConsumed: 0,
+    creditsRemaining: 0,
+    workflowTrace: finalizeTrace(trace, startTime),
   };
 }
 

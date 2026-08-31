@@ -2,9 +2,12 @@
 
 import React, { useState } from "react";
 import ContactInfo from "./ContactInfo";
+import { Reveal } from "../Common/Reveal";
 
 const ContactForm: React.FC = () => {
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
+    "idle"
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,31 +32,52 @@ const ContactForm: React.FC = () => {
   }
 
   return (
-    <>
-      <div className="pt-[70px] md:pt-[90px] lg:pt-[110px] xl:pt-[130px] 2xl:pt-[150px]">
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px] items-center">
-            <div className="ltr:xl:pr-[25px] rtl:xl:pl-[25px]">
-              <ContactInfo />
-            </div>
+    <section className="bg-gray-50 py-20 md:py-28 lg:py-32">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-20 items-start">
+          {/* Contact Info */}
+          <Reveal>
+            <ContactInfo />
+          </Reveal>
 
-            <div>
-              <div className="bg-[#f4f4f4] dark:bg-navy-950 rounded-[10px] md:rounded-[20px] p-[25px] md:p-[35px] lg:p-[45px]">
-                <h3 className="!font-light !text-[20px] md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[20px] md:!mb-[25px] lg:!mb-[35px]">
-                  Send us a message
-                </h3>
+          {/* Contact Form */}
+          <Reveal>
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 lg:p-10 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.08)]">
+              <h3 className="mb-6 text-lg font-medium text-navy-950">
+                Send us a message
+              </h3>
 
-                {status === "done" ? (
-                  <div className="text-center py-8">
-                    <p className="text-lg font-medium text-navy-950">Thank you! We will get back to you soon.</p>
+              {status === "done" ? (
+                <div className="py-12 text-center">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald/10">
+                    <svg
+                      className="h-6 w-6 text-emerald"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
                   </div>
-                ) : (
-                <form onSubmit={handleSubmit}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-[20px] md:gap-[25px]">
+                  <p className="text-base font-medium text-navy-950">
+                    Thank you! We will get back to you soon.
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Check your email for a confirmation.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label
                         htmlFor="contact-name"
-                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                        className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-gray-400"
                       >
                         Name
                       </label>
@@ -63,7 +87,7 @@ const ContactForm: React.FC = () => {
                         name="name"
                         autoComplete="name"
                         required
-                        className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-1 focus:ring-emerald/30"
                         placeholder="Enter name"
                       />
                     </div>
@@ -71,7 +95,7 @@ const ContactForm: React.FC = () => {
                     <div>
                       <label
                         htmlFor="contact-email"
-                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
+                        className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-gray-400"
                       >
                         Email
                       </label>
@@ -81,85 +105,87 @@ const ContactForm: React.FC = () => {
                         name="email"
                         autoComplete="email"
                         required
-                        className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                        className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-1 focus:ring-emerald/30"
                         placeholder="Enter email address"
                       />
                     </div>
-
-                    <div className="md:col-span-2">
-                      <label
-                        htmlFor="contact-phone"
-                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
-                      >
-                        Phone no
-                      </label>
-                      <input
-                        type="tel"
-                        id="contact-phone"
-                        name="phone"
-                        autoComplete="tel"
-                        className="block text-sm md:text-base w-full h-[50px] bg-white dark:bg-dark rounded-[50px] px-[15px] md:px-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label
-                        htmlFor="contact-message"
-                        className="block uppercase font-medium text-xs tracking-[1.8px] mb-[10px]"
-                      >
-                        Message
-                      </label>
-                      <textarea
-                        id="contact-message"
-                        name="message"
-                        required
-                        className="block text-sm md:text-base w-full h-[164px] bg-white dark:bg-dark rounded-[20px] px-[15px] md:px-[20px] pt-[15px] md:pt-[20px] outline-0 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
-                        placeholder="Write your message here"
-                      ></textarea>
-                    </div>
-
-                    <div className="form-check md:col-span-2">
-                      <input
-                        type="checkbox"
-                        className="cursor-pointer top-[2px] ltr:mr-[5px] rtl:ml-[5px]"
-                        id="termsConditions"
-                      />
-                      <label
-                        htmlFor="termsConditions"
-                        className="cursor-pointer inline-block"
-                      >
-                        I agree that my submitted data is being collected and
-                        stored.
-                      </label>
-                    </div>
-
-                    {status === "error" && (
-                      <div className="md:col-span-2 text-red-500 text-sm">
-                        Something went wrong. Please try again.
-                      </div>
-                    )}
-                    <div className="md:col-span-2">
-                      <button
-                        type="submit"
-                        disabled={status === "loading"}
-                        className="inline-block rounded-[60px] bg-primary-500 p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-lime hover:text-black disabled:opacity-60"
-                      >
-                        <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
-                          Submit Message{" "}
-                          <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
-                        </span>
-                      </button>
-                    </div>
                   </div>
+
+                  <div>
+                    <label
+                      htmlFor="contact-subject"
+                      className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-gray-400"
+                    >
+                      Subject
+                    </label>
+                    <input
+                      type="text"
+                      id="contact-subject"
+                      name="subject"
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-1 focus:ring-emerald/30"
+                      placeholder="What is this about?"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="contact-message"
+                      className="mb-1.5 block text-[10px] font-semibold uppercase tracking-widest text-gray-400"
+                    >
+                      Message
+                    </label>
+                    <textarea
+                      id="contact-message"
+                      name="message"
+                      required
+                      rows={5}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-1 focus:ring-emerald/30 resize-none"
+                      placeholder="Write your message here"
+                    />
+                  </div>
+
+                  {status === "error" && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+                      Something went wrong. Please try again.
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="inline-flex items-center gap-2 rounded-full bg-navy-950 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-navy-950/90 disabled:opacity-60"
+                  >
+                    {status === "loading" ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        Send Message
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3"
+                          />
+                        </svg>
+                      </>
+                    )}
+                  </button>
                 </form>
-                )}
-              </div>
+              )}
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
-    </>
+    </section>
   );
 };
 

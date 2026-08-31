@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PageErrorBoundary } from "./page-error-boundary";
 
 const tabs = [
   { label: "Account settings", href: "/settings" },
@@ -81,7 +82,11 @@ export function SettingsShell({
           </ul>
         </nav>
 
-        <div className="mt-6">{children}</div>
+        <div className="mt-6">
+          <PageErrorBoundary pageName="Settings" backHref="/app">
+            {children}
+          </PageErrorBoundary>
+        </div>
       </main>
     </div>
   );

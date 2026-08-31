@@ -106,7 +106,7 @@ export default async function AppLayout({
 
       <div className="lg:pl-64">
         <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-          <AppErrorBoundary>{children}</AppErrorBoundary>
+          {children}
         </main>
       </div>
     </div>

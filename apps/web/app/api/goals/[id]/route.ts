@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE } from "../../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
 
 function getSessionToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const res = await fetch(`${API_URL}/v1/goals/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
     });
     if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const res = await fetch(`${API_URL}/v1/goals/${id}`, {
       method: "DELETE",
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token),
     });
     if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
     return new NextResponse(null, { status: 204 });

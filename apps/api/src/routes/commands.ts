@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as executiveAgent from '../services/executive-agent.js';
 import { getTaskStatus, executeTask } from '../services/task-executor.js';
+import { getRecentTraces, getTraceSummary } from '../services/llm-tracer.js';
 import type { AppDeps } from '../types.js';
 
 const commandBody = z.object({
@@ -76,6 +77,20 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
             consumed: result.creditsConsumed ?? 0,
             remaining: result.creditsRemaining ?? 0,
           },
+          // Workflow trace for debugging and monitoring
+          workflowTrace: result.workflowTrace
+            ? {
+                totalDurationMs: result.workflowTrace.totalDurationMs,
+                status: result.workflowTrace.status,
+                errorRecoveryAttempts: result.workflowTrace.errorRecoveryAttempts,
+                steps: result.workflowTrace.steps.map(s => ({
+                  name: s.name,
+                  status: s.status,
+                  durationMs: s.durationMs,
+                  error: s.error,
+                })),
+              }
+            : null,
         },
       };
     } catch (error) {
@@ -142,5 +157,26 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
 
     const history = await executiveAgent.getRecentActivity(db, ctx.orgId, limit);
     return { data: history };
+  });
+
+  /**
+   * GET /v1/commands/traces — Get recent LLM call traces for monitoring.
+   */
+  app.get('/v1/commands/traces', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
+
+    const traces = getRecentTraces(ctx.orgId, limit);
+    return { data: traces };
+  });
+
+  /**
+   * GET /v1/commands/llm-stats — Get LLM usage statistics.
+   */
+  app.get('/v1/commands/llm-stats', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const summary = getTraceSummary(ctx.orgId);
+    return { data: summary };
   });
 }

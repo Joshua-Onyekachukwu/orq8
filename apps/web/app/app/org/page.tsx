@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Building2,
   Users,
@@ -97,6 +98,7 @@ export default function OrgPage() {
   useEffect(() => { fetchOrgData(); }, [fetchOrgData]);
 
   return (
+    <PageErrorBoundary pageName="Org Explorer" backHref="/app">
     <div className="mx-auto max-w-5xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -309,5 +311,6 @@ export default function OrgPage() {
         </>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

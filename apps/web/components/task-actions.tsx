@@ -3,13 +3,20 @@
 import { useState } from "react";
 import { Plus, Loader2, X } from "lucide-react";
 
+interface AgentOption {
+  id: string;
+  name: string;
+  role: string;
+}
+
 interface TaskActionsProps {
   taskId?: string;
   currentStatus?: string;
   goalId?: string; // pre-fill goal when creating from a goal card
+  agents?: AgentOption[]; // available agents for assignment
 }
 
-export function TaskActions({ taskId, currentStatus, goalId }: TaskActionsProps) {
+export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActionsProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -132,6 +139,23 @@ export function TaskActions({ taskId, currentStatus, goalId }: TaskActionsProps)
                     />
                   </div>
                 </div>
+                {agents && agents.length > 0 && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink">Assign to Agent</label>
+                    <select
+                      value={form.agentId}
+                      onChange={(e) => setForm({ ...form, agentId: e.target.value })}
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                    >
+                      <option value="">Unassigned</option>
+                      {agents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name} ({agent.role.replace(/_/g, " ")})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 import { ShieldCheck } from "lucide-react";
 import { AuditExport } from "./audit-export";
+import { PageShell } from "../../../components/page-shell";
 
 export const metadata = { title: "Audit Trail" };
 
@@ -34,6 +35,7 @@ export default async function AuditPage() {
   const events = await fetchActivity();
 
   return (
+    <PageShell pageName="Audit Trail" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -98,5 +100,6 @@ export default async function AuditPage() {
         </div>
       )}
     </div>
+    </PageShell>
   );
 }

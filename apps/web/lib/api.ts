@@ -42,9 +42,25 @@ export function parseApiError(data: unknown, fallback: string): string {
 }
 
 /**
- * Proxy a request to the ORQ8 API from a web route handler, forwarding the
- * session cookie so the API's cookie auth works (ADR-007). Returns a JSON
- * response with the upstream status — full keys never reach the browser.
+ * Build auth headers for proxying to the Fastify backend.
+ * Uses Authorization: Bearer <token> instead of cookie forwarding.
+ * This is critical for cross-domain deployments (Vercel → Railway):
+ * 1. Cookie-based auth fails because the cookie domain differs
+ * 2. Bearer auth is CSRF-exempt on the backend (ADR-007)
+ * 3. The session token is the same — it's just passed in a header
+ */
+export function proxyAuthHeaders(
+  token: string | undefined,
+  contentType?: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (token) headers.authorization = `Bearer ${token}`;
+  if (contentType) headers["content-type"] = contentType;
+  return headers;
+}
+
+/**
+ * Proxy a request to the ORQ8 API from a web route handler.
  */
 export async function proxyApiJson(
   request: NextRequest,
@@ -53,7 +69,7 @@ export async function proxyApiJson(
 ): Promise<NextResponse> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const headers: Record<string, string> = {};
-  if (token) headers.cookie = `${SESSION_COOKIE}=${token}`;
+  if (token) headers.authorization = `Bearer ${token}`;
   if (init.body !== undefined) headers["content-type"] = "application/json";
 
   let res: Response;

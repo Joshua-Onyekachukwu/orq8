@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE } from "../../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
 
 function getSessionCookie(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: proxyAuthHeaders(token),
       cache: "no-store",
     });
     if (!res.ok) {
@@ -42,10 +42,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: `${SESSION_COOKIE}=${token}`,
-      },
+      headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
     });
     if (!res.ok) {

@@ -3,6 +3,7 @@ import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db'
 import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
 import { broadcastToOrg } from './realtime.js';
+import { startTrace, endTrace, persistTrace, getTraceById } from './llm-tracer.js';
 import type { AppConfig } from '@orq8/core';
 
 /**
@@ -129,11 +130,22 @@ export async function executeTask(
   const systemPrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
   const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
 
-  // 5. Call the LLM (with retry)
+  // 5. Call the LLM (with retry and tracing)
   const startTime = Date.now();
   let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
   let tokensUsed = 0;
   let llmAttempted = false;
+
+  // Start LLM trace for this task execution
+  const trace = startTrace({
+    orgId,
+    phase: 'task_execution',
+    taskId: task.id,
+    agentId: task.agentId ?? undefined,
+    temperature: 0.7,
+    maxTokens: 2048,
+    maxRetries: 2,
+  });
 
   // Try up to 2 times for the LLM call
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -153,6 +165,17 @@ export async function executeTask(
         result = llmResponse;
         llmAttempted = true;
         tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
+
+        // Record successful trace
+        endTrace(trace.traceId, {
+          success: true,
+          promptTokens: Math.ceil(systemPrompt.length / 4),
+          completionTokens: Math.ceil(llmResponse.length / 4),
+          totalTokens: tokensUsed,
+          responsePreview: llmResponse.slice(0, 200),
+        });
+        const completedTrace = getTraceById(trace.traceId);
+        if (completedTrace) await persistTrace(db, completedTrace);
         break;
       }
     } catch {
@@ -162,6 +185,27 @@ export async function executeTask(
 
   if (!llmAttempted) {
     result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
+    endTrace(trace.traceId, {
+      success: false,
+      error: 'LLM unavailable after 2 attempts',
+    });
+    const failedTrace = getTraceById(trace.traceId);
+    if (failedTrace) await persistTrace(db, failedTrace);
+
+    // Notify: agent encountered an error (LLM unavailable)
+    try {
+      const { shouldNotify, getNotificationPrefs } = await import('./notification-preferences.js');
+      const { createNotification } = await import('../routes/notifications.js');
+      const prefs = await getNotificationPrefs(db, orgId);
+      if (shouldNotify(prefs, 'inApp', 'agent')) {
+        createNotification(
+          orgId,
+          'agent',
+          'Agent Error',
+          `${agentName} could not reach the LLM after 2 attempts for task "${task.title}". Using fallback execution.`,
+        );
+      }
+    } catch { /* notification failure is non-fatal */ }
   }
 
   const durationMs = Date.now() - startTime;
@@ -234,6 +278,21 @@ export async function executeTask(
     cost,
     outcome: 'success',
   });
+
+  // 11. Notify: task completed (gated by notification preferences)
+  try {
+    const { shouldNotify, getNotificationPrefs } = await import('./notification-preferences.js');
+    const { createNotification } = await import('../routes/notifications.js');
+    const prefs = await getNotificationPrefs(db, orgId);
+    if (shouldNotify(prefs, 'inApp', 'task')) {
+      createNotification(
+        orgId,
+        'task',
+        'Task Completed',
+        `${agentName} completed "${task.title}" in ${(durationMs / 1000).toFixed(1)}s (${cost} credits)`,
+      );
+    }
+  } catch { /* notification failure is non-fatal */ }
 
   return {
     taskId,

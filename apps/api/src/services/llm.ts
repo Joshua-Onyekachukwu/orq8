@@ -1,4 +1,6 @@
 import type { AppConfig } from '@orq8/core';
+import { startTrace, endTrace, persistTrace } from './llm-tracer.js';
+import type { Db } from '@orq8/db';
 
 /**
  * LLM client — communicates with the LiteLLM gateway (docs/22 Model Routing).
@@ -8,6 +10,8 @@ import type { AppConfig } from '@orq8/core';
  *
  * Falls back gracefully if LiteLLM is unreachable — the Executive Agent will
  * return a structured "I'm unavailable" response rather than crashing.
+ *
+ * Every call is traced via llm-tracer for timing, token counts, and monitoring.
  */
 
 export interface ChatMessage {
@@ -42,6 +46,15 @@ export interface LLMOptions {
   response_format?: { type: 'json_object' } | { type: 'text' };
   retries?: number;
   retryDelayMs?: number;
+  // Tracing context — connects this LLM call to the pipeline
+  _trace?: {
+    orgId: string;
+    phase: 'intent_analysis' | 'task_execution' | 'context_build' | 'memory_retrieval' | 'fallback';
+    commandId?: string;
+    taskId?: string;
+    agentId?: string;
+    db?: Db;
+  };
 }
 
 /**
@@ -59,12 +72,34 @@ export async function chatCompletion(
   const masterKey = config.LITELLM_MASTER_KEY ?? 'sk-orq8-dev-litellm';
   const maxRetries = options.retries ?? 2;
   const baseDelay = options.retryDelayMs ?? 1000;
+  const model = options.model ?? 'llama3.2';
 
   if (!baseUrl) {
     return null; // LiteLLM not configured
   }
 
   let lastError: string = 'unknown';
+
+  // Start tracing if context is provided
+  const traceCtx = options._trace;
+  let traceId: string | undefined;
+  let traceStartedAt: Date | undefined;
+
+  if (traceCtx) {
+    const trace = startTrace({
+      orgId: traceCtx.orgId,
+      phase: traceCtx.phase,
+      model,
+      temperature: options.temperature,
+      maxTokens: options.max_tokens,
+      commandId: traceCtx.commandId,
+      taskId: traceCtx.taskId,
+      agentId: traceCtx.agentId,
+      maxRetries,
+    });
+    traceId = trace.traceId;
+    traceStartedAt = trace.startedAt;
+  }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -81,7 +116,7 @@ export async function chatCompletion(
           Authorization: `Bearer ${masterKey}`,
         },
         body: JSON.stringify({
-          model: options.model ?? 'llama3.2',
+          model,
           messages: options.messages,
           temperature: options.temperature ?? 0.7,
           max_tokens: options.max_tokens ?? 2048,
@@ -94,20 +129,49 @@ export async function chatCompletion(
         lastError = `HTTP ${response.status}`;
         // Don't retry on 4xx client errors (except 429)
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+          if (traceId) {
+            endTrace(traceId, { success: false, error: lastError });
+            if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
+          }
           return null;
         }
         continue; // Retry on 5xx or 429
       }
 
       const data = (await response.json()) as ChatCompletionResponse;
+
+      // Record successful trace
+      if (traceId) {
+        const usage = data.usage;
+        endTrace(traceId, {
+          success: true,
+          promptTokens: usage?.prompt_tokens,
+          completionTokens: usage?.completion_tokens,
+          totalTokens: usage?.total_tokens,
+          model: data.model,
+          responsePreview: data.choices?.[0]?.message?.content,
+        });
+        if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
+      }
+
       return data;
     } catch (err) {
       lastError = err instanceof Error ? err.message : 'network error';
       // Don't retry on abort/timeout — fail fast
       if (err instanceof DOMException && err.name === 'AbortError') {
+        if (traceId) {
+          endTrace(traceId, { success: false, error: 'timeout' });
+          if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
+        }
         return null;
       }
     }
+  }
+
+  // All retries exhausted
+  if (traceId) {
+    endTrace(traceId, { success: false, error: `all ${maxRetries + 1} attempts failed: ${lastError}` });
+    if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
   }
 
   return null;
@@ -121,7 +185,7 @@ export async function chat(
   config: AppConfig,
   systemPrompt: string,
   userMessage: string,
-  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number } = {},
+  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number; _trace?: LLMOptions['_trace'] } = {},
 ): Promise<string | null> {
   const response = await chatCompletion(config, {
     model: options.model,
@@ -132,6 +196,7 @@ export async function chat(
     temperature: options.temperature ?? 0.7,
     max_tokens: options.max_tokens ?? 2048,
     retries: options.retries,
+    _trace: options._trace,
   });
 
   return response?.choices?.[0]?.message?.content ?? null;
@@ -145,12 +210,13 @@ export async function chatJson<T = unknown>(
   config: AppConfig,
   systemPrompt: string,
   userMessage: string,
-  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number } = {},
+  options: { model?: string; temperature?: number; max_tokens?: number; retries?: number; _trace?: LLMOptions['_trace'] } = {},
 ): Promise<T | null> {
   const text = await chat(config, systemPrompt, userMessage, {
     ...options,
     temperature: options.temperature ?? 0.3, // Lower temp for structured output
     retries: options.retries ?? 1, // JSON needs higher success rate
+    _trace: options._trace,
   });
 
   if (!text) return null;
@@ -171,4 +237,33 @@ export async function chatJson<T = unknown>(
     }
     return null;
   }
+}
+
+// ─── Tracing Helpers ───────────────────────────────────────────────────────
+
+import { getTraceById } from './llm-tracer.js';
+import type { LLMTraceEntry } from './llm-tracer.js';
+
+/**
+ * Retrieve the most recent trace entry by ID (for persisting after completion).
+ */
+function recentTrace(id: string): LLMTraceEntry {
+  const found = getTraceById(id);
+  // Return a minimal entry if not found (shouldn't happen in practice)
+  return found ?? {
+    id,
+    orgId: '',
+    phase: 'fallback' as const,
+    model: 'unknown',
+    provider: 'unknown',
+    startedAt: new Date(),
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    success: false,
+    retryAttempt: 0,
+    maxRetries: 0,
+    temperature: 0,
+    maxTokens: 0,
+  };
 }

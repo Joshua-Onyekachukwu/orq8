@@ -8,8 +8,8 @@ import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 type AuthMode = "login" | "register";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-emerald/60 focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-white/70";
+  "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
+const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
 
 /**
  * Validates a ?next= redirect target: internal absolute paths only, so the
@@ -161,7 +161,7 @@ export function AuthForm({
           onClick={onToggle}
           aria-label={show ? "Hide password" : "Show password"}
           aria-pressed={show}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-lime"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-emerald"
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
@@ -176,16 +176,16 @@ export function AuthForm({
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
         >
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-amber-200">Account temporarily locked</p>
-              <p className="mt-1 text-xs text-amber-300/80">
+              <p className="text-sm font-medium text-amber-800">Account temporarily locked</p>
+              <p className="mt-1 text-xs text-amber-700">
                 {lockout.message}
               </p>
-              <p className="mt-2 font-mono text-lg font-bold text-amber-200 tabular-nums">
+              <p className="mt-2 font-mono text-lg font-bold text-amber-800 tabular-nums">
                 {Math.floor(lockout.secondsLeft / 60)}:{String(lockout.secondsLeft % 60).padStart(2, '0')}
               </p>
             </div>
@@ -198,7 +198,7 @@ export function AuthForm({
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
         >
           {error}
         </div>
@@ -284,18 +284,18 @@ export function AuthForm({
 
       {mode === "login" && (
         <div className="flex items-center justify-between text-sm">
-          <label className="flex cursor-pointer items-center gap-2 text-white/60">
+          <label className="flex cursor-pointer items-center gap-2 text-gray-600">
             <input
               type="checkbox"
               name="remember"
               disabled={pending}
-              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald"
+              className="h-4 w-4 rounded border-gray-300 bg-white accent-emerald"
             />
             Remember me
           </label>
           <Link
             href="/forgot-password"
-            className="font-medium text-emerald/70 transition-colors hover:text-emerald"
+            className="font-medium text-emerald transition-colors hover:text-emerald/80"
           >
             Forgot password?
           </Link>
@@ -303,20 +303,20 @@ export function AuthForm({
       )}
 
       {mode === "register" && (
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-white/60">
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-600">
           <input
             type="checkbox"
             checked={termsAccepted}
             onChange={(e) => setTermsAccepted(e.target.checked)}
             disabled={pending}
-            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald"
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 bg-white accent-emerald"
           />
           <span>
             I accept the{" "}
             <Link
               href="/settings/terms-conditions"
               target="_blank"
-              className="font-medium text-emerald transition-colors hover:text-lime"
+              className="font-medium text-emerald transition-colors hover:text-emerald/80"
             >
               terms
             </Link>{" "}
@@ -324,7 +324,7 @@ export function AuthForm({
             <Link
               href="/settings/privacy-policy"
               target="_blank"
-              className="font-medium text-emerald transition-colors hover:text-lime"
+              className="font-medium text-emerald transition-colors hover:text-emerald/80"
             >
               privacy policy
             </Link>
@@ -336,7 +336,7 @@ export function AuthForm({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-navy-950 text-sm font-semibold text-white transition-colors hover:bg-navy-950/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

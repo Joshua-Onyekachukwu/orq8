@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { CommandBar } from "../../components/command-bar";
 import { DashboardRealtime } from "../../components/dashboard-realtime";
+import { PageShell } from "../../components/page-shell";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
 export const metadata = { title: "Dashboard" };
@@ -194,6 +195,7 @@ export default async function AppPage() {
   const recentActivity = dashboard?.recent_activity ?? [];
 
   return (
+    <PageShell pageName="Dashboard" backHref="/login">
     <div className="mx-auto max-w-6xl">
       {/* Row 1: Welcome banner */}
       <div className="rounded-xl bg-navy-950 p-6 text-white sm:p-8">
@@ -287,5 +289,6 @@ export default async function AppPage() {
         />
       </div>
     </div>
+    </PageShell>
   );
 }

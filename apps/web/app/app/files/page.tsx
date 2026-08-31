@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   FileText,
   Upload,
@@ -132,6 +133,7 @@ export default function FilesPage() {
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
   return (
+    <PageErrorBoundary pageName="Files & Documents" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -259,5 +261,6 @@ export default function FilesPage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

@@ -1,6 +1,7 @@
 import { eq, and, desc, gte, isNull, sql } from 'drizzle-orm';
 import { creditAlerts, organizations, type Db } from '@orq8/db';
 import type { CreditBalanceInfo } from './credits.js';
+import { notifyWithPrefs } from './notification-preferences.js';
 
 /**
  * Credit Usage Alerts Service
@@ -160,6 +161,20 @@ export async function checkAndAlert(
       daysRemaining: balance.daysRemaining,
     },
   );
+
+  // Create in-app notification gated by user preferences
+  try {
+    await notifyWithPrefs({
+      db,
+      orgId,
+      type: 'credit',
+      inApp: {
+        title: `Work Credits — ${alertType.charAt(0).toUpperCase() + alertType.slice(1)}`,
+        message: messages[alertType],
+        notificationType: 'credit',
+      },
+    });
+  } catch { /* notification failure is non-fatal */ }
 
   return alert;
 }

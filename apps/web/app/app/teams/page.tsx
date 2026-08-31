@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   GitBranch,
   Users,
@@ -79,6 +80,7 @@ export default function TeamsPage() {
   };
 
   return (
+    <PageErrorBoundary pageName="Departments & Teams" backHref="/app">
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -227,5 +229,6 @@ export default function TeamsPage() {
         </div>
       )}
     </div>
+    </PageErrorBoundary>
   );
 }

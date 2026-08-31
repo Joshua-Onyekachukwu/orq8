@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Check, CheckCheck, X } from "lucide-react";
+import { Bell, Check, CheckCheck, X, FlaskConical, Zap } from "lucide-react";
+import { useRealtimeNotifications } from "../hooks/use-realtime-notifications";
+import { useNotificationSound } from "../hooks/use-notification-sound";
+import { useBrowserPush } from "../hooks/use-browser-push";
 
 interface Notification {
   id: string;
@@ -36,6 +39,7 @@ export function NotificationsBell() {
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [prefs, setPrefs] = useState({ soundEnabled: true, browserNotifications: true });
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -57,12 +61,67 @@ export function NotificationsBell() {
     }
   }, []);
 
+  // Load notification preferences
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (json?.data?.notifications) {
+          setPrefs({
+            soundEnabled: json.data.notifications.soundEnabled ?? true,
+            browserNotifications: json.data.notifications.browserNotifications ?? true,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Sound + push hooks
+  const { playSound, playUrgentSound } = useNotificationSound({ enabled: prefs.soundEnabled });
+  const { permission, requestPermission, sendNotification } = useBrowserPush({ enabled: prefs.browserNotifications });
+
+  // Request push permission when user enables browser notifications
+  useEffect(() => {
+    if (prefs.browserNotifications && permission === 'default') {
+      requestPermission();
+    }
+  }, [prefs.browserNotifications, permission, requestPermission]);
+
+  // Load initial notifications on mount
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  // Poll every 60 seconds as fallback (SSE is primary)
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);  // SSE real-time notifications — instantly add new notifications, play sound, send push
+  const { connected } = useRealtimeNotifications({
+    onNotification: useCallback(
+      (notif: Notification) => {
+        // Add to the top of the list
+        setNotifications((prev) => [notif, ...prev].slice(0, 50));
+        setUnread((prev) => prev + 1);
+
+        // Play notification sound
+        const isUrgent = notif.type === 'credit' || notif.type === 'approval';
+        if (isUrgent) {
+          playUrgentSound();
+        } else {
+          playSound();
+        }
+
+        // Send browser push notification
+        sendNotification(notif.title, {
+          body: notif.message,
+          tag: notif.id,
+          requireInteraction: isUrgent,
+        });
+      },
+      [playSound, playUrgentSound, sendNotification],
+    ),
+  });
 
   const markAllRead = async () => {
     setLoading(true);
@@ -101,7 +160,15 @@ export function NotificationsBell() {
           {/* Dropdown */}
           <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-hairline bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
-              <h3 className="text-sm font-semibold text-ink">Notifications</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-ink">Notifications</h3>
+                {connected && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald/10 px-1.5 py-0.5">
+                    <Zap className="h-2.5 w-2.5 text-emerald" />
+                    <span className="font-mono text-[8px] font-semibold uppercase text-emerald">live</span>
+                  </span>
+                )}
+              </div>
               {unread > 0 && (
                 <button
                   type="button"
@@ -150,13 +217,26 @@ export function NotificationsBell() {
               )}
             </div>
 
-            {notifications.length > 0 && (
-              <div className="border-t border-hairline px-4 py-2.5">
+            <div className="border-t border-hairline px-4 py-2.5">
+              {notifications.length > 0 ? (
                 <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
                   {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
                 </p>
-              </div>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await fetch("/api/notifications/seed", { method: "POST" });
+                      fetchNotifications();
+                    } catch { /* silent */ }
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
+                >
+                  <FlaskConical className="h-3 w-3" /> Seed sample notifications
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}

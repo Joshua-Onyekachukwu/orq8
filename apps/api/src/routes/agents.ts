@@ -72,6 +72,21 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       outcome: 'success',
     });
 
+    // Notify that a new AI employee was hired
+    try {
+      const { shouldNotify, getNotificationPrefs } = await import('../services/notification-preferences.js');
+      const { createNotification } = await import('../routes/notifications.js');
+      const prefs = await getNotificationPrefs(db, ctx.orgId);
+      if (shouldNotify(prefs, 'inApp', 'agent')) {
+        createNotification(
+          ctx.orgId,
+          'agent',
+          'AI Employee Hired',
+          `${agent.name} (${agent.role}) has joined your organization and is now active.`,
+        );
+      }
+    } catch { /* notification failure is non-fatal */ }
+
     reply.code(201);
     return { data: agent };
   });
