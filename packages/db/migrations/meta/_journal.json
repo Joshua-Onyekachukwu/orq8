@@ -57,6 +57,13 @@
       "when": 1788219100000,
       "tag": "0007_fix_goals_due_date_files_table",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788219200000,
+      "tag": "0008_add_performance_indexes",
+      "breakpoints": true
     }
   ]
 }
