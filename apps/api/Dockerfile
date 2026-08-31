@@ -27,5 +27,6 @@ ENV NODE_ENV=production
 EXPOSE 3001
 
 # Railway overrides startCommand via railway.json to run migrations first.
-# The default CMD starts the API directly.
-CMD ["pnpm", "--filter", "@orq8/api", "start"]
+COPY apps/api/scripts/start-railway.sh /start-railway.sh
+RUN chmod +x /start-railway.sh
+CMD ["/start-railway.sh"]
