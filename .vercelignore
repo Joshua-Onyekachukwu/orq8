@@ -1,0 +1,21 @@
+node_modules
+packages/*/node_modules
+packages/*/dist
+apps/*/node_modules
+apps/*/.next
+apps/api
+infra
+supabase
+marketing
+docs
+Design MD files
+Trezo
+logos
+tools
+.git
+.github
+*.md
+*.pdf
+*.png
+*.svg
+pnpm-lock.yaml
