@@ -5,7 +5,7 @@
     "dockerfilePath": "apps/api/Dockerfile"
   },
   "deploy": {
-    "startCommand": "pnpm --filter @orq8/db migrate && node --import tsx/esm apps/api/src/index.ts 2>&1",
+    "startCommand": "pnpm --filter @orq8/db migrate && pnpm --filter @orq8/api start 2>&1 || (echo CRASHED && sleep 999)",
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
