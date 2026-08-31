@@ -28,7 +28,4 @@ EXPOSE 3001
 
 # Railway overrides startCommand via railway.json to run migrations first.
 # The default CMD starts the API directly.
-# Capture stderr to stdout for Railway log visibility
-COPY apps/api/scripts/start-railway.sh /start-railway.sh
-RUN chmod +x /start-railway.sh
-CMD ["/start-railway.sh"]
+CMD ["pnpm", "--filter", "@orq8/api", "start"]
