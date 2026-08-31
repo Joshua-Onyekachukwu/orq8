@@ -1,8 +1,5 @@
+# Only ignore large files/dirs Vercel doesn't need
 node_modules
-packages/*/node_modules
-packages/*/dist
-apps/*/node_modules
-apps/*/.next
 apps/api
 infra
 supabase
@@ -14,8 +11,6 @@ logos
 tools
 .git
 .github
-*.md
 *.pdf
 *.png
 *.svg
-pnpm-lock.yaml
