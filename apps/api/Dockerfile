@@ -28,4 +28,5 @@ EXPOSE 3001
 
 # Railway overrides startCommand via railway.json to run migrations first.
 # The default CMD starts the API directly.
-CMD ["pnpm", "--filter", "@orq8/api", "start"]
+# Capture stderr to stdout for Railway log visibility
+CMD ["sh", "-c", "pnpm --filter @orq8/api start 2>&1"]
