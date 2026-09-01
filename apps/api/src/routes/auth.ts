@@ -297,6 +297,20 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
+  /** GET /v1/org — Get current organization details. */
+  app.get('/v1/org', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const memberships = await orgs.findMembershipsByUser(db, ctx.userId);
+    const current = memberships.find((m) => m.org.id === ctx.orgId);
+    if (!current) throw unauthorized();
+    return {
+      data: {
+        ...current.org,
+        role: current.membership.role,
+      },
+    };
+  });
+
   /** PATCH /v1/auth/me — Update user profile (name, email). */
   app.patch('/v1/auth/me', async (request) => {
     const ctx = await requireAuth(request, deps);
