@@ -4,17 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Bot,
-  ShieldCheck,
   Activity,
-  Settings,
-  HeartPulse,
+  Building2,
+  ChevronDown,
+  LayoutDashboard,
   LogOut,
   Menu,
+  Settings,
+  Shield,
+  ShieldCheck,
+  UserCog,
+  Users,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,152 +24,174 @@ type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-  badge?: number;
 };
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Organizations", href: "/admin/organizations", icon: Building2 },
-  { label: "AI Agents", href: "/admin/agents", icon: Bot },
-  { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
-  { label: "Activity Log", href: "/admin/activity", icon: Activity },
-  { label: "System Health", href: "/admin/health", icon: HeartPulse },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+type NavGroup = { title: string; items: NavItem[] };
+
+const navGroups: NavGroup[] = [
+  {
+    title: "Overview",
+    items: [
+      { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+      { label: "Users", href: "/admin/users", icon: Users },
+      { label: "Organizations", href: "/admin/organizations", icon: Building2 },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { label: "AI Agents", href: "/admin/agents", icon: Shield },
+      { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
+      { label: "Activity Log", href: "/admin/activity", icon: Activity },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/admin" && pathname.startsWith(href));
 
-  const NavList = (
-    <nav className="flex-1 space-y-1 px-3 py-4">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const active = isActive(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            aria-current={active ? "page" : undefined}
-            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-              active
-                ? "bg-lime/10 font-medium text-lime"
-                : "text-white/60 hover:bg-white/5 hover:text-white"
-            }`}
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
+
+  const sidebarContent = (
+    <div className="flex h-full flex-col bg-white">
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-between border-b border-hairline px-5">
+        <Link href="/admin" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900">
+            <Zap className="h-4 w-4 text-lime" />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-navy-900">
+            ORQ8
+          </span>
+        </Link>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="rounded-lg p-1.5 text-muted hover:bg-canvas lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Admin badge */}
+      <div className="border-b border-hairline px-5 py-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-lime">
+          <Shield className="h-3 w-3" />
+          Admin Panel
+        </span>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {navGroups.map((group) => {
+          const isCollapsed = collapsedGroups.has(group.title);
+          return (
+            <div key={group.title} className="mb-4">
+              <button
+                onClick={() => toggleGroup(group.title)}
+                className="flex w-full items-center justify-between px-2 py-1"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted/60">
+                  {group.title}
+                </span>
+                <ChevronDown
+                  className={`h-3 w-3 text-muted/40 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+              </button>
+              {!isCollapsed && (
+                <ul className="mt-1 space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                            active
+                              ? "bg-navy-900 text-white"
+                              : "text-muted hover:bg-canvas hover:text-ink"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-4 w-4 shrink-0 ${
+                              active ? "text-lime" : "text-muted/50"
+                            }`}
+                          />
+                          <span className="flex-1 truncate">{item.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Bottom */}
+      <div className="border-t border-hairline p-3 space-y-0.5">
+        <Link
+          href="/app"
+          onClick={() => setMobileOpen(false)}
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
+        >
+          <LayoutDashboard className="h-4 w-4 shrink-0 text-muted/50" />
+          Back to App
+        </Link>
+        <form action="/api/auth/logout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
           >
-            <Icon
-              className={`h-4 w-4 shrink-0 ${
-                active ? "text-lime" : "text-white/40 group-hover:text-white/70"
-              }`}
-            />
-            <span className="flex-1 truncate">{item.label}</span>
-            {item.badge && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
-                {item.badge}
-              </span>
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+            <LogOut className="h-4 w-4 shrink-0 text-muted/50" />
+            Sign out
+          </button>
+        </form>
+      </div>
+    </div>
   );
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-white/10 bg-navy-950 px-4 lg:hidden">
-        <Link href="/admin" className="flex items-baseline gap-1.5 text-xl font-bold tracking-tight text-white">
-          ORQ8 <span className="h-2 w-2 rounded-full bg-lime" />
-        </Link>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Open admin menu"
-          className="rounded-lg p-2 text-white/60 hover:bg-white/10"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* Mobile drawer */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`}>
-        <div
-          className={`absolute inset-0 bg-navy-950/60 transition-opacity ${open ? "opacity-100" : "opacity-0"}`}
-          onClick={() => setOpen(false)}
-        />
-        <aside
-          className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-navy-950 shadow-2xl transition-transform ${
-            open ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between px-5 pt-4">
-            <Link href="/admin" className="flex items-baseline gap-1.5 text-xl font-bold text-white">
-              ORQ8 <span className="h-2 w-2 rounded-full bg-lime" />
-            </Link>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
-              className="rounded-lg p-2 text-white/60 hover:bg-white/10"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="border-b border-white/10 px-5 py-3">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-lime">
-              Admin Panel
-            </p>
-          </div>
-          {NavList}
-          <div className="border-t border-white/10 px-5 py-4">
-            <Link
-              href="/app"
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Back to App
-            </Link>
-          </div>
-        </aside>
-      </div>
-
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-navy-950 lg:flex">
-        <div className="px-5 py-6">
-          <Link href="/admin" className="flex items-baseline gap-1.5 text-xl font-bold tracking-tight text-white">
-            ORQ8 <span className="h-2 w-2 rounded-full bg-lime" />
-          </Link>
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-hairline">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile sidebar */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/30"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 w-72">
+            {sidebarContent}
+          </div>
         </div>
-        <div className="border-b border-white/10 px-5 py-3">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-lime">
-            Admin Panel
-          </p>
-        </div>
-        {NavList}
-        <div className="mt-auto border-t border-white/10 px-5 py-4 space-y-2">
-          <Link
-            href="/app"
-            className="flex items-center gap-2 text-sm text-white/50 hover:text-white"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Back to App
-          </Link>
-          <form action="/api/auth/logout" method="post">
-            <button
-              type="submit"
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
-          </form>
-        </div>
-      </aside>
+      )}
+
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-navy-900 text-white shadow-lg lg:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
     </>
   );
 }

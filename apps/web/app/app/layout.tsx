@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "../../components/app-sidebar";
 import { AppErrorBoundary } from "../../components/app-error-boundary";
+import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +96,8 @@ export default async function AppLayout({
   const userName = me?.user.name ?? me?.user.email ?? "Founder";
   const hasSession = !!me;
 
+  const userRole = active?.role ?? "member";
+
   return (
     <div id="main" className="min-h-screen bg-canvas">
       <AppSidebar
@@ -105,7 +108,13 @@ export default async function AppLayout({
       />
 
       <div className="lg:pl-64">
-        <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        <TopBar
+          userName={userName}
+          orgName={orgName}
+          plan={plan}
+          userRole={userRole}
+        />
+        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

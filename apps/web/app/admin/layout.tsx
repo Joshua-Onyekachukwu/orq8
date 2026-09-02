@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "../../components/admin/admin-sidebar";
+import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -61,11 +62,21 @@ export default async function AdminLayout({
     redirect("/app");
   }
 
+  const orgName = activeMembership?.org.name ?? "ORQ8";
+  const plan = activeMembership?.org.plan ?? "trial";
+  const userName = me.user.name ?? me.user.email ?? "Admin";
+
   return (
     <div className="min-h-screen bg-canvas">
       <AdminSidebar />
       <div className="lg:pl-64">
-        <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <TopBar
+          userName={userName}
+          orgName={orgName}
+          plan={plan}
+          userRole={userRole}
+        />
+        <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

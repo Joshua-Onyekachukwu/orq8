@@ -7,7 +7,7 @@ import {
   Activity,
   Bell,
   Building2,
-  CalendarDays,
+  ChevronDown,
   FileText,
   GitBranch,
   KeyRound,
@@ -16,27 +16,21 @@ import {
   Menu,
   ScrollText,
   Settings,
+  Shield,
   ShieldCheck,
   Target,
   Users,
   Wallet,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
-import { NotificationsBell } from "./notifications-bell";
 
-/**
- * The full ORQ8 feature surface, navigable from day one. Features land in
- * phases (docs/49); items not yet built show their phase chip. `built: true`
- * items are live surfaces. The sidebar always lists everything so the org
- * knows what the system will grow into.
- */
 type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-  phase?: string;
-  built?: boolean;
+  badge?: string;
 };
 
 type NavGroup = { title: string; items: NavItem[] };
@@ -45,39 +39,29 @@ const navGroups: NavGroup[] = [
   {
     title: "Command",
     items: [
-      { label: "Dashboard", href: "/app", icon: LayoutDashboard, built: true },
-      { label: "Decision Center", href: "/app/approvals", icon: ShieldCheck, built: true },
-      { label: "Weekly Report", href: "/app/report", icon: CalendarDays, built: true },
+      { label: "Dashboard", href: "/app", icon: LayoutDashboard },
+      { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },
+      { label: "Weekly Report", href: "/app/report", icon: ScrollText },
     ],
   },
   {
     title: "Organization",
     items: [
-      { label: "Org Explorer", href: "/app/org", icon: Building2, built: true },
-      { label: "Agents", href: "/app/agents", icon: Users, built: true },
-      { label: "Departments & Teams", href: "/app/teams", icon: GitBranch, built: true },
-      { label: "Goals & Tasks", href: "/app/goals", icon: Target, built: true },
+      { label: "AI Employees", href: "/app/agents", icon: Users },
+      { label: "Goals & Tasks", href: "/app/goals", icon: Target },
+      { label: "Departments", href: "/app/teams", icon: GitBranch },
+      { label: "Org Explorer", href: "/app/org", icon: Building2 },
     ],
   },
   {
     title: "Governance",
     items: [
-      { label: "Notifications", href: "/app/notifications", icon: Bell, built: true },
-      { label: "Company Constitution", href: "/app/constitution", icon: ScrollText, built: true },
-      { label: "Budgets & Limits", href: "/app/budgets", icon: Wallet, built: true },
-      { label: "Audit Trail", href: "/app/audit", icon: ShieldCheck, built: true },
-      { label: "Company Memory", href: "/app/memory", icon: ScrollText, built: true },
-      { label: "Agent Activity", href: "/app/activity", icon: Activity, built: true },
-      { label: "Files & Documents", href: "/app/files", icon: FileText, built: true },
-    ],
-  },
-
-  {
-    title: "Settings",
-    items: [
-      { label: "Settings", href: "/settings", icon: Settings, built: true },
-      { label: "Providers & Keys", href: "/settings/providers", icon: KeyRound, built: true },
-      { label: "Members & Roles", href: "/app/members", icon: Users, built: true },
+      { label: "Notifications", href: "/app/notifications", icon: Bell },
+      { label: "Company Memory", href: "/app/memory", icon: ScrollText },
+      { label: "Audit Trail", href: "/app/audit", icon: Shield },
+      { label: "Budgets", href: "/app/budgets", icon: Wallet },
+      { label: "Files", href: "/app/files", icon: FileText },
+      { label: "Constitution", href: "/app/constitution", icon: ScrollText },
     ],
   },
 ];
@@ -86,7 +70,6 @@ export function AppSidebar({
   orgName,
   plan,
   userName,
-  sampleMode,
 }: {
   orgName: string;
   plan: string;
@@ -94,152 +77,162 @@ export function AppSidebar({
   sampleMode: boolean;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/app" && pathname.startsWith(href));
 
-  const NavList = (
-    <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
-      {navGroups.map((group) => (
-        <div key={group.title}>
-          <p className="px-3 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-            {group.title}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    aria-current={active ? "page" : undefined}
-                    className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-white/10 font-medium text-lime"
-                        : "text-white/65 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? "text-lime" : "text-white/40 group-hover:text-white/70"}`} />
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.built ? (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald" title="Live surface" />
-                    ) : item.phase ? (
-                      <span className="shrink-0 rounded-full border border-white/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-white/40">
-                        {item.phase}
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </nav>
-  );
+  const toggleGroup = (title: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
 
-  const Wordmark = (
-    <Link href="/app" className="flex items-baseline gap-1.5 text-xl font-bold tracking-tight text-white">
-      ORQ8
-      <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
-    </Link>
-  );
+  const sidebarContent = (
+    <div className="flex h-full flex-col bg-white">
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-between border-b border-hairline px-5">
+        <Link href="/app" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900">
+            <Zap className="h-4 w-4 text-lime" />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-navy-900">
+            ORQ8
+          </span>
+        </Link>
+        {/* Mobile close */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="rounded-lg p-1.5 text-muted hover:bg-canvas lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-  const OrgBlock = (
-    <div className="border-b border-white/10 px-5 py-4">
-      <p className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-        {sampleMode ? "Sample org" : "Active org"}
-      </p>
-      <p className="mt-1.5 truncate text-sm font-medium text-white">{orgName}</p>
-      <span className="mt-1 inline-block rounded-full bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white/50">
-        {plan}
-      </span>
-    </div>
-  );
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {navGroups.map((group) => {
+          const isCollapsed = collapsedGroups.has(group.title);
+          return (
+            <div key={group.title} className="mb-4">
+              <button
+                onClick={() => toggleGroup(group.title)}
+                className="flex w-full items-center justify-between px-2 py-1"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted/60">
+                  {group.title}
+                </span>
+                <ChevronDown
+                  className={`h-3 w-3 text-muted/40 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+              </button>
+              {!isCollapsed && (
+                <ul className="mt-1 space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                            active
+                              ? "bg-navy-900 text-white"
+                              : "text-muted hover:bg-canvas hover:text-ink"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-4 w-4 shrink-0 ${
+                              active ? "text-lime" : "text-muted/50"
+                            }`}
+                          />
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {item.badge && !active && (
+                            <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium text-muted">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </nav>
 
-  const FooterBlock = (
-    <div className="border-t border-white/10 px-5 py-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime font-bold text-navy-950">
-          {userName.charAt(0).toUpperCase()}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">{userName}</p>
-          <p className="truncate font-mono text-[10px] uppercase tracking-wide text-white/40">CEO</p>
-        </div>
-        <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            aria-label="Sign out"
-            title="Sign out"
-            className="rounded-lg p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </form>
+      {/* Bottom section */}
+      <div className="border-t border-hairline p-3">
+        <Link
+          href="/settings"
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+            pathname.startsWith("/settings")
+              ? "bg-navy-900 text-white"
+              : "text-muted hover:bg-canvas hover:text-ink"
+          }`}
+        >
+          <Settings
+            className={`h-4 w-4 shrink-0 ${
+              pathname.startsWith("/settings") ? "text-lime" : "text-muted/50"
+            }`}
+          />
+          Settings
+        </Link>
+        <Link
+          href="/settings/providers"
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+            pathname.startsWith("/settings/providers")
+              ? "bg-navy-900 text-white"
+              : "text-muted hover:bg-canvas hover:text-ink"
+          }`}
+        >
+          <KeyRound
+            className={`h-4 w-4 shrink-0 ${
+              pathname.startsWith("/settings/providers")
+                ? "text-lime"
+                : "text-muted/50"
+            }`}
+          />
+          Provider Keys
+        </Link>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-hairline bg-white px-4 lg:hidden">
-        {Wordmark}
-        <div className="flex items-center gap-1">
-          <NotificationsBell />
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label="Open menu"
-            className="rounded-lg border border-hairline p-2 text-ink transition-colors hover:bg-canvas"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+      {/* Desktop sidebar */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-hairline">
+        {sidebarContent}
       </div>
 
-      {/* Mobile drawer */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
-        <div
-          className={`absolute inset-0 bg-navy-950/60 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
-          onClick={() => setOpen(false)}
-        />
-        <aside
-          className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-navy-950 shadow-2xl transition-transform duration-200 ${
-            open ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between px-5 pt-4">
-            {Wordmark}
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
-              className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      {/* Mobile sidebar */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/30"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 w-72">
+            {sidebarContent}
           </div>
-          {OrgBlock}
-          {NavList}
-          {FooterBlock}
-        </aside>
-      </div>
-
-      {/* Desktop rail */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-navy-950 lg:flex">
-        <div className="px-5 py-6">
-          {Wordmark}
         </div>
-        {OrgBlock}
-        {NavList}
-        {FooterBlock}
-      </aside>
+      )}
+
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-navy-900 text-white shadow-lg lg:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
     </>
   );
 }
