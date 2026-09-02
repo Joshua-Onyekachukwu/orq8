@@ -13,15 +13,44 @@ export default function ChangePasswordPage() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = () => {
-    // Sample only: real password rotation lands with the members API.
-    if (!current || !next || next !== confirm) return;
-    setSaved(true);
-    setCurrent("");
-    setNext("");
-    setConfirm("");
-    setTimeout(() => setSaved(false), 3000);
+  const submit = async () => {
+    setError("");
+    if (!current || !next || next !== confirm) {
+      if (next !== confirm) setError("New passwords do not match");
+      return;
+    }
+    if (next.length < 8) {
+      setError("New password must be at least 8 characters");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: current,
+          new_password: next,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to change password");
+        return;
+      }
+      setSaved(true);
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Network error — please try again");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +77,7 @@ export default function ChangePasswordPage() {
               onChange={(e) => setCurrent(e.target.value)}
               className={fieldClass}
               placeholder="••••••••"
+              required
             />
           </div>
           <div>
@@ -61,6 +91,7 @@ export default function ChangePasswordPage() {
               onChange={(e) => setNext(e.target.value)}
               className={fieldClass}
               placeholder="At least 8 characters"
+              required
             />
           </div>
           <div>
@@ -74,16 +105,22 @@ export default function ChangePasswordPage() {
               onChange={(e) => setConfirm(e.target.value)}
               className={fieldClass}
               placeholder="Repeat the new password"
+              required
             />
           </div>
         </div>
 
+        {error && (
+          <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
+        )}
+
         <div className="mt-8 flex items-center gap-4 border-t border-hairline pt-6">
           <button
             type="submit"
-            className="rounded-full bg-navy-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
+            disabled={loading}
+            className="rounded-full bg-navy-900 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950 disabled:opacity-50"
           >
-            Update password
+            {loading ? "Updating..." : "Update password"}
           </button>
           {saved && (
             <span role="status" className="text-sm font-medium text-emerald-700">
@@ -91,9 +128,6 @@ export default function ChangePasswordPage() {
             </span>
           )}
         </div>
-        <p className="mt-4 font-mono text-[10px] uppercase tracking-wide text-muted">
-          Wires to the members API in Phase 2
-        </p>
       </form>
     </SettingsShell>
   );
