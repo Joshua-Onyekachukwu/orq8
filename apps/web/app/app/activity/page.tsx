@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
-import { Filter, Search, Activity, AlertCircle, RefreshCw } from "lucide-react";
+import { Filter, Search, Activity, AlertCircle, RefreshCw, Download } from "lucide-react";
 
 interface ActivityEvent {
   id: number;
@@ -99,15 +99,25 @@ export default function ActivityPage() {
             &ldquo;because&rdquo; attached. Nothing happens that you can&apos;t trace.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={fetchActivity}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.open("/api/activity/export?format=csv", "_blank")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={fetchActivity}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
       </header>
 
       {/* Error state */}

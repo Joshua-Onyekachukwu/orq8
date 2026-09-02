@@ -11,6 +11,40 @@ import type { AppDeps } from '../types.js';
 export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
 
+  /** Export activity events as CSV. */
+  app.get('/v1/activity/export', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const format = url.searchParams.get('format') ?? 'csv';
+    const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '1000', 10), 5000);
+    const list = await activity.findByOrg(db, ctx.orgId, { limit, offset: 0 });
+
+    if (format === 'json') {
+      reply.header('Content-Type', 'application/json');
+      reply.header('Content-Disposition', `attachment; filename="orq8-audit-${new Date().toISOString().slice(0, 10)}.json"`);
+      return { data: list };
+    }
+
+    // CSV format
+    const header = 'id,type,summary,reason,agent_id,task_id,cost,department,occurred_at';
+    const rows = list.map((e) => [
+      e.id,
+      e.type,
+      `"${(e.summary ?? '').replace(/"/g, '""')}"`,
+      `"${(e.reason ?? '').replace(/"/g, '""')}"`,
+      e.agentId ?? '',
+      e.taskId ?? '',
+      (e.cost / 100).toFixed(2),
+      e.department ?? '',
+      e.occurredAt instanceof Date ? e.occurredAt.toISOString() : String(e.occurredAt),
+    ].join(','));
+    const csv = [header, ...rows].join('\n');
+
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', `attachment; filename="orq8-audit-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return csv;
+  });
+
   /** List activity events for the current org. */
   app.get('/v1/activity', async (request) => {
     const ctx = await requireAuth(request, deps);

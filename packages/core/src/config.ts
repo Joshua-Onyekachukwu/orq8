@@ -23,11 +23,18 @@ const envSchema = z.object({
   LITELLM_MASTER_KEY: z.string().optional(),
   OLLAMA_BASE_URL: z.string().url().optional(),
 
+  // NVIDIA NIM — direct provider (docs/22). When set, ORQ8 calls NVIDIA NIM
+  // directly without needing a LiteLLM gateway. Free tier: 1000 credits.
+  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_BASE_URL: z.string().url().default('https://integrate.api.nvidia.com/v1'),
+  NVIDIA_MODEL: z.string().default('nvidia/llama-3.1-nemotron-70b-instruct'),
+
   // Observability (docs/39)
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
 
-  // Waitlist email drip (docs/00 GTM, marketing/design_partner_application.md §4).
-  // SMTP unset = dev mode: emails are logged, not sent (free local stack).
+  // Email transport — Resend (preferred) or SMTP.
+  // RESEND_API_KEY unset + SMTP unset = dev mode: emails logged, not sent.
+  RESEND_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),

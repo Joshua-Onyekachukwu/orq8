@@ -68,14 +68,23 @@ export async function chatCompletion(
   config: AppConfig,
   options: LLMOptions,
 ): Promise<ChatCompletionResponse | null> {
-  const baseUrl = config.LITELLM_BASE_URL;
-  const masterKey = config.LITELLM_MASTER_KEY ?? 'sk-orq8-dev-litellm';
+  // Provider resolution: NVIDIA NIM > LiteLLM > null (structured fallback)
+  const useNvidia = !!config.NVIDIA_API_KEY;
+  const baseUrl = useNvidia
+    ? config.NVIDIA_BASE_URL
+    : config.LITELLM_BASE_URL;
+  const masterKey = useNvidia
+    ? config.NVIDIA_API_KEY
+    : (config.LITELLM_MASTER_KEY ?? 'sk-orq8-dev-litellm');
+  const defaultModel = useNvidia
+    ? config.NVIDIA_MODEL
+    : 'llama3.2';
   const maxRetries = options.retries ?? 2;
   const baseDelay = options.retryDelayMs ?? 1000;
-  const model = options.model ?? 'llama3.2';
+  const model = options.model ?? defaultModel;
 
   if (!baseUrl) {
-    return null; // LiteLLM not configured
+    return null; // No LLM provider configured
   }
 
   let lastError: string = 'unknown';

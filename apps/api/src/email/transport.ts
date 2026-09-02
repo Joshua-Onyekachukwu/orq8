@@ -40,7 +40,58 @@ function getTransporter(config: AppConfig): Transporter | undefined {
   return cachedTransporter;
 }
 
+// ─── Resend transport ─────────────────────────────────────────────────────
+// When RESEND_API_KEY is set, emails are sent via Resend's HTTP API instead of SMTP.
+// This is simpler for production deployments (no SMTP server needed).
+let resendKey: string | undefined;
+
+async function sendViaResend(
+  apiKey: string,
+  input: SendInput,
+  from: string,
+): Promise<SendResult> {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [input.to],
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      return { ok: false, error: `Resend ${res.status}: ${err}` };
+    }
+    const data = (await res.json()) as { id?: string };
+    return { ok: true, messageId: data.id };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Resend failed' };
+  }
+}
+
 export function createEmailTransport(config: AppConfig, logger: Logger): EmailTransport {
+  // Priority: Resend > SMTP > dev-log
+  const resendApiKey = config.RESEND_API_KEY;
+  if (resendApiKey) {
+    resendKey = resendApiKey;
+    const from = config.EMAIL_FROM ?? 'ORQ8 <founder@orq8.ai>';
+    return {
+      async send(input) {
+        logger.info({ mode: 'resend', to: input.to, subject: input.subject }, 'sending email via Resend');
+        const result = await sendViaResend(resendApiKey, input, from);
+        if (!result.ok) logger.error({ err: result.error, to: input.to }, 'Resend send failed');
+        return result;
+      },
+    };
+  }
+
   const transporter = getTransporter(config);
 
   if (!transporter) {

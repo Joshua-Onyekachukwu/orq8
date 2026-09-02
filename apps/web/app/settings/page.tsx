@@ -268,6 +268,30 @@ export default function SettingsPage() {
               className={`${fieldClass} cursor-not-allowed bg-canvas text-muted`}
             />
           </div>
+          <div>
+            <label htmlFor="slug" className={labelClass}>
+              Organization slug
+            </label>
+            <input
+              id="slug"
+              type="text"
+              value={org?.slug ?? ""}
+              disabled
+              className={`${fieldClass} cursor-not-allowed bg-canvas text-muted font-mono text-xs`}
+            />
+          </div>
+          <div>
+            <label htmlFor="org-id" className={labelClass}>
+              Organization ID
+            </label>
+            <input
+              id="org-id"
+              type="text"
+              value={org?.id ?? ""}
+              disabled
+              className={`${fieldClass} cursor-not-allowed bg-canvas text-muted font-mono text-xs`}
+            />
+          </div>
         </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-hairline pt-6">
