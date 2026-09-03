@@ -51,9 +51,12 @@ export interface ExecutionResult {
     taskTitle: string;
     status: 'pending' | 'completed' | 'failed';
     result?: string;
+    llmUsed?: boolean;
   }>;
   creditsConsumed?: number;
   creditsRemaining?: number;
+  // Which LLM provider executed this command (docs/22): 'nvidia' | 'litellm' | 'none' (structured fallback)
+  llmProvider?: 'nvidia' | 'litellm' | 'none';
   // New: workflow trace for debugging
   workflowTrace?: WorkflowTrace;
 }
@@ -595,6 +598,7 @@ async function executeTaskWithRecovery(
           result: `Task failed after ${MAX_TASK_RETRIES + 1} attempts: ${lastError}`,
           cost: 0,
           tokensUsed: 0,
+          llmUsed: false,
         };
       }
     }
@@ -607,6 +611,7 @@ async function executeTaskWithRecovery(
     result: 'Task failed: exceeded maximum retries',
     cost: 0,
     tokensUsed: 0,
+    llmUsed: false,
   };
 }
 
@@ -886,6 +891,7 @@ export async function executeCommand(
       taskTitle: task.title,
       status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
       result: executionResult?.result,
+      llmUsed: executionResult?.llmUsed ?? false,
     };
   });
 
@@ -909,6 +915,7 @@ export async function executeCommand(
     agentResults,
     creditsConsumed,
     creditsRemaining,
+    llmProvider: config.NVIDIA_API_KEY ? 'nvidia' : config.LITELLM_BASE_URL ? 'litellm' : 'none',
     workflowTrace,
   };
 }
@@ -947,6 +954,7 @@ function buildErrorResult(
     agentResults: [],
     creditsConsumed: 0,
     creditsRemaining: 0,
+    llmProvider: 'none',
     workflowTrace: finalizeTrace(trace, startTime),
   };
 }

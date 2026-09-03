@@ -47,7 +47,26 @@ const run = dbUp ? describe : describe.skip;
 
 run('provider keys (docs/23)', () => {
   let cookie: string;
+  let csrf: string;
   let keyId: string;
+
+  /** Emulate a browser: fetch a CSRF token via GET, then send cookie + header on mutations. */
+  async function csrfHeaders(sessionCookie: string): Promise<Record<string, string>> {
+    const getRes = await app.inject({ method: 'GET', url: '/healthz' });
+    const setCookies = getRes.headers['set-cookie'];
+    const raw = (Array.isArray(setCookies) ? setCookies : [setCookies]).filter(
+      (c): c is string => typeof c === 'string',
+    );
+    const csrfCookie = raw
+      .map((c) => c.split(';').shift() ?? '')
+      .find((c) => c.startsWith('csrf_token='));
+    const token = csrfCookie?.split('=')[1] ?? '';
+    expect(token).toBeTruthy();
+    return {
+      cookie: `${sessionCookie}; csrf_token=${token}` as string,
+      'x-csrf-token': token as string,
+    };
+  }
 
   it('registers a user (creates org + session)', async () => {
     const email = `providers-${Date.now()}@example.com`;
@@ -62,13 +81,16 @@ run('provider keys (docs/23)', () => {
     expect(token).toBeTruthy();
     // the API returns the token in the body; emulate the web cookie
     cookie = `orq8_session=${token}`;
+    const headers = await csrfHeaders(cookie);
+    cookie = headers.cookie!;
+    csrf = headers['x-csrf-token']!;
   });
 
   it('saves a key — response carries only the mask, never the key', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/v1/providers/keys',
-      headers: { cookie },
+      headers: { cookie, 'x-csrf-token': csrf },
       payload: {
         provider_slug: 'openai',
         name: 'prod',
@@ -106,7 +128,7 @@ run('provider keys (docs/23)', () => {
     const res = await app.inject({
       method: 'POST',
       url: `/v1/providers/keys/${keyId}/rotate`,
-      headers: { cookie },
+      headers: { cookie, 'x-csrf-token': csrf },
       payload: { new_api_key: 'sk-rotated-9999' },
     });
     expect(res.statusCode).toBe(200);
@@ -120,7 +142,7 @@ run('provider keys (docs/23)', () => {
       .select({ n: count() })
       .from(secretRecords)
       .where(eq(secretRecords.keyId, keyId));
-    expect((secretCount?.n ?? 0)).toBeGreaterThanOrEqual(3); // created, rotated (+ tested if run)
+    expect((secretCount?.n ?? 0)).toBeGreaterThanOrEqual(2); // created + rotated
 
     const [audit] = await deps.db
       .select({ n: count() })
@@ -136,8 +158,8 @@ run('provider keys (docs/23)', () => {
       url: '/v1/auth/register',
       payload: { email, password: 'password123', name: 'Other', org_name: 'Other Co' },
     });
-    const otherCookie = `orq8_session=${reg.json().data.token}`;
-    const res = await app.inject({ method: 'GET', url: `/v1/providers/keys/${keyId}`, headers: { cookie: otherCookie } });
+    const otherHeaders = await csrfHeaders(`orq8_session=${reg.json().data.token}`);
+    const res = await app.inject({ method: 'GET', url: `/v1/providers/keys/${keyId}`, headers: { cookie: otherHeaders.cookie } });
     expect(res.statusCode).toBe(404);
   });
 
@@ -145,7 +167,7 @@ run('provider keys (docs/23)', () => {
     const res = await app.inject({
       method: 'POST',
       url: `/v1/providers/keys/${keyId}/revoke`,
-      headers: { cookie },
+      headers: { cookie, 'x-csrf-token': csrf },
     });
     expect(res.statusCode).toBe(200);
     const body = res.json().data;

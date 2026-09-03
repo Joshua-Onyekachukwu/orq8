@@ -213,12 +213,19 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       html: resetEmail.html,
     });
 
-    await appendAudit(db, {
-      orgId: user.id, // orgId is required but we may not have it yet — use userId as placeholder
-      actorType: 'system',
-      action: 'auth.password_reset_requested',
-      outcome: 'success',
-    });
+    // Audit with the user's real org (activity_events.org_id has an FK to
+    // organizations — a user UUID would violate it and 500 the request).
+    const memberships = await orgs.findMembershipsByUser(db, user.id);
+    const orgId = memberships[0]?.org.id;
+    if (orgId) {
+      await appendAudit(db, {
+        orgId,
+        actorType: 'user',
+        actorId: user.id,
+        action: 'auth.password_reset_requested',
+        outcome: 'success',
+      });
+    }
 
     // Always return success to prevent email enumeration
     return { data: { ok: true } };

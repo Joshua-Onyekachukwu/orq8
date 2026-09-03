@@ -216,6 +216,11 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       { name: 'API', status: 'operational', latencyMs: null },
       { name: 'Auth', status: 'operational', latencyMs: null },
       { name: 'Agent Execution', status: 'operational', latencyMs: null },
+      {
+        name: 'AI Models (NVIDIA NIM)',
+        status: process.env.NVIDIA_API_KEY ? 'operational' : process.env.LITELLM_BASE_URL ? 'configured' : 'not_configured',
+        latencyMs: null,
+      },
       { name: 'Email (SMTP)', status: process.env.SMTP_HOST ? 'operational' : 'not_configured', latencyMs: null },
       { name: 'Stripe Billing', status: process.env.STRIPE_SECRET_KEY ? 'operational' : 'not_configured', latencyMs: null },
       { name: 'File Storage (S3)', status: process.env.S3_ENDPOINT ? 'operational' : 'local_fallback', latencyMs: null },

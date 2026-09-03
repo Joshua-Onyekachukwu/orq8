@@ -80,9 +80,12 @@ export async function buildApp(
 
   // Security: global rate-limit for all endpoints (60 req/min per IP)
   // Uses Redis sorted sets when available for multi-instance support
-  if (redis.isConnected()) {
+  // Rate limiting is skipped in test mode so integration suites can register
+  // many users from a single IP without tripping limits.
+  const rateLimitEnabled = deps.config.NODE_ENV !== 'test';
+  if (rateLimitEnabled && redis.isConnected()) {
     rateLimitHookRedis(app, redis, { windowMs: 60_000, max: 60, prefix: 'rl:global' });
-  } else {
+  } else if (rateLimitEnabled) {
     const globalRL = new Map<string, { count: number; windowStart: number }>();
     app.addHook('onRequest', async (request, reply) => {
       if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
@@ -109,13 +112,13 @@ export async function buildApp(
 
   // Security: rate-limit sensitive auth endpoints
   // Use Redis-backed rate limiting if available, otherwise in-memory
-  if (redis.isConnected()) {
+  if (rateLimitEnabled && redis.isConnected()) {
     rateLimitLoginRedis(app, redis);
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
     rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
-  } else {
+  } else if (rateLimitEnabled) {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRoute(app, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });

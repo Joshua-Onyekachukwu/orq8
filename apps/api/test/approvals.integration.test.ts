@@ -8,9 +8,9 @@ import type { FastifyInstance } from 'fastify';
 // Skip when no local PostgreSQL is available (same as other integration tests)
 const canRun = !!process.env.DATABASE_URL || process.env.CI === 'true';
 
-let app: FastifyInstance | undefined;
-let db: ReturnType<typeof createDb>['db'] | undefined;
-let pool: ReturnType<typeof createDb>['pool'] | undefined;
+let app: FastifyInstance;
+let db: ReturnType<typeof createDb>['db'];
+let pool: ReturnType<typeof createDb>['pool'];
 
 // Test users
 let userA: { token: string; orgId: string };
@@ -48,6 +48,8 @@ beforeAll(async () => {
   pool = created.pool;
   app = await buildApp({ config, db, pool, logger });
   await app.ready();
+  // Ensure app/db are non-optional before any test runs
+  if (!app || !db || !pool) throw new Error('test app failed to initialize');
 
   userA = await registerUser(`approval-a-${Date.now()}@test.com`, 'Org A');
   userB = await registerUser(`approval-b-${Date.now()}@test.com`, 'Org B');

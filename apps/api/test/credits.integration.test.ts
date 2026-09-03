@@ -234,7 +234,9 @@ run('Credits — full integration flow', () => {
       // Create a new user with trial plan (100 credits)
       const user = await registerTestUser('exhaust');
 
-      // Consume credits until exhausted
+      // Consume credits until exhausted. The API returns 200 with
+      // `data.allowed === false` when the balance is exhausted (same graceful
+      // envelope as POST /v1/credits/check), so detect it from the body.
       let exhausted = false;
       let consumed = 0;
       for (let i = 0; i < 150; i++) {
@@ -244,12 +246,13 @@ run('Credits — full integration flow', () => {
           headers: auth(user.token),
           payload: { operation_type: 'research.deep', description: `Exhaust test ${i}` },
         });
-        if (res.statusCode === 200) {
-          consumed++;
+        const body = res.json() as { data?: { allowed?: boolean; consumed?: number } };
+        if (res.statusCode === 200 && body?.data?.allowed !== false) {
+          consumed += body?.data?.consumed ?? 1;
         } else {
-          // Should get a response indicating exhaustion
-          const body = res.json();
-          expect(body.data.allowed).toBe(false);
+          // Exhausted — 200 + allowed:false (or a hard error status)
+          expect(res.statusCode).toBe(200);
+          expect(body?.data?.allowed).toBe(false);
           exhausted = true;
           break;
         }

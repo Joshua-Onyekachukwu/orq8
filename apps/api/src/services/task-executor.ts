@@ -27,6 +27,8 @@ export interface TaskExecutionResult {
   result: string;
   cost: number;
   tokensUsed: number;
+  // True when the result came from a real LLM call; false when structured fallback was used
+  llmUsed: boolean;
 }
 
 // ─── Agent System Prompts ───────────────────────────────────────────────────
@@ -79,7 +81,7 @@ export async function executeTask(
     .limit(1);
 
   if (!task) {
-    return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0 };
+    return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0, llmUsed: false };
   }
 
   // 2. Mark as in_progress
@@ -300,6 +302,7 @@ export async function executeTask(
     result,
     cost,
     tokensUsed,
+    llmUsed: llmAttempted,
   };
 }
 

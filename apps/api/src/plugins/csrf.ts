@@ -173,6 +173,11 @@ export function csrfPlugin(app: FastifyInstance): void {
     const apiKey = request.headers['authorization'];
     if (apiKey?.startsWith('Bearer ')) return;
 
+    // No session cookie → unauthenticated request. There is no cookie-based
+    // session to protect, so let the auth middleware return 401 instead of
+    // blocking with 403 here. CSRF only matters for cookie-authenticated sessions.
+    if (!request.cookies?.['orq8_session']) return;
+
     const cookieValue = request.cookies[CSRF_COOKIE] as string | undefined;
     const headerValue = request.headers[CSRF_HEADER] as string | undefined;
 

@@ -1,6 +1,6 @@
 import { createLogger, loadConfig } from '@orq8/core';
 import { createDb, waitlistEmails, waitlistSignups } from '@orq8/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, like } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
@@ -42,6 +42,17 @@ function freshEmail(): string {
 
 beforeAll(async () => {
   app = await buildApp(deps);
+  // Remove stale signups from previous runs so processDueWaitlistEmails'
+  // global "sent" count only reflects this run's rows.
+  const stale = await deps.db
+    .select({ email: waitlistSignups.email })
+    .from(waitlistSignups)
+    .where(like(waitlistSignups.email, 'drip-test-%'));
+  if (stale.length > 0) {
+    await deps.db
+      .delete(waitlistSignups)
+      .where(inArray(waitlistSignups.email, stale.map((s) => s.email)));
+  }
 });
 
 afterAll(async () => {
@@ -91,9 +102,10 @@ run('waitlist drip queue', () => {
 
     const transport = createEmailTransport(config, deps.logger);
     // Only the welcome row is due now; the future drips must stay queued.
-    const result = await processDueWaitlistEmails(deps.db, transport, new Date(now.getTime() + 60_000));
-    expect(result.sent).toBe(1);
-    expect(result.failed).toBe(0);
+    // NOTE: processDueWaitlistEmails sends ALL due rows globally (other tests
+    // in this file enqueue due welcomes too), so assert on this signup's rows
+    // rather than the global "sent" count.
+    await processDueWaitlistEmails(deps.db, transport, new Date(now.getTime() + 60_000));
 
     const rows = await deps.db.select().from(waitlistEmails).where(eq(waitlistEmails.signupId, s.id));
     const welcome = rows.find((r) => r.kind === 'welcome');
