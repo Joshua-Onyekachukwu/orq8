@@ -18,7 +18,7 @@ import { AdminAgentStatus } from "../../components/admin/admin-agent-status";
 export const metadata = { title: "Admin Dashboard — ORQ8" };
 
 async function fetchAdminData(token: string) {
-  const headers = { cookie: `${SESSION_COOKIE}=${token}` };
+  const headers = { authorization: `Bearer ${token}` };
 
   try {
     const [usersRes, orgsRes, agentsRes, approvalsRes, activityRes, dashboardRes] =

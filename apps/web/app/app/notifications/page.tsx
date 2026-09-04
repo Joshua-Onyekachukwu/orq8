@@ -44,8 +44,8 @@ const typeConfig: {
   },
   task: {
     icon: Target,
-    color: "text-emerald-700",
-    bg: "bg-emerald/10",
+    color: "text-[#1a5c2e]",
+    bg: "bg-[#B8FF66]/10",
     label: "Task",
   },
   credit: {
@@ -225,7 +225,7 @@ export default function NotificationsPage() {
                   }
                   className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-colors ${
                     typeFilter === t
-                      ? "border-navy-900 bg-navy-900/5"
+                      ? "border-[#0a0a0b] bg-[#0a0a0b]/5"
                       : "border-hairline bg-white hover:bg-canvas"
                   }`}
                 >
@@ -257,7 +257,7 @@ export default function NotificationsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-navy-800"
+            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-[#1a5c2e]"
           >
             <option value="all">All types</option>
             <option value="approval">Approvals</option>
@@ -271,7 +271,7 @@ export default function NotificationsPage() {
           <select
             value={readFilter}
             onChange={(e) => setReadFilter(e.target.value)}
-            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-navy-800"
+            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-[#1a5c2e]"
           >
             <option value="all">All status</option>
             <option value="false">Unread only</option>
@@ -286,7 +286,7 @@ export default function NotificationsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search notifications..."
-              className="w-full rounded-lg border border-hairline bg-canvas py-1.5 pl-8 pr-3 text-xs text-ink outline-none placeholder:text-muted focus:border-navy-800"
+              className="w-full rounded-lg border border-hairline bg-canvas py-1.5 pl-8 pr-3 text-xs text-ink outline-none placeholder:text-muted focus:border-[#1a5c2e]"
             />
           </div>
 
@@ -358,7 +358,7 @@ export default function NotificationsPage() {
                   <div
                     key={notif.id}
                     className={`group flex items-start gap-4 rounded-xl border bg-white p-4 transition-colors hover:bg-canvas/50 ${
-                      notif.read ? "border-hairline" : "border-emerald/20 bg-emerald/5"
+                      notif.read ? "border-hairline" : "border-[#1a5c2e]/20 bg-[#1a5c2e]/5"
                     }`}
                   >
                     <span
@@ -384,7 +384,7 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           {!notif.read && (
-                            <span className="h-2 w-2 rounded-full bg-emerald" />
+                            <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
                           )}
                           {!notif.read && (
                             <button
@@ -430,7 +430,7 @@ export default function NotificationsPage() {
             <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
               {total} notification{total !== 1 ? "s" : ""}
               {unread > 0 && (
-                <span className="ml-2 text-emerald">
+                <span className="ml-2 text-[#1a5c2e]">
                   ({unread} unread)
                 </span>
               )}

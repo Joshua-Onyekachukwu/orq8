@@ -8,7 +8,7 @@ export const metadata = { title: "Approval Queue — Admin — ORQ8" };
 async function fetchApprovals(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/approvals`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return [];

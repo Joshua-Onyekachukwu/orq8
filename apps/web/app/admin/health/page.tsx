@@ -46,7 +46,7 @@ interface HealthData {
 async function fetchHealth(token: string): Promise<HealthData | null> {
   try {
     const res = await fetch(`${API_URL}/v1/admin/health`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return null;

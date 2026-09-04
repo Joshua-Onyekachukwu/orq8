@@ -21,7 +21,7 @@ interface UserWithMemberships {
 async function fetchUsers(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/admin/users`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return { data: [], meta: { total: 0 } };

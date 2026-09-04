@@ -13,22 +13,22 @@ const features = [
 
 /*
   Clockwise from 12 o'clock, 60° apart.
-  Container is 800×740px. Center at (400, 370). Radius 280px.
+  Container: 1000×900px. Center: (500, 450). Radius: 380px.
 
-  12 o'clock (0°):   x=400, y=370-280 = 90
-  2 o'clock (60°):   x=400+280*sin(60)=400+242=642, y=370-280*cos(60)=370-140=230
-  4 o'clock (120°):  x=400+242=642, y=370+140=510
-  6 o'clock (180°):  x=400, y=370+280=650
-  8 o'clock (240°):  x=400-242=158, y=510
-  10 o'clock (300°): x=158, y=230
+  12 o'clock (0°):   x=500, y=450-380 = 70
+  2 o'clock (60°):   x=500+380*sin(60)=500+329=829, y=450-380*cos(60)=450-190=260
+  4 o'clock (120°):  x=829, y=450+190=640
+  6 o'clock (180°):  x=500, y=450+380=830
+  8 o'clock (240°):  x=500-329=171, y=640
+  10 o'clock (300°): x=171, y=260
 */
 const orbitalPositions = [
-  { top: "90px",  left: "400px" },  // 12 — Executive Agent
-  { top: "230px", left: "642px" },  // 2 — AI Workforce
-  { top: "510px", left: "642px" },  // 4 — Approval Gates
-  { top: "650px", left: "400px" },  // 6 — Goals & Tasks
-  { top: "510px", left: "158px" },  // 8 — Company Memory
-  { top: "230px", left: "158px" },  // 10 — Audit Trail
+  { top: "70px",  left: "500px" },  // 12 — Executive Agent
+  { top: "260px", left: "829px" },  // 2 — AI Workforce
+  { top: "640px", left: "829px" },  // 4 — Approval Gates
+  { top: "830px", left: "500px" },  // 6 — Goals & Tasks
+  { top: "640px", left: "171px" },  // 8 — Company Memory
+  { top: "260px", left: "171px" },  // 10 — Audit Trail
 ];
 
 const Features: React.FC = () => {
@@ -50,20 +50,20 @@ const Features: React.FC = () => {
         </div>
 
         {/* ── Orbital Layout (desktop) ── */}
-        <div className="relative hidden lg:block mx-auto" style={{width:"800px", height:"740px"}}>
+        <div className="relative hidden lg:block mx-auto" style={{width:"1000px", height:"900px"}}>
           {/* Orbital rings */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[260px] h-[260px] rounded-full border border-dashed border-[#B8FF66]/25" />
-            <div className="absolute w-[440px] h-[440px] rounded-full border border-dashed border-[#E86A33]/15" />
-            <div className="absolute w-[620px] h-[620px] rounded-full border border-dashed border-white/10" />
+            <div className="w-[340px] h-[340px] rounded-full border border-dashed border-[#B8FF66]/25" />
+            <div className="absolute w-[560px] h-[560px] rounded-full border border-dashed border-[#E86A33]/15" />
+            <div className="absolute w-[760px] h-[760px] rounded-full border border-dashed border-white/10" />
           </div>
 
           {/* Radial lines from core to each card */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 800 740">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 900">
             {orbitalPositions.map((pos, i) => (
               <line
                 key={i}
-                x1="400" y1="370"
+                x1="500" y1="450"
                 x2={pos.left.replace("px", "")}
                 y2={pos.top.replace("px", "")}
                 stroke="rgba(255,255,255,0.06)"
@@ -74,7 +74,7 @@ const Features: React.FC = () => {
           </svg>
 
           {/* Central core */}
-          <div className="absolute top-[370px] left-[400px] -translate-x-1/2 -translate-y-1/2 z-[3]">
+          <div className="absolute top-[450px] left-[500px] -translate-x-1/2 -translate-y-1/2 z-[3]">
             <div className="w-[140px] h-[140px] rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-[0_0_60px_rgba(255,255,255,0.15)]">
               <div className="text-center">
                 <span className="block text-[#0a0a0b] text-[24px] font-bold leading-none">ORQ8</span>
@@ -103,27 +103,30 @@ const Features: React.FC = () => {
           })}
         </div>
 
-        {/* ── Mobile/Tablet ── */}
-        <div className="lg:hidden">
-          <div className="flex justify-center mb-[30px]">
-            <div className="w-[90px] h-[90px] rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-              <div className="text-center">
-                <span className="block text-[#0a0a0b] text-[18px] font-bold leading-none">ORQ8</span>
-                <span className="block text-[#E86A33] text-[7px] uppercase tracking-[2px] mt-[3px] font-bold">Core</span>
+        {/* ── Mobile: single column ── */}
+        <div className="md:hidden grid grid-cols-1 gap-[16px]">
+          {features.map((feature, index) => (
+            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30">
+              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[16px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b]">
+                <i className={`${feature.icon} text-[20px]`} />
               </div>
+              <h3 className="!font-semibold !text-[16px] !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
+              <p className="text-white/45 text-[13px] leading-[1.6] !mb-0">{feature.description}</p>
             </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[16px]">
-            {features.map((feature, index) => (
-              <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30 hover:shadow-[0_4px_20px_rgba(184,255,102,0.06)]">
-                <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[16px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b]">
-                  <i className={`${feature.icon} text-[20px]`} />
-                </div>
-                <h3 className="!font-semibold !text-[16px] !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
-                <p className="text-white/45 text-[13px] leading-[1.6] !mb-0">{feature.description}</p>
+          ))}
+        </div>
+
+        {/* ── Tablet: 2-column grid ── */}
+        <div className="hidden md:grid lg:hidden grid-cols-2 gap-[20px]">
+          {features.map((feature, index) => (
+            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30 hover:shadow-[0_4px_20px_rgba(184,255,102,0.06)]">
+              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[16px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b]">
+                <i className={`${feature.icon} text-[20px]`} />
               </div>
-            ))}
-          </div>
+              <h3 className="!font-semibold !text-[16px] !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
+              <p className="text-white/45 text-[13px] leading-[1.6] !mb-0">{feature.description}</p>
+            </div>
+          ))}
         </div>
       </div>
 

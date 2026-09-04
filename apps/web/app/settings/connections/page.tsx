@@ -14,7 +14,7 @@ const connections = [
     kind: "Model provider",
     status: "Connected",
     via: "Bring your own key",
-    dot: "bg-emerald",
+    dot: "bg-[#1a5c2e]",
   },
   {
     name: "Anthropic",
@@ -55,7 +55,7 @@ export default function ConnectionsPage() {
       <div className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy-900 text-emerald">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0a0a0b] text-[#1a5c2e]">
               <Plug className="h-5 w-5" />
             </span>
             <div>
@@ -67,7 +67,7 @@ export default function ConnectionsPage() {
           </div>
           <Link
             href="/settings/providers"
-            className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
           >
             <KeyRound className="h-3.5 w-3.5" /> Manage keys
           </Link>
@@ -88,7 +88,7 @@ export default function ConnectionsPage() {
               <span
                 className={`shrink-0 rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                   c.status === "Connected"
-                    ? "bg-emerald/15 text-emerald-700"
+                    ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
                     : c.status.startsWith("Planned")
                       ? "bg-amber-50 text-amber-700"
                       : "bg-canvas text-muted"
@@ -105,7 +105,7 @@ export default function ConnectionsPage() {
           saving.{" "}
           <Link
             href="/settings/providers"
-            className="inline-flex items-center gap-0.5 font-medium text-navy-800 hover:text-emerald"
+            className="inline-flex items-center gap-0.5 font-medium text-[#1a5c2e] hover:text-[#1a5c2e]"
           >
             Open the providers page <ArrowUpRight className="h-3 w-3" />
           </Link>

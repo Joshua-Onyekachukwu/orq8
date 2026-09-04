@@ -45,7 +45,7 @@ export function ApprovalActions({ approvalId, status, onDecision }: ApprovalActi
         aria-label="Approve"
         disabled={loading !== null}
         onClick={() => handleDecision("approved")}
-        className="rounded-lg border border-hairline p-1.5 text-emerald-700 transition-colors hover:border-emerald hover:bg-emerald hover:text-navy-950 disabled:opacity-50"
+        className="rounded-lg border border-hairline p-1.5 text-[#1a5c2e] transition-colors hover:border-[#1a5c2e] hover:bg-[#1a5c2e] hover:text-white disabled:opacity-50"
       >
         {loading === "approved" ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -58,7 +58,7 @@ export function ApprovalActions({ approvalId, status, onDecision }: ApprovalActi
         title="Modify"
         aria-label="Modify"
         disabled={loading !== null}
-        className="rounded-lg border border-hairline p-1.5 text-navy-800 transition-colors hover:border-navy-800 disabled:opacity-50"
+        className="rounded-lg border border-hairline p-1.5 text-[#1a5c2e] transition-colors hover:border-[#1a5c2e] disabled:opacity-50"
       >
         <PencilLine className="h-3.5 w-3.5" />
       </button>

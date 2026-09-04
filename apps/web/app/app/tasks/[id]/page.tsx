@@ -52,7 +52,7 @@ function priorityBadge(priority: string) {
 function statusConfig(status: string) {
   switch (status) {
     case "completed":
-      return { label: "Completed", cls: "bg-emerald/15 text-emerald-700", icon: CheckCircle2 };
+      return { label: "Completed", cls: "bg-[#B8FF66]/10 text-[#1a5c2e]", icon: CheckCircle2 };
     case "in_progress":
       return { label: "In progress", cls: "bg-blue-50 text-blue-700", icon: Clock };
     case "failed":
@@ -169,7 +169,7 @@ export default function TaskDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Task not found</p>
             <Link
               href="/app/goals"
-              className="mt-2 inline-block text-sm text-emerald hover:underline"
+              className="mt-2 inline-block text-sm text-[#1a5c2e] hover:underline"
             >
               Return to Goals & Tasks
             </Link>
@@ -180,8 +180,8 @@ export default function TaskDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy-900/5">
-                    <FileText className="h-5 w-5 text-navy-900" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b]/5">
+                    <FileText className="h-5 w-5 text-[#0a0a0b]" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -222,7 +222,7 @@ export default function TaskDetailPage() {
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {agent ? (
-                      <Link href={`/app/agents/${agent.id}`} className="hover:text-emerald">
+                      <Link href={`/app/agents/${agent.id}`} className="hover:text-[#1a5c2e]">
                         {agent.name}
                       </Link>
                     ) : (
@@ -236,7 +236,7 @@ export default function TaskDetailPage() {
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {goal ? (
-                      <Link href={`/app/goals/${goal.id}`} className="hover:text-emerald">
+                      <Link href={`/app/goals/${goal.id}`} className="hover:text-[#1a5c2e]">
                         {goal.title}
                       </Link>
                     ) : (

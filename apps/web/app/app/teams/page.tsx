@@ -84,14 +84,14 @@ export default function TeamsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Organization
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Departments & Teams
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+            Departments
           </h1>
-          <p className="mt-1 text-sm text-muted">
-            Organize your AI workforce into departments. Each department groups agents by function.
+          <p className="mt-1 text-sm text-gray-500">
+            How your AI company is organized. Each department groups agents by function and controls their budgets.
           </p>
         </div>
         <button
@@ -134,7 +134,7 @@ export default function TeamsPage() {
           </p>
           <a
             href="/app/agents"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
           >
             <Users className="h-3.5 w-3.5" /> Hire agents
           </a>
@@ -147,7 +147,7 @@ export default function TeamsPage() {
             <article key={dept.name ?? "unassigned"} className="rounded-xl border border-hairline bg-white p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-sm font-bold text-emerald">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-sm font-bold text-[#1a5c2e]">
                     <GitBranch className="h-5 w-5" />
                   </span>
                   <div>
@@ -173,16 +173,38 @@ export default function TeamsPage() {
                 <p className="mt-3 text-xs text-muted leading-relaxed">{dept.description}</p>
               )}
 
-              <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
-                <div className="bg-canvas px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Budget</dt>
-                  <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
-                    {dept.budget != null ? `${dept.budget.toLocaleString()} credits` : "Not set"}
+              {/* Budget visualization */}
+              {dept.budget != null && dept.budget > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-[10px] mb-1">
+                    <span className="text-gray-500 uppercase font-semibold tracking-wide">Budget utilization</span>
+                    <span className="font-mono text-gray-400">{dept.agentCount} agents · {dept.activeCount} active</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#1a5c2e] transition-all"
+                      style={{ width: `${Math.min((dept.activeCount / Math.max(dept.agentCount, 1)) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
+                <div className="bg-white px-3 py-2.5">
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Budget</dt>
+                  <dd className="mt-0.5 text-xs font-medium tabular-nums text-gray-900">
+                    {dept.budget != null ? `${dept.budget.toLocaleString()} cr` : "Not set"}
                   </dd>
                 </div>
-                <div className="bg-canvas px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Head</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-ink">{dept.head ?? "—"}</dd>
+                <div className="bg-white px-3 py-2.5">
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Head</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-gray-900 truncate">{dept.head ?? "—"}</dd>
+                </div>
+                <div className="bg-white px-3 py-2.5">
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Utilization</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-gray-900">
+                    {dept.agentCount > 0 ? Math.round((dept.activeCount / dept.agentCount) * 100) : 0}%
+                  </dd>
                 </div>
               </dl>
             </article>
@@ -192,7 +214,7 @@ export default function TeamsPage() {
 
       {/* Edit Modal */}
       {editingDept && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">
@@ -205,22 +227,22 @@ export default function TeamsPage() {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Department Head</label>
-                <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800" />
+                <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Budget (credits)</label>
-                <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800" />
+                <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800 resize-none" />
+                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e] resize-none" />
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
               <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#0a0a0b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0a0a0b] disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>

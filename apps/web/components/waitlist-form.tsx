@@ -70,8 +70,8 @@ export function WaitlistForm({
 
   const btn =
     dark
-      ? "bg-emerald text-navy-950 hover:bg-emerald-300"
-      : "bg-navy-800 text-white hover:bg-navy-700";
+      ? "bg-[#1a5c2e] text-white hover:bg-[#1a5c2e]-300"
+      : "bg-[#1a5c2e] text-white hover:bg-[#144a24]";
 
   // Premium waitlist confirmation screen
   if (status === "done" && waitlistNumber) {
@@ -82,17 +82,17 @@ export function WaitlistForm({
           className={`relative overflow-hidden rounded-2xl border p-8 text-center ${
             dark
               ? "border-lime/30 bg-gradient-to-b from-lime/5 to-transparent"
-              : "border-emerald-200 bg-gradient-to-b from-emerald-50/80 to-white"
+              : "border-[#1a5c2e]-200 bg-gradient-to-b from-emerald-50/80 to-white"
           }`}
         >
           {/* Animated checkmark */}
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald/10 animate-fade-in">
-            <svg className="h-8 w-8 text-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#B8FF66]/10 animate-fade-in">
+            <svg className="h-8 w-8 text-[#1a5c2e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
 
-          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-navy-900"}`}>
+          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-[#0a0a0b]"}`}>
             {isAlready ? "You're already on the list" : "You're officially on the list"}
           </h3>
 
@@ -102,7 +102,7 @@ export function WaitlistForm({
               Your place
             </p>
             <p className={`text-5xl font-bold tracking-tight tabular-nums animate-fade-in ${
-              dark ? "text-emerald" : "text-emerald-600"
+              dark ? "text-[#1a5c2e]" : "text-[#1a5c2e]"
             }`}>
               #{waitlistNumber.toLocaleString()}
             </p>
@@ -114,8 +114,8 @@ export function WaitlistForm({
               : "Congratulations. We're building ORQ8 for you. Your place in the first cohort is reserved. We'll email you when it's your turn."}
           </p>
 
-          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-emerald/80" : "text-emerald-700"}`}>
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-pulse" />
+          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-[#1a5c2e]/80" : "text-[#1a5c2e]"}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e] animate-pulse" />
             <span>Company of One · First Cohort</span>
           </div>
         </div>

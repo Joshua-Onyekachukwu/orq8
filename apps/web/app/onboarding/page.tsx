@@ -300,9 +300,9 @@ export default function OnboardingPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-navy-950 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0b] p-6">
         <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald" />
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#B8FF66]" />
           <p className="mt-4 text-sm text-white/60">Loading your progress...</p>
         </div>
       </div>
@@ -311,9 +311,9 @@ export default function OnboardingPage() {
 
   if (isComplete) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-navy-950 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0b] p-6">
         <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald" />
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#B8FF66]" />
           <p className="mt-4 text-lg text-white">Setting up your organization...</p>
         </div>
       </div>
@@ -321,13 +321,13 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-950">
+    <div className="min-h-screen bg-[#0a0a0b]">
       {/* Header */}
       <div className="border-b border-white/10">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-white">ORQ8</span>
-            <span className="h-2 w-2 rounded-full bg-lime" />
+            <span className="h-2 w-2 rounded-full bg-[#B8FF66]" />
           </div>
           <span className="text-sm text-white/50">
             Step {currentStep + 1} of {steps.length}
@@ -338,7 +338,7 @@ export default function OnboardingPage() {
       {/* Progress bar */}
       <div className="h-1 bg-white/10">
         <div
-          className="h-full bg-emerald transition-all duration-300"
+          className="h-full bg-[#B8FF66] transition-all duration-300"
           style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
         />
       </div>
@@ -346,7 +346,7 @@ export default function OnboardingPage() {
       {/* Content */}
       <div className="mx-auto max-w-2xl px-6 py-12">
         <div className="mb-8">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8FF66]">
             Step {currentStep + 1}
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-white">
@@ -374,7 +374,7 @@ export default function OnboardingPage() {
                 value={organization.name}
                 onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
                 placeholder="My AI Company"
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-emerald focus:bg-white/10"
+                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-[#B8FF66] focus:bg-white/10"
               />
             </div>
             <div>
@@ -386,7 +386,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setOrganization({ ...organization, description: e.target.value })}
                 placeholder="What does your company do?"
                 rows={3}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-emerald focus:bg-white/10"
+                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-[#B8FF66] focus:bg-white/10"
               />
             </div>
             <div>
@@ -398,7 +398,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setOrganization({ ...organization, objective: e.target.value })}
                 placeholder="What is the main goal for your AI organization?"
                 rows={2}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-emerald focus:bg-white/10"
+                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-[#B8FF66] focus:bg-white/10"
               />
             </div>
           </div>
@@ -413,7 +413,7 @@ export default function OnboardingPage() {
                 onClick={() => setConstitution(type)}
                 className={`w-full rounded-xl border p-5 text-left transition-all ${
                   constitution?.type === type.type
-                    ? "border-emerald bg-emerald/5"
+                    ? "border-[#B8FF66] bg-[#B8FF66]/5"
                     : "border-white/10 hover:border-white/20"
                 }`}
               >
@@ -423,13 +423,13 @@ export default function OnboardingPage() {
                     <p className="mt-1 text-sm text-white/60">{type.description}</p>
                   </div>
                   {constitution?.type === type.type && (
-                    <Check className="h-5 w-5 shrink-0 text-emerald" />
+                    <Check className="h-5 w-5 shrink-0 text-[#B8FF66]" />
                   )}
                 </div>
                 <ul className="mt-4 space-y-2">
                   {type.principles.map((principle) => (
                     <li key={principle} className="flex items-center gap-2 text-sm text-white/70">
-                      <span className="h-1 w-1 rounded-full bg-emerald" />
+                      <span className="h-1 w-1 rounded-full bg-[#B8FF66]" />
                       {principle}
                     </li>
                   ))}
@@ -452,7 +452,7 @@ export default function OnboardingPage() {
                 disabled={agent.required}
                 className={`w-full rounded-xl border p-4 text-left transition-all ${
                   agent.selected
-                    ? "border-emerald bg-emerald/5"
+                    ? "border-[#B8FF66] bg-[#B8FF66]/5"
                     : "border-white/10 hover:border-white/20"
                 } ${agent.required ? "opacity-75" : ""}`}
               >
@@ -460,7 +460,7 @@ export default function OnboardingPage() {
                   <div className="flex items-start gap-3">
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                        agent.selected ? "bg-emerald text-navy-950" : "bg-white/10 text-white/60"
+                        agent.selected ? "bg-[#B8FF66] text-[#0a0a0b]" : "bg-white/10 text-white/60"
                       }`}
                     >
                       <Users className="h-5 w-5" />
@@ -472,7 +472,7 @@ export default function OnboardingPage() {
                           {agent.role}
                         </span>
                         {agent.required && (
-                          <span className="rounded-full bg-emerald/20 px-2 py-0.5 text-[10px] text-emerald">
+                          <span className="rounded-full bg-[#B8FF66]/20 px-2 py-0.5 text-[10px] text-[#B8FF66]">
                             Required
                           </span>
                         )}
@@ -482,10 +482,10 @@ export default function OnboardingPage() {
                   </div>
                   <div
                     className={`mt-1 h-5 w-5 shrink-0 rounded border-2 ${
-                      agent.selected ? "border-emerald bg-emerald" : "border-white/30"
+                      agent.selected ? "border-[#B8FF66] bg-[#B8FF66]" : "border-white/30"
                     }`}
                   >
-                    {agent.selected && <Check className="h-4 w-4 text-navy-950" />}
+                    {agent.selected && <Check className="h-4 w-4 text-[#0a0a0b]" />}
                   </div>
                 </div>
               </button>
@@ -506,7 +506,7 @@ export default function OnboardingPage() {
           <button
             onClick={handleNext}
             disabled={!canProceed() || isSaving}
-            className="flex items-center gap-2 rounded-lg bg-emerald px-6 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-emerald/90 disabled:opacity-50 disabled:hover:bg-emerald"
+            className="flex items-center gap-2 rounded-lg bg-[#B8FF66] px-6 py-3 text-sm font-semibold text-[#0a0a0b] transition-colors hover:bg-[#B8FF66]/90 disabled:opacity-50 disabled:hover:bg-[#B8FF66]"
           >
             {isSaving ? (
               <>

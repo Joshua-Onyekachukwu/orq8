@@ -41,7 +41,7 @@ export default async function AppLayout({
 
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
 
@@ -77,7 +77,7 @@ export default async function AppLayout({
             <h1 className="text-xl font-semibold text-ink">Service Unavailable</h1>
             <p className="mt-2 text-sm text-muted">{apiError}</p>
             <p className="mt-4 text-sm text-muted">Please try again in a few moments, or contact support if the issue persists.</p>
-            <a href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-navy-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-navy-800">
+            <a href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0a0a0b] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b]">
               Return to Login
             </a>
           </div>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-sm text-navy-950 placeholder:text-gray-400 outline-none transition-colors focus:border-emerald focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-sm text-white placeholder:text-gray-400 outline-none transition-colors focus:border-[#1a5c2e] focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
 
 export function ForgotPasswordForm() {
@@ -40,10 +40,10 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald/10">
-          <CheckCircle2 className="h-7 w-7 text-emerald" />
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#B8FF66]/10">
+          <CheckCircle2 className="h-7 w-7 text-[#1a5c2e]" />
         </div>
-        <p className="text-sm font-medium text-navy-950">Check your email</p>
+        <p className="text-sm font-medium text-white">Check your email</p>
         <p className="mt-1 text-sm text-gray-500">
           If an account exists with that email, we&apos;ve sent a password
           reset link.
@@ -56,7 +56,7 @@ export function ForgotPasswordForm() {
               setSent(false);
               setError(null);
             }}
-            className="font-medium text-emerald transition-colors hover:text-emerald/80"
+            className="font-medium text-[#1a5c2e] transition-colors hover:text-[#1a5c2e]/80"
           >
             try again
           </button>
@@ -97,7 +97,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-navy-950 text-sm font-semibold text-white transition-colors hover:bg-navy-950/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#0a0a0b] text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b]/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

@@ -5,7 +5,7 @@ import React from "react";
 const ContactInfo: React.FC = () => {
   return (
     <div>
-      <h2 className="mb-6 text-3xl font-light leading-tight tracking-tight text-navy-950 md:text-4xl">
+      <h2 className="mb-6 text-3xl font-light leading-tight tracking-tight text-black md:text-4xl">
         Let&apos;s talk about your company
       </h2>
 
@@ -22,7 +22,7 @@ const ContactInfo: React.FC = () => {
           </span>
           <a
             href="mailto:hello@orq8.company"
-            className="text-base text-navy-950 transition-colors hover:text-emerald"
+            className="text-base text-black transition-colors hover:text-[#1a5c2e]"
           >
             hello@orq8.company
           </a>
@@ -33,7 +33,7 @@ const ContactInfo: React.FC = () => {
           <span className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-gray-400">
             ADDRESS
           </span>
-          <p className="text-base text-navy-950">
+          <p className="text-base text-black">
             ORQ8 HQ
             <br />
             452 Market Street, Suite 1300
@@ -47,7 +47,7 @@ const ContactInfo: React.FC = () => {
           <span className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-gray-400">
             OPEN HOURS
           </span>
-          <p className="text-base text-navy-950">
+          <p className="text-base text-black">
             Mon–Fri 9:00 AM to 4:00 PM PST
           </p>
         </div>
@@ -62,7 +62,7 @@ const ContactInfo: React.FC = () => {
               href="https://twitter.com/orq8"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-emerald hover:text-emerald"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e]"
               aria-label="Twitter"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@ const ContactInfo: React.FC = () => {
               href="https://linkedin.com/company/orq8"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-emerald hover:text-emerald"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e]"
               aria-label="LinkedIn"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">

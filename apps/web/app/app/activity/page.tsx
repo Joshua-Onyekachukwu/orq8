@@ -36,7 +36,7 @@ function formatTime(iso: string): string {
 function eventTypeBadge(type: string) {
   const lower = type.toLowerCase();
   if (lower.includes("deploy") || lower.includes("approve"))
-    return "bg-emerald/15 text-emerald-700";
+    return "bg-[#B8FF66]/10 text-[#1a5c2e]";
   if (lower.includes("reject")) return "bg-red-100 text-red-700";
   return "bg-indigo-50 text-indigo-700";
 }
@@ -88,7 +88,7 @@ export default function ActivityPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Live log · every action, with the reason
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -148,7 +148,7 @@ export default function ActivityPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-navy-800"
+              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
             >
               <option value="all">All actions</option>
               {types.map((t) => (
@@ -169,7 +169,7 @@ export default function ActivityPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find an action or reason"
-                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-navy-800"
+                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
               />
             </span>
           </label>
@@ -235,7 +235,7 @@ export default function ActivityPage() {
                 <p className="mt-2 text-sm text-ink">{e.summary}</p>
                 {e.reason && (
                   <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed text-muted">
-                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-emerald">
+                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-[#1a5c2e]">
                       because
                     </span>
                     {e.reason}

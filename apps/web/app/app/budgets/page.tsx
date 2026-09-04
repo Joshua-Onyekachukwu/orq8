@@ -74,7 +74,7 @@ export default function BudgetsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -105,7 +105,7 @@ export default function BudgetsPage() {
       {/* Balance cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald/10 text-emerald-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#B8FF66]/10 text-[#1a5c2e]">
             <Wallet className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
@@ -159,7 +159,7 @@ export default function BudgetsPage() {
           </div>
           <div className="h-3 rounded-full bg-muted/10 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isLow ? "bg-amber-400" : "bg-emerald"}`}
+              className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isLow ? "bg-amber-400" : "bg-[#1a5c2e]"}`}
               style={{ width: `${Math.min(utilization, 100)}%` }}
             />
           </div>
@@ -211,7 +211,7 @@ export default function BudgetsPage() {
                 <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                   <span className="font-mono text-[10px] text-muted">{day.credits}</span>
                   <div
-                    className="w-full rounded-t bg-emerald/60 min-h-[2px]"
+                    className="w-full rounded-t bg-[#1a5c2e]/60 min-h-[2px]"
                     style={{ height: `${Math.max(height, 2)}%` }}
                   />
                   <span className="font-mono text-[9px] text-muted">
@@ -234,7 +234,7 @@ export default function BudgetsPage() {
           </p>
           <a
             href="/"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
           >
             View plans <ArrowUpRight className="h-3.5 w-3.5" />
           </a>

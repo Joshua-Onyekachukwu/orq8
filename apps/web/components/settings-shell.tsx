@@ -36,14 +36,14 @@ export function SettingsShell({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <Link
             href="/"
-            className="inline-flex items-baseline gap-1.5 text-lg font-bold tracking-tight text-navy-900"
+            className="inline-flex items-baseline gap-1.5 text-lg font-bold tracking-tight text-[#0a0a0b]"
           >
             ORQ8
-            <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
+            <span className="h-2 w-2 rounded-full bg-[#B8FF66]" aria-hidden />
           </Link>
           <Link
             href="/app"
-            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-navy-800 hover:text-navy-800"
+            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e]"
           >
             ← Back to app
           </Link>
@@ -51,7 +51,7 @@ export function SettingsShell({
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
           Settings
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -70,8 +70,8 @@ export function SettingsShell({
                     aria-current={active ? "page" : undefined}
                     className={`inline-block rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                       active
-                        ? "border-navy-900 bg-navy-900 text-white"
-                        : "border-hairline bg-white text-navy-800 hover:border-navy-800"
+                        ? "border-[#0a0a0b] bg-[#0a0a0b] text-white"
+                        : "border-hairline bg-white text-[#1a5c2e] hover:border-[#1a5c2e]"
                     }`}
                   >
                     {tab.label}

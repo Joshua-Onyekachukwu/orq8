@@ -1,37 +1,53 @@
-// Route-transition loading state for the dashboard shell: shown while the
-// authenticated layout verifies the session and the page hydrates after
-// sign-in. Mirrors the dashboard's structure so the transition feels stable.
-function SkeletonBlock({ className }: { className?: string }) {
+export default function DashboardLoading() {
   return (
-    <div
-      aria-hidden
-      className={`animate-pulse rounded-xl bg-hairline/70 ${className ?? ""}`}
-    />
-  );
-}
-
-export default function Loading() {
-  return (
-    <div className="mx-auto max-w-6xl" role="status" aria-label="Loading dashboard">
-      <span className="sr-only">Loading your dashboard…</span>
-
-      {/* Welcome banner */}
-      <SkeletonBlock className="h-56 w-full" />
-
-      {/* Stat cards + activity chart */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="grid grid-cols-2 gap-4 lg:col-span-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonBlock key={i} className="h-32" />
-          ))}
-        </div>
-        <SkeletonBlock className="h-64" />
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
+      {/* Welcome banner skeleton */}
+      <div className="animate-pulse rounded-xl bg-[#0a0a0b] p-6 sm:p-8">
+        <div className="h-3 w-32 rounded bg-white/10" />
+        <div className="mt-3 h-8 w-64 rounded bg-white/10" />
+        <div className="mt-2 h-4 w-48 rounded bg-white/10" />
       </div>
 
-      {/* Decision table + budgets */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <SkeletonBlock className="h-80 lg:col-span-2" />
-        <SkeletonBlock className="h-80" />
+      {/* Stat cards skeleton */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="animate-pulse rounded-xl border border-gray-100 bg-white p-5">
+            <div className="h-3 w-20 rounded bg-gray-100" />
+            <div className="mt-3 h-7 w-16 rounded bg-gray-100" />
+            <div className="mt-2 h-3 w-24 rounded bg-gray-100" />
+          </div>
+        ))}
+      </div>
+
+      {/* Content skeletons */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <div className="animate-pulse rounded-xl border border-gray-100 bg-white p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gray-100" />
+              <div>
+                <div className="h-4 w-32 rounded bg-gray-100" />
+                <div className="mt-1 h-3 w-24 rounded bg-gray-100" />
+              </div>
+            </div>
+            <div className="mt-5 h-16 rounded-lg bg-gray-50" />
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-lg bg-gray-50" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-2">
+          <div className="animate-pulse rounded-xl border border-gray-100 bg-white p-5">
+            <div className="h-4 w-32 rounded bg-gray-100" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-12 rounded-lg bg-gray-50" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

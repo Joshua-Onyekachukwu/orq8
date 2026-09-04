@@ -5,10 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 
 const aboutFeatures = [
-  { title: "Hire on demand", description: "No headcount, no interviews. When the work needs a researcher, a writer, or an engineer, ORQ8 hires them within your budget." },
-  { title: "Approvals you control", description: "Spend, publish, deploy. Anything consequential routes to you. Approve, reject, or modify in one tap." },
-  { title: "Budgets that hold", description: "Departments have allocations. Agents have limits. Nothing overspends without escalation." },
-  { title: "Everything audited", description: "Every decision, every action, every cost — time-stamped and immutable from day one." },
+  { title: "Hire on demand", description: "No headcount, no interviews. When the work needs a researcher, a writer, or an engineer, ORQ8 hires them within your budget — instantly." },
+  { title: "Approvals you control", description: "Spend, publish, deploy — anything consequential routes to you. Approve, reject, or modify in one tap. The AI proposes, you decide." },
+  { title: "Budgets that hold", description: "Every department has an allocation. Every agent has a limit. Nothing overspends without your escalation." },
+  { title: "Everything audited", description: "Every decision, every action, every cost — time-stamped, immutable, and visible from day one." },
 ];
 
 const About: React.FC = () => {
@@ -32,10 +32,10 @@ const About: React.FC = () => {
           <div className="ltr:xl:pl-[55px] rtl:xl:pr-[55px]">
             <span className="block uppercase font-bold tracking-[1.8px] text-xs text-[#E86A33] mb-[10px] lg:mb-[15px]">About ORQ8</span>
             <h2 className="!mb-[12px] md:!mb-[15px] lg:!mb-[20px] !font-light !text-2xl md:!text-4xl lg:!text-[42px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
-              An organization that runs itself. <span className="text-black">Under your control.</span>
+              A company that runs itself. <span className="text-black">Under your control.</span>
             </h2>
             <p className="md:text-[15px] lg:text-md -tracking-[0.16px] text-gray-500">
-              Every solo founder uses 12+ tools that don't connect. Every morning starts with the same ritual: open tabs, copy data, make decisions on incomplete information. ORQ8 replaces that chaos with a single operating system where AI employees handle the work and you handle the decisions.
+              Every solo founder juggles 12+ disconnected tools and starts every morning copying data between tabs. ORQ8 replaces that chaos with one operating system: AI employees handle the work, you handle the decisions, and the Executive Agent coordinates everything in between.
             </p>
 
             <div className="my-[25px] md:my-[30px]">

@@ -20,18 +20,27 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
     Consolas, "Liberation Mono", monospace;
 
-  /* Primary brand — Deep navy with confidence */
-  --color-navy-950: #0a0f1a;     /* Deepest — hero, footers */
-  --color-navy-900: #0f1628;     /* Primary surface */
-  --color-navy-800: #1a2540;     /* Elevated surface */
-  --color-navy-700: #2a3a5c;     /* Borders, subtle elements */
-  --color-navy-600: #3d5280;     /* Muted text on dark */
+  /* ORQ8 Brand — Dark Green, Lime, Orange */
+  --color-navy-950: #0a0a0b;     /* Deepest — hero, footers */
+  --color-navy-900: #0d1a12;     /* Primary dark surface */
+  --color-navy-800: #1a5c2e;     /* Elevated dark surface */
+  --color-navy-700: #2d7a42;     /* Borders, subtle elements */
+  --color-navy-600: #4a9d62;     /* Muted text on dark */
 
-  /* Accent — Emerald for command/CTA (NOT lime, NOT purple) */
-  --color-emerald: #10b981;      /* Primary accent — calm, trustworthy */
-  --color-emerald-light: #34d399; /* Hover states */
-  --color-emerald-dark: #059669; /* Press states */
-  --color-emerald-muted: #10b98115; /* Subtle backgrounds */
+  /* Lime Green — ORQ8 identity */
+  --color-lime: #B8FF66;         /* Primary accent */
+  --color-lime-light: #c8ff8a;   /* Hover states */
+  --color-lime-dark: #a3e855;    /* Press states */
+  --color-lime-muted: #B8FF6615; /* Subtle backgrounds */
+
+  /* Emerald — remapped to dark green for dashboard compat */
+  --color-emerald: #1a5c2e;      /* Primary accent */
+  --color-emerald-light: #2d7a42; /* Hover states */
+  --color-emerald-dark: #157a3a; /* Press states */
+  --color-emerald-muted: #1a5c2e15; /* Subtle backgrounds */
+
+  /* Orange — action, attention, approvals */
+  --color-orange: #E86A33;
 
 
   /* Primary — Trezo Finance compatibility (used by Navbar, SidebarSettings, GoTop) */
@@ -62,14 +71,14 @@
   --color-amber: #f59e0b;
   --color-amber-light: #fbbf24;
 
-  /* Neutrals — Sophisticated, not generic gray */
-  --color-ink: #0f172a;          /* Primary text */
-  --color-ink-muted: #475569;    /* Secondary text */
-  --color-ink-faint: #94a3b8;    /* Tertiary text */
-  --color-canvas: #f8fafc;       /* Light background */
+  /* Neutrals — ORQ8 palette */
+  --color-ink: #0a0a0b;          /* Primary text — black */
+  --color-ink-muted: #525252;    /* Secondary text */
+  --color-ink-faint: #a3a3a3;    /* Tertiary text */
+  --color-canvas: #fafafa;       /* Light background */
   --color-surface: #ffffff;      /* Card backgrounds */
-  --color-hairline: #e2e8f0;     /* Borders */
-  --color-hairline-light: #f1f5f9; /* Subtle borders */
+  --color-hairline: #e5e5e5;     /* Borders */
+  --color-hairline-light: #f5f5f5; /* Subtle borders */
 
   /* Status colors — Semantic, purposeful */
   --color-success: #10b981;
@@ -430,8 +439,8 @@ body {
   --primary-foreground: oklch(1 0 0);
   --secondary: var(--color-canvas);
   --secondary-foreground: var(--color-navy-900);
-  --muted: var(--color-canvas);
-  --muted-foreground: var(--color-muted);
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
   --accent: color-mix(in oklab, var(--color-amber) 12%, transparent);
   --accent-foreground: var(--color-navy-800);
   --destructive: oklch(0.577 0.245 27.325);

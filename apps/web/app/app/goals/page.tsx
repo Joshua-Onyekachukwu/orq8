@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+
 import Link from "next/link";
 import {
   Target,
@@ -9,7 +9,7 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
-import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { fetchWithAuth } from "../../../lib/api";
 import { GoalActions } from "../../../components/goal-actions";
 import { TaskActions } from "../../../components/task-actions";
 import { PageShell } from "../../../components/page-shell";
@@ -47,39 +47,8 @@ interface Agent {
   role: string;
 }
 
-async function fetchGoals(): Promise<Goal[]> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return [];
-  try {
-    const res = await fetch(`${API_URL}/v1/goals`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data: Goal[] };
-    return json.data ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchTasks(): Promise<Task[]> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return [];
-  try {
-    const res = await fetch(`${API_URL}/v1/tasks`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data: Task[] };
-    return json.data ?? [];
-  } catch {
-    return [];
-  }
-}
+const fetchGoals = async () => (await fetchWithAuth<Goal[]>("/v1/goals")) ?? [];
+const fetchTasks = async () => (await fetchWithAuth<Task[]>("/v1/tasks")) ?? [];
 
 function priorityBadge(priority: string) {
   switch (priority) {
@@ -92,29 +61,14 @@ function priorityBadge(priority: string) {
 
 function statusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-emerald" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-blue-500" />;
+    case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
+    case "in_progress": return <Clock className="h-4 w-4 text-[#E86A33]" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-muted" />;
+    default: return <Clock className="h-4 w-4 text-gray-400" />;
   }
 }
 
-async function fetchAgents(): Promise<Agent[]> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return [];
-  try {
-    const res = await fetch(`${API_URL}/v1/agents`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data: Agent[] };
-    return json.data ?? [];
-  } catch {
-    return [];
-  }
-}
+const fetchAgents = async () => (await fetchWithAuth<Agent[]>("/v1/agents")) ?? [];
 
 function formatDueDate(dateStr: string | null): string | null {
   if (!dateStr) return null;
@@ -157,8 +111,8 @@ export default async function GoalsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Goals & Tasks</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="text-xl font-semibold text-gray-900">Goals & Tasks</h1>
+          <p className="mt-1 text-sm text-gray-500">
             Set outcomes, track progress, and watch your AI workforce execute.
           </p>
         </div>
@@ -168,8 +122,8 @@ export default async function GoalsPage() {
       {/* Goals grid */}
       <section className="mt-6">
         <div className="flex items-center gap-2 mb-4">
-          <Target className="h-4 w-4 text-muted" />
-          <h2 className="text-sm font-semibold text-ink">Company Goals</h2>
+          <Target className="h-4 w-4 text-[#1a5c2e]" />
+          <h2 className="text-sm font-semibold text-gray-900">Company Goals</h2>
           <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
             {goals.length}
           </span>
@@ -195,7 +149,7 @@ export default async function GoalsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Link href={`/app/goals/${goal.id}`} className="group">
-                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-emerald transition-colors">
+                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-[#1a5c2e] transition-colors">
                           {goal.title}
                         </h3>
                       </Link>
@@ -227,41 +181,75 @@ export default async function GoalsPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-muted/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-emerald transition-all"
+                      className="h-full rounded-full bg-[#1a5c2e] transition-all"
                       style={{ width: `${goal.progress}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Tasks for this goal */}
+                {/* Goal → Task flow visualization */}
                 {(() => {
                   const goalTasks = tasks.filter((t) => t.goalId === goal.id);
                   if (goalTasks.length === 0) return null;
+                  const completed = goalTasks.filter((t) => t.status === "completed").length;
+                  const inProgress = goalTasks.filter((t) => t.status === "in_progress").length;
+                  const failed = goalTasks.filter((t) => t.status === "failed").length;
+                  const totalCost = goalTasks.reduce((sum, t) => sum + t.cost, 0);
+                  const assignedAgents = new Set(goalTasks.filter((t) => t.agentId !== null).map((t) => agentMap.get(t.agentId!)?.name).filter(Boolean));
+
+                  // Flow pipeline: Goal set → Tasks created → Agents working → Done → Achieved
+                  const flowSteps = [
+                    { label: "Goal set", done: true },
+                    { label: `${goalTasks.length} tasks`, done: true },
+                    { label: "Working", done: inProgress > 0, active: inProgress > 0 },
+                    { label: `${completed}/${goalTasks.length} done`, done: completed === goalTasks.length },
+                    { label: "Achieved", done: goal.status === "completed" || goal.progress === 100 },
+                  ];
+
                   return (
                     <div className="mt-4 border-t border-hairline pt-3">
-                      <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted mb-2">
-                        Tasks ({goalTasks.length})
-                      </p>
+                      {/* Flow pipeline */}
+                      <div className="flex items-center gap-1 mb-3">
+                        {flowSteps.map((step, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold ${
+                              step.done ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" :
+                              step.active ? "bg-[#E86A33]/10 text-[#E86A33]" :
+                              "bg-gray-100 text-gray-400"
+                            }`}>
+                              {step.done && !step.active ? "✓" : step.active ? "●" : "○"} {step.label}
+                            </span>
+                            {i < flowSteps.length - 1 && <span className="text-gray-300 text-[8px]">→</span>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Task list with agent + cost */}
                       <ul className="space-y-1.5">
                         {goalTasks.slice(0, 3).map((task) => (
                           <li key={task.id} className="flex items-center gap-2 text-xs">
                             {statusIcon(task.status)}
-                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-emerald">
+                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-[#1a5c2e]">
                               {task.title}
                             </Link>
                             {task.agentId && agentMap.get(task.agentId) && (
-                              <span className="shrink-0 rounded-full bg-navy-900/5 px-1.5 py-0.5 text-[9px] font-medium text-navy-900">
+                              <span className="shrink-0 rounded-full bg-[#1a5c2e]/10 px-1.5 py-0.5 text-[9px] font-medium text-[#1a5c2e]">
                                 {agentMap.get(task.agentId)!.name}
                               </span>
                             )}
-                            {task.dueDate && (
-                              <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${dueDateBadge(task.dueDate)}`}>
-                                {formatDueDate(task.dueDate)}
-                              </span>
+                            {task.cost > 0 && (
+                              <span className="shrink-0 font-mono text-[9px] text-gray-400">${(task.cost / 100).toFixed(2)}</span>
                             )}
                           </li>
                         ))}
                       </ul>
+
+                      {/* Summary */}
+                      <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-400">
+                        {assignedAgents.size > 0 && <span>{assignedAgents.size} agent{assignedAgents.size !== 1 ? "s" : ""} assigned</span>}
+                        {totalCost > 0 && <span className="font-mono">${(totalCost / 100).toFixed(2)} total cost</span>}
+                        {failed > 0 && <span className="text-red-500">{failed} failed</span>}
+                      </div>
                     </div>
                   );
                 })()}
@@ -316,7 +304,7 @@ export default async function GoalsPage() {
                     <div className="flex items-center gap-2">
                       {statusIcon(task.status)}
                       <div>
-                        <Link href={`/app/tasks/${task.id}`} className="hover:text-emerald">
+                        <Link href={`/app/tasks/${task.id}`} className="hover:text-[#1a5c2e]">
                           <p className="text-sm font-medium text-ink">{task.title}</p>
                           {task.description && (
                             <p className="text-xs text-muted truncate max-w-[300px]">
@@ -329,7 +317,7 @@ export default async function GoalsPage() {
                   </td>
                   <td className="px-5 py-3">
                     {task.agentId && agentMap.get(task.agentId) ? (
-                      <span className="rounded-full bg-navy-900/5 px-2 py-0.5 text-[10px] font-medium text-navy-900">
+                      <span className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 text-[10px] font-medium text-[#0a0a0b]">
                         {agentMap.get(task.agentId)!.name}
                       </span>
                     ) : (

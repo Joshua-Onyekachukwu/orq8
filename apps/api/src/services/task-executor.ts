@@ -84,7 +84,26 @@ export async function executeTask(
     return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0, llmUsed: false };
   }
 
-  // 2. Mark as in_progress
+  // 2. Enforce pause: if assigned agent is paused, reject execution
+  if (task.agentId) {
+    const [agent] = await db
+      .select({ status: agents.status })
+      .from(agents)
+      .where(eq(agents.id, task.agentId))
+      .limit(1);
+    if (agent && agent.status === 'paused') {
+      return {
+        taskId,
+        status: 'failed',
+        result: `Execution blocked: agent is paused. Resume the agent to continue task execution.`,
+        cost: 0,
+        tokensUsed: 0,
+        llmUsed: false,
+      };
+    }
+  }
+
+  // 3. Mark as in_progress
   await db
     .update(tasks)
     .set({ status: 'in_progress', updatedAt: new Date() })

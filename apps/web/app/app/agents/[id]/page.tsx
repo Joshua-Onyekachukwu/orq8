@@ -69,7 +69,7 @@ function formatDate(iso: string): string {
 }
 
 function taskStatusIcon(status: string) {
-  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-emerald" />;
+  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />;
   if (status === "in_progress") return <span className="h-2 w-2 rounded-full bg-blue-500" />;
   if (status === "failed") return <span className="h-2 w-2 rounded-full bg-red-500" />;
   return <span className="h-2 w-2 rounded-full bg-gray-300" />;
@@ -181,7 +181,7 @@ export default function AgentDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Agent not found</p>
             <Link
               href="/app/agents"
-              className="mt-2 inline-block text-sm text-emerald hover:underline"
+              className="mt-2 inline-block text-sm text-[#1a5c2e] hover:underline"
             >
               Return to AI Workforce
             </Link>
@@ -192,11 +192,11 @@ export default function AgentDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xl font-bold text-emerald">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-xl font-bold text-[#1a5c2e]">
                     {agent.name.charAt(0)}
                   </span>
                   <div>
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
                       {agent.department ?? "General"}
                     </p>
                     <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-ink">
@@ -212,7 +212,7 @@ export default function AgentDetailPage() {
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     agent.status === "active"
                       ? "border border-hairline bg-white text-ink hover:bg-canvas"
-                      : "bg-emerald text-navy-950 hover:bg-emerald/80"
+                      : "bg-[#1a5c2e] text-white hover:bg-[#1a5c2e]/80"
                   }`}
                 >
                   {processing ? (
@@ -232,8 +232,8 @@ export default function AgentDetailPage() {
               <p className="mt-3 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wide">
                 {agent.status === "active" ? (
                   <>
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald" />
-                    <span className="text-emerald-700">Working now</span>
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1a5c2e]" />
+                    <span className="text-[#1a5c2e]">Working now</span>
                   </>
                 ) : (
                   <>
@@ -257,7 +257,7 @@ export default function AgentDetailPage() {
                   {agent.capabilities.map((cap) => (
                     <span
                       key={cap}
-                      className="rounded-full bg-navy-900/5 px-2.5 py-1 text-[11px] font-medium text-navy-900"
+                      className="rounded-full bg-[#0a0a0b]/5 px-2.5 py-1 text-[11px] font-medium text-[#0a0a0b]"
                     >
                       {cap}
                     </span>
@@ -338,7 +338,7 @@ export default function AgentDetailPage() {
                           <td className="px-5 py-3">
                             <Link
                               href={`/app/tasks/${t.id}`}
-                              className="text-sm font-medium text-ink hover:text-emerald"
+                              className="text-sm font-medium text-ink hover:text-[#1a5c2e]"
                             >
                               {t.title}
                             </Link>

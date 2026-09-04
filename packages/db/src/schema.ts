@@ -282,6 +282,30 @@ export const creditTransactions = pgTable(
 // All tables follow docs/34.1 conventions: uuid PKs, org_id on every table,
 // created_at/updated_at, status as constrained text.
 
+// ---- Departments ----
+// Proper first-class entities. Each agent has a primary department via departmentId FK.
+// The text `department` field on agents is kept for backward compat but departmentId is source of truth.
+export const departments = pgTable(
+  'departments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    name: text('name').notNull(),
+    description: text('description'),
+    head: text('head'), // name of department head agent
+    budget: integer('budget'), // credit budget for this department
+    status: text('status').notNull().default('active'), // active | archived
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('departments_org_idx').on(t.orgId),
+    uniqueIndex('departments_org_name_idx').on(t.orgId, t.name),
+  ],
+);
+
 export const agents = pgTable(
   'agents',
   {
@@ -291,19 +315,35 @@ export const agents = pgTable(
       .references(() => organizations.id),
     name: text('name').notNull(), // e.g. 'Researcher', 'Writer', 'Engineer'
     role: text('role').notNull(), // e.g. 'market_researcher', 'content_writer', 'software_engineer'
-    department: text('department'), // e.g. 'Marketing', 'Engineering', 'Operations'
+    department: text('department'), // DEPRECATED — kept for backward compat. Use departmentId.
+    departmentId: uuid('department_id').references(() => departments.id), // primary department FK
     status: text('status').notNull().default('active'), // active | paused | archived
     weeklyCost: integer('weekly_cost').notNull().default(0), // cost in cents
     tasksCompleted: integer('tasks_completed').notNull().default(0),
+    tasksFailed: integer('tasks_failed').notNull().default(0),
+    creditsUsed: integer('credits_used').notNull().default(0), // total credits consumed
     currentTask: text('current_task'), // short description of what they're doing now
     capabilities: jsonb('capabilities').notNull().default([]), // array of capability strings
     config: jsonb('config').notNull().default({}), // agent-specific config
+    // Explicit authority profile — defines what the agent CAN do, CAN spend, and what REQUIRES approval
+    authority: jsonb('authority').notNull().default({
+      canCreateTasks: true,
+      canExecuteTasks: true,
+      canAccessCompanyInfo: true,
+      canCommunicateExternally: false,
+      canModifyResources: false,
+      spendingLimitCents: 0, // 0 = no spending allowed without approval
+      requiresApprovalFor: ['financial_commitments', 'external_communications', 'irreversible_actions', 'high_impact_decisions'],
+      forbiddenActions: [],
+    }),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('agents_org_idx').on(t.orgId),
     index('agents_status_idx').on(t.orgId, t.status),
+    index('agents_dept_idx').on(t.departmentId),
   ],
 );
 
@@ -434,6 +474,8 @@ export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
 export type NewWaitlistSignup = typeof waitlistSignups.$inferInsert;
 export type WaitlistEmail = typeof waitlistEmails.$inferSelect;
 export type NewWaitlistEmail = typeof waitlistEmails.$inferInsert;
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;
 export type Agent = typeof agents.$inferSelect;
 export type NewAgent = typeof agents.$inferInsert;
 export type Goal = typeof goals.$inferSelect;

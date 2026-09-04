@@ -30,9 +30,8 @@ const HeroBanner: React.FC = () => {
           </h1>
 
           {/* Sub-headline */}
-          <p className="text-white text-[15px] md:text-[17px] lg:text-[19px] max-w-[540px] mx-auto !mb-[32px] md:!mb-[40px] !leading-relaxed">
-            You set the direction. ORQ8 hires the AI team, does the work, and
-            reports back under your approvals and your budget.
+          <p className="text-white text-[15px] md:text-[17px] lg:text-[19px] max-w-[580px] mx-auto !mb-[32px] md:!mb-[40px] !leading-relaxed">
+            You set the direction. ORQ8 builds and manages your AI workforce to execute the work — while you stay in control of approvals and budget.
           </p>
 
           {/* CTA buttons */}

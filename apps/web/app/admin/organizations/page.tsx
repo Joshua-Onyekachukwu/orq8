@@ -18,7 +18,7 @@ interface OrgWithCounts {
 async function fetchOrgs(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/admin/organizations`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return { data: [], meta: { total: 0 } };

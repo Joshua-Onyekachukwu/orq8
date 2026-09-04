@@ -113,13 +113,13 @@ export default function ReportPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Executive summary
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
             Weekly Report
           </h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-gray-500">
             The week in one page. What happened, what&apos;s blocked, what it cost,
             and what&apos;s next.
           </p>
@@ -161,8 +161,8 @@ export default function ReportPage() {
       {!loading && data && (
         <>
           {/* Report header */}
-          <div className="mt-6 rounded-xl bg-navy-950 p-6 text-white sm:p-8">
-            <p className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <div className="mt-6 rounded-xl bg-[#0a0a0b] p-6 text-white sm:p-8">
+            <p className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8FF66]">
               <CalendarDays className="h-3.5 w-3.5" />
               {reportDate}
             </p>
@@ -175,7 +175,7 @@ export default function ReportPage() {
           {/* Key metrics */}
           <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <Activity className="h-5 w-5 text-emerald" />
+              <Activity className="h-5 w-5 text-[#1a5c2e]" />
               <p className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
                 Total actions
               </p>
@@ -224,7 +224,7 @@ export default function ReportPage() {
               <ul className="mt-3 space-y-2">
                 {completedActions.slice(0, 10).map((e) => (
                   <li key={e.id} className="flex items-start gap-3 text-sm">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald" />
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1a5c2e]" />
                     <span className="text-ink">{e.summary}</span>
                     {e.reason && (
                       <span className="text-xs text-muted">— {e.reason}</span>
@@ -282,7 +282,7 @@ export default function ReportPage() {
                     <ul className="space-y-1">
                       {events.slice(0, 5).map((e) => (
                         <li key={e.id} className="flex items-center gap-2 text-sm text-ink">
-                          <span className="h-1 w-1 rounded-full bg-emerald" />
+                          <span className="h-1 w-1 rounded-full bg-[#1a5c2e]" />
                           {e.summary}
                         </li>
                       ))}
@@ -325,8 +325,8 @@ export default function ReportPage() {
                           {formatCost(a.weeklyCost)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="flex items-center gap-1.5 text-xs text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
+                          <span className="flex items-center gap-1.5 text-xs text-[#1a5c2e]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e]" />
                             Active
                           </span>
                         </td>
@@ -339,11 +339,11 @@ export default function ReportPage() {
           )}
 
           {/* Report footer */}
-          <div className="mt-6 rounded-xl border border-navy-800 bg-navy-950 p-5 text-white">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald">
+          <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-5">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
               Note
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-white/70">
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">
               This report is generated from your organization&apos;s live data.
               As more AI employees execute tasks and more decisions are made,
               this report will become increasingly detailed and actionable.

@@ -13,7 +13,7 @@ async function isAuthenticated(): Promise<boolean> {
   if (!token) return false;
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     return res.ok;

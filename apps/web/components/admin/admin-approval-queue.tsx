@@ -56,7 +56,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="h-8 w-40 rounded-lg border border-hairline bg-canvas pl-8 pr-3 text-xs text-ink outline-none focus:border-emerald"
+              className="h-8 w-40 rounded-lg border border-hairline bg-canvas pl-8 pr-3 text-xs text-ink outline-none focus:border-[#1a5c2e]"
             />
           </div>
           {/* Filter */}
@@ -123,7 +123,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                           ? "bg-red-100 text-red-700"
                           : a.riskLevel === "medium"
                           ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald/10 text-emerald-700"
+                          : "bg-[#B8FF66]/10 text-[#1a5c2e]"
                       }`}
                     >
                       {a.riskLevel}
@@ -135,7 +135,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                         a.status === "pending"
                           ? "bg-amber-50 text-amber-700"
                           : a.status === "approved"
-                          ? "bg-emerald/10 text-emerald-700"
+                          ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
                           : "bg-red-50 text-red-600"
                       }`}
                     >
@@ -156,7 +156,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
         <div className="border-t border-hairline px-5 py-3 text-center">
           <Link
             href="/admin/approvals"
-            className="inline-flex items-center gap-1 text-xs font-medium text-emerald hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#1a5c2e] hover:underline"
           >
             View all {filtered.length} approvals <ExternalLink className="h-3 w-3" />
           </Link>

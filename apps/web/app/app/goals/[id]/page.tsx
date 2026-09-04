@@ -57,7 +57,7 @@ function priorityBadge(priority: string) {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "completed": return "bg-emerald/15 text-emerald-700";
+    case "completed": return "bg-[#B8FF66]/10 text-[#1a5c2e]";
     case "paused": return "bg-amber-50 text-amber-700";
     case "cancelled": return "bg-gray-100 text-gray-500";
     default: return "bg-blue-50 text-blue-700";
@@ -66,7 +66,7 @@ function statusBadge(status: string) {
 
 function taskStatusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-emerald" />;
+    case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
     case "in_progress": return <Clock className="h-4 w-4 text-blue-500" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
     default: return <Clock className="h-4 w-4 text-muted" />;
@@ -173,7 +173,7 @@ export default function GoalDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Goal not found</p>
             <Link
               href="/app/goals"
-              className="mt-2 inline-block text-sm text-emerald hover:underline"
+              className="mt-2 inline-block text-sm text-[#1a5c2e] hover:underline"
             >
               Return to Goals & Tasks
             </Link>
@@ -184,8 +184,8 @@ export default function GoalDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald/10">
-                    <Target className="h-5 w-5 text-emerald" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#B8FF66]/10">
+                    <Target className="h-5 w-5 text-[#1a5c2e]" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -236,7 +236,7 @@ export default function GoalDetailPage() {
                 </div>
                 <div className="mt-1.5 h-2 rounded-full bg-muted/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-emerald transition-all"
+                    className="h-full rounded-full bg-[#1a5c2e] transition-all"
                     style={{ width: `${goal.progress}%` }}
                   />
                 </div>
@@ -266,7 +266,7 @@ export default function GoalDetailPage() {
                     <Link
                       key={t.id}
                       href={`/app/tasks/${t.id}`}
-                      className="block rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-emerald/30 hover:bg-emerald/5"
+                      className="block rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-[#1a5c2e]/30 hover:bg-[#1a5c2e]/5"
                     >
                       <div className="flex items-start gap-3">
                         <span className="mt-0.5 shrink-0">{taskStatusIcon(t.status)}</span>
@@ -279,7 +279,7 @@ export default function GoalDetailPage() {
                           )}
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                             {t.agentId && agentMap.get(t.agentId) && (
-                              <span className="rounded-full bg-navy-900/5 px-2 py-0.5 font-medium text-navy-900">
+                              <span className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 font-medium text-[#0a0a0b]">
                                 {agentMap.get(t.agentId)!.name}
                               </span>
                             )}
@@ -292,7 +292,7 @@ export default function GoalDetailPage() {
                           </div>
                         </div>
                         {t.status === "completed" && (
-                          <span className="shrink-0 rounded-full bg-emerald/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700">
+                          <span className="shrink-0 rounded-full bg-[#B8FF66]/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#1a5c2e]">
                             Done
                           </span>
                         )}

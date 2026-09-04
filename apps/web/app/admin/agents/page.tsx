@@ -7,7 +7,7 @@ export const metadata = { title: "AI Agents — Admin — ORQ8" };
 async function fetchAgents(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/agents`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return [];

@@ -131,9 +131,9 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-5xl">
       {/* Cover card */}
       <div className="overflow-hidden rounded-xl border border-hairline bg-white">
-        <div className="relative h-36 bg-navy-950 sm:h-44">
+        <div className="relative h-36 bg-[#0a0a0b] sm:h-44">
           <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
-          <div aria-hidden className="absolute -top-20 right-10 h-56 w-56 rounded-full bg-emerald/20 blur-[80px]" />
+          <div aria-hidden className="absolute -top-20 right-10 h-56 w-56 rounded-full bg-[#1a5c2e]/20 blur-[80px]" />
           <div aria-hidden className="absolute bottom-4 left-6 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">
             {org?.name ?? "My Organization"} · Profile
           </div>
@@ -142,7 +142,7 @@ export default function ProfilePage() {
         <div className="px-6 pb-6 pt-0 sm:px-8">
           <div className="-mt-12 flex flex-wrap items-end justify-between gap-4 sm:-mt-14">
             <div className="flex items-end gap-4">
-              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-white bg-navy-900 text-2xl font-bold text-emerald shadow-lg sm:h-24 sm:w-24 sm:text-3xl">
+              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-white bg-[#0a0a0b] text-2xl font-bold text-[#1a5c2e] shadow-lg sm:h-24 sm:w-24 sm:text-3xl">
                 {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
               </span>
               <div className="pb-1">
@@ -153,7 +153,7 @@ export default function ProfilePage() {
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       placeholder="Your name"
-                      className="rounded-lg border border-hairline bg-white px-3 py-1.5 text-lg font-bold text-ink outline-none focus:border-navy-800"
+                      className="rounded-lg border border-hairline bg-white px-3 py-1.5 text-lg font-bold text-ink outline-none focus:border-[#1a5c2e]"
                       autoFocus
                     />
                     <button
@@ -178,7 +178,7 @@ export default function ProfilePage() {
                         }
                       }}
                       disabled={saving || !editName.trim()}
-                      className="rounded-lg bg-navy-900 p-1.5 text-white hover:bg-navy-800 disabled:opacity-50"
+                      className="rounded-lg bg-[#0a0a0b] p-1.5 text-white hover:bg-[#0a0a0b] disabled:opacity-50"
                     >
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     </button>
@@ -194,7 +194,7 @@ export default function ProfilePage() {
                   <>
                     <p className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink sm:text-xl">
                       {user?.name ?? "Founder"}
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-lime text-navy-950" title="Verified">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B8FF66] text-white" title="Verified">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       </span>
                       <button
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                       </button>
                     </p>
                     {saveSuccess && (
-                      <p className="mt-1 text-xs text-emerald-600">Profile updated successfully</p>
+                      <p className="mt-1 text-xs text-[#1a5c2e]">Profile updated successfully</p>
                     )}
                   </>
                 )}
@@ -219,7 +219,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={fetchData}
-              className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-navy-800"
+              className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-[#1a5c2e]"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
             </button>
@@ -230,7 +230,7 @@ export default function ProfilePage() {
       {/* Stats row */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald/10 text-emerald-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#B8FF66]/10 text-[#1a5c2e]">
             <Users className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
@@ -276,7 +276,7 @@ export default function ProfilePage() {
       {/* Details */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="flex items-center gap-4 rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy-900 text-emerald">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0a0a0b] text-[#1a5c2e]">
             <Mail className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -286,7 +286,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="flex items-center gap-4 rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy-900 text-emerald">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0a0a0b] text-[#1a5c2e]">
             <CheckCircle2 className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -301,14 +301,14 @@ export default function ProfilePage() {
         <div className="mt-6 rounded-xl border border-hairline bg-white p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">My AI Workforce</h2>
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#1a5c2e]">
               {activeAgents.length} working
             </span>
           </div>
           <ul className="mt-4 divide-y divide-hairline">
             {agents.map((a) => (
               <li key={a.id} className="flex items-center gap-3 py-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-sm font-bold text-emerald">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-sm font-bold text-[#1a5c2e]">
                   {a.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -316,7 +316,7 @@ export default function ProfilePage() {
                   <p className="truncate text-xs text-muted">{a.role}{a.department ? ` · ${a.department}` : ""}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${a.status === "active" ? "bg-emerald/15 text-emerald-700" : "bg-canvas text-muted"}`}>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${a.status === "active" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" : "bg-canvas text-muted"}`}>
                     {a.status}
                   </span>
                   <p className="mt-1 font-mono text-[10px] text-muted">{a.tasksCompleted} tasks</p>

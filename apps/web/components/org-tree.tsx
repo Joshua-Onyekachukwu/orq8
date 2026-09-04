@@ -303,10 +303,10 @@ export function GrowthTree({ tone = "light" }: { tone?: "dark" | "light" }) {
             aria-pressed={state === s.k}
             className={`rounded-full border px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
               state === s.k
-                ? "border-emerald/60 bg-emerald/10 text-emerald"
+                ? "border-[#1a5c2e]/60 bg-[#B8FF66]/10 text-[#1a5c2e]"
                 : onDark
-                  ? "border-white/10 text-fog hover:border-white/25 hover:text-emerald"
-                  : "border-navy-900/15 text-muted hover:border-navy-900/40 hover:text-navy-900"
+                  ? "border-white/10 text-fog hover:border-white/25 hover:text-[#1a5c2e]"
+                  : "border-[#0a0a0b]/15 text-muted hover:border-[#0a0a0b]/40 hover:text-[#0a0a0b]"
             }`}
           >
             {s.label}

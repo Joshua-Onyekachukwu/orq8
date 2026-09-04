@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-emerald/60 focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-[#1a5c2e]/60 focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-white/70";
 
 export function ResetPasswordForm({ token }: { token: string }) {
@@ -63,8 +63,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
   if (success) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald/10">
-          <CheckCircle2 className="h-7 w-7 text-emerald" />
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#B8FF66]/10">
+          <CheckCircle2 className="h-7 w-7 text-[#1a5c2e]" />
         </div>
         <p className="text-sm font-medium text-white">Password updated</p>
         <p className="mt-1 text-sm text-fog">
@@ -73,7 +73,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         <button
           type="button"
           onClick={() => router.push("/login")}
-          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime"
+          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#1a5c2e] text-sm font-semibold text-white transition-colors hover:bg-[#B8FF66]"
         >
           Sign in with new password
         </button>
@@ -114,7 +114,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-lime"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-[#B8FF66]"
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -142,7 +142,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             onClick={() => setShowConfirm((v) => !v)}
             aria-label={showConfirm ? "Hide password" : "Show password"}
             aria-pressed={showConfirm}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-lime"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-[#B8FF66]"
           >
             {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -152,7 +152,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald text-sm font-semibold text-navy-950 transition-colors hover:bg-lime active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1a5c2e] text-sm font-semibold text-white transition-colors hover:bg-[#B8FF66] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

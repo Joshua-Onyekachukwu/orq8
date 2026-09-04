@@ -7,7 +7,7 @@ export const metadata = { title: "Activity Log — Admin — ORQ8" };
 async function fetchActivity(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/activity?limit=50`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
+      headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
     if (!res.ok) return [];

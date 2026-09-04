@@ -39,7 +39,7 @@ function categoryColor(cat: string) {
     case "fact": return "bg-blue-50 text-blue-700";
     case "decision": return "bg-purple-50 text-purple-700";
     case "lesson": return "bg-amber-50 text-amber-700";
-    case "preference": return "bg-emerald/15 text-emerald-700";
+    case "preference": return "bg-[#B8FF66]/10 text-[#1a5c2e]";
     case "workflow": return "bg-indigo-50 text-indigo-700";
     case "context": return "bg-gray-100 text-gray-600";
     default: return "bg-gray-100 text-gray-600";
@@ -161,7 +161,7 @@ export default function MemoryPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Knowledge
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -183,7 +183,7 @@ export default function MemoryPage() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-lime hover:text-navy-950"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
           >
             <Plus className="h-3.5 w-3.5" /> Add memory
           </button>
@@ -227,7 +227,7 @@ export default function MemoryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search memory..."
-              className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-navy-800"
+              className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
             />
           </span>
           <select
@@ -320,7 +320,7 @@ export default function MemoryPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Add Memory Entry</h2>
@@ -337,7 +337,7 @@ export default function MemoryPage() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Category *</label>
-                  <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800">
+                  <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]">
                     <option value="fact">Fact</option>
                     <option value="decision">Decision</option>
                     <option value="lesson">Lesson</option>
@@ -348,11 +348,11 @@ export default function MemoryPage() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Content *</label>
-                  <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={3} placeholder="What should the organization remember?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800 resize-none" required />
+                  <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={3} placeholder="What should the organization remember?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e] resize-none" required />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Source</label>
-                  <input type="text" value={newSource} onChange={(e) => setNewSource(e.target.value)} placeholder="e.g. Executive Agent, Market Researcher" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-navy-800" />
+                  <input type="text" value={newSource} onChange={(e) => setNewSource(e.target.value)} placeholder="e.g. Executive Agent, Market Researcher" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Importance (1-10)</label>
@@ -364,7 +364,7 @@ export default function MemoryPage() {
                 <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                   Cancel
                 </button>
-                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:opacity-50">
+                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-[#0a0a0b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0a0a0b] disabled:opacity-50">
                   {creating ? "Saving..." : "Save Memory"}
                 </button>
               </div>

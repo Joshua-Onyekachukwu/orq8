@@ -27,7 +27,7 @@ export function DashboardSkeleton() {
   return (
     <div className="space-y-6">
       {/* Welcome banner skeleton */}
-      <div className="animate-pulse rounded-xl bg-navy-950 p-6 sm:p-8">
+      <div className="animate-pulse rounded-xl bg-[#0a0a0b] p-6 sm:p-8">
         <div className="h-3 w-24 rounded bg-white/10" />
         <div className="mt-3 h-7 w-48 rounded bg-white/10" />
         <div className="mt-2 h-4 w-64 rounded bg-white/10" />

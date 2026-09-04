@@ -19,10 +19,10 @@ interface Member {
 }
 
 const roleStyles: Record<string, string> = {
-  owner: "bg-lime/20 text-navy-900",
+  owner: "bg-[#B8FF66]/20 text-[#0a0a0b]",
   admin: "bg-indigo-50 text-indigo-700",
   member: "bg-canvas text-muted",
-  agent: "bg-emerald/15 text-emerald-700",
+  agent: "bg-[#B8FF66]/10 text-[#1a5c2e]",
 };
 
 const rowsPerPage = 10;
@@ -96,7 +96,7 @@ export default function MembersPage() {
     <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Organization · {humanCount} human{humanCount !== 1 ? "s" : ""} · {agentCount} agent{agentCount !== 1 ? "s" : ""}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -176,7 +176,7 @@ export default function MembersPage() {
                   setCurrentPage(1);
                 }}
                 placeholder="Search members..."
-                className="w-full rounded-lg border border-hairline bg-canvas py-2.5 pl-9 pr-3 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-navy-800"
+                className="w-full rounded-lg border border-hairline bg-canvas py-2.5 pl-9 pr-3 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-[#1a5c2e]"
               />
             </label>
           </div>
@@ -202,7 +202,7 @@ export default function MembersPage() {
                   <tr key={m.id} className="transition-colors hover:bg-canvas/60">
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-900 text-sm font-bold text-emerald">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0a0a0b] text-sm font-bold text-[#1a5c2e]">
                           {m.name.charAt(0).toUpperCase()}
                         </span>
                         <span className="text-sm font-medium text-ink">{m.name}</span>
@@ -215,7 +215,7 @@ export default function MembersPage() {
                       <span
                         className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                           m.type === "agent"
-                            ? "bg-emerald/15 text-emerald-700"
+                            ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
                             : "bg-blue-50 text-blue-700"
                         }`}
                       >
@@ -238,13 +238,13 @@ export default function MembersPage() {
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
                           m.status === "active"
-                            ? "bg-emerald/15 text-emerald-700"
+                            ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${
-                            m.status === "active" ? "bg-emerald" : "bg-gray-400"
+                            m.status === "active" ? "bg-[#1a5c2e]" : "bg-gray-400"
                           }`}
                         />
                         {m.status}
@@ -270,11 +270,11 @@ export default function MembersPage() {
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={safePage === 1}
                 aria-label="Previous page"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-hairline text-ink transition-colors hover:border-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-hairline text-ink transition-colors hover:border-[#1a5c2e] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-navy-900 text-xs font-semibold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#0a0a0b] text-xs font-semibold text-white">
                 {safePage}
               </span>
               <button
@@ -282,7 +282,7 @@ export default function MembersPage() {
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={safePage === totalPages}
                 aria-label="Next page"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-hairline text-ink transition-colors hover:border-navy-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-hairline text-ink transition-colors hover:border-[#1a5c2e] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

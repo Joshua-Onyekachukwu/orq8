@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 // Server-side helpers for talking to the ORQ8 API (docs/06, 35).
 // Sessions are server-side opaque tokens (ADR-007). The API accepts the token
@@ -87,4 +88,71 @@ export async function proxyApiJson(
   }
   const data = await res.json().catch(() => null);
   return NextResponse.json(data, { status: res.status });
+}
+
+// ─── Server-side fetch helpers ───
+
+/**
+ * Fetch from the ORQ8 API with session auth.
+ * Used by server components to fetch data with the user's session.
+ * Returns null on any failure — callers should handle gracefully.
+ */
+export async function fetchWithAuth<T>(
+  path: string,
+  options?: { method?: string; body?: unknown },
+): Promise<T | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      method: options?.method ?? "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(options?.body ? { "content-type": "application/json" } : {}),
+      },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json as { data?: T }).data ?? (json as T) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Utility functions ───
+
+/** Format cents as dollar amount */
+export function formatCost(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Format ISO date as human-readable time ago */
+export function formatTimeAgo(iso: string): string {
+  try {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  } catch {
+    return "";
+  }
+}
+
+/** Format ISO date as short date */
+export function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "Unknown";
+  }
 }

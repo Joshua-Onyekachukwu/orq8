@@ -12,7 +12,7 @@ export default async function SettingsProvidersPage() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) redirect("/login");
 
-  const headers = { cookie: `${SESSION_COOKIE}=${token}` };
+  const headers = { authorization: `Bearer ${token}` };
   const [catalogRes, keysRes] = await Promise.all([
     fetch(`${API_URL}/v1/providers`, { headers, cache: "no-store" }),
     fetch(`${API_URL}/v1/providers/keys`, { headers, cache: "no-store" }),
@@ -27,12 +27,12 @@ export default async function SettingsProvidersPage() {
     <div id="main" className="min-h-screen bg-canvas">
       <header className="border-b border-hairline bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <a href="/" className="text-lg font-semibold tracking-tight text-navy-900">
+          <a href="/" className="text-lg font-semibold tracking-tight text-[#0a0a0b]">
             ORQ8
           </a>
           <a
             href="/app"
-            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-navy-800 hover:text-navy-800"
+            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e]"
           >
             ← Back to app
           </a>

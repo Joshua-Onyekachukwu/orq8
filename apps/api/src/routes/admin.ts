@@ -1,6 +1,7 @@
 import { eq, desc, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { appendAudit } from '../services/audit.js';
 import { buildProviderChain } from '../services/llm.js';
 import * as userService from '../services/users.js';
 import { forbidden, platformAdminEmails } from '@orq8/core';
@@ -14,6 +15,7 @@ import {
   subscriptions,
   creditBalances,
   sessions,
+  waitlistSignups,
   type Db,
 } from '@orq8/db';
 import type { AppDeps } from '../types.js';
@@ -406,6 +408,130 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
           failed: results.filter((r) => !r.ok).length,
           keys: keySummaries,
         },
+      },
+    };
+  });
+
+  /** GET /v1/admin/waitlist — List all waitlist entries with pagination + search. */
+  app.get('/v1/admin/waitlist', async (request) => {
+    await requirePlatformAdmin(request, deps);
+
+    const params = request.query as { limit?: string; offset?: string; status?: string; search?: string };
+    const limit = Math.min(Math.max(Number(params.limit) || 50, 1), 200);
+    const offset = Math.max(Number(params.offset) || 0, 0);
+    const statusFilter = params.status || undefined;
+    const search = params.search || undefined;
+
+    // Build where conditions
+    const conditions = [];
+    if (statusFilter) conditions.push(eq(waitlistSignups.status, statusFilter));
+    if (search) conditions.push(sql`${waitlistSignups.email} ILIKE ${'%' + search + '%'}`);
+
+    const where = conditions.length > 0 ? sql`${conditions[0]} AND ${sql.join(conditions.slice(1).map(c => sql`${c}`), sql` AND `)}` : undefined;
+
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(waitlistSignups)
+      .where(where);
+
+    const list = await db
+      .select()
+      .from(waitlistSignups)
+      .where(where)
+      .orderBy(desc(waitlistSignups.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      data: list,
+      meta: { limit, offset, total: totalRow?.count ?? 0 },
+    };
+  });
+
+  /** GET /v1/admin/waitlist/:id — Get a single waitlist entry. */
+  app.get<{ Params: { id: string } }>('/v1/admin/waitlist/:id', async (request, reply) => {
+    await requirePlatformAdmin(request, deps);
+
+    const rows = await db
+      .select()
+      .from(waitlistSignups)
+      .where(eq(waitlistSignups.id, request.params.id))
+      .limit(1);
+
+    if (!rows[0]) {
+      return reply.status(404).send({ error: { code: 'not_found', message: 'Waitlist entry not found' } });
+    }
+    return { data: rows[0] };
+  });
+
+  /** PATCH /v1/admin/waitlist/:id — Update status (approve/reject/invite). */
+  app.patch<{ Params: { id: string }; Body: { status: string } }>('/v1/admin/waitlist/:id', async (request, reply) => {
+    const ctx = await requirePlatformAdmin(request, deps);
+    const { status } = request.body;
+    if (!['pending', 'invited', 'signed_up', 'rejected'].includes(status)) {
+      return reply.status(400).send({ error: { code: 'invalid_status', message: 'Status must be pending, invited, signed_up, or rejected' } });
+    }
+
+    const rows = await db
+      .update(waitlistSignups)
+      .set({ status })
+      .where(eq(waitlistSignups.id, request.params.id))
+      .returning();
+
+    if (!rows[0]) {
+      return reply.status(404).send({ error: { code: 'not_found', message: 'Waitlist entry not found' } });
+    }
+
+    await appendAudit(db, {
+      orgId: "00000000-0000-0000-0000-000000000000",
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: `waitlist.${status}`,
+      outcome: 'success',
+    });
+
+    return { data: rows[0] };
+  });
+
+  /** DELETE /v1/admin/waitlist/:id — Remove a waitlist entry. */
+  app.delete<{ Params: { id: string } }>('/v1/admin/waitlist/:id', async (request, reply) => {
+    const ctx = await requirePlatformAdmin(request, deps);
+
+    const rows = await db
+      .delete(waitlistSignups)
+      .where(eq(waitlistSignups.id, request.params.id))
+      .returning();
+
+    if (!rows[0]) {
+      return reply.status(404).send({ error: { code: 'not_found', message: 'Waitlist entry not found' } });
+    }
+
+    await appendAudit(db, {
+      orgId: "00000000-0000-0000-0000-000000000000",
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'waitlist.deleted',
+      outcome: 'success',
+    });
+
+    return { data: { deleted: true } };
+  });
+
+  /** GET /v1/admin/waitlist/stats — Summary statistics. */
+  app.get('/v1/admin/waitlist/stats', async (request) => {
+    await requirePlatformAdmin(request, deps);
+
+    const [total] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups);
+    const [pending] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'pending'));
+    const [invited] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'invited'));
+    const [signedUp] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'signed_up'));
+
+    return {
+      data: {
+        total: total?.count ?? 0,
+        pending: pending?.count ?? 0,
+        invited: invited?.count ?? 0,
+        signedUp: signedUp?.count ?? 0,
       },
     };
   });

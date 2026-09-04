@@ -32,12 +32,12 @@ export type KeyItem = {
 type Notice = { kind: "ok" | "err"; text: string } | null;
 
 const inputClass =
-  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-navy-700/20";
+  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-[#1a5c2e] focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]/20";
 const labelClass = "mb-1 block text-sm font-medium text-ink";
 const btnPrimary =
-  "h-9 rounded-md bg-navy-800 px-4 text-sm font-medium text-white transition-colors hover:bg-navy-700 disabled:opacity-50";
+  "h-9 rounded-md bg-[#1a5c2e] px-4 text-sm font-medium text-white transition-colors hover:bg-[#144a24] disabled:opacity-50";
 const btnGhost =
-  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-navy-800 hover:text-navy-800 disabled:opacity-50";
+  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e] disabled:opacity-50";
 
 export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: CatalogItem[]; keys: KeyItem[] }) {
   const [keys, setKeys] = useState<KeyItem[]>(initialKeys);
@@ -263,7 +263,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                     {p.doc_url ? (
                       <>
                         {" · "}
-                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-navy-800">
+                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-[#1a5c2e]">
                           get a key
                         </a>
                       </>
@@ -279,6 +279,21 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                 </span>
               </div>
 
+              {/* Model availability */}
+              {p.default_models.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Available models</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.default_models.slice(0, 4).map((m) => (
+                      <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{m}</span>
+                    ))}
+                    {p.default_models.length > 4 && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400">+{p.default_models.length - 4}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {orgKeys.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">No key saved for this provider.</p>
               ) : (
@@ -287,13 +302,21 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                     <li key={k.id} className="rounded-md bg-canvas p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-ink">
-                            {k.name ?? k.provider_name}
-                            <span className="ml-2 font-mono text-xs text-muted">{k.mask}</span>
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${
+                              k.status === "active" ? "bg-green-500" :
+                              k.status === "error" ? "bg-red-500" :
+                              "bg-gray-300"
+                            }`} />
+                            <p className="truncate text-sm font-medium text-ink">
+                              {k.name ?? k.provider_name}
+                              <span className="ml-2 font-mono text-xs text-muted">{k.mask}</span>
+                            </p>
+                          </div>
                           <p className="mt-0.5 text-xs text-muted">
                             {k.auth_type === "endpoint" ? k.base_url : "API key"}
-                            {k.last_tested_at ? ` · tested ${new Date(k.last_tested_at).toLocaleDateString()}` : " · not tested yet"}
+                            {k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ""}
+                            {k.last_tested_at ? ` · tested ${new Date(k.last_tested_at).toLocaleDateString()}` : " · not tested"}
                           </p>
                         </div>
                         <div className="flex shrink-0 gap-2">

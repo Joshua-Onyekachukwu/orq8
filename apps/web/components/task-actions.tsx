@@ -46,7 +46,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
           });
           window.location.reload();
         }}
-        className="font-mono text-[10px] font-semibold uppercase tracking-wide text-emerald hover:underline"
+        className="font-mono text-[10px] font-semibold uppercase tracking-wide text-[#1a5c2e] hover:underline"
       >
         {nextStatus === "in_progress" ? "Start" : "Complete"}
       </button>
@@ -64,7 +64,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
           <Plus className="h-3 w-3" /> Add Task
         </button>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60">
             <div className="w-full max-w-md rounded-xl border border-hairline bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-ink">Create Task</h3>
@@ -101,7 +101,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                     placeholder="Research competitor pricing"
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
                     autoFocus
                   />
                 </div>
@@ -112,7 +112,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="What needs to be done?"
                     rows={3}
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -121,7 +121,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     <select
                       value={form.priority}
                       onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
                     >
                       <option value="low">Low</option>
                       <option value="normal">Normal</option>
@@ -135,7 +135,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                       type="date"
                       value={form.dueDate}
                       onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
                     />
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     <select
                       value={form.agentId}
                       onChange={(e) => setForm({ ...form, agentId: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-emerald"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
                     >
                       <option value="">Unassigned</option>
                       {agents.map((agent) => (
@@ -167,7 +167,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg bg-navy-900 px-4 py-2 text-xs font-semibold text-white hover:bg-lime hover:text-navy-950 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B8FF66] hover:text-white disabled:opacity-50"
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Task

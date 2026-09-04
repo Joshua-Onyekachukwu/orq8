@@ -17,10 +17,10 @@ interface Notification {
 
 const typeColors: Record<string, string> = {
   approval: "bg-amber-50 text-amber-700",
-  task: "bg-emerald/10 text-emerald-700",
+  task: "bg-[#B8FF66]/10 text-[#1a5c2e]",
   credit: "bg-red-50 text-red-600",
-  agent: "bg-indigo-50 text-indigo-700",
-  system: "bg-canvas text-muted",
+  agent: "bg-[#E86A33]/10 text-[#E86A33]",
+  system: "bg-gray-50 text-gray-500",
 };
 
 function timeAgo(dateStr: string): string {
@@ -141,7 +141,7 @@ export function NotificationsBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-ink"
+        className="relative rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
         title="Notifications"
       >
         <Bell className="h-5 w-5" />
@@ -159,13 +159,13 @@ export function NotificationsBell() {
 
           {/* Dropdown */}
           <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-hairline bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-ink">Notifications</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                 {connected && (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald/10 px-1.5 py-0.5">
-                    <Zap className="h-2.5 w-2.5 text-emerald" />
-                    <span className="font-mono text-[8px] font-semibold uppercase text-emerald">live</span>
+                  <span className="flex items-center gap-1 rounded-full bg-[#B8FF66]/10 px-1.5 py-0.5">
+                    <Zap className="h-2.5 w-2.5 text-[#1a5c2e]" />
+                    <span className="font-mono text-[8px] font-semibold uppercase text-[#1a5c2e]">live</span>
                   </span>
                 )}
               </div>
@@ -174,7 +174,7 @@ export function NotificationsBell() {
                   type="button"
                   onClick={markAllRead}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#1a5c2e] hover:underline"
                 >
                   <CheckCheck className="h-3.5 w-3.5" /> Mark all read
                 </button>
@@ -184,15 +184,15 @@ export function NotificationsBell() {
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center">
-                  <Bell className="mx-auto h-8 w-8 text-muted/30" />
-                  <p className="mt-2 text-sm text-muted">No notifications yet</p>
+                  <Bell className="mx-auto h-8 w-8 text-gray-300" />
+                  <p className="mt-2 text-sm text-gray-500">No notifications yet</p>
                 </div>
               ) : (
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-canvas/50 ${
-                      !n.read ? "bg-emerald/5" : ""
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
+                      !n.read ? "bg-[#B8FF66]/5" : ""
                     }`}
                   >
                     <span
@@ -201,25 +201,25 @@ export function NotificationsBell() {
                       {n.type.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${!n.read ? "font-medium text-ink" : "text-muted"}`}>
+                      <p className={`text-sm ${!n.read ? "font-medium text-gray-900" : "text-gray-500"}`}>
                         {n.title}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted line-clamp-2">{n.message}</p>
-                      <p className="mt-1 font-mono text-[10px] text-muted">
+                      <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{n.message}</p>
+                      <p className="mt-1 font-mono text-[10px] text-gray-400">
                         {timeAgo(n.createdAt)}
                       </p>
                     </div>
                     {!n.read && (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald" />
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#B8FF66]" />
                     )}
                   </div>
                 ))
               )}
             </div>
 
-            <div className="border-t border-hairline px-4 py-2.5">
+            <div className="border-t border-gray-100 px-4 py-2.5">
               {notifications.length > 0 ? (
-                <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
+                <p className="font-mono text-[10px] uppercase tracking-wide text-gray-400">
                   {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
                 </p>
               ) : (
@@ -231,7 +231,7 @@ export function NotificationsBell() {
                       fetchNotifications();
                     } catch { /* silent */ }
                   }}
-                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
+                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-400 transition-colors hover:text-gray-700"
                 >
                   <FlaskConical className="h-3 w-3" /> Seed sample notifications
                 </button>
