@@ -1,124 +1,175 @@
 import { cookies } from "next/headers";
-import { Users } from "lucide-react";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { Users, Search, Mail, Building2, Shield } from "lucide-react";
+import { UserActions } from "../../../components/admin/user-actions";
 
-export const metadata = { title: "Users — Admin — ORQ8" };
+export const metadata = { title: "Users — Admin" };
 
-interface UserWithMemberships {
-  id: string;
-  email: string;
-  name: string | null;
-  status: string;
-  createdAt: string;
-  memberships: Array<{
-    role: string;
-    orgId: string;
-    orgName: string;
-  }>;
-  primaryRole: string;
-}
-
-async function fetchUsers(token: string) {
+async function fetchUsers(token: string, search?: string) {
   try {
-    const res = await fetch(`${API_URL}/v1/admin/users`, {
+    const url = search
+      ? `${API_URL}/v1/admin/users?limit=200&search=${encodeURIComponent(search)}`
+      : `${API_URL}/v1/admin/users?limit=200`;
+    const res = await fetch(url, {
       headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return { data: [], meta: { total: 0 } };
-    const data = (await res.json()) as { data?: UserWithMemberships[]; meta?: { total: number } };
-    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0 } };
+    if (!res.ok) return [];
+    return ((await res.json()) as { data?: unknown[] }).data ?? [];
   } catch {
-    return { data: [], meta: { total: 0 } };
+    return [];
   }
 }
 
-function roleBadge(role: string) {
-  switch (role) {
-    case "owner":
-      return "bg-lime/10 text-lime";
-    case "admin":
-      return "bg-purple-50 text-purple-600";
-    default:
-      return "bg-gray-100 text-gray-600";
+function statusBadge(status: string) {
+  switch (status) {
+    case "active": return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+    case "disabled": return "bg-red-50 text-red-600";
+    case "suspended": return "bg-amber-50 text-amber-600";
+    default: return "bg-canvas text-muted";
   }
 }
 
-export default async function AdminUsersPage() {
+function platformRoleBadge(role: string | null) {
+  if (role === "admin") return "bg-[#E86A33]/10 text-[#E86A33]";
+  return "bg-canvas text-muted";
+}
+
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; status?: string }>;
+}) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value ?? "";
-  const { data: users, meta } = await fetchUsers(token);
+  const params = await searchParams;
+  const users = await fetchUsers(token, params.search);
+
+  const filteredUsers = params.status
+    ? users.filter((u: any) => u.status === params.status)
+    : users;
+
+  const activeCount = users.filter((u: any) => u.status === "active").length;
+  const adminCount = users.filter((u: any) => u.platformRole === "admin").length;
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-ink">Users</h1>
-          <p className="mt-1 text-sm text-muted">
-            Manage platform users and their access. {meta.total > 0 ? `${meta.total} total users.` : ""}
-          </p>
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-ink">Users</h1>
+        <p className="mt-1 text-sm text-muted">
+          Manage platform users and administrator access.
+        </p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-3 mb-6">
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <Users className="h-4 w-4" /> Total Users
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{users.length}</p>
+        </div>
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <Shield className="h-4 w-4" /> Admin Users
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{adminCount}</p>
+        </div>
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <Building2 className="h-4 w-4" /> Active
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{activeCount}</p>
         </div>
       </div>
 
+      {/* Search */}
+      <form className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            name="search"
+            defaultValue={params.search ?? ""}
+            placeholder="Search by name or email..."
+            className="w-full rounded-lg border border-hairline bg-white pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-[#1a5c2e] focus:outline-none focus:ring-1 focus:ring-[#1a5c2e]/20"
+          />
+        </div>
+      </form>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">Filter:</span>
+        {["all", "active", "disabled", "suspended"].map((s) => (
+          <a
+            key={s}
+            href={s === "all" ? "/admin/users" : `/admin/users?status=${s}`}
+            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase transition-colors ${
+              (params.status ?? "all") === s
+                ? "bg-[#0a0a0b] text-white"
+                : "bg-canvas text-muted hover:bg-hairline"
+            }`}
+          >
+            {s}
+          </a>
+        ))}
+      </div>
+
+      {/* Users table */}
       <div className="rounded-xl border border-hairline bg-white overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-canvas text-left">
-              {["User", "Email", "Role", "Organization", "Status", "Joined"].map((h) => (
-                <th
-                  key={h}
-                  className="whitespace-nowrap px-5 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
-                >
+            <tr className="border-b border-hairline bg-canvas">
+              {["User", "Email", "Role", "Status", "Actions"].map((h) => (
+                <th key={h} className="px-5 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
-            {users.length > 0 ? (
-              users.map((u) => (
-                <tr key={u.id} className="hover:bg-canvas/50">
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted">
+                  {params.search ? "No users match your search." : "No users found."}
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((user: any) => (
+                <tr key={user.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d1a12] text-xs font-bold text-[#B8FF66]">
-                        {(u.name ?? u.email).charAt(0).toUpperCase()}
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0b] text-xs font-bold text-[#B8FF66]">
+                        {(user.name ?? user.email ?? "U").charAt(0).toUpperCase()}
                       </span>
-                      <span className="text-sm font-medium text-ink">{u.name ?? "Unnamed"}</span>
+                      <span className="text-sm font-medium text-ink">{user.name ?? "—"}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-sm text-muted">{u.email}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{user.email}</td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${roleBadge(u.primaryRole)}`}>
-                      {u.primaryRole}
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${platformRoleBadge(user.platformRole)}`}>
+                      {user.platformRole === "admin" && <Shield className="h-2.5 w-2.5" />}
+                      {user.platformRole ?? "user"}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-xs text-muted">
-                    {u.memberships.length > 0
-                      ? u.memberships.map((m) => m.orgName).join(", ")
-                      : "—"}
-                  </td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      u.status === "active" ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {u.status}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadge(user.status)}`}>
+                      {user.status}
                     </span>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-muted">
-                    {new Date(u.createdAt).toLocaleDateString()}
+                  <td className="px-5 py-3">
+                    <UserActions userId={user.id} currentStatus={user.status} />
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-5 py-10 text-center">
-                  <Users className="mx-auto h-8 w-8 text-muted/30" />
-                  <p className="mt-3 text-sm text-muted">No users found</p>
-                </td>
-              </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <p className="mt-4 text-xs text-muted">
+        Showing {filteredUsers.length} of {users.length} users
+      </p>
     </div>
   );
 }

@@ -33,6 +33,12 @@ const navGroups: NavGroup[] = [
     title: "Overview",
     items: [
       { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+      { label: "Platform Health", href: "/admin/health", icon: Activity },
+    ],
+  },
+  {
+    title: "Customers",
+    items: [
       { label: "Users", href: "/admin/users", icon: Users },
       { label: "Organizations", href: "/admin/organizations", icon: Building2 },
     ],
@@ -43,6 +49,12 @@ const navGroups: NavGroup[] = [
       { label: "AI Agents", href: "/admin/agents", icon: Shield },
       { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
       { label: "Activity Log", href: "/admin/activity", icon: Activity },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { label: "Admin Settings", href: "/admin/settings", icon: Settings },
     ],
   },
 ];

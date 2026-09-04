@@ -1,126 +1,124 @@
 import { cookies } from "next/headers";
-import { Building2, Users, Bot } from "lucide-react";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { Building2, Users, Bot, Search, CreditCard } from "lucide-react";
 
-export const metadata = { title: "Organizations — Admin — ORQ8" };
-
-interface OrgWithCounts {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
-  status: string;
-  createdAt: string;
-  memberCount: number;
-  agentCount: number;
-}
+export const metadata = { title: "Organizations — Admin" };
 
 async function fetchOrgs(token: string) {
   try {
-    const res = await fetch(`${API_URL}/v1/admin/organizations`, {
+    const res = await fetch(`${API_URL}/v1/admin/organizations?limit=200`, {
       headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return { data: [], meta: { total: 0 } };
-    const data = (await res.json()) as { data?: OrgWithCounts[]; meta?: { total: number } };
-    return { data: data?.data ?? [], meta: data?.meta ?? { total: 0 } };
+    if (!res.ok) return [];
+    return ((await res.json()) as { data?: unknown[] }).data ?? [];
   } catch {
-    return { data: [], meta: { total: 0 } };
+    return [];
   }
 }
 
 function planBadge(plan: string) {
   switch (plan) {
-    case "company":
-      return "bg-purple-50 text-purple-600";
-    case "team":
-      return "bg-blue-50 text-blue-600";
-    case "founder":
-      return "bg-lime/10 text-lime";
-    case "trial":
-      return "bg-gray-100 text-gray-500";
-    default:
-      return "bg-gray-100 text-gray-600";
+    case "pro": return "bg-[#E86A33]/10 text-[#E86A33]";
+    case "business": return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+    case "enterprise": return "bg-purple-50 text-purple-600";
+    default: return "bg-canvas text-muted";
   }
+}
+
+function statusDot(status: string) {
+  return status === "active" ? "bg-[#1a5c2e]" : "bg-gray-300";
 }
 
 export default async function AdminOrganizationsPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value ?? "";
-  const { data: orgs, meta } = await fetchOrgs(token);
+  const orgs = await fetchOrgs(token);
+
+  const activeCount = orgs.filter((o: any) => o.status === "active").length;
+  const proCount = orgs.filter((o: any) => o.plan !== "free").length;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-7xl">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-ink">Organizations</h1>
+        <h1 className="text-2xl font-bold text-ink">Organizations</h1>
         <p className="mt-1 text-sm text-muted">
-          All workspaces on the ORQ8 platform. {meta.total > 0 ? `${meta.total} total.` : ""}
+          Platform organizations and their operational status.
         </p>
       </div>
 
+      {/* Summary */}
+      <div className="grid gap-4 sm:grid-cols-3 mb-6">
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <Building2 className="h-4 w-4" /> Total Orgs
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{orgs.length}</p>
+        </div>
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <CreditCard className="h-4 w-4" /> Paid Plans
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{proCount}</p>
+        </div>
+        <div className="rounded-xl border border-hairline bg-white p-4">
+          <div className="flex items-center gap-2 text-xs text-muted font-semibold">
+            <Building2 className="h-4 w-4" /> Active
+          </div>
+          <p className="mt-1 text-2xl font-bold text-ink tabular-nums">{activeCount}</p>
+        </div>
+      </div>
+
+      {/* Table */}
       <div className="rounded-xl border border-hairline bg-white overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-canvas text-left">
-              {["Organization", "Slug", "Plan", "Members", "Agents", "Status", "Created"].map((h) => (
-                <th
-                  key={h}
-                  className="whitespace-nowrap px-5 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
-                >
+            <tr className="border-b border-hairline bg-canvas">
+              {["Organization", "Owner", "Plan", "Status", "Created"].map((h) => (
+                <th key={h} className="px-5 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
-            {orgs.length > 0 ? (
-              orgs.map((o) => (
-                <tr key={o.id} className="hover:bg-canvas/50">
+            {orgs.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted">
+                  No organizations found.
+                </td>
+              </tr>
+            ) : (
+              orgs.map((org: any) => (
+                <tr key={org.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-xs font-bold text-purple-600">
-                        {o.name.charAt(0).toUpperCase()}
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0a0a0b] text-xs font-bold text-[#B8FF66]">
+                        {(org.name ?? "O").charAt(0).toUpperCase()}
                       </span>
-                      <span className="text-sm font-medium text-ink">{o.name}</span>
+                      <div>
+                        <p className="text-sm font-medium text-ink">{org.name}</p>
+                        <p className="text-[10px] text-muted font-mono">{org.slug}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-muted">{o.slug}</td>
+                  <td className="px-5 py-3 text-sm text-muted">{org.ownerEmail ?? "—"}</td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${planBadge(o.plan)}`}>
-                      {o.plan}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${planBadge(org.plan)}`}>
+                      {org.plan}
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-1.5 text-xs text-muted">
-                      <Users className="h-3 w-3" />
-                      <span className="font-mono tabular-nums">{o.memberCount}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-1.5 text-xs text-muted">
-                      <Bot className="h-3 w-3" />
-                      <span className="font-mono tabular-nums">{o.agentCount}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      o.status === "active" ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {o.status}
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <span className={`h-2 w-2 rounded-full ${statusDot(org.status)}`} />
+                      {org.status}
                     </span>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-muted">
-                    {new Date(o.createdAt).toLocaleDateString()}
+                  <td className="px-5 py-3 text-xs text-muted font-mono">
+                    {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : "—"}
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="px-5 py-10 text-center">
-                  <Building2 className="mx-auto h-8 w-8 text-muted/30" />
-                  <p className="mt-3 text-sm text-muted">No organizations found</p>
-                </td>
-              </tr>
             )}
           </tbody>
         </table>

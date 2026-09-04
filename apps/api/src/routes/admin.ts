@@ -535,4 +535,99 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       },
     };
   });
+
+  // ── PLATFORM STATS ──
+
+  /** GET /v1/admin/stats — Platform-wide aggregated metrics. */
+  app.get('/v1/admin/stats', async (request) => {
+    await requirePlatformAdmin(request, deps);
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalUsers,
+      newUsersWeek,
+      totalOrgs,
+      activeOrgs,
+      totalAgents,
+      activeAgents,
+      pausedAgents,
+      pendingApprovals,
+      weeklyActivity,
+      weeklySpend,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(users),
+      db.select({ count: sql<number>`count(*)::int` }).from(users).where(sql`${users.createdAt} >= ${weekAgo}`),
+      db.select({ count: sql<number>`count(*)::int` }).from(organizations),
+      db.select({ count: sql<number>`count(*)::int` }).from(organizations).where(eq(organizations.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.status, 'paused')),
+      db.select({ count: sql<number>`count(*)::int` }).from(approvals).where(eq(approvals.status, 'pending')),
+      db.select({ count: sql<number>`count(*)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`),
+      db.select({ total: sql<number>`coalesce(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`),
+    ]);
+
+    return {
+      data: {
+        users: { total: totalUsers[0]?.count ?? 0, newThisWeek: newUsersWeek[0]?.count ?? 0 },
+        organizations: { total: totalOrgs[0]?.count ?? 0, active: activeOrgs[0]?.count ?? 0 },
+        agents: { total: totalAgents[0]?.count ?? 0, active: activeAgents[0]?.count ?? 0, paused: pausedAgents[0]?.count ?? 0 },
+        approvals: { pending: pendingApprovals[0]?.count ?? 0 },
+        activity: { thisWeek: weeklyActivity[0]?.count ?? 0 },
+        spend: { thisWeek: (weeklySpend[0]?.total ?? 0) / 100 },
+      },
+    };
+  });
+
+  /** GET /v1/admin/providers — Provider health and configuration status. */
+  app.get('/v1/admin/providers', async (request) => {
+    await requirePlatformAdmin(request, deps);
+
+    const providers = [];
+    const nvidiaKeys = (deps.config as any).nvidiaApiKeys ?? [];
+    providers.push({ name: 'NVIDIA', slug: 'nvidia', configured: nvidiaKeys.length > 0, keyCount: nvidiaKeys.length, status: nvidiaKeys.length > 0 ? 'configured' : 'not_configured' });
+
+    const openrouterKey = (deps.config as any).openrouterApiKey ?? '';
+    providers.push({ name: 'OpenRouter', slug: 'openrouter', configured: !!openrouterKey, keyCount: openrouterKey ? 1 : 0, status: openrouterKey ? 'configured' : 'not_configured' });
+
+    const ollamaUrl = (deps.config as any).ollamaBaseUrl ?? '';
+    providers.push({ name: 'Ollama (Local)', slug: 'ollama', configured: !!ollamaUrl, keyCount: ollamaUrl ? 1 : 0, status: ollamaUrl ? 'configured' : 'not_configured' });
+
+    return { data: providers };
+  });
+
+  /** GET /v1/admin/audit — Platform audit trail. */
+  app.get('/v1/admin/audit', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const params = request.query as { limit?: string; offset?: string };
+    const limit = Math.min(Math.max(Number(params.limit) || 50, 1), 200);
+    const offset = Math.max(Number(params.offset) || 0, 0);
+
+    const list = await db
+      .select({
+        id: sql<string>`ae.id::text`,
+        orgId: sql<string>`ae.org_id::text`,
+        actorType: sql<string>`ae.actor_type`,
+        actorId: sql<string>`ae.actor_id::text`,
+        action: sql<string>`ae.action`,
+        outcome: sql<string>`ae.outcome`,
+        occurredAt: sql<Date>`ae.occurred_at`,
+        actorEmail: sql<string>`u.email`,
+        actorName: sql<string>`u.name`,
+      })
+      .from(sql`audit_events ae LEFT JOIN users u ON ae.actor_id = u.id`)
+      .orderBy(sql`ae.occurred_at DESC`)
+      .limit(limit)
+      .offset(offset)
+      .catch(() => []);
+
+    const [totalRow] = await db
+      .select({ count: sql<number>`(SELECT count(*) FROM audit_events)::int` })
+      .from(sql`(SELECT 1) AS _c`)
+      .catch(() => [{ count: 0 }]);
+
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+  });
 }
