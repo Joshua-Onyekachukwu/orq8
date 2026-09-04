@@ -81,6 +81,8 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           llmProvider: result.llmProvider ?? 'none',
           // Actionable warnings from the LLM provider chain (e.g. NVIDIA scope issues)
           warnings: result.warnings ?? [],
+          // Delegation summary — which agents were assigned
+          delegation: result.delegationSummary,
           // Workflow trace for debugging and monitoring
           workflowTrace: result.workflowTrace
             ? {

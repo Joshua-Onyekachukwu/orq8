@@ -61,6 +61,13 @@ export interface ExecutionResult {
   warnings?: NVIDIAFunctionNotFoundDiagnostic[];
   // New: workflow trace for debugging
   workflowTrace?: WorkflowTrace;
+  // Delegation summary — which agents were assigned tasks
+  delegationSummary?: {
+    directAssignments: number;
+    delegations: number;
+    unassigned: number;
+    assignedAgents: string[];
+  } | null;
 }
 
 // ─── Workflow Verification Types ────────────────────────────────────────────
@@ -487,53 +494,13 @@ export async function createTasksFromIntent(
   orgId: string,
   intent: IntentAnalysis,
 ): Promise<string[]> {
-  const taskIds: string[] = [];
+  // Use the delegation orchestrator for intelligent agent-to-agent delegation
+  const { createDelegationPlan, executeDelegationPlan } = await import('./delegation-orchestrator.js');
 
-  for (const task of intent.taskDecomposition) {
-    // Find the best matching agent
-    const matchingAgents = await db
-      .select()
-      .from(agents)
-      .where(and(
-        eq(agents.orgId, orgId),
-        eq(agents.role, task.suggestedAgentRole),
-        eq(agents.status, 'active'),
-      ))
-      .limit(1);
+  const plan = await createDelegationPlan(db, orgId, intent.taskDecomposition);
+  const result = await executeDelegationPlan(db, orgId, plan, intent.taskDecomposition);
 
-    const agentId = matchingAgents[0]?.id ?? null;
-
-    const [created] = await db
-      .insert(tasks)
-      .values({
-        orgId,
-        title: task.title,
-        description: task.description,
-        agentId,
-        priority: (task as any).priority ?? 'normal',
-        status: 'pending',
-        cost: 0,
-      })
-      .returning();
-
-    if (created) {
-      taskIds.push(created.id);
-
-      // Record activity event
-      await db.insert(activityEvents).values({
-        orgId,
-        agentId,
-        taskId: created.id,
-        type: 'planned',
-        summary: `Task created: ${task.title}`,
-        reason: `Executive Agent decomposed command into actionable task`,
-        cost: 0,
-        department: null,
-      });
-    }
-  }
-
-  return taskIds;
+  return result.createdTaskIds;
 }
 
 /**
@@ -911,6 +878,21 @@ export async function executeCommand(
     // Trace summary is optional
   }
 
+  // ── Step 13: Get delegation summary ──
+  let delegationSummary = null;
+  try {
+    const { createDelegationPlan } = await import('./delegation-orchestrator.js');
+    const delegationPlan = await createDelegationPlan(db, orgId, intent.taskDecomposition);
+    delegationSummary = {
+      directAssignments: delegationPlan.directAssignments.length,
+      delegations: delegationPlan.delegations.length,
+      unassigned: delegationPlan.unassigned.length,
+      assignedAgents: [...new Set(delegationPlan.directAssignments.map(a => a.targetAgentName))],
+    };
+  } catch {
+    // Delegation summary is optional
+  }
+
   return {
     commandId,
     intent,
@@ -921,12 +903,13 @@ export async function executeCommand(
     agentResults,
     creditsConsumed,
     creditsRemaining,
-    // Provider that actually served the intent analysis (or 'none' when the
-    // LLM chain was unreachable and the structured fallback ran)
+    // Which LLM provider actually ran this command
     llmProvider: getServedProvider(orgId, 'intent_analysis', commandId) ?? 'none',
-    // Surface any NVIDIA scope/access warnings collected during the LLM chain.
+    // Surface any NVIDIA scope/access warnings
     warnings: nvidiaWarnings.length > 0 ? nvidiaWarnings : undefined,
     workflowTrace,
+    // Delegation summary — shows which agents were assigned
+    delegationSummary,
   };
 }
 
