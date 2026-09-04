@@ -234,7 +234,7 @@ export default function BudgetsPage() {
           </p>
           <a
             href="/"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]"
           >
             View plans <ArrowUpRight className="h-3.5 w-3.5" />
           </a>

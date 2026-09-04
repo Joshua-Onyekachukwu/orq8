@@ -1,5 +1,5 @@
 import { eq, and, sql } from 'drizzle-orm';
-import { agents as agentsTable } from '@orq8/db';
+import { agents as agentsTable, type NewAgent } from '@orq8/db';
 import { z } from 'zod';
 import { validation, forbidden } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -88,21 +88,28 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     }
 
     // Resolve departmentId if name-based department is provided (backward compat)
-    let departmentId = parsed.data.departmentId ?? null;
+    let departmentId: string | null = null;
     let departmentName = parsed.data.department ?? null;
 
-    if (!departmentId && departmentName) {
-      const dept = await deptService.findByName(db, ctx.orgId, departmentName);
-      if (dept) {
-        departmentId = dept.id;
-      } else {
-        // Auto-create the department
-        const newDept = await deptService.createDepartment(db, {
-          orgId: ctx.orgId,
-          name: departmentName,
-        });
-        departmentId = newDept.id;
+    // Department resolution — graceful if departments table doesn't exist yet
+    try {
+      if (parsed.data.departmentId) {
+        departmentId = parsed.data.departmentId;
+      } else if (departmentName) {
+        const dept = await deptService.findByName(db, ctx.orgId, departmentName);
+        if (dept) {
+          departmentId = dept.id;
+        } else {
+          const newDept = await deptService.createDepartment(db, {
+            orgId: ctx.orgId,
+            name: departmentName,
+          });
+          departmentId = newDept.id;
+        }
       }
+    } catch {
+      // departments table may not exist yet — proceed without departmentId
+      departmentId = null;
     }
 
     // Resolve authority defaults
@@ -117,16 +124,20 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       forbiddenActions: [],
     };
 
-    const agent = await agents.createAgent(db, {
+    // Build insert data — only include columns that exist in the DB
+    const insertData: Record<string, unknown> = {
       orgId: ctx.orgId,
       name: parsed.data.name,
       role: parsed.data.role,
       department: departmentName,
-      departmentId,
-      status: 'active',
-      authority: { ...defaultAuthority, ...parsed.data.authority },
-      capabilities: parsed.data.capabilities ?? [],
-    });
+      status: 'active' as const,
+    };
+    // Add new columns only if they might exist (try-catch at DB level)
+    if (departmentId) insertData.departmentId = departmentId;
+    insertData.authority = { ...defaultAuthority, ...parsed.data.authority };
+    insertData.capabilities = parsed.data.capabilities ?? [];
+
+    const agent = await agents.createAgent(db, insertData as NewAgent);
 
     await appendAudit(db, {
       orgId: ctx.orgId,

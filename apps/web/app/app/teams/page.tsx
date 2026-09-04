@@ -134,7 +134,7 @@ export default function TeamsPage() {
           </p>
           <a
             href="/app/agents"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]"
           >
             <Users className="h-3.5 w-3.5" /> Hire agents
           </a>
@@ -242,7 +242,7 @@ export default function TeamsPage() {
               <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#0a0a0b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0a0a0b] disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#144a24] disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>

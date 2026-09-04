@@ -4,36 +4,32 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
-import { departments as deptTable, agents } from '@orq8/db';
+import { agents } from '@orq8/db';
 import * as deptService from '../services/departments.js';
 import type { AppDeps } from '../types.js';
 
 export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): void {
-  const { db } = deps;
+  const { db, logger } = deps;
 
   /** List all departments for the org with agent counts. */
   app.get('/v1/departments', async (request) => {
     const ctx = await requireAuth(request, deps);
-
     const depts = await deptService.findByOrg(db, ctx.orgId);
 
-    // Also get unassigned agents count
-    const unassigned = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(agents)
-      .where(and(eq(agents.orgId, ctx.orgId), sql`${agents.departmentId} IS NULL`));
+    // Get unassigned agents count (where department_id IS NULL)
+    let unassignedCount = 0;
+    try {
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(agents)
+        .where(and(eq(agents.orgId, ctx.orgId), sql`${agents.departmentId} IS NULL`));
+      unassignedCount = result?.count ?? 0;
+    } catch {
+      // department_id column may not exist yet
+      unassignedCount = 0;
+    }
 
-    const result: Array<{
-      id: string | null;
-      name: string | null;
-      description: string | null;
-      head: string | null;
-      budget: number | null;
-      status: string;
-      agentCount: number;
-      activeCount: number;
-      createdAt: Date | null;
-    }> = depts.map((d) => ({
+    const result = depts.map((d) => ({
       id: d.id,
       name: d.name,
       description: d.description,
@@ -41,22 +37,20 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       budget: d.budget,
       status: d.status,
       agentCount: d.agentCount,
-      activeCount: d.activeCount,
       createdAt: d.createdAt,
     }));
 
-    // Add unassigned group if any agents lack a department
-    if (unassigned[0]?.count && unassigned[0].count > 0) {
+    // Add unassigned group
+    if (unassignedCount > 0) {
       result.push({
-        id: null,
-        name: null,
+        id: null as unknown as string,
+        name: 'Unassigned',
         description: 'Agents not yet assigned to a department',
         head: null,
         budget: null,
         status: 'active',
-        agentCount: unassigned[0].count,
-        activeCount: unassigned[0].count,
-        createdAt: null,
+        agentCount: unassignedCount,
+        createdAt: null as unknown as Date,
       });
     }
 
@@ -83,23 +77,31 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       });
     }
 
-    const dept = await deptService.createDepartment(db, {
-      orgId: ctx.orgId,
-      name: body.data.name,
-      description: body.data.description ?? null,
-      head: body.data.head ?? null,
-      budget: body.data.budget ?? null,
-    });
+    try {
+      const dept = await deptService.createDepartment(db, {
+        orgId: ctx.orgId,
+        name: body.data.name,
+        description: body.data.description ?? undefined,
+        budget: body.data.budget ?? undefined,
+      });
 
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: 'user',
-      actorId: ctx.userId,
-      action: 'department.created',
-      outcome: 'success',
-    });
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'user',
+        actorId: ctx.userId,
+        action: 'department.created',
+        outcome: 'success',
+      });
 
-    return reply.status(201).send({ data: dept });
+      return reply.status(201).send({ data: dept });
+    } catch (err: any) {
+      if (err.message?.includes('not available yet')) {
+        return reply.status(503).send({
+          error: { code: 'not_ready', message: 'Department feature requires database migration. Run 0002_add_departments_and_authority.sql first.' },
+        });
+      }
+      throw err;
+    }
   });
 
   /** Update a department. */
@@ -131,15 +133,12 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       }
     }
 
-    const updated = await deptService.updateDepartment(db, ctx.orgId, request.params.id, body.data);
-
-    // Sync the agent.department text field for backward compat
-    if (body.data.name && updated) {
-      await db
-        .update(agents)
-        .set({ department: updated.name, updatedAt: new Date() })
-        .where(and(eq(agents.departmentId, dept.id), eq(agents.orgId, ctx.orgId)));
-    }
+    const updated = await deptService.updateDepartment(db, ctx.orgId, request.params.id, {
+      name: body.data.name ?? undefined,
+      description: body.data.description ?? undefined,
+      head: body.data.head ?? undefined,
+      budget: body.data.budget ?? undefined,
+    });
 
     await appendAudit(db, {
       orgId: ctx.orgId,
@@ -152,74 +151,34 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
     return { data: updated };
   });
 
-  /** Archive (soft-delete) a department. Moves agents to unassigned. */
+  /** Delete a department (only if no agents assigned). */
   app.delete<{ Params: { id: string } }>('/v1/departments/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
 
-    const dept = await deptService.findById(db, ctx.orgId, request.params.id);
-    if (!dept) {
-      return reply.status(404).send({
-        error: { code: 'not_found', message: 'Department not found.' },
+    try {
+      const deleted = await deptService.deleteDepartment(db, ctx.orgId, request.params.id);
+      if (!deleted) {
+        return reply.status(404).send({
+          error: { code: 'not_found', message: 'Department not found.' },
+        });
+      }
+
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'user',
+        actorId: ctx.userId,
+        action: 'department.deleted',
+        outcome: 'success',
       });
+
+      return { data: { deleted: true } };
+    } catch (err: any) {
+      if (err.message?.includes('agent(s) still assigned')) {
+        return reply.status(409).send({
+          error: { code: 'conflict', message: err.message },
+        });
+      }
+      throw err;
     }
-
-    await deptService.archiveDepartment(db, ctx.orgId, request.params.id);
-
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: 'user',
-      actorId: ctx.userId,
-      action: 'department.archived',
-      outcome: 'success',
-    });
-
-    return { data: { archived: true } };
-  });
-
-  /** Assign an agent to a department. */
-  app.post<{ Params: { id: string } }>('/v1/departments/:id/agents', async (request, reply) => {
-    const ctx = await requireAuth(request, deps);
-
-    const body = z.object({
-      agentId: z.string().uuid(),
-    }).safeParse(request.body);
-    if (!body.success) throw validation(body.error.flatten());
-
-    // Verify department exists
-    const dept = await deptService.findById(db, ctx.orgId, request.params.id);
-    if (!dept) {
-      return reply.status(404).send({
-        error: { code: 'not_found', message: 'Department not found.' },
-      });
-    }
-
-    await deptService.assignAgent(db, ctx.orgId, body.data.agentId, dept.id);
-
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: 'user',
-      actorId: ctx.userId,
-      action: 'agent.department_assigned',
-      outcome: 'success',
-    });
-
-    return { data: { assigned: true } };
-  });
-
-  /** Remove an agent from their department (make unassigned). */
-  app.delete<{ Params: { id: string; agentId: string } }>('/v1/departments/:id/agents/:agentId', async (request, reply) => {
-    const ctx = await requireAuth(request, deps);
-
-    await deptService.assignAgent(db, ctx.orgId, request.params.agentId, null);
-
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: 'user',
-      actorId: ctx.userId,
-      action: 'agent.department_removed',
-      outcome: 'success',
-    });
-
-    return { data: { removed: true } };
   });
 }

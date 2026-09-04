@@ -335,7 +335,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0b] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full bg-[#1a5c2e] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
                 <>
@@ -490,7 +490,7 @@ export default function SettingsPage() {
               setNotifSaving(false);
             }}
             disabled={notifSaving}
-            className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0b] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-[#1a5c2e] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
           >
             {notifSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : notifSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
             {notifSaved ? "Saved" : "Save preferences"}
