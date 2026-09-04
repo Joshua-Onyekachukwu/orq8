@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = (statsRes?.data ?? {}) as Record<string, any>;
-  const providers = (providersRes?.data ?? []) as Array<{ name: string; slug: string; status: string; configured: boolean; keyCount: number }>;
+  const providers = (providersRes?.data ?? []) as Array<{ name: string; slug: string; status: string; configured: boolean; keyCount: number; latencyMs?: number; error?: string; modelsAvailable?: string[]; circuitBreaker?: { state: string; failureCount: number } | null }>;
   const users = (usersRes?.data ?? []) as Array<{ id: string; email: string; name: string; status: string }>;
   const orgs = (orgsRes?.data ?? []) as Array<{ id: string; name: string; plan: string; status: string }>;
 
@@ -140,22 +140,64 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Provider status */}
+      {/* Provider Health — Live */}
       <div className="mb-8 rounded-xl border border-hairline bg-white p-5">
-        <h2 className="text-sm font-semibold text-ink mb-4">AI Provider Status</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {providers.map((p) => (
-            <div key={p.slug} className="flex items-center gap-3 rounded-lg border border-hairline p-3">
-              <span className={`h-2.5 w-2.5 rounded-full ${p.configured ? "bg-[#1a5c2e]" : "bg-gray-300"}`} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-ink">{p.name}</p>
-                <p className="text-[10px] text-muted">{p.configured ? `${p.keyCount} key(s) configured` : "Not configured"}</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">AI Provider Health</h2>
+            <p className="text-[10px] text-muted mt-0.5">Real-time status from live provider probes</p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {providers.map((p) => {
+            const statusColor = p.status === "healthy" ? "bg-emerald-500" :
+              p.status === "degraded" ? "bg-amber-500" :
+              p.status === "down" ? "bg-red-500" : "bg-gray-300";
+            const statusBg = p.status === "healthy" ? "bg-emerald-50 text-emerald-700" :
+              p.status === "degraded" ? "bg-amber-50 text-amber-700" :
+              p.status === "down" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-500";
+            const statusLabel = p.status === "healthy" ? "Healthy" :
+              p.status === "degraded" ? "Degraded" :
+              p.status === "down" ? "Down" : "Off";
+            return (
+              <div key={p.slug} className="flex flex-col gap-2 rounded-lg border border-hairline p-3">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
+                  <p className="text-sm font-medium text-ink flex-1">{p.name}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${statusBg}`}>
+                    {statusLabel}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-muted">
+                  <span>{p.keyCount} key(s)</span>
+                  {p.latencyMs !== undefined && p.latencyMs > 0 && (
+                    <span className={`font-mono ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : ""}`}>
+                      {p.latencyMs}ms
+                    </span>
+                  )}
+                  {p.circuitBreaker && p.circuitBreaker.state !== "closed" && (
+                    <span className="text-amber-600">CB: {p.circuitBreaker.state}</span>
+                  )}
+                </div>
+                {p.error && (
+                  <p className="text-[10px] text-red-600 truncate">{p.error}</p>
+                )}
+                {p.modelsAvailable && p.modelsAvailable.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {p.modelsAvailable.slice(0, 3).map((m) => (
+                      <span key={m} className="rounded bg-canvas px-1.5 py-0.5 text-[9px] font-mono text-muted">
+                        {m.split("/").pop()}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase ${p.configured ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" : "bg-canvas text-muted"}`}>
-                {p.configured ? "Active" : "Off"}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

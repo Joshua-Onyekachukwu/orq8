@@ -54,6 +54,7 @@ const navGroups: NavGroup[] = [
     title: "AI Infrastructure",
     items: [
       { label: "AI Agents", href: "/admin/agents", icon: Shield },
+      { label: "Execution Monitor", href: "/admin/execution", icon: Activity },
       { label: "Model Router", href: "/admin/model-router", icon: Cpu },
       { label: "AI Usage", href: "/admin/ai-usage", icon: BarChart3 },
     ],
