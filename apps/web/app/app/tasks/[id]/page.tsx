@@ -45,7 +45,7 @@ function priorityBadge(priority: string) {
     case "urgent": return "bg-red-100 text-red-700";
     case "high": return "bg-amber-50 text-amber-700";
     case "normal": return "bg-blue-50 text-blue-700";
-    default: return "bg-gray-100 text-gray-600";
+    default: return "bg-hairline text-ink-muted";
   }
 }
 
@@ -58,7 +58,7 @@ function statusConfig(status: string) {
     case "failed":
       return { label: "Failed", cls: "bg-red-100 text-red-600", icon: AlertCircle };
     case "cancelled":
-      return { label: "Cancelled", cls: "bg-gray-100 text-gray-500", icon: AlertCircle };
+      return { label: "Cancelled", cls: "bg-hairline text-muted", icon: AlertCircle };
     default:
       return { label: "Pending", cls: "bg-amber-50 text-amber-700", icon: Clock };
   }
@@ -206,7 +206,7 @@ export default function TaskDetailPage() {
                   disabled={loading}
                   className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                  <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
                   Refresh
                 </button>
               </div>
@@ -272,7 +272,7 @@ export default function TaskDetailPage() {
             {task.result && (
               <section className="mt-6">
                 <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-muted" />
+                  <Target aria-hidden="true" className="h-4 w-4 text-muted" />
                   <h2 className="text-sm font-semibold text-ink">Result</h2>
                 </div>
                 <div className="mt-3 rounded-xl border border-hairline bg-white p-5">

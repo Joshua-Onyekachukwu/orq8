@@ -93,9 +93,9 @@ export function HealthScore(props: HealthScoreProps) {
   const Icon = score >= 70 ? TrendingUp : score >= 40 ? Minus : TrendingDown;
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5">
+    <div className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">Company Health</h2>
+        <h2 className="text-sm font-semibold text-ink">Company Health</h2>
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${color} ${bg}/10`}>
           <Icon className="h-3 w-3" />
           {label}
@@ -120,7 +120,7 @@ export function HealthScore(props: HealthScoreProps) {
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold text-gray-900">{score}</span>
+            <span className="text-xl font-bold text-ink">{score}</span>
           </div>
         </div>
 
@@ -128,10 +128,10 @@ export function HealthScore(props: HealthScoreProps) {
           {breakdown.map((item) => (
             <div key={item.label}>
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-gray-500">{item.label}</span>
-                <span className="font-mono text-gray-400">{item.weight}</span>
+                <span className="text-muted">{item.label}</span>
+                <span className="font-mono text-muted">{item.weight}</span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="mt-1 h-1.5 rounded-full bg-hairline overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     item.value >= 70 ? "bg-[#1a5c2e]" :

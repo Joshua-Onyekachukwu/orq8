@@ -324,7 +324,7 @@ export default function NotificationsPage() {
                 onClick={fetchNotifications}
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:underline"
               >
-                <RefreshCw className="h-3.5 w-3.5" /> Retry
+                <RefreshCw aria-hidden="true" className="h-3.5 w-3.5" /> Retry
               </button>
             </div>
           ) : notifications.length === 0 ? (
@@ -440,7 +440,7 @@ export default function NotificationsPage() {
               onClick={fetchNotifications}
               className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-ink"
             >
-              <RefreshCw className="h-3 w-3" /> Refresh
+              <RefreshCw aria-hidden="true" className="h-3 w-3" /> Refresh
             </button>
           </div>
         )}

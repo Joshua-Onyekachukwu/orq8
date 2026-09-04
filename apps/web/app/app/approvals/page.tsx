@@ -55,7 +55,7 @@ function statusBadge(status: string) {
   if (status === "approved") return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
   if (status === "rejected") return "bg-red-100 text-red-600";
   if (status === "modified") return "bg-blue-50 text-blue-600";
-  if (status === "expired") return "bg-gray-100 text-gray-500";
+  if (status === "expired") return "bg-hairline text-muted";
   return "bg-[#E86A33]/10 text-[#E86A33]";
 }
 
@@ -146,10 +146,10 @@ export default function ApprovalsPage() {
               </span>
             )}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             Approval Queue
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Every action your AI workforce wants to take. Review what the agent proposes,
             why it matters, and what it costs — then approve, modify, or reject.
           </p>
@@ -160,7 +160,7 @@ export default function ApprovalsPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </header>
@@ -260,27 +260,27 @@ export default function ApprovalsPage() {
 
                         {/* Context grid — agent, cost, time, urgency */}
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                          <div className="rounded-lg bg-gray-50 px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Requested by</p>
+                          <div className="rounded-lg bg-canvas px-3 py-2">
+                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Requested by</p>
                             <p className="mt-0.5 text-xs font-medium text-ink">
                               {a.agentId ? `Agent #${a.agentId.slice(0, 8)}` : 'System'}
                             </p>
                           </div>
-                          <div className="rounded-lg bg-gray-50 px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Estimated cost</p>
+                          <div className="rounded-lg bg-canvas px-3 py-2">
+                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Estimated cost</p>
                             <p className="mt-0.5 text-xs font-medium tabular-nums text-ink">
                               {a.cost > 0 ? formatCost(a.cost) : 'Free'}
                             </p>
                           </div>
-                          <div className="rounded-lg bg-gray-50 px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Submitted</p>
+                          <div className="rounded-lg bg-canvas px-3 py-2">
+                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Submitted</p>
                             <p className="mt-0.5 text-xs font-medium text-ink">
                               {formatDate(a.createdAt)}
                             </p>
                           </div>
-                          <div className="rounded-lg bg-gray-50 px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Request ID</p>
-                            <p className="mt-0.5 font-mono text-[10px] font-medium text-gray-500">
+                          <div className="rounded-lg bg-canvas px-3 py-2">
+                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Request ID</p>
+                            <p className="mt-0.5 font-mono text-[10px] font-medium text-muted">
                               #{a.id.slice(0, 8)}
                             </p>
                           </div>

@@ -79,7 +79,7 @@ export default async function AdminUsersPage() {
                 <tr key={u.id} className="hover:bg-canvas/50">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-emerald">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d1a12] text-xs font-bold text-[#B8FF66]">
                         {(u.name ?? u.email).charAt(0).toUpperCase()}
                       </span>
                       <span className="text-sm font-medium text-ink">{u.name ?? "Unnamed"}</span>
@@ -98,7 +98,7 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="px-5 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      u.status === "active" ? "bg-emerald/10 text-emerald-700" : "bg-gray-100 text-gray-500"
+                      u.status === "active" ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" : "bg-gray-100 text-gray-500"
                     }`}>
                       {u.status}
                     </span>

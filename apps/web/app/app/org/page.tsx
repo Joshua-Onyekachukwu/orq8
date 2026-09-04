@@ -118,7 +118,7 @@ export default function OrgPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
 
@@ -151,7 +151,7 @@ export default function OrgPage() {
           <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
             {[
               { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-[#B8FF66]/10 text-[#1a5c2e]" },
-              { label: "Goals", value: data.stats.activeGoals, icon: <Target className="h-4 w-4" />, color: "bg-purple-50 text-purple-700" },
+              { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-purple-50 text-purple-700" },
               { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-blue-50 text-blue-700" },
               { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-amber-50 text-amber-700" },
             ].map((stat) => (
@@ -211,7 +211,7 @@ export default function OrgPage() {
                       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         agent.status === "active"
                           ? "bg-[#1a5c2e] text-white"
-                          : "bg-gray-200 text-gray-500"
+                          : "bg-hairline text-muted"
                       }`}>
                         {agent.name.charAt(0)}
                       </span>
@@ -259,7 +259,7 @@ export default function OrgPage() {
                   <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Status</dt>
                   <dd className="mt-1 text-sm">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      selectedAgent.status === "active" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" : "bg-gray-100 text-gray-500"
+                      selectedAgent.status === "active" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" : "bg-hairline text-muted"
                     }`}>
                       {selectedAgent.status}
                     </span>
@@ -290,12 +290,12 @@ export default function OrgPage() {
               <div className="space-y-2">
                 {data.goals.filter((g) => g.status === "active").map((goal) => (
                   <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2.5">
-                    <Target className="h-4 w-4 shrink-0 text-purple-500" />
+                    <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-purple-500" />
                     <span className="flex-1 text-sm text-ink">{goal.title}</span>
                     <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
                       goal.priority === "urgent" ? "bg-red-100 text-red-600" :
                       goal.priority === "high" ? "bg-amber-50 text-amber-700" :
-                      "bg-gray-100 text-gray-500"
+                      "bg-hairline text-muted"
                     }`}>
                       {goal.priority}
                     </span>

@@ -19,7 +19,7 @@ async function fetchActivity(token: string) {
 }
 
 function typeColor(type: string) {
-  if (type.includes("approved")) return "bg-emerald/10 text-emerald-700";
+  if (type.includes("approved")) return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
   if (type.includes("rejected")) return "bg-red-50 text-red-600";
   if (type.includes("deployed") || type.includes("executed")) return "bg-blue-50 text-blue-600";
   if (type.includes("created") || type.includes("hired")) return "bg-purple-50 text-purple-600";

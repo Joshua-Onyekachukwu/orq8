@@ -116,10 +116,10 @@ export default function ReportPage() {
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Executive summary
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             Weekly Report
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             The week in one page. What happened, what&apos;s blocked, what it cost,
             and what&apos;s next.
           </p>
@@ -130,7 +130,7 @@ export default function ReportPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </header>
@@ -339,11 +339,11 @@ export default function ReportPage() {
           )}
 
           {/* Report footer */}
-          <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+          <div className="mt-6 rounded-xl border border-hairline bg-canvas p-5">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
               Note
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-gray-600">
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
               This report is generated from your organization&apos;s live data.
               As more AI employees execute tasks and more decisions are made,
               this report will become increasingly detailed and actionable.

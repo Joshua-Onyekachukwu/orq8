@@ -89,16 +89,16 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
   }
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5">
+    <div className="rounded-xl border border-hairline bg-white p-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1a5c2e]">
-            <Bot className="h-4 w-4 text-[#B8FF66]" />
+            <Bot aria-hidden="true" className="h-4 w-4 text-[#B8FF66]" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Executive Agent</h2>
-            <p className="text-xs text-gray-500">Your Chief of Staff</p>
+            <h2 className="text-sm font-semibold text-ink">Executive Agent</h2>
+            <p className="text-xs text-muted">Your Chief of Staff</p>
           </div>
         </div>
         <span className="flex items-center gap-1.5 rounded-full bg-[#B8FF66]/10 px-2.5 py-1">
@@ -108,23 +108,23 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       </div>
 
       {/* Status */}
-      <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3">
-        <p className="text-sm text-gray-700">{getStatusText()}</p>
+      <div className="mt-4 rounded-lg bg-canvas px-4 py-3">
+        <p className="text-sm text-ink">{getStatusText()}</p>
       </div>
 
       {/* Current work */}
       {workingAgents.length > 0 && (
         <div className="mt-4">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Currently executing</p>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted mb-2">Currently executing</p>
           <div className="space-y-2">
             {workingAgents.slice(0, 3).map(agent => (
-              <div key={agent.id} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2.5">
+              <div key={agent.id} className="flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1a5c2e] text-[10px] font-bold text-[#B8FF66]">
                   {agent.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-900 truncate">{agent.name}</p>
-                  <p className="text-[10px] text-gray-500 truncate">{agent.currentTask}</p>
+                  <p className="text-xs font-medium text-ink truncate">{agent.name}</p>
+                  <p className="text-[10px] text-muted truncate">{agent.currentTask}</p>
                 </div>
                 <span className="flex items-center gap-1 text-[10px] text-[#E86A33]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#E86A33] animate-pulse" />
@@ -139,7 +139,7 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       {/* Priorities */}
       {priorities.length > 0 && (
         <div className="mt-4">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Current priorities</p>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted mb-2">Current priorities</p>
           <div className="space-y-1.5">
             {priorities.map((p, i) => {
               const Icon = p.icon;
@@ -147,11 +147,11 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
                 <Link
                   key={i}
                   href={p.href}
-                  className="group flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                  className="group flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition-colors hover:bg-canvas"
                 >
                   <Icon className={`h-3.5 w-3.5 shrink-0 ${p.color}`} />
                   <span className="flex-1">{p.text}</span>
-                  <ArrowUpRight className="h-3 w-3 text-gray-300 group-hover:text-gray-500" />
+                  <ArrowUpRight className="h-3 w-3 text-muted group-hover:text-muted" />
                 </Link>
               );
             })}
@@ -161,17 +161,17 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
 
       {/* Quick stats */}
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
-          <p className="font-mono text-lg font-bold text-gray-900">{activeAgents.length}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Active</p>
+        <div className="rounded-lg bg-canvas px-3 py-2 text-center">
+          <p className="font-mono text-lg font-bold text-ink">{activeAgents.length}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Active</p>
         </div>
-        <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
-          <p className="font-mono text-lg font-bold text-gray-900">{dashboard?.completed_tasks ?? 0}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Done</p>
+        <div className="rounded-lg bg-canvas px-3 py-2 text-center">
+          <p className="font-mono text-lg font-bold text-ink">{dashboard?.completed_tasks ?? 0}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Done</p>
         </div>
-        <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
+        <div className="rounded-lg bg-canvas px-3 py-2 text-center">
           <p className="font-mono text-lg font-bold text-[#E86A33]">{pendingApprovals.length}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Pending</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Pending</p>
         </div>
       </div>
     </div>

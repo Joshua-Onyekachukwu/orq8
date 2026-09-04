@@ -36,26 +36,26 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
   return (
     <section
       aria-labelledby="approvals-heading"
-      className="rounded-xl border border-gray-100 bg-white lg:col-span-2"
+      className="rounded-xl border border-hairline bg-white lg:col-span-2"
     >
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-        <h2 id="approvals-heading" className="text-sm font-semibold text-gray-900">
+      <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
+        <h2 id="approvals-heading" className="text-sm font-semibold text-ink">
           Decision Center
         </h2>
         <Link
           href="/app/approvals"
-          className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600 hover:text-[#1a5c2e]"
+          className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-[#1a5c2e]"
         >
           All requests <ArrowUpRight className="h-3 w-3" />
         </Link>
       </div>
       {approvals.length === 0 ? (
         <div className="px-5 py-10 text-center">
-          <ClipboardCheck className="mx-auto h-8 w-8 text-gray-300" />
-          <p className="mt-3 text-sm font-medium text-gray-900">
+          <ClipboardCheck className="mx-auto h-8 w-8 text-muted" />
+          <p className="mt-3 text-sm font-medium text-ink">
             No pending approvals
           </p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-muted">
             When AI employees propose actions, they&apos;ll appear here for
             your review.
           </p>
@@ -64,28 +64,28 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 text-left">
+              <tr className="bg-canvas text-left">
                 {["Request", "What", "Risk", "Cost", "Action"].map((h) => (
                   <th
                     key={h}
-                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400"
+                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hairline">
               {approvals.slice(0, 5).map((a) => (
                 <tr key={a.id}>
-                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs text-gray-400">
+                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs text-muted">
                     #{a.id.slice(0, 8)}
                   </td>
                   <td className="px-5 py-3.5">
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-ink">
                       <span className="font-semibold">{a.action}</span>
                       {a.description && (
-                        <span className="text-gray-500">
+                        <span className="text-muted">
                           {" "}
                           — {a.description}
                         </span>
@@ -99,7 +99,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
                       {a.riskLevel}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs tabular-nums text-gray-400">
+                  <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs tabular-nums text-muted">
                     {formatCost(a.cost)}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5">

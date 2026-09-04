@@ -104,7 +104,7 @@ export default async function AdminOrganizationsPage() {
                   </td>
                   <td className="px-5 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      o.status === "active" ? "bg-emerald/10 text-emerald-700" : "bg-gray-100 text-gray-500"
+                      o.status === "active" ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" : "bg-gray-100 text-gray-500"
                     }`}>
                       {o.status}
                     </span>

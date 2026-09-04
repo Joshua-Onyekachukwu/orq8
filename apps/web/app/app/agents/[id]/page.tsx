@@ -72,7 +72,7 @@ function taskStatusIcon(status: string) {
   if (status === "completed") return <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />;
   if (status === "in_progress") return <span className="h-2 w-2 rounded-full bg-blue-500" />;
   if (status === "failed") return <span className="h-2 w-2 rounded-full bg-red-500" />;
-  return <span className="h-2 w-2 rounded-full bg-gray-300" />;
+  return <span className="h-2 w-2 rounded-full bg-hairline" />;
 }
 
 export default function AgentDetailPage() {
@@ -296,7 +296,7 @@ export default function AgentDetailPage() {
             {/* Tasks */}
             <section className="mt-6">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-muted" />
+                <Target aria-hidden="true" className="h-4 w-4 text-muted" />
                 <h2 className="text-sm font-semibold text-ink">Recent Tasks</h2>
                 <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
                   {tasks.length}
@@ -307,14 +307,14 @@ export default function AgentDetailPage() {
                   disabled={loading}
                   className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                  <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
                   Refresh
                 </button>
               </div>
 
               {tasks.length === 0 ? (
                 <div className="mt-3 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
-                  <Target className="mx-auto h-6 w-6 text-muted/30" />
+                  <Target aria-hidden="true" className="mx-auto h-6 w-6 text-muted/30" />
                   <p className="mt-2 text-sm text-muted">No tasks assigned yet</p>
                 </div>
               ) : (

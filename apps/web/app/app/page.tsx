@@ -100,20 +100,20 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-gray-100 bg-white p-5 transition-all hover:border-gray-200 hover:shadow-sm"
+      className="group rounded-xl border border-hairline bg-white p-5 transition-all hover:border-hairline hover:shadow-sm"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500">{label}</span>
+        <span className="text-xs font-medium text-muted">{label}</span>
         <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}>
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900">
+      <p className="mt-2 text-2xl font-bold tracking-tight text-ink">
         {value}
       </p>
       <div className="mt-2 flex items-center gap-1">
-        <span className="text-xs text-gray-400">{subtext}</span>
-        <ArrowUpRight className="h-3 w-3 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <span className="text-xs text-muted">{subtext}</span>
+        <ArrowUpRight className="h-3 w-3 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </div>
     </Link>
   );
@@ -151,7 +151,7 @@ export default async function AppPage() {
   if (credits?.isLow && !credits?.isCritical) attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining`, href: '/app/budgets', color: 'text-amber-600' });
   const recentFailed = recentActivity.filter(e => e.type.toLowerCase().includes('failed'));
   if (recentFailed.length > 0) attentionItems.push({ icon: AlertTriangle, text: `${recentFailed.length} task${recentFailed.length !== 1 ? 's' : ''} failed recently`, href: '/app/goals', color: 'text-red-500' });
-  if (activeAgents === 0 && agentList.length > 0) attentionItems.push({ icon: Bot, text: 'All AI employees are paused', href: '/app/agents', color: 'text-gray-500' });
+  if (activeAgents === 0 && agentList.length > 0) attentionItems.push({ icon: Bot, text: 'All AI employees are paused', href: '/app/agents', color: 'text-muted' });
   if (agentList.length === 0) attentionItems.push({ icon: Bot, text: 'No AI employees yet — hire your first agent to get started', href: '/app/agents', color: 'text-[#1a5c2e]' });
 
   return (
@@ -184,7 +184,7 @@ export default async function AppPage() {
               </div>
               <div className="flex items-center gap-2.5">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#B8FF66]/15 text-[#B8FF66]">
-                  <Bot className="h-4 w-4" />
+                  <Bot aria-hidden="true" className="h-4 w-4" />
                 </span>
                 <div>
                   <p className="text-sm font-semibold">
@@ -228,17 +228,17 @@ export default async function AppPage() {
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E86A33]/15">
               <AlertTriangle className="h-3.5 w-3.5 text-[#E86A33]" />
             </span>
-            <h2 className="text-sm font-semibold text-gray-900">Needs your attention</h2>
+            <h2 className="text-sm font-semibold text-ink">Needs your attention</h2>
           </div>
           <ul className="space-y-2">
             {attentionItems.map((item, i) => {
               const Icon = item.icon;
               return (
                 <li key={i}>
-                  <Link href={item.href} className="group flex items-center gap-3 rounded-lg bg-white p-3 transition-colors hover:border-gray-200 border border-transparent">
+                  <Link href={item.href} className="group flex items-center gap-3 rounded-lg bg-white p-3 transition-colors hover:border-hairline border border-transparent">
                     <Icon className={`h-4 w-4 shrink-0 ${item.color}`} />
-                    <span className="flex-1 text-sm text-gray-700 group-hover:text-gray-900">{item.text}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-gray-500" />
+                    <span className="flex-1 text-sm text-ink group-hover:text-ink">{item.text}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5 text-muted group-hover:text-muted" />
                   </Link>
                 </li>
               );
@@ -314,10 +314,10 @@ export default async function AppPage() {
             dashboard={dashboard ?? null}
           />
           {/* Command bar below the panel */}
-          <div className="mt-4 rounded-xl border border-gray-100 bg-white p-5">
+          <div className="mt-4 rounded-xl border border-hairline bg-white p-5">
             <div className="mb-3 flex items-center gap-2">
-              <Command className="h-4 w-4 text-gray-400" />
-              <p className="text-xs font-semibold text-gray-500">Send a command</p>
+              <Command className="h-4 w-4 text-muted" />
+              <p className="text-xs font-semibold text-muted">Send a command</p>
             </div>
             <CommandBar />
           </div>

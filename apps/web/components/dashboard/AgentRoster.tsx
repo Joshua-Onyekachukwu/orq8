@@ -20,21 +20,21 @@ interface AgentRosterProps {
 
 export function AgentRoster({ agents }: AgentRosterProps) {
   return (
-    <section className="rounded-xl border border-gray-100 bg-white p-5">
+    <section className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">AI Workforce</h2>
+        <h2 className="text-sm font-semibold text-ink">AI Workforce</h2>
         <Link
           href="/app/agents"
-          className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600 hover:text-[#1a5c2e]"
+          className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-[#1a5c2e]"
         >
           View all
         </Link>
       </div>
       {agents.length === 0 ? (
         <div className="mt-6 text-center">
-          <Users className="mx-auto h-8 w-8 text-gray-300" />
-          <p className="mt-3 text-sm font-medium text-gray-900">No agents yet</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <Users className="mx-auto h-8 w-8 text-muted" />
+          <p className="mt-3 text-sm font-medium text-ink">No agents yet</p>
+          <p className="mt-1 text-xs text-muted">
             Hire your first AI employee to start building your team.
           </p>
           <Link
@@ -52,14 +52,14 @@ export function AgentRoster({ agents }: AgentRosterProps) {
                 {a.name.charAt(0)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">
+                <p className="truncate text-sm font-medium text-ink">
                   {a.name}
                 </p>
-                <p className="truncate text-xs text-gray-400">{a.role}</p>
+                <p className="truncate text-xs text-muted">{a.role}</p>
               </div>
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
-                  a.status === "active" ? "bg-[#B8FF66]" : "bg-gray-300"
+                  a.status === "active" ? "bg-[#B8FF66]" : "bg-hairline"
                 }`}
                 title={a.status}
               />

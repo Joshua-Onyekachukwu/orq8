@@ -74,8 +74,8 @@ function statusConfig(status: string) {
   switch (status) {
     case "operational":
       return {
-        color: "bg-emerald/10 text-emerald-700",
-        dot: "bg-emerald",
+        color: "bg-[#1a5c2e]/10 text-[#1a5c2e]",
+        dot: "bg-[#1a5c2e]",
         label: "Operational",
         icon: CheckCircle2,
       };
@@ -136,7 +136,7 @@ export default async function AdminHealthPage() {
       label: "Active Agents",
       value: stats?.activeAgents ?? 0,
       icon: Bot,
-      color: "bg-emerald/10 text-emerald-700",
+      color: "bg-[#1a5c2e]/10 text-[#1a5c2e]",
     },
     {
       label: "Total Agents",
@@ -184,13 +184,13 @@ export default async function AdminHealthPage() {
       <div
         className={`mb-8 flex items-center gap-4 rounded-xl border px-6 py-4 ${
           isOperational
-            ? "border-emerald/20 bg-emerald/5"
+            ? "border-[#1a5c2e]/20 bg-[#1a5c2e]/5"
             : "border-amber-200 bg-amber-50"
         }`}
       >
         <span
           className={`flex h-12 w-12 items-center justify-center rounded-full ${
-            isOperational ? "bg-emerald" : "bg-amber-400"
+            isOperational ? "bg-[#1a5c2e]" : "bg-amber-400"
           }`}
         >
           <HeartPulse className="h-6 w-6 text-white" />
@@ -209,13 +209,13 @@ export default async function AdminHealthPage() {
         <span
           className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium ${
             isOperational
-              ? "bg-emerald/10 text-emerald-700"
+              ? "bg-[#1a5c2e]/10 text-[#1a5c2e]"
               : "bg-amber-100 text-amber-700"
           }`}
         >
           <span
             className={`h-2 w-2 rounded-full animate-pulse ${
-              isOperational ? "bg-emerald" : "bg-amber-500"
+              isOperational ? "bg-[#1a5c2e]" : "bg-amber-500"
             }`}
           />
           {isOperational ? "Healthy" : "Check subsystems"}
@@ -316,7 +316,7 @@ export default async function AdminHealthPage() {
               </div>
               <div className="flex justify-between text-xs">
                 <dt className="text-muted">Status</dt>
-                <dd className="font-medium text-emerald-700">Connected</dd>
+                <dd className="font-medium text-[#1a5c2e]">Connected</dd>
               </div>
             </dl>
           </div>
@@ -339,7 +339,7 @@ export default async function AdminHealthPage() {
                 <dt className="text-muted">Status</dt>
                 <dd className={`font-medium ${
                   health?.subsystems.find((s) => s.name === "Redis")?.status === "operational"
-                    ? "text-emerald-700"
+                    ? "text-[#1a5c2e]"
                     : "text-amber-600"
                 }`}>
                   {health?.subsystems.find((s) => s.name === "Redis")?.status === "operational"
@@ -366,7 +366,7 @@ export default async function AdminHealthPage() {
               </div>
               <div className="flex justify-between text-xs">
                 <dt className="text-muted">Status</dt>
-                <dd className="font-medium text-emerald-700">
+                <dd className="font-medium text-[#1a5c2e]">
                   {process.env.LITELLM_BASE_URL ? "Connected" : "Not configured"}
                 </dd>
               </div>
@@ -379,19 +379,19 @@ export default async function AdminHealthPage() {
             <dl className="space-y-2">
               <div className="flex justify-between text-xs">
                 <dt className="text-muted">Stripe</dt>
-                <dd className={`font-medium ${process.env.STRIPE_SECRET_KEY ? "text-emerald-700" : "text-muted"}`}>
+                <dd className={`font-medium ${process.env.STRIPE_SECRET_KEY ? "text-[#1a5c2e]" : "text-muted"}`}>
                   {process.env.STRIPE_SECRET_KEY ? "Configured" : "Not configured"}
                 </dd>
               </div>
               <div className="flex justify-between text-xs">
                 <dt className="text-muted">SMTP</dt>
-                <dd className={`font-medium ${process.env.SMTP_HOST ? "text-emerald-700" : "text-muted"}`}>
+                <dd className={`font-medium ${process.env.SMTP_HOST ? "text-[#1a5c2e]" : "text-muted"}`}>
                   {process.env.SMTP_HOST ? "Configured" : "Not configured"}
                 </dd>
               </div>
               <div className="flex justify-between text-xs">
                 <dt className="text-muted">S3/R2</dt>
-                <dd className={`font-medium ${process.env.S3_ENDPOINT ? "text-emerald-700" : "text-muted"}`}>
+                <dd className={`font-medium ${process.env.S3_ENDPOINT ? "text-[#1a5c2e]" : "text-muted"}`}>
                   {process.env.S3_ENDPOINT ? "Configured" : "Local fallback"}
                 </dd>
               </div>

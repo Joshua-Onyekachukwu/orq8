@@ -90,7 +90,7 @@ export default function BudgetsPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
 
@@ -135,7 +135,7 @@ export default function BudgetsPage() {
         </div>
 
         <div className={`rounded-xl border bg-white p-5 ${isCritical ? "border-red-300" : isLow ? "border-amber-300" : "border-hairline"}`}>
-          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${isCritical ? "bg-red-100 text-red-700" : isLow ? "bg-amber-50 text-amber-700" : "bg-gray-100 text-gray-600"}`}>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${isCritical ? "bg-red-100 text-red-700" : isLow ? "bg-amber-50 text-amber-700" : "bg-hairline text-ink-muted"}`}>
             {isCritical ? <AlertTriangle className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
           </span>
           <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">

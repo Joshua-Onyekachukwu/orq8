@@ -113,7 +113,7 @@ export default function MembersPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
 
@@ -239,12 +239,12 @@ export default function MembersPage() {
                         className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
                           m.status === "active"
                             ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
-                            : "bg-gray-100 text-gray-500"
+                            : "bg-hairline text-muted"
                         }`}
                       >
                         <span
                           className={`h-1.5 w-1.5 rounded-full ${
-                            m.status === "active" ? "bg-[#1a5c2e]" : "bg-gray-400"
+                            m.status === "active" ? "bg-[#1a5c2e]" : "bg-hairline"
                           }`}
                         />
                         {m.status}

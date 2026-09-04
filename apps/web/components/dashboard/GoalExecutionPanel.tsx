@@ -32,23 +32,23 @@ export function GoalExecutionPanel({
   const completedGoals = totalGoals - activeGoals;
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5">
+    <div className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#E86A33]/10">
-            <Target className="h-4 w-4 text-[#E86A33]" />
+            <Target aria-hidden="true" className="h-4 w-4 text-[#E86A33]" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Goal Execution</h2>
-            <p className="text-xs text-gray-500">Tasks driving outcomes</p>
+            <h2 className="text-sm font-semibold text-ink">Goal Execution</h2>
+            <p className="text-xs text-muted">Tasks driving outcomes</p>
           </div>
         </div>
         <Link
           href="/app/goals"
-          className="group inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 text-[10px] font-medium text-gray-500 transition-colors hover:bg-gray-100"
+          className="group inline-flex items-center gap-1 rounded-full bg-canvas px-2.5 py-1 text-[10px] font-medium text-muted transition-colors hover:bg-hairline"
         >
           View all
-          <ArrowUpRight className="h-2.5 w-2.5 text-gray-300 group-hover:text-gray-500" />
+          <ArrowUpRight className="h-2.5 w-2.5 text-muted group-hover:text-muted" />
         </Link>
       </div>
 
@@ -74,38 +74,38 @@ export function GoalExecutionPanel({
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-base font-bold text-gray-900">{completionRate}%</span>
+            <span className="text-base font-bold text-ink">{completionRate}%</span>
           </div>
         </div>
 
         <div className="flex-1 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Goals</span>
-            <span className="font-mono text-gray-900">{completedGoals}/{totalGoals} completed</span>
+            <span className="text-muted">Goals</span>
+            <span className="font-mono text-ink">{completedGoals}/{totalGoals} completed</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Tasks</span>
-            <span className="font-mono text-gray-900">{completedTasks}/{totalTasks} done</span>
+            <span className="text-muted">Tasks</span>
+            <span className="font-mono text-ink">{completedTasks}/{totalTasks} done</span>
           </div>
         </div>
       </div>
 
       {/* Status cards */}
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <Link href="/app/goals" className="group rounded-lg bg-gray-50 px-3 py-2.5 text-center transition-colors hover:bg-gray-100">
+        <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
           <CheckCircle2 className="mx-auto h-4 w-4 text-[#1a5c2e]" />
-          <p className="mt-1 font-mono text-sm font-bold text-gray-900">{completedGoals}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Achieved</p>
+          <p className="mt-1 font-mono text-sm font-bold text-ink">{completedGoals}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Achieved</p>
         </Link>
-        <Link href="/app/goals" className="group rounded-lg bg-gray-50 px-3 py-2.5 text-center transition-colors hover:bg-gray-100">
+        <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
           <Clock className="mx-auto h-4 w-4 text-[#E86A33]" />
-          <p className="mt-1 font-mono text-sm font-bold text-gray-900">{activeGoals}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Active</p>
+          <p className="mt-1 font-mono text-sm font-bold text-ink">{activeGoals}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Active</p>
         </Link>
-        <Link href="/app/goals" className="group rounded-lg bg-gray-50 px-3 py-2.5 text-center transition-colors hover:bg-gray-100">
-          <AlertCircle className="mx-auto h-4 w-4 text-gray-400" />
-          <p className="mt-1 font-mono text-sm font-bold text-gray-900">{totalTasks - completedTasks}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Remaining</p>
+        <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
+          <AlertCircle className="mx-auto h-4 w-4 text-muted" />
+          <p className="mt-1 font-mono text-sm font-bold text-ink">{totalTasks - completedTasks}</p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Remaining</p>
         </Link>
       </div>
     </div>

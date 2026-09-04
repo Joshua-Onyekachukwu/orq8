@@ -41,8 +41,8 @@ function categoryColor(cat: string) {
     case "lesson": return "bg-amber-50 text-amber-700";
     case "preference": return "bg-[#B8FF66]/10 text-[#1a5c2e]";
     case "workflow": return "bg-indigo-50 text-indigo-700";
-    case "context": return "bg-gray-100 text-gray-600";
-    default: return "bg-gray-100 text-gray-600";
+    case "context": return "bg-hairline text-ink-muted";
+    default: return "bg-hairline text-ink-muted";
   }
 }
 
@@ -50,7 +50,7 @@ function importanceStars(n: number) {
   return Array.from({ length: 5 }, (_, i) => (
     <Star
       key={i}
-      className={`h-3 w-3 ${i < Math.round(n / 2) ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+      className={`h-3 w-3 ${i < Math.round(n / 2) ? "fill-amber-400 text-amber-400" : "text-muted"}`}
     />
   ));
 }
@@ -178,7 +178,7 @@ export default function MemoryPage() {
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button
             type="button"

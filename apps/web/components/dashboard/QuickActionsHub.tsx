@@ -54,14 +54,14 @@ export function QuickActionsHub() {
                 key={action.label}
                 href={action.href}
                 onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-lg transition-all hover:shadow-xl ${action.hoverColor}`}
+                className={`flex items-center gap-3 rounded-xl border border-hairline bg-white px-4 py-3 shadow-lg transition-all hover:shadow-xl ${action.hoverColor}`}
               >
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${action.color}`}>
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{action.label}</p>
-                  <p className="text-xs text-gray-500">{action.description}</p>
+                  <p className="text-sm font-semibold text-ink">{action.label}</p>
+                  <p className="text-xs text-muted">{action.description}</p>
                 </div>
               </Link>
             );
@@ -75,7 +75,7 @@ export function QuickActionsHub() {
         onClick={() => setOpen(!open)}
         className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 ${
           open
-            ? "bg-gray-900 text-white rotate-45"
+            ? "bg-[#0a0a0b] text-white rotate-45"
             : "bg-[#E86A33] text-white hover:bg-[#d45e2a] hover:shadow-xl"
         }`}
         title={open ? "Close actions" : "Quick actions"}

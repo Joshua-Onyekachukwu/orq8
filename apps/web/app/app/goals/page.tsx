@@ -55,7 +55,7 @@ function priorityBadge(priority: string) {
     case "urgent": return "bg-red-100 text-red-700";
     case "high": return "bg-amber-50 text-amber-700";
     case "normal": return "bg-blue-50 text-blue-700";
-    default: return "bg-gray-100 text-gray-600";
+    default: return "bg-hairline text-ink-muted";
   }
 }
 
@@ -64,7 +64,7 @@ function statusIcon(status: string) {
     case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
     case "in_progress": return <Clock className="h-4 w-4 text-[#E86A33]" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-gray-400" />;
+    default: return <Clock className="h-4 w-4 text-muted" />;
   }
 }
 
@@ -95,9 +95,9 @@ function dueDateBadge(dateStr: string | null) {
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     if (days < 0) return "bg-red-50 text-red-600";
     if (days <= 2) return "bg-amber-50 text-amber-700";
-    return "bg-gray-100 text-gray-600";
+    return "bg-hairline text-ink-muted";
   } catch {
-    return "bg-gray-100 text-gray-600";
+    return "bg-hairline text-ink-muted";
   }
 }
 
@@ -111,8 +111,8 @@ export default async function GoalsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Goals & Tasks</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl font-semibold text-ink">Goals & Tasks</h1>
+          <p className="mt-1 text-sm text-muted">
             Set outcomes, track progress, and watch your AI workforce execute.
           </p>
         </div>
@@ -122,8 +122,8 @@ export default async function GoalsPage() {
       {/* Goals grid */}
       <section className="mt-6">
         <div className="flex items-center gap-2 mb-4">
-          <Target className="h-4 w-4 text-[#1a5c2e]" />
-          <h2 className="text-sm font-semibold text-gray-900">Company Goals</h2>
+          <Target aria-hidden="true" className="h-4 w-4 text-[#1a5c2e]" />
+          <h2 className="text-sm font-semibold text-ink">Company Goals</h2>
           <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
             {goals.length}
           </span>
@@ -131,7 +131,7 @@ export default async function GoalsPage() {
 
         {goals.length === 0 ? (
           <div className="rounded-xl border border-hairline bg-white p-10 text-center">
-            <Target className="mx-auto h-8 w-8 text-muted/40" />
+            <Target aria-hidden="true" className="mx-auto h-8 w-8 text-muted/40" />
             <p className="mt-3 text-sm font-medium text-ink">No goals yet</p>
             <p className="mt-1 text-xs text-muted">
               Create your first goal to set the direction for your AI organization.
@@ -215,11 +215,11 @@ export default async function GoalsPage() {
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold ${
                               step.done ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" :
                               step.active ? "bg-[#E86A33]/10 text-[#E86A33]" :
-                              "bg-gray-100 text-gray-400"
+                              "bg-hairline text-muted"
                             }`}>
                               {step.done && !step.active ? "✓" : step.active ? "●" : "○"} {step.label}
                             </span>
-                            {i < flowSteps.length - 1 && <span className="text-gray-300 text-[8px]">→</span>}
+                            {i < flowSteps.length - 1 && <span className="text-muted text-[8px]">→</span>}
                           </div>
                         ))}
                       </div>
@@ -238,14 +238,14 @@ export default async function GoalsPage() {
                               </span>
                             )}
                             {task.cost > 0 && (
-                              <span className="shrink-0 font-mono text-[9px] text-gray-400">${(task.cost / 100).toFixed(2)}</span>
+                              <span className="shrink-0 font-mono text-[9px] text-muted">${(task.cost / 100).toFixed(2)}</span>
                             )}
                           </li>
                         ))}
                       </ul>
 
                       {/* Summary */}
-                      <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-400">
+                      <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
                         {assignedAgents.size > 0 && <span>{assignedAgents.size} agent{assignedAgents.size !== 1 ? "s" : ""} assigned</span>}
                         {totalCost > 0 && <span className="font-mono">${(totalCost / 100).toFixed(2)} total cost</span>}
                         {failed > 0 && <span className="text-red-500">{failed} failed</span>}
@@ -263,7 +263,7 @@ export default async function GoalsPage() {
       <section className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <ListChecks className="h-4 w-4 text-muted" />
+            <ListChecks aria-hidden="true" className="h-4 w-4 text-muted" />
             <h2 className="text-sm font-semibold text-ink">Standalone Tasks</h2>
             <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
               {tasks.filter((t) => !t.goalId).length}
@@ -274,7 +274,7 @@ export default async function GoalsPage() {
 
         {tasks.filter((t) => !t.goalId).length === 0 ? (
           <div className="rounded-xl border border-hairline bg-white p-8 text-center">
-            <ListChecks className="mx-auto h-6 w-6 text-muted/40" />
+            <ListChecks aria-hidden="true" className="mx-auto h-6 w-6 text-muted/40" />
             <p className="mt-2 text-sm text-muted">
               All tasks are linked to goals, or no tasks exist yet.
             </p>

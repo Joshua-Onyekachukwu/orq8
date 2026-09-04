@@ -87,10 +87,10 @@ export default function TeamsPage() {
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Organization
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             Departments
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             How your AI company is organized. Each department groups agents by function and controls their budgets.
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function TeamsPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
 
@@ -177,10 +177,10 @@ export default function TeamsPage() {
               {dept.budget != null && dept.budget > 0 && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-[10px] mb-1">
-                    <span className="text-gray-500 uppercase font-semibold tracking-wide">Budget utilization</span>
-                    <span className="font-mono text-gray-400">{dept.agentCount} agents · {dept.activeCount} active</span>
+                    <span className="text-muted uppercase font-semibold tracking-wide">Budget utilization</span>
+                    <span className="font-mono text-muted">{dept.agentCount} agents · {dept.activeCount} active</span>
                   </div>
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-2 rounded-full bg-hairline overflow-hidden">
                     <div
                       className="h-full rounded-full bg-[#1a5c2e] transition-all"
                       style={{ width: `${Math.min((dept.activeCount / Math.max(dept.agentCount, 1)) * 100, 100)}%` }}
@@ -191,18 +191,18 @@ export default function TeamsPage() {
 
               <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Budget</dt>
-                  <dd className="mt-0.5 text-xs font-medium tabular-nums text-gray-900">
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Budget</dt>
+                  <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
                     {dept.budget != null ? `${dept.budget.toLocaleString()} cr` : "Not set"}
                   </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Head</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-gray-900 truncate">{dept.head ?? "—"}</dd>
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Head</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-ink truncate">{dept.head ?? "—"}</dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Utilization</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-gray-900">
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Utilization</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-ink">
                     {dept.agentCount > 0 ? Math.round((dept.activeCount / dept.agentCount) * 100) : 0}%
                   </dd>
                 </div>

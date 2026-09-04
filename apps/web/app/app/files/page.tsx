@@ -157,7 +157,7 @@ export default function FilesPage() {
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
           <input
             ref={fileInputRef}
@@ -268,7 +268,7 @@ export default function FilesPage() {
 
       {/* Preview Modal */}
       {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewFile(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60 p-4" onClick={() => setPreviewFile(null)}>
           <div className="relative max-h-[80vh] w-full max-w-3xl rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
               <div className="flex items-center gap-2">

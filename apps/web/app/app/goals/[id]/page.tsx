@@ -78,7 +78,7 @@ function priorityBadge(priority: string) {
     case "urgent": return "bg-red-100 text-red-700";
     case "high": return "bg-amber-50 text-amber-700";
     case "normal": return "bg-blue-50 text-blue-700";
-    default: return "bg-gray-100 text-gray-600";
+    default: return "bg-hairline text-ink-muted";
   }
 }
 
@@ -87,8 +87,8 @@ function statusBadge(status: string) {
     case "completed": return "bg-[#B8FF66]/10 text-[#1a5c2e]";
     case "active": return "bg-blue-50 text-blue-700";
     case "paused": return "bg-amber-50 text-amber-700";
-    case "cancelled": return "bg-gray-100 text-gray-500";
-    default: return "bg-gray-100 text-gray-600";
+    case "cancelled": return "bg-hairline text-muted";
+    default: return "bg-hairline text-ink-muted";
   }
 }
 
@@ -97,7 +97,7 @@ function taskStatusIcon(status: string) {
     case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
     case "in_progress": return <Clock className="h-4 w-4 text-[#E86A33]" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-gray-400" />;
+    default: return <Clock className="h-4 w-4 text-muted" />;
   }
 }
 
@@ -152,7 +152,7 @@ function getGoalHealth(
     return { label: "Achieved", icon: CheckCircle2, color: "text-[#1a5c2e]", bg: "bg-[#B8FF66]/10", description: "This goal has been completed." };
   }
   if (goal.status === "cancelled") {
-    return { label: "Cancelled", icon: AlertCircle, color: "text-gray-500", bg: "bg-gray-100", description: "This goal has been cancelled." };
+    return { label: "Cancelled", icon: AlertCircle, color: "text-muted", bg: "bg-hairline", description: "This goal has been cancelled." };
   }
 
   const completed = tasks.filter(t => t.status === "completed").length;
@@ -300,7 +300,7 @@ export default function GoalDetailPage() {
 
         {!goal ? (
           <div className="mt-6 rounded-xl border border-dashed border-hairline bg-white p-10 text-center">
-            <Target className="mx-auto h-10 w-10 text-muted/30" />
+            <Target aria-hidden="true" className="mx-auto h-10 w-10 text-muted/30" />
             <p className="mt-4 text-sm font-medium text-ink">Goal not found</p>
             <Link
               href="/app/goals"
@@ -316,7 +316,7 @@ export default function GoalDetailPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#B8FF66]/10">
-                    <Target className="h-5 w-5 text-[#1a5c2e]" />
+                    <Target aria-hidden="true" className="h-5 w-5 text-[#1a5c2e]" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -343,7 +343,7 @@ export default function GoalDetailPage() {
                   disabled={loading}
                   className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                   <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
                   Refresh
                 </button>
               </div>
@@ -355,7 +355,7 @@ export default function GoalDetailPage() {
                   {formatDueDate(goal.dueDate)}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <ListChecks className="h-3.5 w-3.5" />
+                  <ListChecks aria-hidden="true" className="h-3.5 w-3.5" />
                   {completedTasks.length}/{tasks.length} tasks completed
                 </span>
                 {totalCost > 0 && (
@@ -364,8 +364,8 @@ export default function GoalDetailPage() {
                     {formatCost(totalCost)} total cost
                   </span>
                 )}
-                <span className="text-gray-300">·</span>
-                <span className="text-gray-400">
+                <span className="text-muted">·</span>
+                <span className="text-muted">
                   Created {new Date(goal.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -411,7 +411,7 @@ export default function GoalDetailPage() {
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-3.5 w-3.5 text-[#1a5c2e]" />
                         <span className="text-xs text-ink">{completedTasks.length} completed</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
                           <div className="h-full rounded-full bg-[#1a5c2e]" style={{ width: `${(completedTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
@@ -420,17 +420,17 @@ export default function GoalDetailPage() {
                       <div className="flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 text-[#E86A33]" />
                         <span className="text-xs text-ink">{inProgressTasks.length} in progress</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
                           <div className="h-full rounded-full bg-[#E86A33]" style={{ width: `${(inProgressTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
                     )}
                     {pendingTasks.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-gray-400" />
+                        <Clock className="h-3.5 w-3.5 text-muted" />
                         <span className="text-xs text-ink">{pendingTasks.length} pending</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-gray-300" style={{ width: `${(pendingTasks.length / tasks.length) * 100}%` }} />
+                        <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
+                          <div className="h-full rounded-full bg-hairline" style={{ width: `${(pendingTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
                     )}
@@ -438,7 +438,7 @@ export default function GoalDetailPage() {
                       <div className="flex items-center gap-2">
                         <AlertCircle className="h-3.5 w-3.5 text-red-500" />
                         <span className="text-xs text-ink">{failedTasks.length} failed</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
                           <div className="h-full rounded-full bg-red-400" style={{ width: `${(failedTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
@@ -458,7 +458,7 @@ export default function GoalDetailPage() {
 
                 {assignedAgents.length === 0 ? (
                   <div className="mt-4 rounded-lg border border-dashed border-hairline p-4 text-center">
-                    <Bot className="mx-auto h-5 w-5 text-muted/30" />
+                    <Bot aria-hidden="true" className="mx-auto h-5 w-5 text-muted/30" />
                     <p className="mt-1 text-xs text-muted">No agents assigned to tasks in this goal</p>
                   </div>
                 ) : (
@@ -510,7 +510,7 @@ export default function GoalDetailPage() {
             {/* ── Tasks with Tabs ── */}
             <section className="mt-6">
               <div className="flex items-center gap-3 border-b border-hairline pb-3">
-                <ListChecks className="h-4 w-4 text-muted" />
+                <ListChecks aria-hidden="true" className="h-4 w-4 text-muted" />
                 <h2 className="text-sm font-semibold text-ink">Tasks</h2>
                 <div className="flex items-center gap-1 ml-2">
                   {(["all", "completed", "in_progress", "pending", "failed"] as TaskTab[]).map(tab => {
@@ -528,7 +528,7 @@ export default function GoalDetailPage() {
                         className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase transition-colors ${
                           activeTab === tab
                             ? "bg-[#0a0a0b] text-white"
-                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            : "bg-hairline text-muted hover:bg-hairline"
                         }`}
                       >
                         {tab === "in_progress" ? "Active" : tab} ({count})
@@ -540,7 +540,7 @@ export default function GoalDetailPage() {
 
               {filteredTasks.length === 0 ? (
                 <div className="mt-4 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
-                  <ListChecks className="mx-auto h-6 w-6 text-muted/30" />
+                  <ListChecks aria-hidden="true" className="mx-auto h-6 w-6 text-muted/30" />
                   <p className="mt-2 text-sm text-muted">
                     {activeTab === "all"
                       ? "No tasks linked to this goal yet"
@@ -573,7 +573,7 @@ export default function GoalDetailPage() {
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                             {t.agentId && agentMap.get(t.agentId) && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 font-medium text-[#0a0a0b]">
-                                <Bot className="h-2.5 w-2.5" />
+                                <Bot aria-hidden="true" className="h-2.5 w-2.5" />
                                 {agentMap.get(t.agentId)!.name}
                               </span>
                             )}

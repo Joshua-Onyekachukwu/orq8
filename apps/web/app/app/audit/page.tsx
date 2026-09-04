@@ -88,7 +88,7 @@ export default async function AuditPage() {
                     <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
                       String(e.outcome) === "success" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" :
                       String(e.outcome) === "denied" ? "bg-red-100 text-red-600" :
-                      "bg-gray-100 text-gray-500"
+                      "bg-hairline text-muted"
                     }`}>
                       {String(e.outcome ?? "—")}
                     </span>

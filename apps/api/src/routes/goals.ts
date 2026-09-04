@@ -287,6 +287,25 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(404);
       return { error: { code: 'not_found', message: 'Task not found' } };
     }
+
+    // Auto-update goal progress when task status changes
+    const updatedTask = result[0]!;
+    if (updatedTask.goalId && parsed.data.status) {
+      try {
+        const [totalRow, completedRow] = await Promise.all([
+          db.select({ count: sql<number>`count(*)::int` }).from(tasks).where(eq(tasks.goalId, updatedTask.goalId)),
+          db.select({ count: sql<number>`count(*)::int` }).from(tasks).where(and(eq(tasks.goalId, updatedTask.goalId), eq(tasks.status, 'completed'))),
+        ]);
+        const total = totalRow[0]?.count ?? 0;
+        const completed = completedRow[0]?.count ?? 0;
+        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const goalStatus = progress >= 100 ? 'completed' : 'active';
+        await db.update(goals).set({ progress, status: goalStatus, updatedAt: new Date() }).where(eq(goals.id, updatedTask.goalId));
+      } catch {
+        // Goal auto-progress is best-effort
+      }
+    }
+
     return { data: result[0] };
   });
 

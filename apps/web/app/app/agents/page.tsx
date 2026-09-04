@@ -146,10 +146,10 @@ export default function AgentsPage() {
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
             Organization · {agents.length} employee{agents.length !== 1 ? 's' : ''} · {activeCount} active
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             AI Workforce
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             The team that runs your company. Each AI employee is assigned to a
             department with a role, budget, and capabilities you control.
           </p>
@@ -161,7 +161,7 @@ export default function AgentsPage() {
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>            <button
               type="button"
               onClick={() => setShowHireModal(true)}
@@ -269,8 +269,8 @@ export default function AgentsPage() {
                   </>
                 ) : (
                   <>
-                    <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
-                    <span className="text-gray-400">Paused</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-hairline" />
+                    <span className="text-muted">Paused</span>
                   </>
                 )}
               </p>
@@ -278,7 +278,7 @@ export default function AgentsPage() {
               {a.currentTask && (
                 <div className="mt-3 rounded-lg bg-[#1a5c2e]/5 border border-[#1a5c2e]/10 px-3 py-2">
                   <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[#1a5c2e]">Currently executing</p>
-                  <p className="mt-0.5 text-xs text-gray-700 line-clamp-2">{a.currentTask}</p>
+                  <p className="mt-0.5 text-xs text-ink line-clamp-2">{a.currentTask}</p>
                 </div>
               )}
 
@@ -299,21 +299,21 @@ export default function AgentsPage() {
 
               {/* Performance metrics */}
               <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
-                  <p className="font-mono text-sm font-bold text-gray-900">{a.tasksCompleted}</p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Done</p>
+                <div className="rounded-lg bg-canvas px-3 py-2 text-center">
+                  <p className="font-mono text-sm font-bold text-ink">{a.tasksCompleted}</p>
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Done</p>
                 </div>
-                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
-                  <p className="font-mono text-sm font-bold text-gray-900">
+                <div className="rounded-lg bg-canvas px-3 py-2 text-center">
+                  <p className="font-mono text-sm font-bold text-ink">
                     {a.tasksCompleted + (a.tasksFailed ?? 0) > 0
                       ? Math.round((a.tasksCompleted / (a.tasksCompleted + (a.tasksFailed ?? 0))) * 100)
                       : 0}%
                   </p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Success</p>
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Success</p>
                 </div>
-                <div className="rounded-lg bg-gray-50 px-3 py-2 text-center">
-                  <p className="font-mono text-sm font-bold text-gray-900">{formatCost(a.weeklyCost)}</p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Cost/wk</p>
+                <div className="rounded-lg bg-canvas px-3 py-2 text-center">
+                  <p className="font-mono text-sm font-bold text-ink">{formatCost(a.weeklyCost)}</p>
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Cost/wk</p>
                 </div>
               </div>
 
@@ -321,10 +321,10 @@ export default function AgentsPage() {
               {(a.creditsUsed ?? 0) > 0 && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-gray-500">Credits used</span>
-                    <span className="font-mono text-gray-400">{a.creditsUsed}</span>
+                    <span className="text-muted">Credits used</span>
+                    <span className="font-mono text-muted">{a.creditsUsed}</span>
                   </div>
-                  <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="mt-1 h-1.5 rounded-full bg-hairline overflow-hidden">
                     <div className="h-full rounded-full bg-[#1a5c2e] transition-all" style={{ width: `${Math.min(((a.creditsUsed ?? 0) / 100) * 100, 100)}%` }} />
                   </div>
                 </div>
@@ -332,12 +332,12 @@ export default function AgentsPage() {
 
               <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Dept</dt>
-                  <dd className="mt-0.5 truncate text-xs font-medium text-gray-900">{a.department ?? "—"}</dd>
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Dept</dt>
+                  <dd className="mt-0.5 truncate text-xs font-medium text-ink">{a.department ?? "—"}</dd>
                 </div>
                 <div className="bg-white px-3 py-2">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400">Hired</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-gray-900">{formatDate(a.createdAt)}</dd>
+                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Hired</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-ink">{formatDate(a.createdAt)}</dd>
                 </div>
               </dl>
             </article>

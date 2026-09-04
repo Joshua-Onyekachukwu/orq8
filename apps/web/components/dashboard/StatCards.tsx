@@ -75,20 +75,20 @@ export function DashboardStats(props: StatCardsProps) {
           <Link
             key={s.key}
             href={s.href}
-            className="group rounded-xl border border-gray-100 bg-white p-4 transition-all hover:border-gray-200 hover:shadow-sm sm:p-5"
+            className="group rounded-xl border border-hairline bg-white p-4 transition-all hover:border-hairline hover:shadow-sm sm:p-5"
           >
             <span
               className={`flex h-9 w-9 items-center justify-center rounded-lg ${s.accent}`}
             >
               <Icon className="h-4 w-4" />
             </span>
-            <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+            <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
               {s.label}
             </p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight text-gray-900 tabular-nums">
+            <p className="mt-1 text-2xl font-semibold tracking-tight text-ink tabular-nums">
               {s.getValue(props)}
             </p>
-            <p className="mt-0.5 text-xs text-gray-400">{s.getNote(props)}</p>
+            <p className="mt-0.5 text-xs text-muted">{s.getNote(props)}</p>
           </Link>
         );
       })}

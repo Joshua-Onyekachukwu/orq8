@@ -86,7 +86,7 @@ export default async function AdminDashboardPage() {
       label: "AI Agents",
       value: String(totalAgents),
       icon: Bot,
-      color: "bg-emerald/10 text-emerald-700",
+      color: "bg-[#1a5c2e]/10 text-[#1a5c2e]",
       trend: `${activeAgents} active`,
     },
     {
@@ -123,14 +123,14 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* System health banner */}
-      <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald/20 bg-emerald/5 px-5 py-3">
-        <CheckCircle2 className="h-5 w-5 text-emerald" />
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#1a5c2e]/20 bg-[#1a5c2e]/5 px-5 py-3">
+        <CheckCircle2 className="h-5 w-5 text-[#B8FF66]" />
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">All systems operational</p>
           <p className="text-xs text-muted">API · Database · Auth · Agent execution</p>
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-emerald">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald animate-pulse" />
+        <span className="flex items-center gap-1.5 text-xs text-[#B8FF66]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e] animate-pulse" />
           Live
         </span>
       </div>
@@ -153,7 +153,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
                 {stat.label}
               </p>
-              <p className="mt-1 text-2xl font-bold tracking-tight text-navy-900 tabular-nums">
+              <p className="mt-1 text-2xl font-bold tracking-tight text-[#0d1a12] tabular-nums">
                 {stat.value}
               </p>
             </div>
@@ -188,15 +188,15 @@ export default async function AdminDashboardPage() {
             <Link
               key={link.href}
               href={link.href}
-              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-emerald/30 hover:bg-emerald/5"
+              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-emerald/30 hover:bg-[#1a5c2e]/5"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:text-emerald">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:text-[#B8FF66]">
                 <Icon className="h-5 w-5" />
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-ink">{link.label}</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-emerald" />
+              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-[#B8FF66]" />
             </Link>
           );
         })}
