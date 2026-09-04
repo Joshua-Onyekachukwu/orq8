@@ -12,7 +12,7 @@ async function fetchUsers(token: string, search?: string) {
       : `${API_URL}/v1/admin/users?limit=200`;
     const res = await fetch(url, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return [];
     return ((await res.json()) as { data?: unknown[] }).data ?? [];

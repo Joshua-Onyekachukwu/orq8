@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const res = await fetch(`${API_URL}/v1/tasks/${id}`, {
       headers: proxyAuthHeaders(token),
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: res.status });
     return NextResponse.json(await res.json());

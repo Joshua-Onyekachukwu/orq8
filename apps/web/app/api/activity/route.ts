@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/activity${qs ? `?${qs}` : ""}`, {
       headers: proxyAuthHeaders(token),
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return Response.json({ error: "Failed" }, { status: res.status });
     return Response.json(await res.json());

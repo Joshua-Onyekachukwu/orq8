@@ -19,7 +19,7 @@ async function fetchWithAuth(token: string, path: string) {
   try {
     const res = await fetch(`${API_URL}${path}`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     return (await res.json())?.data ?? null;

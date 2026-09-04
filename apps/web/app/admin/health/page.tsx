@@ -47,7 +47,7 @@ async function fetchHealth(token: string): Promise<HealthData | null> {
   try {
     const res = await fetch(`${API_URL}/v1/admin/health`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { data?: HealthData };

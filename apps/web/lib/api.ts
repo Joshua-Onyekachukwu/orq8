@@ -87,7 +87,16 @@ export async function proxyApiJson(
     );
   }
   const data = await res.json().catch(() => null);
-  return NextResponse.json(data, { status: res.status });
+  // For GET requests, add Cache-Control so the browser doesn't re-fetch
+  // the same data on every client-side navigation. s-maxage=30 means
+  // Vercel's edge cache holds it for 30s; stale-while-revalidate keeps
+  // the UI responsive while the cache refreshes in the background.
+  const isRead = !init.method || init.method === 'GET';
+  const response = NextResponse.json(data, { status: res.status });
+  if (isRead) {
+    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+  }
+  return response;
 }
 
 // ─── Server-side fetch helpers ───
@@ -99,12 +108,13 @@ export async function proxyApiJson(
  */
 export async function fetchWithAuth<T>(
   path: string,
-  options?: { method?: string; body?: unknown },
+  options?: { method?: string; body?: unknown; revalidate?: number | false },
 ): Promise<T | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   try {
+    const isWrite = options?.method && options.method !== 'GET';
     const res = await fetch(`${API_URL}${path}`, {
       method: options?.method ?? "GET",
       headers: {
@@ -112,7 +122,10 @@ export async function fetchWithAuth<T>(
         ...(options?.body ? { "content-type": "application/json" } : {}),
       },
       body: options?.body ? JSON.stringify(options.body) : undefined,
-      cache: "no-store",
+      // Cache GET requests for 30s by default (reduces Railway cold-start latency
+      // on repeated navigations). Writes always bypass cache. Pass
+      // revalidate: false to opt out, or a custom seconds value.
+      ...(isWrite ? {} : { next: { revalidate: options?.revalidate ?? 30 } }),
     });
     if (!res.ok) return null;
     const json = await res.json();

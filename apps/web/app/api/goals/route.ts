@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/goals`, {
       headers: proxyAuthHeaders(token),
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
     return NextResponse.json(await res.json());

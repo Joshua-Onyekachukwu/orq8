@@ -8,7 +8,7 @@ async function fetchAgents(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/agents`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { data?: unknown[] };

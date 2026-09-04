@@ -13,7 +13,7 @@ async function fetchActivity() {
   try {
     const res = await fetch(`${API_URL}/v1/activity?limit=500`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return [];
     const json = await res.json();

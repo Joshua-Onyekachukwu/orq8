@@ -8,7 +8,7 @@ async function fetchData(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/admin/ai-usage`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     return (await res.json()) as { data?: any };

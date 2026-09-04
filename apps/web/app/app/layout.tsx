@@ -42,7 +42,10 @@ export default async function AppLayout({
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      // Cache auth check for 30s to avoid 700ms latency on every navigation.
+      // The cookie still gates access; this just prevents redundant API calls
+      // when the user navigates between dashboard pages rapidly.
+      next: { revalidate: 30 },
     });
 
     if (res.ok) {

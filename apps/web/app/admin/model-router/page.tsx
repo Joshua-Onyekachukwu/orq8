@@ -42,7 +42,7 @@ async function fetchProviders(token: string): Promise<{
   try {
     const res = await fetch(`${API_URL}/v1/admin/providers`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     const d = await res.json();
@@ -56,7 +56,7 @@ async function fetchRouterStats(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/admin/model-router`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return null;
     return (await res.json())?.data ?? null;

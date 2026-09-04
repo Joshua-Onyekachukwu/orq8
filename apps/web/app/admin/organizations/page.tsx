@@ -8,7 +8,7 @@ async function fetchOrgs(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/admin/organizations?limit=200`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return [];
     return ((await res.json()) as { data?: unknown[] }).data ?? [];

@@ -16,11 +16,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // API proxy routes — no cache, must revalidate
+        // API proxy routes — short cache for faster page-to-page navigation.
+        // Individual route handlers can opt out with their own Cache-Control
+        // headers (e.g. SSE streams, POST mutations).
         source: "/api/(.*)",
         headers: [
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
-          { key: "Pragma", value: "no-cache" },
+          { key: "Cache-Control", value: "private, s-maxage=15, stale-while-revalidate=30" },
         ],
       },
       {

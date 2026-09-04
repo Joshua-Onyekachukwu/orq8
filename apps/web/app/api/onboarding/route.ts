@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/onboarding`, {
       headers: proxyAuthHeaders(token),
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) {
       return NextResponse.json({ error: "Failed to load onboarding" }, { status: res.status });

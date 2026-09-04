@@ -35,7 +35,7 @@ export default async function AdminLayout({
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
 
     if (res.ok) {

@@ -9,7 +9,7 @@ async function fetchApprovals(token: string) {
   try {
     const res = await fetch(`${API_URL}/v1/approvals`, {
       headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
+      next: { revalidate: 30 },
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { data?: unknown[] };
