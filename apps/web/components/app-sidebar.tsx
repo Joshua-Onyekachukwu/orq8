@@ -62,6 +62,7 @@ const navGroups: NavGroup[] = [
       { label: "Budgets", href: "/app/budgets", icon: Wallet },
       { label: "Files", href: "/app/files", icon: FileText },
       { label: "Constitution", href: "/app/constitution", icon: ScrollText },
+      { label: "Quality & Learning", href: "/app/quality", icon: Shield },
     ],
   },
 ];

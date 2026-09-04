@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as executiveAgent from '../services/executive-agent.js';
 import { getTaskStatus, executeTask } from '../services/task-executor.js';
+import { executeWithQuality } from '../services/quality-pipeline.js';
 import { getRecentTraces, getTraceSummary } from '../services/llm-tracer.js';
 import type { AppDeps } from '../types.js';
 
@@ -146,8 +147,8 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
   app.post<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId/execute', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     try {
-      const result = await executeTask(config, db, ctx.orgId, request.params.taskId);
-      return { data: result };
+      const qualityResult = await executeWithQuality(config, db, ctx.orgId, request.params.taskId);
+      return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
     } catch (error) {
       reply.code(500);
       return { error: { code: 'execution.failed', message: 'Task execution failed' } };

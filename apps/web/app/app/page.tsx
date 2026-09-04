@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { CommandBar } from "../../components/command-bar";
+import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget";
 
 import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
 import { ExecutiveAgentPanel } from "../../components/dashboard/ExecutiveAgentPanel";
@@ -303,6 +304,9 @@ export default async function AppPage() {
           totalTasks={totalTasks}
         />
       </div>
+
+      {/* Agent Reliability */}
+      <ReliabilityWidget />
 
       {/* Two-column layout: Executive Agent + Activity Feed */}
       <div className="grid gap-6 lg:grid-cols-5">

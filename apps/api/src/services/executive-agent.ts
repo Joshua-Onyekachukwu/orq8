@@ -4,6 +4,7 @@ import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionN
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
+import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
 import { broadcastToOrg } from './realtime.js';
 import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
 import type { AppConfig } from '@orq8/core';
@@ -554,8 +555,8 @@ async function executeTaskWithRecovery(
         await new Promise(r => setTimeout(r, delay));
       }
 
-      const result = await executeTask(config, db, orgId, taskId);
-      return result;
+      const qualityResult = await executeWithQuality(config, db, orgId, taskId, { skipQA: false, revisionCount: attempt });
+      return qualityResult.executionResult;
     } catch (err) {
       lastError = err instanceof Error ? err.message : 'unknown error';
 
