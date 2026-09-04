@@ -32,7 +32,12 @@ export type RealtimeEvent =
   | { type: 'tool.completed'; toolId: string; toolName: string; agentName: string; durationMs: number; creditsConsumed: number }
   | { type: 'tool.failed'; toolId: string; toolName: string; agentName: string; durationMs: number; creditsConsumed: number }
   | { type: 'emergency_stop'; scope: string; agentId?: string }
-  | { type: 'heartbeat'; timestamp: number };
+  | { type: 'heartbeat'; timestamp: number }
+  | { type: 'task.qa_passed'; taskId: string; summary: string }
+  | { type: 'task.qa_failed'; taskId: string; summary: string }
+  | { type: 'task.escalated'; taskId: string; summary: string }
+  | { type: 'task.blocked'; taskId: string; summary: string }
+  | { type: 'task.revision_required'; taskId: string; summary: string };
 
 interface ClientConnection {
   reply: FastifyReply;
