@@ -54,6 +54,9 @@ const envSchema = z.object({
   // Comma-separated fallback models tried when OPENROUTER_MODEL fails.
   OPENROUTER_MODEL_FALLBACKS: z.string().optional(),
 
+  // SerpAPI — real web search for agent research tools
+  SERPAPI_KEY: z.string().optional(),
+
   // LLM request timeouts (docs/22) — unprovisioned provider functions
   // sometimes HANG instead of returning 404, so the chain must fail fast:
   // LLM_HEADERS_TIMEOUT_MS bounds how long we wait for the server to respond

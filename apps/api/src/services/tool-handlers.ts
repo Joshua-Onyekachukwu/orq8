@@ -70,9 +70,47 @@ async function handleWebSearch(
 ): Promise<unknown> {
   const query = String(params.query || '');
   const depth = String(params.depth || 'standard');
+  const serpApiKey = config.SERPAPI_KEY ?? '';
 
-  // Use LLM to generate search-style analysis
-  const prompt = `You are a research assistant. Search for current information about: "${query}"
+  let searchResults: Array<{ title: string; url: string; snippet: string }> = [];
+  let rawResults: string = '';
+
+  // Try real web search via SerpAPI if available
+  if (serpApiKey) {
+    try {
+      const params_url = new URL('https://serpapi.com/search.json');
+      params_url.searchParams.set('q', query);
+      params_url.searchParams.set('api_key', serpApiKey);
+      params_url.searchParams.set('num', depth === 'deep' ? '10' : '5');
+      params_url.searchParams.set('engine', 'google');
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      const res = await fetch(params_url.toString(), { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json() as { organic_results?: Array<{ title: string; link: string; snippet: string }> };
+        searchResults = (data.organic_results ?? []).map((r) => ({
+          title: r.title,
+          url: r.link,
+          snippet: r.snippet,
+        }));
+        rawResults = searchResults
+          .map((r) => `- **${r.title}** (${r.url})\n  ${r.snippet}`)
+          .join('\n\n');
+      }
+    } catch {
+      // SerpAPI failed — fall through to LLM synthesis
+    }
+  }
+
+  // Use LLM to synthesize search results into a structured response
+  const context = rawResults
+    ? `\n\nHere are real search results for this query:\n\n${rawResults}`
+    : '';
+
+  const prompt = `You are a research assistant. Search for current information about: "${query}"${context}
 
 ${depth === 'deep' ? 'Provide a deep, comprehensive analysis.' : 'Provide a concise summary of key findings.'}
 
