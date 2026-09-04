@@ -4,6 +4,7 @@ import Faqs from "@/components/landing/Common/Faqs";
 import FeaturesOrbital from "@/components/landing/Common/Features";
 import HowItWorks from "@/components/landing/Common/HowItWorks";
 import Pricing from "@/components/landing/Common/Pricing";
+import Testimonials from "@/components/landing/Common/Testimonials";
 import { Reveal } from "@/components/landing/Common/Reveal";
 import Cta from "@/components/landing/Common/Cta";
 import HeroBanner from "@/components/landing/Home/HeroBanner";
@@ -20,15 +21,19 @@ export default function Home() {
       <HeroBanner />
 
       <Reveal>
-        <HowItWorks />
-      </Reveal>
-
-      <Reveal>
         <About />
       </Reveal>
 
       <Reveal>
+        <HowItWorks />
+      </Reveal>
+
+      <Reveal>
         <FeaturesOrbital />
+      </Reveal>
+
+      <Reveal>
+        <Testimonials />
       </Reveal>
 
       <Reveal>

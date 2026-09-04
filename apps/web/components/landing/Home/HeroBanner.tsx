@@ -5,84 +5,57 @@ import Link from "next/link";
 
 const HeroBanner: React.FC = () => {
   return (
-    <section className="relative z-[1] bg-white overflow-hidden">
-      {/* Subtle top gradient accent — not decoration, brand identity */}
-      <div
-        className="absolute top-0 left-0 right-0 h-[1px]"
-        style={{
-          background: "linear-gradient(90deg, transparent 0%, #10b981 50%, transparent 100%)",
-        }}
-      />
+    <>
+      <div className="relative z-[1] pt-[120px] md:pt-[150px] lg:pt-[170px] dark:bg-[#0a0e19] overflow-hidden">
+        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
+          <div className="text-center">
+            {/* Eyebrow badge — Trezo style */}
+            <div
+              className="md:max-w-[514px] uppercase text-xs font-bold tracking-[1.8px] rounded-[10px] md:rounded-[50px] border border-hairline dark:border-gray-800 p-[9px] bg-white/40 dark:bg-dark/40 text-emerald md:flex items-center gap-[10px] mx-auto justify-center mb-[15px]"
+              style={{ backdropFilter: "blur(40px)" }}
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-[8px] h-[8px] rounded-full bg-emerald animate-pulse"></span>
+                AI ORGANIZATION OPERATING SYSTEM
+              </span>
+            </div>
 
-      {/* Very subtle background texture — barely visible, adds depth */}
-      <div
-        className="absolute inset-0 opacity-[0.015]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, #0f172a 1px, transparent 0)",
-          backgroundSize: "40px 40px",
-        }}
-      />
+            {/* Headline — Trezo large light font style */}
+            <h1 className="!font-light !text-[35px] md:!text-[50px] lg:!text-[80px] xl:!text-[100px] -tracking-[1.7px] md:-tracking-[3px] lg:-tracking-[5px] xl:-tracking-[11px] !leading-[1.1] !mb-[20px] md:!mb-[25px] lg:!mb-[30px] xl:!mb-[35px]">
+              Run a company{" "}
+              <span className="text-emerald italic">of one</span>
+            </h1>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-32 pb-24 lg:pt-44 lg:pb-36">
-        {/* Centered layout — Trezo-inspired clean centered hero */}
-        <div className="text-center mx-auto lg:max-w-[850px]">
-          {/* Eyebrow — mono, tracked, purposeful */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-hairline bg-canvas mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-ink-muted">
-              AI Organization Operating System
-            </span>
-          </div>
-
-          {/* Headline — Strong, specific, confident */}
-          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl xl:text-[82px] font-medium text-ink leading-[1.08] tracking-tight mb-6">
-            Run a company{" "}
-            <span className="text-emerald italic">of one</span>
-          </h1>
-
-          {/* Supporting copy — Clear, specific, no buzzwords */}
-          <p className="text-lg lg:text-xl text-ink-muted leading-relaxed mb-12 max-w-[560px] mx-auto">
-            You set the direction. ORQ8 hires the AI team, does the work,
-            and reports back under your approvals and your budget.
-          </p>
-
-          {/* Primary CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {/* Pill CTA — Trezo Finance style */}
             <Link
               href="/register"
-              className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-emerald text-navy-950 font-semibold text-sm tracking-wide rounded-full hover:bg-emerald-dark transition-all duration-200 shadow-sm hover:shadow-md"
+              className="inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-white tracking-[1px] md:tracking-[1.8px] transition-all hover:bg-emerald-dark hover:text-white"
             >
-              Start Free Trial
-              <svg
-                className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                />
-              </svg>
-            </Link>
-            <Link
-              href="/about"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-ink font-medium text-sm tracking-wide rounded-full border border-hairline hover:border-ink-faint hover:bg-canvas transition-all duration-200"
-            >
-              Learn More
+              <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
+                GET STARTED{" "}
+                <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
+              </span>
             </Link>
           </div>
 
-          {/* Trust signal — Real, not fake */}
-          <p className="mt-8 text-sm text-ink-faint">
-            7-day free trial · No credit card required · Cancel anytime
-          </p>
+          {/* Trust signals */}
+          <div className="text-center mt-[40px] md:mt-[60px]">
+            <p className="text-sm text-ink-faint dark:text-white/40">
+              7-day free trial · No credit card required · Cancel anytime
+            </p>
+          </div>
         </div>
+
+        {/* Gradient background — Trezo style, adapted to ORQ8 emerald */}
+        <div
+          className="absolute top-0 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat -z-[1] dark:hidden"
+          style={{
+            background: "linear-gradient(180deg, #e8faf0 0%, #ffffff 100%)",
+          }}
+        ></div>
+        <div className="absolute bg-white dark:bg-[#0a0e19] h-[100px] left-0 right-0 bottom-0 -z-[1]"></div>
       </div>
-    </section>
+    </>
   );
 };
 
