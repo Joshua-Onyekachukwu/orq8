@@ -242,7 +242,7 @@ export default function TeamsPage() {
               <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#144a24] disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>

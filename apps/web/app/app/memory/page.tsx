@@ -364,7 +364,7 @@ export default function MemoryPage() {
                 <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                   Cancel
                 </button>
-                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#144a24] disabled:opacity-50">
+                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50">
                   {creating ? "Saving..." : "Save Memory"}
                 </button>
               </div>

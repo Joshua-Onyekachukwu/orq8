@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
   ]);
 
   const stats = (statsRes?.data ?? {}) as Record<string, any>;
-  const providers = (providersRes?.data ?? []) as Array<{ name: string; status: string; configured: boolean }>;
+  const providers = (providersRes?.data ?? []) as Array<{ name: string; slug: string; status: string; configured: boolean; keyCount: number }>;
   const users = (usersRes?.data ?? []) as Array<{ id: string; email: string; name: string; status: string }>;
   const orgs = (orgsRes?.data ?? []) as Array<{ id: string; name: string; plan: string; status: string }>;
 

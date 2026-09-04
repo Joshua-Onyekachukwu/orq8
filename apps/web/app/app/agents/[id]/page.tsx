@@ -212,7 +212,7 @@ export default function AgentDetailPage() {
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     agent.status === "active"
                       ? "border border-hairline bg-white text-ink hover:bg-canvas"
-                      : "bg-[#1a5c2e] text-white hover:bg-[#1a5c2e]/80"
+                      : "bg-[#1a5c2e] text-white transition-colors hover:bg-[#144a24]"
                   }`}
                 >
                   {processing ? (

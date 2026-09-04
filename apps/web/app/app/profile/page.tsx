@@ -178,7 +178,7 @@ export default function ProfilePage() {
                         }
                       }}
                       disabled={saving || !editName.trim()}
-                      className="rounded-lg bg-[#0a0a0b] p-1.5 text-white hover:bg-[#0a0a0b] disabled:opacity-50"
+                      className="rounded-lg bg-[#1a5c2e] p-1.5 text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
                     >
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     </button>

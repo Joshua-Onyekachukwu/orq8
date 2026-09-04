@@ -292,7 +292,7 @@ export default function FilesPage() {
                 <div className="py-10 text-center">
                   <FileText className="mx-auto h-12 w-12 text-muted/30" />
                   <p className="mt-3 text-sm text-muted">Preview not available for this file type</p>
-                  <button onClick={() => handleDownload(previewFile.id, previewFile.name)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#144a24]">
+                  <button onClick={() => handleDownload(previewFile.id, previewFile.name)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]">
                     <Download className="h-3.5 w-3.5" /> Download to view
                   </button>
                 </div>

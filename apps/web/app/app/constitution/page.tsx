@@ -203,7 +203,7 @@ export default function ConstitutionPage() {
           <button
             type="button"
             onClick={() => addListItem(field, value, setter)}
-            className="shrink-0 rounded-lg bg-[#0a0a0b] px-3 py-2 text-white transition-colors hover:bg-[#0a0a0b]"
+            className="shrink-0 rounded-lg bg-[#1a5c2e] px-3 py-2 text-white transition-colors hover:bg-[#144a24]"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -296,7 +296,7 @@ export default function ConstitutionPage() {
             placeholder="Add a core value..."
             className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
           />
-          <button type="button" onClick={addValue} className="shrink-0 rounded-lg bg-[#0a0a0b] px-3 py-2 text-white hover:bg-[#0a0a0b]">
+          <button type="button" onClick={addValue} className="shrink-0 rounded-lg bg-[#1a5c2e] px-3 py-2 text-white transition-colors hover:bg-[#144a24]">
             <Plus className="h-4 w-4" />
           </button>
         </div>
