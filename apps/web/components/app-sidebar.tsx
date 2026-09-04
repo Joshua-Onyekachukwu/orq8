@@ -94,7 +94,7 @@ export function AppSidebar({
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-[#0a0a0b]">
+    <div className="flex h-full flex-col bg-orq8-dark">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-white/[0.06] px-5">
         <Link href="/app" className="flex items-center gap-2.5">
@@ -112,7 +112,7 @@ export function AppSidebar({
       {/* Plan badge */}
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
-          <div className="h-2 w-2 rounded-full bg-[#B8FF66] animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-orq8-lime animate-pulse" />
           <span className="text-[11px] font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
         </div>
       </div>
@@ -127,7 +127,7 @@ export function AppSidebar({
                 onClick={() => toggleGroup(group.title)}
                 className="flex w-full items-center justify-between px-2 py-1"
               >
-                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/30">
+                <span className="text-3xs font-semibold uppercase tracking-[0.15em] text-white/30">
                   {group.title}
                 </span>
                 <ChevronDown
@@ -144,20 +144,20 @@ export function AppSidebar({
                         <Link
                           href={item.href}
                           onClick={() => setMobileOpen(false)}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ${
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
                             active
-                              ? "bg-[#E86A33]/15 text-[#E86A33] border border-[#E86A33]/20"
+                              ? "bg-orq8-orange/15 text-orq8-orange border border-orq8-orange/20"
                               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
                           }`}
                         >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-[#E86A33]" : "text-white/30"
+                              active ? "text-orq8-orange" : "text-white/30"
                             }`}
                           />
                           <span className="flex-1 truncate">{item.label}</span>
                           {item.badge && !active && (
-                            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-white/40">
+                            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-3xs font-medium text-white/40">
                               {item.badge}
                             </span>
                           )}
@@ -176,33 +176,33 @@ export function AppSidebar({
       <div className="border-t border-white/[0.06] p-3">
         <Link
           href="/settings"
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings")
-              ? "bg-[#E86A33]/15 text-[#E86A33]"
+              ? "bg-orq8-orange/15 text-orq8-orange"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-[#E86A33]" : "text-white/30"}`} />
+          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-orq8-orange" : "text-white/30"}`} />
           Settings
         </Link>
         <Link
           href="/settings/providers"
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings/providers")
-              ? "bg-[#E86A33]/15 text-[#E86A33]"
+              ? "bg-orq8-orange/15 text-orq8-orange"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-[#E86A33]" : "text-white/30"}`} />
+          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-orq8-orange" : "text-white/30"}`} />
           Provider Keys
         </Link>
-        <div className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-white/30">
-          <div className="h-7 w-7 rounded-full bg-[#1a5c2e] flex items-center justify-center text-[11px] font-bold text-[#B8FF66]">
+        <div className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/30">
+          <div className="h-7 w-7 rounded-full bg-orq8-green flex items-center justify-center text-[11px] font-bold text-orq8-lime">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-medium text-white/70 truncate">{userName}</p>
-            <p className="text-[10px] text-white/30 truncate">{orgName}</p>
+            <p className="text-xs font-medium text-white/70 truncate">{userName}</p>
+            <p className="text-3xs text-white/30 truncate">{orgName}</p>
           </div>
         </div>
       </div>
@@ -229,7 +229,7 @@ export function AppSidebar({
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#E86A33] text-white shadow-lg lg:hidden"
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orq8-orange text-white shadow-lg lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>

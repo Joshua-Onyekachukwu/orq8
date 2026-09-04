@@ -61,9 +61,9 @@ interface CommandResult {
 
 function statusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-3.5 w-3.5 text-[#1a5c2e]" />;
+    case "completed": return <CheckCircle2 className="h-3.5 w-3.5 text-orq8-green" />;
     case "failed": return <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
-    case "in_progress": return <Loader2 className="h-3.5 w-3.5 animate-spin text-[#E86A33]" />;
+    case "in_progress": return <Loader2 className="h-3.5 w-3.5 animate-spin text-orq8-orange" />;
     default: return <Clock className="h-3.5 w-3.5 text-amber-500" />;
   }
 }
@@ -102,7 +102,7 @@ export function CommandResultDisplay({
         ) : result.status === "awaiting_approval" ? (
           <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
         ) : (
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#1a5c2e]" />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green" />
         )}
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap">{result.message}</p>
@@ -110,7 +110,7 @@ export function CommandResultDisplay({
           {/* Credits consumed */}
           {result.credits && result.credits.consumed > 0 && (
             <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2 py-0.5 text-[#1a5c2e] font-medium">
+              <span className="rounded-full bg-orq8-green/10 px-2 py-0.5 text-orq8-green font-medium">
                 <Zap className="inline h-3 w-3" /> {result.credits.consumed} credits used
               </span>
               <span>{result.credits.remaining} remaining</span>
@@ -143,13 +143,13 @@ export function CommandResultDisplay({
                 </div>
                 <div className="flex items-center gap-2">
                   {connected && (
-                    <div className="flex items-center gap-1.5 text-xs text-[#1a5c2e]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#B8FF66] animate-pulse" />
+                    <div className="flex items-center gap-1.5 text-xs text-orq8-green">
+                      <span className="h-1.5 w-1.5 rounded-full bg-orq8-lime animate-pulse" />
                       Live
                     </div>
                   )}
                   {result.agentResults.some((ar) => ar.status === "in_progress") && (
-                    <div className="flex items-center gap-1.5 text-xs text-[#E86A33]">
+                    <div className="flex items-center gap-1.5 text-xs text-orq8-orange">
                       <RefreshCw className="h-3 w-3 animate-spin" />
                       Running...
                     </div>
@@ -165,13 +165,13 @@ export function CommandResultDisplay({
                         <span className="text-sm font-medium text-gray-900">{ar.taskTitle}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-[#1a5c2e]/5 px-2 py-0.5 text-[10px] font-medium text-[#1a5c2e]">
+                        <span className="rounded-full bg-orq8-green/5 px-2 py-0.5 text-3xs font-medium text-orq8-green">
                           {ar.agentName.replace(/_/g, " ")}
                         </span>
-                        <span className={`text-[10px] font-medium ${
-                          ar.status === "completed" ? "text-[#1a5c2e]" :
+                        <span className={`text-3xs font-medium ${
+                          ar.status === "completed" ? "text-orq8-green" :
                           ar.status === "failed" ? "text-red-500" :
-                          ar.status === "in_progress" ? "text-[#E86A33]" :
+                          ar.status === "in_progress" ? "text-orq8-orange" :
                           "text-amber-500"
                         }`}>
                           {statusLabel(ar.status)}
@@ -199,7 +199,7 @@ export function CommandResultDisplay({
               <div className="space-y-1.5">
                 {result.plan.taskDecomposition.map((step, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1a5c2e]" />
+                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-green" />
                     <span className="text-gray-900">{step.title}</span>
                   </div>
                 ))}
@@ -210,11 +210,11 @@ export function CommandResultDisplay({
           {/* Plan Summary */}
           {result.plan && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#1a5c2e]/5 px-2.5 py-1 text-xs font-medium text-[#1a5c2e]">
+              <span className="rounded-full bg-orq8-green/5 px-2.5 py-1 text-xs font-medium text-orq8-green">
                 {result.plan.action}
               </span>
               {result.plan.agents?.map((agent) => (
-                <span key={agent} className="rounded-full bg-[#E86A33]/10 px-2.5 py-1 text-xs font-medium text-[#E86A33]">
+                <span key={agent} className="rounded-full bg-orq8-orange/10 px-2.5 py-1 text-xs font-medium text-orq8-orange">
                   {agent.replace(/_/g, " ")}
                 </span>
               ))}
@@ -227,7 +227,7 @@ export function CommandResultDisplay({
               <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Approval Required</p>
               <p className="mt-1 text-sm text-amber-700">{result.approvalRequest.reason}</p>
               {approvalStatus === "submitted" ? (
-                <p className="mt-3 text-sm font-medium text-[#1a5c2e]">
+                <p className="mt-3 text-sm font-medium text-orq8-green">
                   ✓ Decision recorded. Tasks will execute now.
                 </p>
               ) : approvalStatus === "error" ? (
@@ -240,7 +240,7 @@ export function CommandResultDisplay({
                     type="button"
                     onClick={onApprove}
                     disabled={approvalStatus === "submitting"}
-                    className="flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
                   >
                     {approvalStatus === "submitting" ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />

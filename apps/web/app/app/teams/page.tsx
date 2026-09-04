@@ -84,7 +84,7 @@ export default function TeamsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Organization
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -134,7 +134,7 @@ export default function TeamsPage() {
           </p>
           <a
             href="/app/agents"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
           >
             <Users className="h-3.5 w-3.5" /> Hire agents
           </a>
@@ -147,7 +147,7 @@ export default function TeamsPage() {
             <article key={dept.name ?? "unassigned"} className="rounded-xl border border-hairline bg-white p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-sm font-bold text-[#1a5c2e]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-sm font-bold text-orq8-green">
                     <GitBranch className="h-5 w-5" />
                   </span>
                   <div>
@@ -176,13 +176,13 @@ export default function TeamsPage() {
               {/* Budget visualization */}
               {dept.budget != null && dept.budget > 0 && (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between text-[10px] mb-1">
+                  <div className="flex items-center justify-between text-3xs mb-1">
                     <span className="text-muted uppercase font-semibold tracking-wide">Budget utilization</span>
                     <span className="font-mono text-muted">{dept.agentCount} agents · {dept.activeCount} active</span>
                   </div>
                   <div className="h-2 rounded-full bg-hairline overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-[#1a5c2e] transition-all"
+                      className="h-full rounded-full bg-orq8-green transition-all"
                       style={{ width: `${Math.min((dept.activeCount / Math.max(dept.agentCount, 1)) * 100, 100)}%` }}
                     />
                   </div>
@@ -191,17 +191,17 @@ export default function TeamsPage() {
 
               <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Budget</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Budget</dt>
                   <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
                     {dept.budget != null ? `${dept.budget.toLocaleString()} cr` : "Not set"}
                   </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Head</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Head</dt>
                   <dd className="mt-0.5 text-xs font-medium text-ink truncate">{dept.head ?? "—"}</dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Utilization</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Utilization</dt>
                   <dd className="mt-0.5 text-xs font-medium text-ink">
                     {dept.agentCount > 0 ? Math.round((dept.activeCount / dept.agentCount) * 100) : 0}%
                   </dd>
@@ -214,7 +214,7 @@ export default function TeamsPage() {
 
       {/* Edit Modal */}
       {editingDept && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">
@@ -227,22 +227,22 @@ export default function TeamsPage() {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Department Head</label>
-                <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]" />
+                <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Budget (credits)</label>
-                <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]" />
+                <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e] resize-none" />
+                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none" />
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
               <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>

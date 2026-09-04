@@ -66,16 +66,16 @@ export default async function AIUsagePage() {
               <p className="text-xs text-muted">total credits</p>
             </div>
             <div>
-              <p className="font-mono text-3xl font-bold text-[#E86A33] tabular-nums">{credits.used}</p>
+              <p className="font-mono text-3xl font-bold text-orq8-orange tabular-nums">{credits.used}</p>
               <p className="text-xs text-muted">consumed</p>
             </div>
             <div>
-              <p className="font-mono text-3xl font-bold text-[#1a5c2e] tabular-nums">{credits.total - credits.used}</p>
+              <p className="font-mono text-3xl font-bold text-orq8-green tabular-nums">{credits.total - credits.used}</p>
               <p className="text-xs text-muted">remaining</p>
             </div>
           </div>
           <div className="mt-4 h-3 rounded-full bg-hairline overflow-hidden">
-            <div className="h-full rounded-full bg-[#1a5c2e] transition-all" style={{ width: `${creditUtil}%` }} />
+            <div className="h-full rounded-full bg-orq8-green transition-all" style={{ width: `${creditUtil}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted">{creditUtil}% utilized</p>
         </div>
@@ -88,7 +88,7 @@ export default async function AIUsagePage() {
               <p className="text-xs text-muted">total agents</p>
             </div>
             <div>
-              <p className="font-mono text-3xl font-bold text-[#1a5c2e] tabular-nums">{agents.active}</p>
+              <p className="font-mono text-3xl font-bold text-orq8-green tabular-nums">{agents.active}</p>
               <p className="text-xs text-muted">active</p>
             </div>
             <div>

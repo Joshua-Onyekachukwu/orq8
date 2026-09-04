@@ -62,17 +62,17 @@ function computeScore(props: HealthScoreProps): ScoreResult {
   if (score >= 80) {
     label = "Thriving";
     description = "Your company is running smoothly. AI employees are productive and goals are on track.";
-    color = "text-[#1a5c2e]";
+    color = "text-orq8-green";
     strokeColor = "#1a5c2e";
   } else if (score >= 60) {
     label = "Healthy";
     description = "Good momentum. Some areas could use attention to reach full potential.";
-    color = "text-[#B8FF66]";
+    color = "text-orq8-lime";
     strokeColor = "#B8FF66";
   } else if (score >= 40) {
     label = "Needs Attention";
     description = "Several areas need founder input. Review pending approvals and stalled tasks.";
-    color = "text-[#E86A33]";
+    color = "text-orq8-orange";
     strokeColor = "#E86A33";
   } else {
     label = "At Risk";
@@ -103,8 +103,8 @@ function computeScore(props: HealthScoreProps): ScoreResult {
 
 function StatusDot({ status }: { status: "good" | "warning" | "critical" | "neutral" }) {
   const color =
-    status === "good" ? "bg-[#1a5c2e]" :
-    status === "warning" ? "bg-[#E86A33]" :
+    status === "good" ? "bg-orq8-green" :
+    status === "warning" ? "bg-orq8-orange" :
     status === "critical" ? "bg-red-500" :
     "bg-gray-300";
   return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
@@ -127,7 +127,7 @@ export function HealthScore(props: HealthScoreProps) {
           <h2 className="text-sm font-semibold text-ink">Company Health</h2>
           <p className="mt-0.5 text-[11px] text-muted">Composite performance score</p>
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide ${color} bg-current/5`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-3xs font-semibold uppercase tracking-wide ${color} bg-current/5`}>
           <Icon className="h-3 w-3" />
           {label}
         </span>
@@ -162,7 +162,7 @@ export function HealthScore(props: HealthScoreProps) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold tracking-tight text-ink">{score}</span>
-            <span className="text-[9px] font-medium uppercase tracking-wider text-muted">/ 100</span>
+            <span className="text-2xs font-medium uppercase tracking-wider text-muted">/ 100</span>
           </div>
         </div>
 
@@ -183,15 +183,15 @@ export function HealthScore(props: HealthScoreProps) {
                   <span className="text-[11px] font-medium text-ink">{seg.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono tabular-nums text-muted">{seg.display}</span>
-                  <span className="text-[10px] font-mono tabular-nums text-muted/60 w-8 text-right">{seg.value}%</span>
+                  <span className="text-3xs font-mono tabular-nums text-muted">{seg.display}</span>
+                  <span className="text-3xs font-mono tabular-nums text-muted/60 w-8 text-right">{seg.value}%</span>
                 </div>
               </div>
               <div className="mt-1.5 h-1.5 rounded-full bg-hairline overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ease-out ${
-                    seg.status === "good" ? "bg-[#1a5c2e]" :
-                    seg.status === "warning" ? "bg-[#E86A33]" :
+                    seg.status === "good" ? "bg-orq8-green" :
+                    seg.status === "warning" ? "bg-orq8-orange" :
                     seg.status === "critical" ? "bg-red-400" :
                     "bg-gray-200"
                   }`}

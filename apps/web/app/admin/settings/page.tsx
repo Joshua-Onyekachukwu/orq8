@@ -22,7 +22,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Registration</p>
                 <p className="text-xs text-muted">Allow new user signups</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Open
               </span>
             </div>
@@ -56,7 +56,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">BYOK (Bring Your Own Key)</p>
                 <p className="text-xs text-muted">Allow users to use their own API keys</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Enabled
               </span>
             </div>
@@ -72,7 +72,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Rate Limiting</p>
                 <p className="text-xs text-muted">Login: 5 attempts/min per IP</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Active
               </span>
             </div>
@@ -81,7 +81,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Security Headers</p>
                 <p className="text-xs text-muted">HSTS, CSP, X-Frame-Options</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Active
               </span>
             </div>
@@ -90,7 +90,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Password Reset</p>
                 <p className="text-xs text-muted">Email-based token reset flow</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Active
               </span>
             </div>
@@ -99,7 +99,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Idempotency</p>
                 <p className="text-xs text-muted">Redis-backed for mutating endpoints</p>
               </div>
-              <span className="rounded-full bg-[#1a5c2e]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8FF66]">
+              <span className="rounded-full bg-orq8-green/10 px-2.5 py-0.5 text-xs font-medium text-orq8-lime">
                 Active
               </span>
             </div>
@@ -116,7 +116,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Subscriptions and payment processing</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.STRIPE_SECRET_KEY ? "bg-[#1a5c2e]/10 text-[#B8FF66]" : "bg-gray-100 text-gray-500"
+                process.env.STRIPE_SECRET_KEY ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-500"
               }`}>
                 {process.env.STRIPE_SECRET_KEY ? "Configured" : "Not configured"}
               </span>
@@ -127,7 +127,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Transactional and drip emails</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.SMTP_HOST ? "bg-[#1a5c2e]/10 text-[#B8FF66]" : "bg-gray-100 text-gray-500"
+                process.env.SMTP_HOST ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-500"
               }`}>
                 {process.env.SMTP_HOST ? "Configured" : "Not configured"}
               </span>
@@ -138,7 +138,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Agent file uploads and documents</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.S3_ENDPOINT ? "bg-[#1a5c2e]/10 text-[#B8FF66]" : "bg-blue-50 text-blue-600"
+                process.env.S3_ENDPOINT ? "bg-orq8-green/10 text-orq8-lime" : "bg-blue-50 text-blue-600"
               }`}>
                 {process.env.S3_ENDPOINT ? "S3/R2" : "Local fallback"}
               </span>
@@ -149,7 +149,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Sessions, rate limiting, idempotency</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.REDIS_URL ? "bg-[#1a5c2e]/10 text-[#B8FF66]" : "bg-blue-50 text-blue-600"
+                process.env.REDIS_URL ? "bg-orq8-green/10 text-orq8-lime" : "bg-blue-50 text-blue-600"
               }`}>
                 {process.env.REDIS_URL ? "Connected" : "In-memory fallback"}
               </span>

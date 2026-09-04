@@ -102,7 +102,7 @@ export default function OrgPage() {
     <div className="mx-auto max-w-5xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Organization
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -150,7 +150,7 @@ export default function OrgPage() {
           {/* Stats row */}
           <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
             {[
-              { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-[#B8FF66]/10 text-[#1a5c2e]" },
+              { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-orq8-lime/10 text-orq8-green" },
               { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-purple-50 text-purple-700" },
               { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-blue-50 text-blue-700" },
               { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-amber-50 text-amber-700" },
@@ -160,7 +160,7 @@ export default function OrgPage() {
                   {stat.icon}
                 </span>
                 <p className="mt-2 text-xl font-bold text-ink">{stat.value}</p>
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">{stat.label}</p>
+                <p className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -170,8 +170,8 @@ export default function OrgPage() {
             <h2 className="text-sm font-semibold text-ink mb-4">Organization Structure</h2>
 
             {/* Root: CEO / Founder */}
-            <div className="flex items-center gap-3 rounded-xl border-2 border-[#1a5c2e]/30 bg-[#1a5c2e]/5 px-5 py-4 mb-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1a5c2e] text-lg font-bold text-white">
+            <div className="flex items-center gap-3 rounded-xl border-2 border-orq8-green/30 bg-orq8-green/5 px-5 py-4 mb-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-orq8-green text-lg font-bold text-white">
                 CEO
               </span>
               <div>
@@ -189,7 +189,7 @@ export default function OrgPage() {
                 <div className="flex items-center gap-2 rounded-lg border border-hairline bg-canvas px-4 py-3">
                   <Building2 className="h-4 w-4 text-muted" />
                   <span className="text-sm font-semibold text-ink">{dept}</span>
-                  <span className="font-mono text-[10px] text-muted">
+                  <span className="font-mono text-3xs text-muted">
                     {agents.length} agent{agents.length !== 1 ? "s" : ""}
                   </span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted" />
@@ -204,13 +204,13 @@ export default function OrgPage() {
                       onClick={() => setSelectedAgent(selectedAgent?.id === agent.id ? null : agent)}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                         selectedAgent?.id === agent.id
-                          ? "bg-[#0a0a0b] text-white"
+                          ? "bg-orq8-dark text-white"
                           : "hover:bg-canvas"
                       }`}
                     >
                       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         agent.status === "active"
-                          ? "bg-[#1a5c2e] text-white"
+                          ? "bg-orq8-green text-white"
                           : "bg-hairline text-muted"
                       }`}>
                         {agent.name.charAt(0)}
@@ -223,7 +223,7 @@ export default function OrgPage() {
                           {agent.role}
                         </p>
                       </div>
-                      <span className={`font-mono text-[10px] ${
+                      <span className={`font-mono text-3xs ${
                         selectedAgent?.id === agent.id ? "text-white/60" : "text-muted"
                       }`}>
                         {agent.tasksCompleted} tasks
@@ -239,7 +239,7 @@ export default function OrgPage() {
                 <p className="text-sm text-muted">
                   Hire agents and assign them to departments to see your org chart.
                 </p>
-                <a href="/app/agents" className="mt-2 inline-block text-xs font-medium text-[#1a5c2e] hover:underline">
+                <a href="/app/agents" className="mt-2 inline-block text-xs font-medium text-orq8-green hover:underline">
                   Hire agents →
                 </a>
               </div>
@@ -252,31 +252,31 @@ export default function OrgPage() {
               <h3 className="text-sm font-semibold text-ink mb-3">Agent Detail — {selectedAgent.name}</h3>
               <dl className="grid gap-4 sm:grid-cols-4">
                 <div>
-                  <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Role</dt>
+                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Role</dt>
                   <dd className="mt-1 text-sm text-ink">{selectedAgent.role}</dd>
                 </div>
                 <div>
-                  <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Status</dt>
+                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Status</dt>
                   <dd className="mt-1 text-sm">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      selectedAgent.status === "active" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" : "bg-hairline text-muted"
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-semibold uppercase ${
+                      selectedAgent.status === "active" ? "bg-orq8-lime/10 text-orq8-green" : "bg-hairline text-muted"
                     }`}>
                       {selectedAgent.status}
                     </span>
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Tasks Completed</dt>
+                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Tasks Completed</dt>
                   <dd className="mt-1 text-sm text-ink">{selectedAgent.tasksCompleted}</dd>
                 </div>
                 <div>
-                  <dt className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Weekly Cost</dt>
+                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Weekly Cost</dt>
                   <dd className="mt-1 text-sm tabular-nums text-ink">${(selectedAgent.weeklyCost / 100).toFixed(2)}</dd>
                 </div>
               </dl>
               {selectedAgent.currentTask && (
                 <div className="mt-3 rounded-lg bg-canvas px-3 py-2">
-                  <p className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">Current Task</p>
+                  <p className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Current Task</p>
                   <p className="mt-1 text-sm text-ink">{selectedAgent.currentTask}</p>
                 </div>
               )}
@@ -292,7 +292,7 @@ export default function OrgPage() {
                   <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2.5">
                     <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-purple-500" />
                     <span className="flex-1 text-sm text-ink">{goal.title}</span>
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
                       goal.priority === "urgent" ? "bg-red-100 text-red-600" :
                       goal.priority === "high" ? "bg-amber-50 text-amber-700" :
                       "bg-hairline text-muted"
@@ -300,9 +300,9 @@ export default function OrgPage() {
                       {goal.priority}
                     </span>
                     <div className="h-2 w-16 rounded-full bg-muted/10 overflow-hidden">
-                      <div className="h-full rounded-full bg-[#1a5c2e]" style={{ width: `${goal.progress}%` }} />
+                      <div className="h-full rounded-full bg-orq8-green" style={{ width: `${goal.progress}%` }} />
                     </div>
-                    <span className="font-mono text-[10px] text-muted w-8 text-right">{goal.progress}%</span>
+                    <span className="font-mono text-3xs text-muted w-8 text-right">{goal.progress}%</span>
                   </div>
                 ))}
               </div>

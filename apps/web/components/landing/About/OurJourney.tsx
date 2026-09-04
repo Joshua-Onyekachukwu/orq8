@@ -5,11 +5,11 @@ import { Reveal } from "../Common/Reveal";
 
 const OurJourney: React.FC = () => {
   return (
-    <section className="bg-[#0A0A0B] py-[80px] md:py-[120px] lg:py-[160px]">
+    <section className="bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <Reveal>
           <div className="mb-[48px] md:mb-[64px]">
-            <span className="mb-[12px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
+            <span className="mb-[12px] block text-[11px] font-bold uppercase tracking-[0.2em] text-orq8-lime">
               Our Story
             </span>
             <h2 className="text-[32px] md:text-[40px] font-normal leading-tight tracking-tight text-white">
@@ -22,13 +22,13 @@ const OurJourney: React.FC = () => {
           {/* Mission */}
           <Reveal>
             <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-[32px] md:p-[40px] lg:p-[48px]">
-              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
+              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-orq8-lime">
                 Our Mission
               </span>
               <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
                 Make AI organizations accessible to every founder
               </h3>
-              <p className="text-[15px] leading-relaxed text-white/50 md:text-[16px]">
+              <p className="text-md leading-relaxed text-white/50 md:text-base">
                 Every solo founder deserves the operational power of a full
                 company. ORQ8 gives you specialized AI employees, an Executive
                 Agent that plans and coordinates, approval gates that keep you in
@@ -40,14 +40,14 @@ const OurJourney: React.FC = () => {
 
           {/* Vision */}
           <Reveal>
-            <div className="rounded-[16px] border border-[#B8FF66]/20 bg-[#B8FF66]/5 p-[32px] md:p-[40px] lg:p-[48px]">
-              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
+            <div className="rounded-[16px] border border-orq8-lime/20 bg-orq8-lime/5 p-[32px] md:p-[40px] lg:p-[48px]">
+              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-orq8-lime">
                 Our Vision
               </span>
               <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
                 A world where one person can run a real company
               </h3>
-              <p className="text-[15px] leading-relaxed text-white/50 md:text-[16px]">
+              <p className="text-md leading-relaxed text-white/50 md:text-base">
                 We started ORQ8 because the tools solo founders use today
                 require them to do everything themselves: accounting, marketing,
                 operations, support. None of it connects. None of it runs without
@@ -62,12 +62,12 @@ const OurJourney: React.FC = () => {
         {/* CTA */}
         <Reveal>
           <div className="mt-[64px] text-center">
-            <p className="mb-[24px] text-[14px] text-white/40">
+            <p className="mb-[24px] text-sm text-white/40">
               Join the first cohort and build your AI organization.
             </p>
             <a
               href="/#waitlist"
-              className="inline-flex items-center gap-[10px] rounded-full bg-[#B8FF66] px-[28px] py-[12px] text-[14px] font-semibold text-[#0A0A0B] transition-colors hover:bg-[#A3E855]"
+              className="inline-flex items-center gap-[10px] rounded-full bg-orq8-lime px-[28px] py-[12px] text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-lime"
             >
               JOIN THE WAITLIST
               <svg

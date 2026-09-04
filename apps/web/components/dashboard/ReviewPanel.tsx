@@ -64,7 +64,7 @@ export function ReviewPanel({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-ink">Review Work</h3>
         {qaVerdict && (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-medium ${
             qaVerdict === "pass" ? "bg-emerald-50 text-emerald-700" :
             qaVerdict === "pass_with_warnings" ? "bg-amber-50 text-amber-700" :
             "bg-red-50 text-red-700"
@@ -134,7 +134,7 @@ export function ReviewPanel({
                 ? "What needs to change? Be specific."
                 : "Why is this work being rejected?"
             }
-            className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-[#1a5c2e] focus:outline-none focus:ring-1 focus:ring-[#1a5c2e]/20 resize-none"
+            className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-1 focus:ring-orq8-green/20 resize-none"
             rows={3}
           />
         </div>
@@ -144,7 +144,7 @@ export function ReviewPanel({
       <button
         onClick={handleSubmit}
         disabled={!decision || submitting || (decision === "revision" && !feedback.trim())}
-        className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#0a0a0b] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-2 rounded-lg bg-orq8-dark px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Send className="h-4 w-4" />
         {submitting ? "Submitting..." : "Submit Review"}

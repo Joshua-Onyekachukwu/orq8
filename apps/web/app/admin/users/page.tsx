@@ -23,7 +23,7 @@ async function fetchUsers(token: string, search?: string) {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "active": return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+    case "active": return "bg-orq8-green/10 text-orq8-green";
     case "disabled": return "bg-red-50 text-red-600";
     case "suspended": return "bg-amber-50 text-amber-600";
     default: return "bg-canvas text-muted";
@@ -31,7 +31,7 @@ function statusBadge(status: string) {
 }
 
 function platformRoleBadge(role: string | null) {
-  if (role === "admin") return "bg-[#E86A33]/10 text-[#E86A33]";
+  if (role === "admin") return "bg-orq8-orange/10 text-orq8-orange";
   return "bg-canvas text-muted";
 }
 
@@ -92,21 +92,21 @@ export default async function AdminUsersPage({
             name="search"
             defaultValue={params.search ?? ""}
             placeholder="Search by name or email..."
-            className="w-full rounded-lg border border-hairline bg-white pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-[#1a5c2e] focus:outline-none focus:ring-1 focus:ring-[#1a5c2e]/20"
+            className="w-full rounded-lg border border-hairline bg-white pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-1 focus:ring-orq8-green/20"
           />
         </div>
       </form>
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">Filter:</span>
+        <span className="text-3xs font-semibold uppercase tracking-wider text-muted">Filter:</span>
         {["all", "active", "disabled", "suspended"].map((s) => (
           <a
             key={s}
             href={s === "all" ? "/admin/users" : `/admin/users?status=${s}`}
-            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase transition-colors ${
+            className={`rounded-full px-2.5 py-1 text-3xs font-semibold uppercase transition-colors ${
               (params.status ?? "all") === s
-                ? "bg-[#0a0a0b] text-white"
+                ? "bg-orq8-dark text-white"
                 : "bg-canvas text-muted hover:bg-hairline"
             }`}
           >
@@ -121,7 +121,7 @@ export default async function AdminUsersPage({
           <thead>
             <tr className="border-b border-hairline bg-canvas">
               {["User", "Email", "Role", "Status", "Actions"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                <th key={h} className="px-5 py-3 text-left font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted">
                   {h}
                 </th>
               ))}
@@ -139,7 +139,7 @@ export default async function AdminUsersPage({
                 <tr key={user.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0a0a0b] text-xs font-bold text-[#B8FF66]">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-dark text-xs font-bold text-orq8-lime">
                         {(user.name ?? user.email ?? "U").charAt(0).toUpperCase()}
                       </span>
                       <span className="text-sm font-medium text-ink">{user.name ?? "—"}</span>
@@ -147,13 +147,13 @@ export default async function AdminUsersPage({
                   </td>
                   <td className="px-5 py-3 text-sm text-muted">{user.email}</td>
                   <td className="px-5 py-3">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${platformRoleBadge(user.platformRole)}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-semibold uppercase ${platformRoleBadge(user.platformRole)}`}>
                       {user.platformRole === "admin" && <Shield className="h-2.5 w-2.5" />}
                       {user.platformRole ?? "user"}
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${statusBadge(user.status)}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold uppercase ${statusBadge(user.status)}`}>
                       {user.status}
                     </span>
                   </td>

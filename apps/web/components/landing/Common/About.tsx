@@ -30,26 +30,26 @@ const About: React.FC = () => {
 
           {/* Content Section */}
           <div className="ltr:xl:pl-[55px] rtl:xl:pr-[55px]">
-            <span className="block uppercase font-bold tracking-[1.8px] text-xs text-[#E86A33] mb-[10px] lg:mb-[15px]">About ORQ8</span>
+            <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange mb-[10px] lg:mb-[15px]">About ORQ8</span>
             <h2 className="!mb-[12px] md:!mb-[15px] lg:!mb-[20px] !font-light !text-2xl md:!text-4xl lg:!text-[42px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
               A company that runs itself. <span className="text-black">Under your control.</span>
             </h2>
-            <p className="md:text-[15px] lg:text-md -tracking-[0.16px] text-gray-500">
+            <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-500">
               Every solo founder juggles 12+ disconnected tools and starts every morning copying data between tabs. ORQ8 replaces that chaos with one operating system: AI employees handle the work, you handle the decisions, and the Executive Agent coordinates everything in between.
             </p>
 
             <div className="my-[25px] md:my-[30px]">
               {aboutFeatures.map((f, i) => (
                 <div key={i} className="relative mb-[20px] md:mb-[25px] last:mb-0 ltr:pl-[48px] rtl:pr-[48px] ltr:md:pl-[64px] rtl:md:pr-[64px] md:pt-[7px]">
-                  <div className="rounded-full flex items-center justify-center w-[35px] h-[35px] md:w-[44px] md:h-[44px] text-[#1a5c2e] border border-[#1a5c2e]/20 bg-[#1a5c2e]/5 text-lg md:text-[22px] absolute top-0 ltr:left-0 rtl:right-0"><i className="ri-check-double-line"></i></div>
-                  <h3 className="!font-medium !text-[20px] md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] md:!mb-[12px]">{f.title}</h3>
-                  <p className="md:text-[15px] lg:text-md -tracking-[0.16px] text-gray-500">{f.description}</p>
+                  <div className="rounded-full flex items-center justify-center w-[35px] h-[35px] md:w-[44px] md:h-[44px] text-orq8-green border border-orq8-green/20 bg-orq8-green/5 text-lg md:text-[22px] absolute top-0 ltr:left-0 rtl:right-0"><i className="ri-check-double-line"></i></div>
+                  <h3 className="!font-medium !text-xl md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] md:!mb-[12px]">{f.title}</h3>
+                  <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-500">{f.description}</p>
                 </div>
               ))}
             </div>
 
-            <Link href="/register" className="inline-block rounded-full bg-[#B8FF66] px-[28px] py-[14px] uppercase text-[11px] font-bold text-[#1a5c2e] tracking-[1.8px] transition-all hover:bg-[#a3e855]">
-              <span className="flex items-center justify-center gap-[12px]">GET STARTED <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-[#1a5c2e]/10 text-[#1a5c2e] flex items-center justify-center text-[13px]"></i></span>
+            <Link href="/register" className="inline-block rounded-full bg-orq8-lime px-[28px] py-[14px] uppercase text-[11px] font-bold text-orq8-green tracking-[1.8px] transition-all hover:bg-orq8-lime">
+              <span className="flex items-center justify-center gap-[12px]">GET STARTED <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-orq8-green/10 text-orq8-green flex items-center justify-center text-2sm"></i></span>
             </Link>
           </div>
         </div>

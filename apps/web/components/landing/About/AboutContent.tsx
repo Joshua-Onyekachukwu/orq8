@@ -47,21 +47,21 @@ const features = [
 
 const AboutContent: React.FC = () => {
   return (
-    <section className="bg-[#0A0A0B] py-[80px] md:py-[120px] lg:py-[160px]">
+    <section className="bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 gap-[60px] lg:grid-cols-2 lg:gap-[80px] items-center">
           {/* Content */}
           <div className="space-y-[32px]">
             {features.map((feature, index) => (
               <div key={index} className="flex gap-[20px]">
-                <div className="mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.03] text-[#B8FF66]">
+                <div className="mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.03] text-orq8-lime">
                   {feature.icon}
                 </div>
                 <div>
-                  <h3 className="mb-[8px] text-[18px] font-medium text-white">
+                  <h3 className="mb-[8px] text-lg font-medium text-white">
                     {feature.title}
                   </h3>
-                  <p className="text-[15px] leading-relaxed text-white/50">
+                  <p className="text-md leading-relaxed text-white/50">
                     {feature.description}
                   </p>
                 </div>
@@ -74,32 +74,32 @@ const AboutContent: React.FC = () => {
             <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-[24px]">
               {/* Header */}
               <div className="mb-[20px] flex items-center justify-between">
-                <span className="text-[14px] font-bold tracking-tight text-white">
+                <span className="text-sm font-bold tracking-tight text-white">
                   ORQ8{" "}
                   <span className="text-white/40">· Command Center</span>
                 </span>
                 <span className="flex items-center gap-[6px]">
-                  <span className="h-[6px] w-[6px] rounded-full bg-[#B8FF66] animate-pulse" />
-                  <span className="h-[6px] w-[6px] rounded-full bg-[#B8FF66]/60 animate-pulse" />
-                  <span className="h-[6px] w-[6px] rounded-full bg-[#B8FF66]/30" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime animate-pulse" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime/60 animate-pulse" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime/30" />
                 </span>
               </div>
 
               {/* Approval Card */}
-              <div className="mb-[12px] rounded-[12px] border border-[#B8FF66]/20 bg-white/[0.03] p-[20px]">
+              <div className="mb-[12px] rounded-[12px] border border-orq8-lime/20 bg-white/[0.03] p-[20px]">
                 <div className="mb-[12px] flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
+                  <span className="text-3xs font-semibold uppercase tracking-widest text-white/40">
                     Approval Required
                   </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-[#B8FF66]">
+                  <span className="text-3xs font-semibold uppercase tracking-widest text-orq8-lime">
                     Spend · $250
                   </span>
                 </div>
-                <p className="text-[14px] leading-relaxed text-white/60">
+                <p className="text-sm leading-relaxed text-white/60">
                   Marketing requests $250 for a LinkedIn campaign.
                 </p>
                 <div className="mt-[16px] flex gap-[8px]">
-                  <span className="rounded-[8px] bg-[#B8FF66] px-[12px] py-[6px] text-[11px] font-bold uppercase tracking-wider text-[#0A0A0B]">
+                  <span className="rounded-[8px] bg-orq8-lime px-[12px] py-[6px] text-[11px] font-bold uppercase tracking-wider text-orq8-dark">
                     Approve
                   </span>
                   <span className="rounded-[8px] border border-white/[0.08] px-[12px] py-[6px] text-[11px] font-bold uppercase tracking-wider text-white/50">
@@ -111,36 +111,36 @@ const AboutContent: React.FC = () => {
               {/* Agents Active */}
               <div className="mb-[12px] rounded-[12px] border border-white/[0.06] bg-white/[0.03] p-[20px]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
+                  <span className="text-3xs font-semibold uppercase tracking-widest text-white/40">
                     Agents Active
                   </span>
-                  <span className="text-[18px] font-bold text-white">03</span>
+                  <span className="text-lg font-bold text-white">03</span>
                 </div>
                 <div className="mt-[12px] flex items-center justify-between">
-                  <span className="text-[13px] text-white/50">
+                  <span className="text-2sm text-white/50">
                     Researcher · Analyzing
                   </span>
-                  <span className="h-[5px] w-[5px] rounded-full bg-[#B8FF66] animate-pulse" />
+                  <span className="h-[5px] w-[5px] rounded-full bg-orq8-lime animate-pulse" />
                 </div>
                 <div className="mt-[8px] flex items-center justify-between">
-                  <span className="text-[13px] text-white/50">
+                  <span className="text-2sm text-white/50">
                     Writer · Drafting launch post
                   </span>
-                  <span className="h-[5px] w-[5px] rounded-full bg-[#B8FF66] animate-pulse" />
+                  <span className="h-[5px] w-[5px] rounded-full bg-orq8-lime animate-pulse" />
                 </div>
               </div>
 
               {/* Weekly Cost */}
               <div className="rounded-[12px] border border-white/[0.06] bg-white/[0.03] p-[20px]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
+                  <span className="text-3xs font-semibold uppercase tracking-widest text-white/40">
                     Weekly Cost
                   </span>
-                  <span className="text-[18px] font-bold text-white">
+                  <span className="text-lg font-bold text-white">
                     $14.20
                   </span>
                 </div>
-                <p className="mt-[4px] text-[13px] text-[#B8FF66]">within budget</p>
+                <p className="mt-[4px] text-2sm text-orq8-lime">within budget</p>
               </div>
             </div>
           </div>

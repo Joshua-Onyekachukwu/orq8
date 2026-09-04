@@ -608,3 +608,52 @@ body {
 [dir="rtl"] .sidebar-settings .rtl-mode-toggle span span {
   @apply bg-primary-500 left-[17px];
 }
+
+/* =====================================================================
+ * ORQ8 Utility Classes — Semantic color helpers for consistent styling.
+ * Use these instead of inline hex values like bg-[#1a5c2e] or text-[#B8FF66].
+ * ===================================================================== */
+
+/* Brand surfaces */
+.bg-orq8-dark { background-color: #0a0a0b; }
+.bg-orq8-green { background-color: #1a5c2e; }
+.bg-orq8-green-dark { background-color: #144a24; }
+.bg-orq8-lime { background-color: #B8FF66; }
+.bg-orq8-orange { background-color: #E86A33; }
+.bg-orq8-orange-dark { background-color: #d45e2a; }
+
+/* Brand text */
+.text-orq8-dark { color: #0a0a0b; }
+.text-orq8-green { color: #1a5c2e; }
+.text-orq8-lime { color: #B8FF66; }
+.text-orq8-orange { color: #E86A33; }
+
+/* Brand borders */
+.border-orq8-green { border-color: #1a5c2e; }
+.border-orq8-lime { border-color: #B8FF66; }
+.border-orq8-orange { border-color: #E86A33; }
+
+/* Brand ring/focus */
+.ring-orq8-green { --tw-ring-color: #1a5c2e; }
+.focus\:border-orq8-green:focus { border-color: #1a5c2e; }
+.focus\:ring-orq8-green:focus { --tw-ring-color: #1a5c2e; }
+
+/* Hover variants */
+.hover\:bg-orq8-green:hover { background-color: #157a3a; }
+.hover\:bg-orq8-green-dark:hover { background-color: #0d1a12; }
+.hover\:text-orq8-green:hover { color: #1a5c2e; }
+.hover\:text-orq8-lime:hover { color: #c8ff8a; }
+.hover\:text-orq8-orange:hover { color: #d45e2a; }
+
+/* Text muted on dark backgrounds */
+.text-orq8-muted-on-dark { color: rgba(255,255,255,0.5); }
+.text-orq8-faint-on-dark { color: rgba(255,255,255,0.3); }
+
+/* Font size tokens — ONLY add custom sizes not in Tailwind's default scale.
+   Do NOT override Tailwind built-ins: text-xs (12px), text-sm (14px),
+   text-base (16px), text-lg (18px), text-xl (20px), text-2xl (24px).
+   Use those standard Tailwind classes instead. */
+.text-2xs { font-size: 9px; line-height: 1.4; }
+.text-3xs { font-size: 10px; line-height: 1.4; }
+.text-2sm { font-size: 13px; line-height: 1.5; }
+.text-md { font-size: 15px; line-height: 1.6; }

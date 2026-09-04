@@ -26,12 +26,12 @@ export default async function SettingsProvidersPage() {
     <div id="main" className="min-h-screen bg-canvas">
       <header className="border-b border-hairline bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <a href="/" className="text-lg font-semibold tracking-tight text-[#0a0a0b]">
+          <a href="/" className="text-lg font-semibold tracking-tight text-ink">
             ORQ8
           </a>
           <a
             href="/app"
-            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e]"
+            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-orq8-green hover:text-orq8-green"
           >
             ← Back to app
           </a>

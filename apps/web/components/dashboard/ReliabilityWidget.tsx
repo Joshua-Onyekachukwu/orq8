@@ -125,7 +125,7 @@ export function ReliabilityWidget() {
           <Users className="h-4 w-4 text-muted" />
           <h3 className="text-sm font-semibold text-ink">AI Workforce Reliability</h3>
         </div>
-        <a href="/app/agents" className="text-xs text-[#1a5c2e] hover:underline">View all</a>
+        <a href="/app/agents" className="text-xs text-orq8-green hover:underline">View all</a>
       </div>
 
       <div className="space-y-3">
@@ -142,19 +142,19 @@ export function ReliabilityWidget() {
             <div className="flex items-center gap-4">
               <div className="text-right">
                 <p className="text-sm font-semibold text-ink">{p.completionRate}%</p>
-                <p className="text-[10px] text-muted">completion</p>
+                <p className="text-3xs text-muted">completion</p>
               </div>
 
               <div className="text-right">
                 <p className="text-sm font-semibold text-ink">{p.totalTasks}</p>
-                <p className="text-[10px] text-muted">tasks</p>
+                <p className="text-3xs text-muted">tasks</p>
               </div>
 
               <div className="flex items-center gap-1">
                 <TrendIcon trend={p.trend} />
               </div>
 
-              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${autonomyColor(p.autonomyLevel)}`}>
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-3xs font-medium ${autonomyColor(p.autonomyLevel)}`}>
                 {p.autonomyLevel}
               </span>
             </div>

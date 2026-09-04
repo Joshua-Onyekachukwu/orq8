@@ -70,16 +70,16 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Health banner */}
-      <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#1a5c2e]/20 bg-[#1a5c2e]/5 px-5 py-3">
-        <CheckCircle2 className="h-5 w-5 text-[#1a5c2e]" />
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-orq8-green/20 bg-orq8-green/5 px-5 py-3">
+        <CheckCircle2 className="h-5 w-5 text-orq8-green" />
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">All systems operational</p>
           <p className="text-xs text-muted">
             API · Database · Auth · Agent execution · {configuredProviders}/{providers.length} providers configured
           </p>
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-[#1a5c2e]">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e] animate-pulse" />
+        <span className="flex items-center gap-1.5 text-xs text-orq8-green">
+          <span className="h-1.5 w-1.5 rounded-full bg-orq8-green animate-pulse" />
           Live
         </span>
       </div>
@@ -87,10 +87,10 @@ export default async function AdminDashboardPage() {
       {/* Core metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
-          { label: "Users", value: u.total ?? 0, sub: `${u.newThisWeek ?? 0} new this week`, icon: Users, color: "bg-[#1a5c2e]/10 text-[#1a5c2e]" },
-          { label: "Organizations", value: o.total ?? 0, sub: `${o.active ?? 0} active`, icon: Building2, color: "bg-[#B8FF66]/10 text-[#1a5c2e]" },
-          { label: "AI Employees", value: a.total ?? 0, sub: `${a.active ?? 0} active, ${a.paused ?? 0} paused`, icon: Bot, color: "bg-[#E86A33]/10 text-[#E86A33]" },
-          { label: "Pending Approvals", value: ap.pending ?? 0, sub: ap.pending > 0 ? "Needs attention" : "All clear", icon: ShieldCheck, color: ap.pending > 0 ? "bg-[#E86A33]/10 text-[#E86A33]" : "bg-canvas text-muted" },
+          { label: "Users", value: u.total ?? 0, sub: `${u.newThisWeek ?? 0} new this week`, icon: Users, color: "bg-orq8-green/10 text-orq8-green" },
+          { label: "Organizations", value: o.total ?? 0, sub: `${o.active ?? 0} active`, icon: Building2, color: "bg-orq8-lime/10 text-orq8-green" },
+          { label: "AI Employees", value: a.total ?? 0, sub: `${a.active ?? 0} active, ${a.paused ?? 0} paused`, icon: Bot, color: "bg-orq8-orange/10 text-orq8-orange" },
+          { label: "Pending Approvals", value: ap.pending ?? 0, sub: ap.pending > 0 ? "Needs attention" : "All clear", icon: ShieldCheck, color: ap.pending > 0 ? "bg-orq8-orange/10 text-orq8-orange" : "bg-canvas text-muted" },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -100,7 +100,7 @@ export default async function AdminDashboardPage() {
                   <Icon className="h-5 w-5" />
                 </span>
               </div>
-              <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 {stat.label}
               </p>
               <p className="mt-1 text-2xl font-bold tracking-tight text-ink tabular-nums">
@@ -145,9 +145,9 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-sm font-semibold text-ink">AI Provider Health</h2>
-            <p className="text-[10px] text-muted mt-0.5">Real-time status from live provider probes</p>
+            <p className="text-3xs text-muted mt-0.5">Real-time status from live provider probes</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-3xs font-medium text-emerald-700">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Live
           </span>
@@ -168,11 +168,11 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
                   <p className="text-sm font-medium text-ink flex-1">{p.name}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${statusBg}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-2xs font-semibold ${statusBg}`}>
                     {statusLabel}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-muted">
+                <div className="flex items-center gap-3 text-3xs text-muted">
                   <span>{p.keyCount} key(s)</span>
                   {p.latencyMs !== undefined && p.latencyMs > 0 && (
                     <span className={`font-mono ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : ""}`}>
@@ -184,12 +184,12 @@ export default async function AdminDashboardPage() {
                   )}
                 </div>
                 {p.error && (
-                  <p className="text-[10px] text-red-600 truncate">{p.error}</p>
+                  <p className="text-3xs text-red-600 truncate">{p.error}</p>
                 )}
                 {p.modelsAvailable && p.modelsAvailable.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {p.modelsAvailable.slice(0, 3).map((m) => (
-                      <span key={m} className="rounded bg-canvas px-1.5 py-0.5 text-[9px] font-mono text-muted">
+                      <span key={m} className="rounded bg-canvas px-1.5 py-0.5 text-2xs font-mono text-muted">
                         {m.split("/").pop()}
                       </span>
                     ))}
@@ -214,16 +214,16 @@ export default async function AdminDashboardPage() {
             <Link
               key={link.href}
               href={link.href}
-              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-[#1a5c2e]/30 hover:bg-[#1a5c2e]/5"
+              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-orq8-green/30 hover:bg-orq8-green/5"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:bg-[#1a5c2e]/10 group-hover:text-[#1a5c2e]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:bg-orq8-green/10 group-hover:text-orq8-green">
                 <Icon className="h-5 w-5" />
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-ink">{link.label}</p>
                 <p className="text-[11px] text-muted">{link.desc}</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-[#1a5c2e]" />
+              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-orq8-green" />
             </Link>
           );
         })}

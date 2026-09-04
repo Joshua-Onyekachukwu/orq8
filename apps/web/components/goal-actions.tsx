@@ -17,7 +17,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
   if (goalId && currentStatus) {
     if (currentStatus === "completed" || currentStatus === "cancelled") {
       return (
-        <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] uppercase text-muted">
+        <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs uppercase text-muted">
           {currentStatus}
         </span>
       );
@@ -42,7 +42,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
       >
         <button
           type="submit"
-          className="font-mono text-[10px] font-semibold uppercase tracking-wide text-[#1a5c2e] hover:underline"
+          className="font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green hover:underline"
         >
           {currentStatus === "active" ? "Complete" : "Reactivate"}
         </button>
@@ -56,12 +56,12 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
       <>
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#B8FF66] hover:text-white"
+          className="flex items-center gap-1.5 rounded-full bg-orq8-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-lime hover:text-white"
         >
           <Plus className="h-3.5 w-3.5" /> New Goal
         </button>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60">
             <div className="w-full max-w-md rounded-xl border border-hairline bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-ink">Create Goal</h3>
@@ -96,7 +96,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                     placeholder="Launch newsletter by Q4"
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
                     autoFocus
                   />
                 </div>
@@ -107,7 +107,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="What does this goal aim to achieve?"
                     rows={3}
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -116,7 +116,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                     <select
                       value={form.priority}
                       onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
                     >
                       <option value="low">Low</option>
                       <option value="normal">Normal</option>
@@ -130,7 +130,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                       type="date"
                       value={form.dueDate}
                       onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
                     />
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg bg-[#0a0a0b] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B8FF66] hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-lime hover:text-white disabled:opacity-50"
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Goal

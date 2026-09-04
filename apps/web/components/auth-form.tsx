@@ -8,7 +8,7 @@ import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 type AuthMode = "login" | "register";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-[#1a5c2e] focus:ring-2 focus:ring-[#1a5c2e]/20 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-orq8-green focus:ring-2 focus:ring-orq8-green/20 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
 
 /**
@@ -161,7 +161,7 @@ export function AuthForm({
           onClick={onToggle}
           aria-label={show ? "Hide password" : "Show password"}
           aria-pressed={show}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-[#1a5c2e]"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-orq8-green"
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
@@ -295,7 +295,7 @@ export function AuthForm({
           </label>
           <Link
             href="/forgot-password"
-            className="font-medium text-[#1a5c2e] transition-colors hover:text-[#1a5c2e]/80"
+            className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
           >
             Forgot password?
           </Link>
@@ -316,7 +316,7 @@ export function AuthForm({
             <Link
               href="/settings/terms-conditions"
               target="_blank"
-              className="font-medium text-[#1a5c2e] transition-colors hover:text-[#1a5c2e]/80"
+              className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
             >
               terms
             </Link>{" "}
@@ -324,7 +324,7 @@ export function AuthForm({
             <Link
               href="/settings/privacy-policy"
               target="_blank"
-              className="font-medium text-[#1a5c2e] transition-colors hover:text-[#1a5c2e]/80"
+              className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
             >
               privacy policy
             </Link>
@@ -336,7 +336,7 @@ export function AuthForm({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#0a0a0b] text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b]/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-dark text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

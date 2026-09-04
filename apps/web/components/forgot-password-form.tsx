@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-[#1a5c2e] focus:ring-2 focus:ring-[#1a5c2e]/20 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-orq8-green focus:ring-2 focus:ring-orq8-green/20 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
 
 export function ForgotPasswordForm() {
@@ -40,8 +40,8 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#B8FF66]/10">
-          <CheckCircle2 className="h-7 w-7 text-[#1a5c2e]" />
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orq8-lime/10">
+          <CheckCircle2 className="h-7 w-7 text-orq8-green" />
         </div>
         <p className="text-sm font-medium text-white">Check your email</p>
         <p className="mt-1 text-sm text-gray-500">
@@ -56,7 +56,7 @@ export function ForgotPasswordForm() {
               setSent(false);
               setError(null);
             }}
-            className="font-medium text-[#1a5c2e] transition-colors hover:text-[#1a5c2e]/80"
+            className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
           >
             try again
           </button>
@@ -97,7 +97,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#0a0a0b] text-sm font-semibold text-white transition-colors hover:bg-[#0a0a0b]/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-dark text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

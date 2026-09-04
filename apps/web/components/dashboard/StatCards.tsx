@@ -31,7 +31,7 @@ const statCards = [
     key: "agents" as const,
     label: "Agents active",
     icon: Users,
-    accent: "bg-[#B8FF66]/10 text-[#1a5c2e]",
+    accent: "bg-orq8-lime/10 text-orq8-green",
     href: "/app/agents",
     getValue: (s: StatCardsProps) => String(s.activeAgents).padStart(2, "0"),
     getNote: (s: StatCardsProps) => "working right now",
@@ -40,7 +40,7 @@ const statCards = [
     key: "tasks" as const,
     label: "Tasks completed",
     icon: ListChecks,
-    accent: "bg-[#E86A33]/10 text-[#E86A33]",
+    accent: "bg-orq8-orange/10 text-orq8-orange",
     href: "/app/goals",
     getValue: (s: StatCardsProps) => String(s.completedTasks).padStart(2, "0"),
     getNote: (s: StatCardsProps) => `${s.totalTasks} total tasks`,
@@ -82,7 +82,7 @@ export function DashboardStats(props: StatCardsProps) {
             >
               <Icon className="h-4 w-4" />
             </span>
-            <p className="mt-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
               {s.label}
             </p>
             <p className="mt-1 text-2xl font-semibold tracking-tight text-ink tabular-nums">

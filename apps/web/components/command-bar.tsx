@@ -137,7 +137,7 @@ export function CommandBar() {
                   <span className="text-sm text-gray-900 truncate max-w-[80%]">{item.command}</span>
                   <span className={`text-xs ${
                     item.status === "awaiting_approval" ? "text-amber-600" :
-                    item.status === "error" ? "text-red-500" : "text-[#1a5c2e]"
+                    item.status === "error" ? "text-red-500" : "text-orq8-green"
                   }`}>
                     {item.status === "awaiting_approval" ? "Awaiting" : item.status === "error" ? "Failed" : "Done"}
                   </span>

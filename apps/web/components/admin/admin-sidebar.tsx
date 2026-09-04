@@ -104,10 +104,10 @@ export function AdminSidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-hairline px-5">
         <Link href="/admin" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0a0a0b]">
-            <Zap className="h-4 w-4 text-[#B8FF66]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-dark">
+            <Zap className="h-4 w-4 text-orq8-lime" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-[#0a0a0b]">
+          <span className="text-lg font-bold tracking-tight text-orq8-dark">
             ORQ8
           </span>
         </Link>
@@ -121,7 +121,7 @@ export function AdminSidebar() {
 
       {/* Admin badge */}
       <div className="border-b border-hairline px-5 py-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0b] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#B8FF66]">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-orq8-dark px-2.5 py-1 text-3xs font-semibold uppercase tracking-wider text-orq8-lime">
           <Shield className="h-3 w-3" />
           Admin Panel
         </span>
@@ -137,7 +137,7 @@ export function AdminSidebar() {
                 onClick={() => toggleGroup(group.title)}
                 className="flex w-full items-center justify-between px-2 py-1"
               >
-                <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted/60">
+                <span className="text-3xs font-semibold uppercase tracking-[0.15em] text-muted/60">
                   {group.title}
                 </span>
                 <ChevronDown
@@ -154,15 +154,15 @@ export function AdminSidebar() {
                         <Link
                           href={item.href}
                           onClick={() => setMobileOpen(false)}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
                             active
-                              ? "bg-[#0a0a0b] text-white"
+                              ? "bg-orq8-dark text-white"
                               : "text-muted hover:bg-canvas hover:text-ink"
                           }`}
                         >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-[#B8FF66]" : "text-muted/50"
+                              active ? "text-orq8-lime" : "text-muted/50"
                             }`}
                           />
                           <span className="flex-1 truncate">{item.label}</span>
@@ -182,7 +182,7 @@ export function AdminSidebar() {
         <Link
           href="/app"
           onClick={() => setMobileOpen(false)}
-          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
         >
           <LayoutDashboard className="h-4 w-4 shrink-0 text-muted/50" />
           Back to App
@@ -190,7 +190,7 @@ export function AdminSidebar() {
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
           >
             <LogOut className="h-4 w-4 shrink-0 text-muted/50" />
             Sign out
@@ -223,7 +223,7 @@ export function AdminSidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#0a0a0b] text-white shadow-lg lg:hidden"
+        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orq8-dark text-white shadow-lg lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>

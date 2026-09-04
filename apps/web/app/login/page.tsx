@@ -36,19 +36,19 @@ export default async function LoginPage({
   return (
     <div id="main" className="flex min-h-screen bg-white">
       {/* Left panel — branding */}
-      <div className="hidden w-1/2 flex-col justify-between bg-[#0a0a0b] p-10 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-orq8-dark p-10 lg:flex">
         <Link
           href="/"
           className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+          <span className="h-2 w-2 rounded-full bg-orq8-green" />
         </Link>
 
         <div className="max-w-md">
           <h2 className="mb-4 text-3xl font-light leading-tight text-white">
             Run your company with{" "}
-            <span className="text-[#B8FF66]">AI employees</span>
+            <span className="text-orq8-lime">AI employees</span>
           </h2>
           <p className="text-sm leading-relaxed text-white/50">
             The AI organization operating system. One founder. One HQ. A whole
@@ -66,17 +66,17 @@ export default async function LoginPage({
         {/* Mobile logo */}
         <Link
           href="/"
-          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-[#0a0a0b] lg:hidden"
+          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-ink lg:hidden"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+          <span className="h-2 w-2 rounded-full bg-orq8-green" />
         </Link>
 
         <div className="w-full max-w-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#B8FF66]">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-lime">
             Sign in
           </p>
-          <h1 className="mb-1 text-2xl font-semibold text-[#0a0a0b]">
+          <h1 className="mb-1 text-2xl font-semibold text-ink">
             {title}
           </h1>
           <p className="mb-8 text-sm text-gray-500">
@@ -93,7 +93,7 @@ export default async function LoginPage({
               href={
                 next ? `/register?next=${encodeURIComponent(next)}` : "/register"
               }
-              className="font-medium text-[#B8FF66] transition-colors hover:text-[#B8FF66]/80"
+              className="font-medium text-orq8-lime transition-colors hover:text-orq8-lime/80"
             >
               Create an organization
             </Link>

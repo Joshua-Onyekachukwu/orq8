@@ -32,10 +32,10 @@ function formatTime(iso: string): string {
 }
 
 function eventIcon(type: string) {
-  if (type.includes("completed") || type.includes("deployed") || type.includes("drafted")) return <CheckCircle2 className="h-3.5 w-3.5 text-[#1a5c2e]" />;
+  if (type.includes("completed") || type.includes("deployed") || type.includes("drafted")) return <CheckCircle2 className="h-3.5 w-3.5 text-orq8-green" />;
   if (type.includes("failed") || type.includes("error")) return <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
-  if (type.includes("started") || type.includes("running") || type.includes("researching")) return <Clock className="h-3.5 w-3.5 text-[#E86A33] animate-pulse" />;
-  if (type.includes("approved")) return <CheckCircle2 className="h-3.5 w-3.5 text-[#B8FF66]" />;
+  if (type.includes("started") || type.includes("running") || type.includes("researching")) return <Clock className="h-3.5 w-3.5 text-orq8-orange animate-pulse" />;
+  if (type.includes("approved")) return <CheckCircle2 className="h-3.5 w-3.5 text-orq8-lime" />;
   return <Activity className="h-3.5 w-3.5 text-muted" />;
 }
 
@@ -78,7 +78,7 @@ export function ActivityFeed({ initialActivity = [] }: ActivityFeedProps) {
       <section aria-labelledby="activity-heading" className="rounded-xl border border-hairline bg-white">
         <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
           <h2 id="activity-heading" className="text-sm font-semibold text-ink">Recent agent actions</h2>
-          <Link href="/app/activity" className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-[#1a5c2e]">
+          <Link href="/app/activity" className="inline-flex items-center gap-1 font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-orq8-green">
             Full log <ArrowUpRight className="h-3 w-3" />
           </Link>
         </div>
@@ -97,13 +97,13 @@ export function ActivityFeed({ initialActivity = [] }: ActivityFeedProps) {
         <div className="flex items-center gap-2">
           <h2 id="activity-heading" className="text-sm font-semibold text-ink">Recent agent actions</h2>
           {activity.length > 0 && (
-            <span className="flex items-center gap-1 rounded-full bg-[#B8FF66]/10 px-2 py-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#B8FF66] animate-pulse" />
-              <span className="font-mono text-[9px] font-semibold text-[#1a5c2e]">LIVE</span>
+            <span className="flex items-center gap-1 rounded-full bg-orq8-lime/10 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-orq8-lime animate-pulse" />
+              <span className="font-mono text-2xs font-semibold text-orq8-green">LIVE</span>
             </span>
           )}
         </div>
-        <Link href="/app/activity" className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-[#1a5c2e]">
+        <Link href="/app/activity" className="inline-flex items-center gap-1 font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-orq8-green">
           Full log <ArrowUpRight className="h-3 w-3" />
         </Link>
       </div>
@@ -120,11 +120,11 @@ export function ActivityFeed({ initialActivity = [] }: ActivityFeedProps) {
               </p>
               {event.reason && (
                 <p className="mt-0.5 flex items-start gap-1.5 text-xs text-muted">
-                  <span className="font-mono font-semibold text-[#1a5c2e]">because</span>
+                  <span className="font-mono font-semibold text-orq8-green">because</span>
                   {event.reason}
                 </p>
               )}
-              <div className="mt-1 flex items-center gap-3 text-[10px] text-muted">
+              <div className="mt-1 flex items-center gap-3 text-3xs text-muted">
                 {event.department && <span>{event.department}</span>}
                 {event.cost > 0 && <span className="font-mono">${(event.cost / 100).toFixed(2)}</span>}
                 <span>{formatTime(event.occurredAt)}</span>

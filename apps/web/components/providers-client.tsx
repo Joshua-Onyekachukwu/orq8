@@ -32,12 +32,12 @@ export type KeyItem = {
 type Notice = { kind: "ok" | "err"; text: string } | null;
 
 const inputClass =
-  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-[#1a5c2e] focus:outline-none focus:ring-2 focus:ring-[#1a5c2e]/20";
+  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-2 focus:ring-orq8-green/20";
 const labelClass = "mb-1 block text-sm font-medium text-ink";
 const btnPrimary =
-  "h-9 rounded-md bg-[#1a5c2e] px-4 text-sm font-medium text-white transition-colors hover:bg-[#144a24] disabled:opacity-50";
+  "h-9 rounded-md bg-orq8-green px-4 text-sm font-medium text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50";
 const btnGhost =
-  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-[#1a5c2e] hover:text-[#1a5c2e] disabled:opacity-50";
+  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-orq8-green hover:text-orq8-green disabled:opacity-50";
 
 export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: CatalogItem[]; keys: KeyItem[] }) {
   const [keys, setKeys] = useState<KeyItem[]>(initialKeys);
@@ -263,7 +263,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                     {p.doc_url ? (
                       <>
                         {" · "}
-                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-[#1a5c2e]">
+                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-orq8-green">
                           get a key
                         </a>
                       </>
@@ -282,13 +282,13 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
               {/* Model availability */}
               {p.default_models.length > 0 && (
                 <div className="mt-3">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Available models</p>
+                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Available models</p>
                   <div className="flex flex-wrap gap-1.5">
                     {p.default_models.slice(0, 4).map((m) => (
-                      <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{m}</span>
+                      <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-600">{m}</span>
                     ))}
                     {p.default_models.length > 4 && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400">+{p.default_models.length - 4}</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-400">+{p.default_models.length - 4}</span>
                     )}
                   </div>
                 </div>

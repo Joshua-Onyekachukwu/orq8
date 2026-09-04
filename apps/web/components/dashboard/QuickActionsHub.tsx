@@ -10,24 +10,24 @@ const actions = [
     description: "Add a new AI employee to your workforce",
     icon: Bot,
     href: "/app/agents",
-    color: "bg-[#B8FF66]/10 text-[#1a5c2e]",
-    hoverColor: "hover:bg-[#B8FF66]/20",
+    color: "bg-orq8-lime/10 text-orq8-green",
+    hoverColor: "hover:bg-orq8-lime/20",
   },
   {
     label: "Set a goal",
     description: "Define what your company should achieve",
     icon: Target,
     href: "/app/goals",
-    color: "bg-[#E86A33]/10 text-[#E86A33]",
-    hoverColor: "hover:bg-[#E86A33]/20",
+    color: "bg-orq8-orange/10 text-orq8-orange",
+    hoverColor: "hover:bg-orq8-orange/20",
   },
   {
     label: "Run a command",
     description: "Tell the Executive Agent what to do",
     icon: Command,
     href: "#command-bar",
-    color: "bg-[#1a5c2e]/10 text-[#1a5c2e]",
-    hoverColor: "hover:bg-[#1a5c2e]/20",
+    color: "bg-orq8-green/10 text-orq8-green",
+    hoverColor: "hover:bg-orq8-green/20",
   },
   {
     label: "Review approvals",
@@ -75,8 +75,8 @@ export function QuickActionsHub() {
         onClick={() => setOpen(!open)}
         className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 ${
           open
-            ? "bg-[#0a0a0b] text-white rotate-45"
-            : "bg-[#E86A33] text-white hover:bg-[#d45e2a] hover:shadow-xl"
+            ? "bg-orq8-dark text-white rotate-45"
+            : "bg-orq8-orange text-white hover:bg-orq8-orange-dark hover:shadow-xl"
         }`}
         title={open ? "Close actions" : "Quick actions"}
       >

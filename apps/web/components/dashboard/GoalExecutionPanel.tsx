@@ -35,8 +35,8 @@ export function GoalExecutionPanel({
     <div className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#E86A33]/10">
-            <Target aria-hidden="true" className="h-4 w-4 text-[#E86A33]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-orange/10">
+            <Target aria-hidden="true" className="h-4 w-4 text-orq8-orange" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-ink">Goal Execution</h2>
@@ -45,7 +45,7 @@ export function GoalExecutionPanel({
         </div>
         <Link
           href="/app/goals"
-          className="group inline-flex items-center gap-1 rounded-full bg-canvas px-2.5 py-1 text-[10px] font-medium text-muted transition-colors hover:bg-hairline"
+          className="group inline-flex items-center gap-1 rounded-full bg-canvas px-2.5 py-1 text-3xs font-medium text-muted transition-colors hover:bg-hairline"
         >
           View all
           <ArrowUpRight className="h-2.5 w-2.5 text-muted group-hover:text-muted" />
@@ -67,9 +67,9 @@ export function GoalExecutionPanel({
               strokeDasharray={`${(completionRate / 100) * 169.6} 169.6`}
               strokeLinecap="round"
               className={
-                completionRate >= 70 ? "text-[#1a5c2e]" :
-                completionRate >= 40 ? "text-[#B8FF66]" :
-                "text-[#E86A33]"
+                completionRate >= 70 ? "text-orq8-green" :
+                completionRate >= 40 ? "text-orq8-lime" :
+                "text-orq8-orange"
               }
             />
           </svg>
@@ -93,19 +93,19 @@ export function GoalExecutionPanel({
       {/* Status cards */}
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
-          <CheckCircle2 className="mx-auto h-4 w-4 text-[#1a5c2e]" />
+          <CheckCircle2 className="mx-auto h-4 w-4 text-orq8-green" />
           <p className="mt-1 font-mono text-sm font-bold text-ink">{completedGoals}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Achieved</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-muted">Achieved</p>
         </Link>
         <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
-          <Clock className="mx-auto h-4 w-4 text-[#E86A33]" />
+          <Clock className="mx-auto h-4 w-4 text-orq8-orange" />
           <p className="mt-1 font-mono text-sm font-bold text-ink">{activeGoals}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Active</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-muted">Active</p>
         </Link>
         <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
           <AlertCircle className="mx-auto h-4 w-4 text-muted" />
           <p className="mt-1 font-mono text-sm font-bold text-ink">{totalTasks - completedTasks}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Remaining</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-muted">Remaining</p>
         </Link>
       </div>
     </div>

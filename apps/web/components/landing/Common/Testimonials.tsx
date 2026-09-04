@@ -41,18 +41,18 @@ const users = [
 
 const Testimonials: React.FC = () => {
   return (
-    <div className="bg-[#f8f9fa]">
+    <div className="bg-gray-50">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
         {/* Header — Trezo style */}
         <div className="mb-[30px] md:mb-[40px] lg:mb-[50px] mx-auto text-center md:max-w-[495px] lg:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-[#E86A33] mb-[10px] lg:mb-[15px]">
+          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange mb-[10px] lg:mb-[15px]">
             Testimonials
           </span>
           <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
             Early users share their{" "}
-            <span className="text-[#1a5c2e]">experience</span>
+            <span className="text-orq8-green">experience</span>
           </h2>
-          <p className="text-gray-400 text-[13px] mt-[12px] !mb-0">
+          <p className="text-gray-400 text-2sm mt-[12px] !mb-0">
             Demo profiles from our design process — real testimonials coming soon.
           </p>
         </div>
@@ -60,7 +60,7 @@ const Testimonials: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
           {/* Swiper carousel — Trezo style */}
           <div
-            className="bg-[#f4f4fa] py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
+            className="bg-gray-50 py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
             id="orq8TestimonialsSlides"
           >
             <Swiper
@@ -84,7 +84,7 @@ const Testimonials: React.FC = () => {
                     width={36}
                     height={27}
                   />
-                  <p className="font-light text-md md:text-lg lg:text-[20px] xl:text-xl -tracking-[.44px] lg:-tracking-[1px] xl:-tracking-[1.44px] text-black !leading-[1.5]">
+                  <p className="font-light text-md md:text-lg lg:text-xl xl:text-xl -tracking-[.44px] lg:-tracking-[1px] xl:-tracking-[1.44px] text-black !leading-[1.5]">
                     {t.quote}
                   </p>
                   <div className="flex items-center gap-[15px] mt-[20px] md:mt-[30px] xl:mt-[45px]">

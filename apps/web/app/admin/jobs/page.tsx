@@ -134,7 +134,7 @@ export default async function AdminJobsPage() {
   if (!token) {
     return (
       <div className="p-8">
-        <p className="text-sm text-[#6b7280]">Not authenticated.</p>
+        <p className="text-sm text-ink-muted">Not authenticated.</p>
       </div>
     );
   }
@@ -149,89 +149,89 @@ export default async function AdminJobsPage() {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#0a0a0b]">Background Jobs</h1>
-        <p className="text-sm text-[#6b7280] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Background Jobs</h1>
+        <p className="text-sm text-ink-muted mt-1">
           Monitor scheduled tasks, background workers, and cron jobs
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
+        <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#1a5c2e]/10 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-[#1a5c2e]" />
+            <div className="w-10 h-10 rounded-lg bg-orq8-green/10 flex items-center justify-center">
+              <Activity className="w-5 h-5 text-orq8-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0a0a0b]">{jobs.length}</p>
-              <p className="text-xs text-[#6b7280]">Total Jobs</p>
+              <p className="text-2xl font-bold text-ink">{jobs.length}</p>
+              <p className="text-xs text-ink-muted">Total Jobs</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
+        <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#B8FF66]/20 flex items-center justify-center">
-              <Play className="w-5 h-5 text-[#1a5c2e]" />
+            <div className="w-10 h-10 rounded-lg bg-orq8-lime/20 flex items-center justify-center">
+              <Play className="w-5 h-5 text-orq8-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0a0a0b]">{activeJobs}</p>
-              <p className="text-xs text-[#6b7280]">Running Now</p>
+              <p className="text-2xl font-bold text-ink">{activeJobs}</p>
+              <p className="text-xs text-ink-muted">Running Now</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
+        <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[#B8FF66]/20 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-[#1a5c2e]" />
+            <div className="w-10 h-10 rounded-lg bg-orq8-lime/20 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-orq8-green" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0a0a0b]">{totalRuns}</p>
-              <p className="text-xs text-[#6b7280]">Total Executions</p>
+              <p className="text-2xl font-bold text-ink">{totalRuns}</p>
+              <p className="text-xs text-ink-muted">Total Executions</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
+        <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
               <XCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-[#0a0a0b]">{totalFails}</p>
-              <p className="text-xs text-[#6b7280]">Failures</p>
+              <p className="text-2xl font-bold text-ink">{totalFails}</p>
+              <p className="text-xs text-ink-muted">Failures</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Job List */}
-      <div className="rounded-xl border border-[#e5e7eb] bg-white overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#e5e7eb]">
-          <h2 className="text-sm font-semibold text-[#0a0a0b]">System Jobs</h2>
+      <div className="rounded-xl border border-hairline bg-white overflow-hidden">
+        <div className="px-6 py-4 border-b border-hairline">
+          <h2 className="text-sm font-semibold text-ink">System Jobs</h2>
         </div>
-        <div className="divide-y divide-[#f3f4f6]">
+        <div className="divide-y divide-hairline-light">
           {jobs.map((job) => (
-            <div key={job.id} className="px-6 py-4 hover:bg-[#f9fafb] transition-colors">
+            <div key={job.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 ${
                       job.status === "running"
-                        ? "bg-[#B8FF66] animate-pulse"
+                        ? "bg-orq8-lime animate-pulse"
                         : job.status === "failed"
                           ? "bg-red-500"
                           : job.status === "paused"
-                            ? "bg-[#E86A33]"
-                            : "bg-[#d1d5db]"
+                            ? "bg-orq8-orange"
+                            : "bg-gray-300"
                     }`}
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-[#0a0a0b] truncate">
+                    <p className="text-sm font-medium text-ink truncate">
                       {job.name}
                     </p>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <p className="text-xs text-ink-muted mt-0.5">
                       {job.description}
                     </p>
                   </div>
@@ -239,14 +239,14 @@ export default async function AdminJobsPage() {
 
                 <div className="flex items-center gap-6 ml-4 flex-shrink-0">
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Type</p>
+                    <p className="text-xs text-ink-muted">Type</p>
                     <span
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
                         job.type === "cron"
-                          ? "bg-[#1a5c2e]/10 text-[#1a5c2e]"
+                          ? "bg-orq8-green/10 text-orq8-green"
                           : job.type === "event"
-                            ? "bg-[#E86A33]/10 text-[#E86A33]"
-                            : "bg-[#0a0a0b]/10 text-[#0a0a0b]"
+                            ? "bg-orq8-orange/10 text-orq8-orange"
+                            : "bg-orq8-dark/10 text-ink"
                       }`}
                     >
                       {job.type === "cron" && <Clock className="w-3 h-3" />}
@@ -257,24 +257,24 @@ export default async function AdminJobsPage() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Runs</p>
-                    <p className="text-sm font-medium text-[#0a0a0b]">
+                    <p className="text-xs text-ink-muted">Runs</p>
+                    <p className="text-sm font-medium text-ink">
                       {job.runCount}
                     </p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Failures</p>
+                    <p className="text-xs text-ink-muted">Failures</p>
                     <p
-                      className={`text-sm font-medium ${job.failCount > 0 ? "text-red-600" : "text-[#0a0a0b]"}`}
+                      className={`text-sm font-medium ${job.failCount > 0 ? "text-red-600" : "text-ink"}`}
                     >
                       {job.failCount}
                     </p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Last Run</p>
-                    <p className="text-sm text-[#0a0a0b]">
+                    <p className="text-xs text-ink-muted">Last Run</p>
+                    <p className="text-sm text-ink">
                       {job.lastRun
                         ? new Date(job.lastRun).toLocaleDateString("en-US", {
                             month: "short",
@@ -289,12 +289,12 @@ export default async function AdminJobsPage() {
                   <span
                     className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
                       job.status === "running"
-                        ? "bg-[#B8FF66]/20 text-[#1a5c2e]"
+                        ? "bg-orq8-lime/20 text-orq8-green"
                         : job.status === "failed"
                           ? "bg-red-50 text-red-700"
                           : job.status === "paused"
-                            ? "bg-[#E86A33]/10 text-[#E86A33]"
-                            : "bg-[#f3f4f6] text-[#6b7280]"
+                            ? "bg-orq8-orange/10 text-orq8-orange"
+                            : "bg-gray-100 text-ink-muted"
                     }`}
                   >
                     {job.status === "running" && <Play className="w-3 h-3" />}
@@ -313,16 +313,16 @@ export default async function AdminJobsPage() {
       </div>
 
       {/* Cron Schedule */}
-      <div className="rounded-xl border border-[#e5e7eb] bg-white p-6">
-        <h2 className="text-sm font-semibold text-[#0a0a0b] mb-4">
+      <div className="rounded-xl border border-hairline bg-white p-6">
+        <h2 className="text-sm font-semibold text-ink mb-4">
           Cron Schedule
         </h2>
-        <p className="text-xs text-[#6b7280] mb-4">
+        <p className="text-xs text-ink-muted mb-4">
           Background jobs are managed by the ORQ8 API server. No external cron
           scheduler is currently configured.
         </p>
-        <div className="rounded-lg bg-[#f9fafb] border border-[#e5e7eb] p-4">
-          <p className="text-xs font-mono text-[#6b7280]">
+        <div className="rounded-lg bg-gray-50 border border-hairline p-4">
+          <p className="text-xs font-mono text-ink-muted">
             Status: Jobs execute on-demand via API triggers and event hooks.
             <br />
             Scheduler: Application-level (no external cron/worker queue).

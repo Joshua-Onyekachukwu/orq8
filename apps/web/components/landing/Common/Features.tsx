@@ -33,18 +33,18 @@ const orbitalPositions = [
 
 const Features: React.FC = () => {
   return (
-    <div id="features" className="relative z-[1] bg-[#0a0a0b] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px] overflow-hidden">
+    <div id="features" className="relative z-[1] bg-orq8-dark py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px] overflow-hidden">
       {/* Grid texture */}
       <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",backgroundSize:"60px 60px"}} />
 
       <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
         {/* Header */}
         <div className="mb-[40px] md:mb-[50px] lg:mb-[70px] mx-auto text-center md:max-w-[495px] lg:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-[#E86A33] mb-[10px] lg:mb-[15px]">Platform</span>
+          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange mb-[10px] lg:mb-[15px]">Platform</span>
           <h2 className="!mb-[16px] !font-normal !text-2xl md:!text-4xl lg:!text-[42px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] text-white">
             An operating system, not a chatbot
           </h2>
-          <p className="text-white/50 md:text-[16px] !mb-0 max-w-[480px] mx-auto">
+          <p className="text-white/50 md:text-base !mb-0 max-w-[480px] mx-auto">
             Everything a company needs to operate — planned, coordinated, and executed by AI under your direction.
           </p>
         </div>
@@ -53,8 +53,8 @@ const Features: React.FC = () => {
         <div className="relative hidden lg:block mx-auto" style={{width:"1000px", height:"900px"}}>
           {/* Orbital rings */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[340px] h-[340px] rounded-full border border-dashed border-[#B8FF66]/25" />
-            <div className="absolute w-[560px] h-[560px] rounded-full border border-dashed border-[#E86A33]/15" />
+            <div className="w-[340px] h-[340px] rounded-full border border-dashed border-orq8-lime/25" />
+            <div className="absolute w-[560px] h-[560px] rounded-full border border-dashed border-orq8-orange/15" />
             <div className="absolute w-[760px] h-[760px] rounded-full border border-dashed border-white/10" />
           </div>
 
@@ -77,11 +77,11 @@ const Features: React.FC = () => {
           <div className="absolute top-[450px] left-[500px] -translate-x-1/2 -translate-y-1/2 z-[3]">
             <div className="w-[140px] h-[140px] rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-[0_0_60px_rgba(255,255,255,0.15)]">
               <div className="text-center">
-                <span className="block text-[#0a0a0b] text-[24px] font-bold leading-none">ORQ8</span>
-                <span className="block text-[#E86A33] text-[10px] uppercase tracking-[3px] mt-[6px] font-bold">Core</span>
+                <span className="block text-orq8-dark text-[24px] font-bold leading-none">ORQ8</span>
+                <span className="block text-orq8-orange text-3xs uppercase tracking-[3px] mt-[6px] font-bold">Core</span>
               </div>
             </div>
-            <div className="absolute inset-[-10px] rounded-full border border-[#B8FF66]/25 animate-ping" style={{animationDuration:"3s"}} />
+            <div className="absolute inset-[-10px] rounded-full border border-orq8-lime/25 animate-ping" style={{animationDuration:"3s"}} />
           </div>
 
           {/* 6 cards — clockwise from 12 o'clock */}
@@ -106,12 +106,12 @@ const Features: React.FC = () => {
         {/* ── Mobile: single column ── */}
         <div className="md:hidden grid grid-cols-1 gap-[16px]">
           {features.map((feature, index) => (
-            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30">
-              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[16px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b]">
-                <i className={`${feature.icon} text-[20px]`} />
+            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-orq8-lime/30">
+              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-orq8-lime/10 text-orq8-lime mb-[16px] transition-all duration-300 group-hover:bg-orq8-lime group-hover:text-orq8-dark">
+                <i className={`${feature.icon} text-xl`} />
               </div>
-              <h3 className="!font-semibold !text-[16px] !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
-              <p className="text-white/45 text-[13px] leading-[1.6] !mb-0">{feature.description}</p>
+              <h3 className="!font-semibold !text-base !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
+              <p className="text-white/45 text-2sm leading-[1.6] !mb-0">{feature.description}</p>
             </div>
           ))}
         </div>
@@ -119,31 +119,31 @@ const Features: React.FC = () => {
         {/* ── Tablet: 2-column grid ── */}
         <div className="hidden md:grid lg:hidden grid-cols-2 gap-[20px]">
           {features.map((feature, index) => (
-            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30 hover:shadow-[0_4px_20px_rgba(184,255,102,0.06)]">
-              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[16px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b]">
-                <i className={`${feature.icon} text-[20px]`} />
+            <div key={index} className="group bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[24px] transition-all duration-300 hover:bg-white/[0.08] hover:border-orq8-lime/30 hover:shadow-[0_4px_20px_rgba(184,255,102,0.06)]">
+              <div className="w-[44px] h-[44px] flex items-center justify-center rounded-[10px] bg-orq8-lime/10 text-orq8-lime mb-[16px] transition-all duration-300 group-hover:bg-orq8-lime group-hover:text-orq8-dark">
+                <i className={`${feature.icon} text-xl`} />
               </div>
-              <h3 className="!font-semibold !text-[16px] !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
-              <p className="text-white/45 text-[13px] leading-[1.6] !mb-0">{feature.description}</p>
+              <h3 className="!font-semibold !text-base !text-white !mb-[8px] !leading-[1.3]">{feature.title}</h3>
+              <p className="text-white/45 text-2sm leading-[1.6] !mb-0">{feature.description}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#B8FF66]/[0.03] blur-[150px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-orq8-lime/[0.03] blur-[150px] pointer-events-none" />
     </div>
   );
 };
 
 function OrbitalCard({ feature }: { feature: (typeof features)[number] }) {
   return (
-    <div className="group relative w-[240px] bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[22px] transition-all duration-300 hover:bg-white/[0.08] hover:border-[#B8FF66]/30 hover:shadow-[0_8px_30px_rgba(184,255,102,0.08)] hover:scale-[1.03]">
-      <div className="w-[40px] h-[40px] flex items-center justify-center rounded-[10px] bg-[#B8FF66]/10 text-[#B8FF66] mb-[12px] transition-all duration-300 group-hover:bg-[#B8FF66] group-hover:text-[#0a0a0b] group-hover:scale-110">
-        <i className={`${feature.icon} text-[18px]`} />
+    <div className="group relative w-[240px] bg-white/[0.04] border border-white/[0.08] rounded-[14px] p-[22px] transition-all duration-300 hover:bg-white/[0.08] hover:border-orq8-lime/30 hover:shadow-[0_8px_30px_rgba(184,255,102,0.08)] hover:scale-[1.03]">
+      <div className="w-[40px] h-[40px] flex items-center justify-center rounded-[10px] bg-orq8-lime/10 text-orq8-lime mb-[12px] transition-all duration-300 group-hover:bg-orq8-lime group-hover:text-orq8-dark group-hover:scale-110">
+        <i className={`${feature.icon} text-lg`} />
       </div>
-      <h3 className="!font-semibold !text-[15px] !text-white !mb-[6px] !leading-[1.3]">{feature.title}</h3>
-      <p className="text-white/45 text-[12px] leading-[1.6] !mb-0">{feature.description}</p>
+      <h3 className="!font-semibold !text-md !text-white !mb-[6px] !leading-[1.3]">{feature.title}</h3>
+      <p className="text-white/45 text-xs leading-[1.6] !mb-0">{feature.description}</p>
     </div>
   );
 }

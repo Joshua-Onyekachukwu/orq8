@@ -19,7 +19,7 @@ async function fetchActivity(token: string) {
 }
 
 function typeColor(type: string) {
-  if (type.includes("approved")) return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+  if (type.includes("approved")) return "bg-orq8-green/10 text-orq8-green";
   if (type.includes("rejected")) return "bg-red-50 text-red-600";
   if (type.includes("deployed") || type.includes("executed")) return "bg-blue-50 text-blue-600";
   if (type.includes("created") || type.includes("hired")) return "bg-purple-50 text-purple-600";
@@ -47,7 +47,7 @@ export default async function AdminActivityPage() {
               {["Time", "Type", "Summary", "Cost", "Dept"].map((h) => (
                 <th
                   key={h}
-                  className="whitespace-nowrap px-5 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                  className="whitespace-nowrap px-5 py-3 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                 >
                   {h}
                 </th>
@@ -70,7 +70,7 @@ export default async function AdminActivityPage() {
                     {new Date(e.occurredAt).toLocaleString()}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${typeColor(e.type)}`}>
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${typeColor(e.type)}`}>
                       {e.type}
                     </span>
                   </td>

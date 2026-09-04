@@ -147,21 +147,21 @@ export default async function AppPage() {
   const recentActivity = dashboard?.recent_activity ?? [];
 
   const attentionItems: Array<{ icon: React.ElementType; text: string; href: string; color: string }> = [];
-  if (pendingApprovals > 0) attentionItems.push({ icon: ClipboardCheck, text: `${pendingApprovals} approval${pendingApprovals !== 1 ? 's' : ''} waiting for your decision`, href: '/app/approvals', color: 'text-[#E86A33]' });
+  if (pendingApprovals > 0) attentionItems.push({ icon: ClipboardCheck, text: `${pendingApprovals} approval${pendingApprovals !== 1 ? 's' : ''} waiting for your decision`, href: '/app/approvals', color: 'text-orq8-orange' });
   if (credits?.isCritical) attentionItems.push({ icon: Zap, text: 'Work credits critically low — AI employees may pause', href: '/app/budgets', color: 'text-red-500' });
   if (credits?.isLow && !credits?.isCritical) attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining`, href: '/app/budgets', color: 'text-amber-600' });
   const recentFailed = recentActivity.filter(e => e.type.toLowerCase().includes('failed'));
   if (recentFailed.length > 0) attentionItems.push({ icon: AlertTriangle, text: `${recentFailed.length} task${recentFailed.length !== 1 ? 's' : ''} failed recently`, href: '/app/goals', color: 'text-red-500' });
   if (activeAgents === 0 && agentList.length > 0) attentionItems.push({ icon: Bot, text: 'All AI employees are paused', href: '/app/agents', color: 'text-muted' });
-  if (agentList.length === 0) attentionItems.push({ icon: Bot, text: 'No AI employees yet — hire your first agent to get started', href: '/app/agents', color: 'text-[#1a5c2e]' });
+  if (agentList.length === 0) attentionItems.push({ icon: Bot, text: 'No AI employees yet — hire your first agent to get started', href: '/app/agents', color: 'text-orq8-green' });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Welcome banner */}
-      <div className="rounded-xl bg-[#0a0a0b] p-6 text-white sm:p-8">
+      <div className="rounded-xl bg-orq8-dark p-6 text-white sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8FF66]">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
               {today}
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -173,7 +173,7 @@ export default async function AppPage() {
 
             <div className="mt-6 flex flex-wrap gap-4">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E86A33]/15 text-[#E86A33]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-orange/15 text-orq8-orange">
                   <ClipboardCheck className="h-4 w-4" />
                 </span>
                 <div>
@@ -184,7 +184,7 @@ export default async function AppPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#B8FF66]/15 text-[#B8FF66]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/15 text-orq8-lime">
                   <Bot aria-hidden="true" className="h-4 w-4" />
                 </span>
                 <div>
@@ -212,8 +212,8 @@ export default async function AppPage() {
 
           {/* System status */}
           <div className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-center md:min-w-[160px]">
-            <p className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8FF66]">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8FF66]" />
+            <p className="flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-lime" />
               System Online
             </p>
             <p className="text-2xl font-bold tracking-tight">ORQ8</p>
@@ -224,10 +224,10 @@ export default async function AppPage() {
 
       {/* Needs Your Attention — surfaced when items exist */}
       {attentionItems.length > 0 && (
-        <div className="rounded-xl border border-[#E86A33]/20 bg-[#E86A33]/5 p-5">
+        <div className="rounded-xl border border-orq8-orange/20 bg-orq8-orange/5 p-5">
           <div className="mb-3 flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E86A33]/15">
-              <AlertTriangle className="h-3.5 w-3.5 text-[#E86A33]" />
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orq8-orange/15">
+              <AlertTriangle className="h-3.5 w-3.5 text-orq8-orange" />
             </span>
             <h2 className="text-sm font-semibold text-ink">Needs your attention</h2>
           </div>
@@ -255,7 +255,7 @@ export default async function AppPage() {
           value={activeAgents}
           subtext={`${agentList.length} total`}
           icon={Bot}
-          color="bg-[#B8FF66]/10 text-[#1a5c2e]"
+          color="bg-orq8-lime/10 text-orq8-green"
           href="/app/agents"
         />
         <StatCard
@@ -263,7 +263,7 @@ export default async function AppPage() {
           value={totalTasks}
           subtext={`${completedTasks} completed`}
           icon={CheckCircle2}
-          color="bg-[#E86A33]/10 text-[#E86A33]"
+          color="bg-orq8-orange/10 text-orq8-orange"
           href="/app/goals"
         />
         <StatCard
@@ -271,7 +271,7 @@ export default async function AppPage() {
           value={credits ? credits.remaining : 0}
           subtext={credits ? `${credits.utilizationPercent}% used` : '0 remaining'}
           icon={Zap}
-          color="bg-[#B8FF66]/10 text-[#1a5c2e]"
+          color="bg-orq8-lime/10 text-orq8-green"
           href="/app/budgets"
         />
         <StatCard
@@ -279,7 +279,7 @@ export default async function AppPage() {
           value={formatCost(weeklySpend)}
           subtext="This week"
           icon={Wallet}
-          color="bg-[#E86A33]/10 text-[#E86A33]"
+          color="bg-orq8-orange/10 text-orq8-orange"
           href="/app/budgets"
         />
       </div>

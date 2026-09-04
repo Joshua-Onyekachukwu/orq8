@@ -176,7 +176,7 @@ export default function ConstitutionPage() {
           {icon}
         </span>
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
-        <span className="font-mono text-[10px] text-muted">{items.length} rules</span>
+        <span className="font-mono text-3xs text-muted">{items.length} rules</span>
       </div>
       <div className="space-y-2">
         {items.map((item, i) => (
@@ -198,12 +198,12 @@ export default function ConstitutionPage() {
             onChange={(e) => setter(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addListItem(field, value, setter); } }}
             placeholder={placeholder}
-            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
           />
           <button
             type="button"
             onClick={() => addListItem(field, value, setter)}
-            className="shrink-0 rounded-lg bg-[#1a5c2e] px-3 py-2 text-white transition-colors hover:bg-[#144a24]"
+            className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -217,7 +217,7 @@ export default function ConstitutionPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -229,12 +229,12 @@ export default function ConstitutionPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] text-muted">v{constitution.version}</span>
+          <span className="font-mono text-3xs text-muted">v{constitution.version}</span>
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
               saved ? <Check className="h-3.5 w-3.5" /> :
@@ -255,7 +255,7 @@ export default function ConstitutionPage() {
       {/* Company Purpose */}
       <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#B8FF66]/10 text-[#1a5c2e]">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
             <Briefcase className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Company Purpose</h3>
@@ -265,7 +265,7 @@ export default function ConstitutionPage() {
           onChange={(e) => setConstitution((prev) => ({ ...prev, companyPurpose: e.target.value }))}
           rows={3}
           placeholder="What does your company exist to do?"
-          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e] resize-none"
+          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none"
         />
       </section>
 
@@ -279,7 +279,7 @@ export default function ConstitutionPage() {
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {constitution.values.map((v, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[#0a0a0b] px-3 py-1 text-xs font-medium text-white">
+            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-orq8-dark px-3 py-1 text-xs font-medium text-white">
               {v}
               <button type="button" onClick={() => removeValue(i)} className="ml-1 rounded-full hover:bg-white/20 p-0.5">
                 <X className="h-3 w-3" />
@@ -294,9 +294,9 @@ export default function ConstitutionPage() {
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addValue(); } }}
             placeholder="Add a core value..."
-            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
           />
-          <button type="button" onClick={addValue} className="shrink-0 rounded-lg bg-[#1a5c2e] px-3 py-2 text-white transition-colors hover:bg-[#144a24]">
+          <button type="button" onClick={addValue} className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -318,12 +318,12 @@ export default function ConstitutionPage() {
               onClick={() => setConstitution((prev) => ({ ...prev, riskTolerance: level }))}
               className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
                 constitution.riskTolerance === level
-                  ? "border-[#0a0a0b] bg-[#0a0a0b] text-white"
+                  ? "border-orq8-dark bg-orq8-dark text-white"
                   : "border-hairline bg-white text-ink hover:bg-canvas"
               }`}
             >
               <span className="block text-xs font-semibold capitalize">{level}</span>
-              <span className="block mt-0.5 text-[10px] opacity-70">
+              <span className="block mt-0.5 text-3xs opacity-70">
                 {level === "conservative" ? "AI asks before most actions" :
                  level === "moderate" ? "AI handles routine, you approve risky" :
                  "AI operates broadly, you review periodically"}
@@ -337,8 +337,8 @@ export default function ConstitutionPage() {
       <div className="mt-4 grid gap-4 sm:grid-cols-1">
         <ListSection
           title="Agents Can Decide Alone"
-          icon={<Check className="h-4 w-4 text-[#1a5c2e]" />}
-          color="bg-[#B8FF66]/10"
+          icon={<Check className="h-4 w-4 text-orq8-green" />}
+          color="bg-orq8-lime/10"
           field="canDecide"
           items={constitution.agentPolicies.canDecide}
           value={newCanDecide}
@@ -377,7 +377,7 @@ export default function ConstitutionPage() {
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+            <label className="mb-1 block font-mono text-3xs font-semibold uppercase tracking-wide text-muted">
               Daily Limit (credits)
             </label>
             <input
@@ -386,11 +386,11 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, dailyLimit: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
             />
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+            <label className="mb-1 block font-mono text-3xs font-semibold uppercase tracking-wide text-muted">
               Monthly Limit (credits)
             </label>
             <input
@@ -399,11 +399,11 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, monthlyLimit: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
             />
           </div>
           <div>
-            <label className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-wide text-muted">
+            <label className="mb-1 block font-mono text-3xs font-semibold uppercase tracking-wide text-muted">
               Approval Required Above (credits)
             </label>
             <input
@@ -412,7 +412,7 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, requiresApprovalAbove: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e]"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
             />
           </div>
         </div>
@@ -431,7 +431,7 @@ export default function ConstitutionPage() {
           onChange={(e) => setConstitution((prev) => ({ ...prev, communicationPolicy: e.target.value }))}
           rows={3}
           placeholder="Rules for how agents communicate on behalf of your company..."
-          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-[#1a5c2e] resize-none"
+          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none"
         />
       </section>
     </div>

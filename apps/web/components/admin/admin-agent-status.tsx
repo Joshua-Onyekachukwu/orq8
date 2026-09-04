@@ -13,7 +13,7 @@ interface Agent {
 }
 
 function statusDot(status: string) {
-  if (status === "active") return "bg-[#1a5c2e]";
+  if (status === "active") return "bg-orq8-green";
   if (status === "paused") return "bg-amber-400";
   return "bg-gray-300";
 }
@@ -32,8 +32,8 @@ export function AdminAgentStatus({ agents }: { agents: Agent[] }) {
     <div className="rounded-xl border border-hairline bg-white">
       <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#B8FF66]/10">
-            <Bot className="h-4.5 w-4.5 text-[#1a5c2e]" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10">
+            <Bot className="h-4.5 w-4.5 text-orq8-green" />
           </span>
           <div>
             <h2 className="text-sm font-semibold text-ink">Agent Status</h2>
@@ -44,7 +44,7 @@ export function AdminAgentStatus({ agents }: { agents: Agent[] }) {
         </div>
         <Link
           href="/admin/agents"
-          className="inline-flex items-center gap-1 text-xs font-medium text-[#1a5c2e] hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
         >
           View all <ArrowUpRight className="h-3 w-3" />
         </Link>
@@ -59,7 +59,7 @@ export function AdminAgentStatus({ agents }: { agents: Agent[] }) {
         <ul className="divide-y divide-hairline">
           {list.map((agent) => (
             <li key={agent.id} className="flex items-center gap-3 px-5 py-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-xs font-bold text-[#1a5c2e]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-xs font-bold text-orq8-green">
                 {agent.name.charAt(0)}
               </span>
               <div className="min-w-0 flex-1">

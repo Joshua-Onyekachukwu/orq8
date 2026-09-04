@@ -30,7 +30,7 @@ const Footer: React.FC = () => {
 
   return (
     <>
-      <footer className="relative z-[1] bg-[#050505] pt-[80px] md:pt-[100px] lg:pt-[120px] overflow-hidden">
+      <footer className="relative z-[1] bg-orq8-dark pt-[80px] md:pt-[100px] lg:pt-[120px] overflow-hidden">
         {/* Subtle grid texture */}
         <div
           className="absolute inset-0 opacity-[0.02]"
@@ -52,20 +52,20 @@ const Footer: React.FC = () => {
               >
                 <span className="inline-flex items-center gap-[8px] text-[26px] font-bold tracking-[-1.4px] text-white">
                   ORQ8
-                  <span className="w-[9px] h-[9px] rounded-full bg-[#B8FF66] inline-block"></span>
+                  <span className="w-[9px] h-[9px] rounded-full bg-orq8-lime inline-block"></span>
                 </span>
               </Link>
 
-              <h3 className="!text-white !font-normal !text-[20px] md:!text-[24px] lg:!text-[28px] -tracking-[0.5px] !mb-[12px] lg:!mb-[16px] !max-w-[420px] !leading-[1.3]">
+              <h3 className="!text-white !font-normal !text-xl md:!text-[24px] lg:!text-[28px] -tracking-[0.5px] !mb-[12px] lg:!mb-[16px] !max-w-[420px] !leading-[1.3]">
                 Follow our journey and get invited when your cohort opens
               </h3>
-              <p className="text-white/50 text-[14px] md:text-[15px] !mb-[24px] md:!mb-[32px] !max-w-[420px]">
+              <p className="text-white/50 text-sm md:text-md !mb-[24px] md:!mb-[32px] !max-w-[420px]">
                 One founder. A company that runs itself. First cohort opens
                 soon.
               </p>
 
               {status === "done" ? (
-                <p role="status" className="text-[#B8FF66] font-medium">
+                <p role="status" className="text-orq8-lime font-medium">
                   You&apos;re on the list. We&apos;ll email you.
                 </p>
               ) : status === "error" ? (
@@ -82,7 +82,7 @@ const Footer: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block h-[48px] border border-white/[0.08] bg-white/[0.03] w-full rounded-full placeholder:text-white/30 text-white px-[20px] outline-0 text-[14px] focus:border-[#B8FF66] transition-colors"
+                    className="block h-[48px] border border-white/[0.08] bg-white/[0.03] w-full rounded-full placeholder:text-white/30 text-white px-[20px] outline-0 text-sm focus:border-orq8-lime transition-colors"
                     placeholder="Your email here"
                     aria-label="Email address"
                     name="email"
@@ -92,11 +92,11 @@ const Footer: React.FC = () => {
                   <button
                     type="submit"
                     disabled={status === "loading"}
-                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-full bg-[#B8FF66] p-[6px] md:p-[6px] uppercase text-[11px] font-bold text-[#0A0A0B] tracking-[0.15em] hover:bg-[#A3E855] mt-[12px] md:mt-0 disabled:opacity-60 transition-colors"
+                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-full bg-orq8-lime p-[6px] md:p-[6px] uppercase text-[11px] font-bold text-orq8-dark tracking-[0.15em] hover:bg-orq8-lime mt-[12px] md:mt-0 disabled:opacity-60 transition-colors"
                   >
                     <span className="flex items-center justify-center gap-[10px]">
                       {status === "loading" ? "Joining…" : "Join the waitlist"}{" "}
-                      <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-[#0A0A0B]/10 text-[#0A0A0B] flex items-center justify-center text-[12px]"></i>
+                      <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-orq8-dark/10 text-orq8-dark flex items-center justify-center text-xs"></i>
                     </span>
                   </button>
                 </form>
@@ -113,7 +113,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/#features"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       Platform
                     </Link>
@@ -121,7 +121,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/#how-it-works"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       How it works
                     </Link>
@@ -129,7 +129,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/pricing"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       Pricing
                     </Link>
@@ -145,7 +145,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/about"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       About
                     </Link>
@@ -153,7 +153,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/contact"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       Contact
                     </Link>
@@ -161,7 +161,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/#faq"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       FAQ
                     </Link>
@@ -177,7 +177,7 @@ const Footer: React.FC = () => {
                   <li>
                     <Link
                       href="/#waitlist"
-                      className="text-white/70 transition-colors hover:text-[#B8FF66] text-[15px]"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
                       Join the waitlist
                     </Link>
@@ -189,12 +189,12 @@ const Footer: React.FC = () => {
 
           {/* Bottom bar */}
           <div className="relative border-t border-white/[0.06] py-[28px] md:py-[32px] flex flex-col md:flex-row items-center justify-between gap-[16px]">
-            <p className="text-[14px] text-white/40 !mb-0">
+            <p className="text-sm text-white/40 !mb-0">
               © {new Date().getFullYear()}{" "}
-              <span className="text-[#B8FF66] font-medium">ORQ8</span>. The AI
+              <span className="text-orq8-lime font-medium">ORQ8</span>. The AI
               Organization Operating System.
             </p>
-            <p className="text-[14px] text-white/40 !mb-0">
+            <p className="text-sm text-white/40 !mb-0">
               Built by a company of one, running on ORQ8.
             </p>
           </div>

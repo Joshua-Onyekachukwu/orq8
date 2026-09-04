@@ -168,12 +168,12 @@ export function DashboardRealtime({
     <>
       {/* Real-time flash notification */}
       {flash && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#B8FF66]/20 bg-[#B8FF66]/5 px-4 py-2.5 text-sm text-[#1a5c2e] animate-in fade-in slide-in-from-top-2">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-orq8-lime/20 bg-orq8-lime/5 px-4 py-2.5 text-sm text-orq8-green animate-in fade-in slide-in-from-top-2">
           <Zap className="h-4 w-4" />
           {flash}
           <button
             onClick={() => setFlash(null)}
-            className="ml-auto text-[#1a5c2e]/50 hover:text-[#1a5c2e]"
+            className="ml-auto text-orq8-green/50 hover:text-orq8-green"
           >
             ×
           </button>
@@ -183,13 +183,13 @@ export function DashboardRealtime({
       {/* Connection status bar */}
       <div className="mb-4 flex items-center justify-end gap-2">
         <span
-          className={`flex items-center gap-1.5 text-[10px] font-medium ${
-            connected ? "text-[#1a5c2e]" : "text-gray-400"
+          className={`flex items-center gap-1.5 text-3xs font-medium ${
+            connected ? "text-orq8-green" : "text-gray-400"
           }`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              connected ? "bg-[#B8FF66] animate-pulse" : "bg-gray-300"
+              connected ? "bg-orq8-lime animate-pulse" : "bg-gray-300"
             }`}
           />
           {connected ? "Live" : "Offline"}
@@ -218,7 +218,7 @@ export function DashboardRealtime({
           {stats.totalGoals > 0 && (
             <Link
               href="/app/goals"
-              className="rounded-xl border border-gray-100 bg-white p-5 transition-colors hover:border-[#B8FF66]/30"
+              className="rounded-xl border border-gray-100 bg-white p-5 transition-colors hover:border-orq8-lime/30"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Goals Progress</h3>
@@ -236,7 +236,7 @@ export function DashboardRealtime({
                 </div>
                 <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#1a5c2e] transition-all"
+                    className="h-full rounded-full bg-orq8-green transition-all"
                     style={{
                       width: `${
                         stats.totalTasks > 0
@@ -256,7 +256,7 @@ export function DashboardRealtime({
           {stats.credits && (
             <Link
               href="/app/budgets"
-              className={`rounded-xl border bg-white p-5 transition-colors hover:border-[#B8FF66]/30 ${
+              className={`rounded-xl border bg-white p-5 transition-colors hover:border-orq8-lime/30 ${
                 stats.credits.isCritical
                   ? "border-red-200"
                   : stats.credits.isLow
@@ -282,7 +282,7 @@ export function DashboardRealtime({
                         ? "bg-red-500"
                         : stats.credits.isLow
                         ? "bg-amber-400"
-                        : "bg-[#1a5c2e]"
+                        : "bg-orq8-green"
                     }`}
                     style={{ width: `${Math.min(stats.credits.utilizationPercent, 100)}%` }}
                   />

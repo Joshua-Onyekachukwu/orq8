@@ -19,15 +19,15 @@ async function fetchOrgs(token: string) {
 
 function planBadge(plan: string) {
   switch (plan) {
-    case "pro": return "bg-[#E86A33]/10 text-[#E86A33]";
-    case "business": return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+    case "pro": return "bg-orq8-orange/10 text-orq8-orange";
+    case "business": return "bg-orq8-green/10 text-orq8-green";
     case "enterprise": return "bg-purple-50 text-purple-600";
     default: return "bg-canvas text-muted";
   }
 }
 
 function statusDot(status: string) {
-  return status === "active" ? "bg-[#1a5c2e]" : "bg-gray-300";
+  return status === "active" ? "bg-orq8-green" : "bg-gray-300";
 }
 
 export default async function AdminOrganizationsPage() {
@@ -75,7 +75,7 @@ export default async function AdminOrganizationsPage() {
           <thead>
             <tr className="border-b border-hairline bg-canvas">
               {["Organization", "Owner", "Plan", "Status", "Created"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                <th key={h} className="px-5 py-3 text-left font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted">
                   {h}
                 </th>
               ))}
@@ -93,18 +93,18 @@ export default async function AdminOrganizationsPage() {
                 <tr key={org.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0a0a0b] text-xs font-bold text-[#B8FF66]">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-dark text-xs font-bold text-orq8-lime">
                         {(org.name ?? "O").charAt(0).toUpperCase()}
                       </span>
                       <div>
                         <p className="text-sm font-medium text-ink">{org.name}</p>
-                        <p className="text-[10px] text-muted font-mono">{org.slug}</p>
+                        <p className="text-3xs text-muted font-mono">{org.slug}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-3 text-sm text-muted">{org.ownerEmail ?? "—"}</td>
                   <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${planBadge(org.plan)}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold uppercase ${planBadge(org.plan)}`}>
                       {org.plan}
                     </span>
                   </td>

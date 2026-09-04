@@ -143,7 +143,7 @@ export default function AgentsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Organization · {agents.length} employee{agents.length !== 1 ? 's' : ''} · {activeCount} active
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -165,7 +165,7 @@ export default function AgentsPage() {
           </button>            <button
               type="button"
               onClick={() => setShowHireModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
             >
               <UserPlus className="h-3.5 w-3.5" /> Hire an agent
             </button>
@@ -214,7 +214,7 @@ export default function AgentsPage() {
           </p>            <button
               type="button"
               onClick={() => setShowHireModal(true)}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#1a5c2e] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24]"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
             >
               <UserPlus className="h-3.5 w-3.5" /> Hire your first agent
             </button>
@@ -231,11 +231,11 @@ export default function AgentsPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <Link href={`/app/agents/${a.id}`} className="group flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-sm font-bold text-[#1a5c2e]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-sm font-bold text-orq8-green">
                     {a.name.charAt(0)}
                   </span>
                   <div className="min-w-0">
-                    <h2 className="truncate text-sm font-semibold text-ink group-hover:text-[#1a5c2e] transition-colors">{a.name}</h2>
+                    <h2 className="truncate text-sm font-semibold text-ink group-hover:text-orq8-green transition-colors">{a.name}</h2>
                     <p className="truncate text-xs text-muted">{a.role}</p>
                   </div>
                 </Link>
@@ -256,11 +256,11 @@ export default function AgentsPage() {
                 </button>
               </div>
 
-              <p className="mt-3 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wide">
+              <p className="mt-3 flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-wide">
                 {a.status === "active" ? (
                   <>
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#B8FF66]" />
-                    <span className="text-[#1a5c2e]">Working now</span>
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-lime" />
+                    <span className="text-orq8-green">Working now</span>
                   </>
                 ) : a.status === "error" ? (
                   <>
@@ -276,8 +276,8 @@ export default function AgentsPage() {
               </p>
 
               {a.currentTask && (
-                <div className="mt-3 rounded-lg bg-[#1a5c2e]/5 border border-[#1a5c2e]/10 px-3 py-2">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-[#1a5c2e]">Currently executing</p>
+                <div className="mt-3 rounded-lg bg-orq8-green/5 border border-orq8-green/10 px-3 py-2">
+                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-orq8-green">Currently executing</p>
                   <p className="mt-0.5 text-xs text-ink line-clamp-2">{a.currentTask}</p>
                 </div>
               )}
@@ -285,12 +285,12 @@ export default function AgentsPage() {
               {a.capabilities && a.capabilities.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {a.capabilities.slice(0, 4).map((cap) => (
-                    <span key={cap} className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 text-[10px] font-medium text-[#0a0a0b]">
+                    <span key={cap} className="rounded-full bg-orq8-dark/5 px-2 py-0.5 text-3xs font-medium text-orq8-dark">
                       {cap}
                     </span>
                   ))}
                   {a.capabilities.length > 4 && (
-                    <span className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 text-[10px] font-medium text-[#0a0a0b]">
+                    <span className="rounded-full bg-orq8-dark/5 px-2 py-0.5 text-3xs font-medium text-orq8-dark">
                       +{a.capabilities.length - 4}
                     </span>
                   )}
@@ -301,7 +301,7 @@ export default function AgentsPage() {
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <div className="rounded-lg bg-canvas px-3 py-2 text-center">
                   <p className="font-mono text-sm font-bold text-ink">{a.tasksCompleted}</p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Done</p>
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted">Done</p>
                 </div>
                 <div className="rounded-lg bg-canvas px-3 py-2 text-center">
                   <p className="font-mono text-sm font-bold text-ink">
@@ -309,34 +309,34 @@ export default function AgentsPage() {
                       ? Math.round((a.tasksCompleted / (a.tasksCompleted + (a.tasksFailed ?? 0))) * 100)
                       : 0}%
                   </p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Success</p>
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted">Success</p>
                 </div>
                 <div className="rounded-lg bg-canvas px-3 py-2 text-center">
                   <p className="font-mono text-sm font-bold text-ink">{formatCost(a.weeklyCost)}</p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-muted">Cost/wk</p>
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted">Cost/wk</p>
                 </div>
               </div>
 
               {/* Credit usage bar */}
               {(a.creditsUsed ?? 0) > 0 && (
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center justify-between text-3xs">
                     <span className="text-muted">Credits used</span>
                     <span className="font-mono text-muted">{a.creditsUsed}</span>
                   </div>
                   <div className="mt-1 h-1.5 rounded-full bg-hairline overflow-hidden">
-                    <div className="h-full rounded-full bg-[#1a5c2e] transition-all" style={{ width: `${Math.min(((a.creditsUsed ?? 0) / 100) * 100, 100)}%` }} />
+                    <div className="h-full rounded-full bg-orq8-green transition-all" style={{ width: `${Math.min(((a.creditsUsed ?? 0) / 100) * 100, 100)}%` }} />
                   </div>
                 </div>
               )}
 
               <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Dept</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Dept</dt>
                   <dd className="mt-0.5 truncate text-xs font-medium text-ink">{a.department ?? "—"}</dd>
                 </div>
                 <div className="bg-white px-3 py-2">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Hired</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Hired</dt>
                   <dd className="mt-0.5 text-xs font-medium text-ink">{formatDate(a.createdAt)}</dd>
                 </div>
               </dl>
@@ -347,7 +347,7 @@ export default function AgentsPage() {
 
       {/* Hire Modal */}
       {showHireModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0a0a0b]/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Hire an Agent</h2>
@@ -376,7 +376,7 @@ export default function AgentsPage() {
                     value={hireName}
                     onChange={(e) => setHireName(e.target.value)}
                     placeholder="e.g. Atlas, Athena, Forge"
-                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
                     required
                   />
                 </div>
@@ -389,7 +389,7 @@ export default function AgentsPage() {
                     value={hireRole}
                     onChange={(e) => setHireRole(e.target.value)}
                     placeholder="e.g. Market Researcher, Content Writer"
-                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
                     required
                   />
                 </div>
@@ -402,7 +402,7 @@ export default function AgentsPage() {
                     value={hireDept}
                     onChange={(e) => setHireDept(e.target.value)}
                     placeholder="e.g. Marketing, Engineering"
-                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
                   />
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function AgentsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={!hireName.trim() || !hireRole.trim() || hiring}                  className="flex items-center gap-2 rounded-lg bg-[#1a5c2e] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
+                  disabled={!hireName.trim() || !hireRole.trim() || hiring}                  className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
                   >
                     {hiring ? (
                       <>

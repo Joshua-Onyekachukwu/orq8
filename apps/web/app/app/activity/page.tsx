@@ -36,7 +36,7 @@ function formatTime(iso: string): string {
 function eventTypeBadge(type: string) {
   const lower = type.toLowerCase();
   if (lower.includes("deploy") || lower.includes("approve"))
-    return "bg-[#B8FF66]/10 text-[#1a5c2e]";
+    return "bg-orq8-lime/10 text-orq8-green";
   if (lower.includes("reject")) return "bg-red-100 text-red-700";
   return "bg-indigo-50 text-indigo-700";
 }
@@ -88,7 +88,7 @@ export default function ActivityPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Live log · every action, with the reason
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -137,18 +137,18 @@ export default function ActivityPage() {
 
       {/* Filters */}
       <section aria-label="Filters" className="mt-6 rounded-xl border border-hairline bg-white p-4 sm:p-5">
-        <p className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+        <p className="flex items-center gap-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
           <Filter className="h-3.5 w-3.5" /> Filters
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="block">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <span className="font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
               Action type
             </span>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
+              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
             >
               <option value="all">All actions</option>
               {types.map((t) => (
@@ -159,7 +159,7 @@ export default function ActivityPage() {
             </select>
           </label>
           <label className="block">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <span className="font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
               Search
             </span>
             <span className="relative mt-1.5 block">
@@ -169,7 +169,7 @@ export default function ActivityPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find an action or reason"
-                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-[#1a5c2e]"
+                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
               />
             </span>
           </label>
@@ -219,23 +219,23 @@ export default function ActivityPage() {
                     {formatTime(e.occurredAt)}
                   </time>
                   <span
-                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${eventTypeBadge(e.type)}`}
+                    className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${eventTypeBadge(e.type)}`}
                   >
                     {e.type}
                   </span>
                   {e.department && (
-                    <span className="font-mono text-[10px] uppercase tracking-wide text-muted">
+                    <span className="font-mono text-3xs uppercase tracking-wide text-muted">
                       {e.department}
                     </span>
                   )}
-                  <span className="ml-auto font-mono text-[10px] tabular-nums text-muted">
+                  <span className="ml-auto font-mono text-3xs tabular-nums text-muted">
                     {formatCost(e.cost)}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-ink">{e.summary}</p>
                 {e.reason && (
                   <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed text-muted">
-                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-[#1a5c2e]">
+                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-orq8-green">
                       because
                     </span>
                     {e.reason}

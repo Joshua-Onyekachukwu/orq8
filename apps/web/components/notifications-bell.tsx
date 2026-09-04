@@ -17,9 +17,9 @@ interface Notification {
 
 const typeColors: Record<string, string> = {
   approval: "bg-amber-50 text-amber-700",
-  task: "bg-[#B8FF66]/10 text-[#1a5c2e]",
+  task: "bg-orq8-lime/10 text-orq8-green",
   credit: "bg-red-50 text-red-600",
-  agent: "bg-[#E86A33]/10 text-[#E86A33]",
+  agent: "bg-orq8-orange/10 text-orq8-orange",
   system: "bg-gray-50 text-gray-500",
 };
 
@@ -146,7 +146,7 @@ export function NotificationsBell() {
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 font-mono text-[9px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 font-mono text-2xs font-bold text-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -163,9 +163,9 @@ export function NotificationsBell() {
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                 {connected && (
-                  <span className="flex items-center gap-1 rounded-full bg-[#B8FF66]/10 px-1.5 py-0.5">
-                    <Zap className="h-2.5 w-2.5 text-[#1a5c2e]" />
-                    <span className="font-mono text-[8px] font-semibold uppercase text-[#1a5c2e]">live</span>
+                  <span className="flex items-center gap-1 rounded-full bg-orq8-lime/10 px-1.5 py-0.5">
+                    <Zap className="h-2.5 w-2.5 text-orq8-green" />
+                    <span className="font-mono text-[8px] font-semibold uppercase text-orq8-green">live</span>
                   </span>
                 )}
               </div>
@@ -174,7 +174,7 @@ export function NotificationsBell() {
                   type="button"
                   onClick={markAllRead}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[#1a5c2e] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
                 >
                   <CheckCheck className="h-3.5 w-3.5" /> Mark all read
                 </button>
@@ -192,11 +192,11 @@ export function NotificationsBell() {
                   <div
                     key={n.id}
                     className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
-                      !n.read ? "bg-[#B8FF66]/5" : ""
+                      !n.read ? "bg-orq8-lime/5" : ""
                     }`}
                   >
                     <span
-                      className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[9px] font-bold ${typeColors[n.type]}`}
+                      className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-2xs font-bold ${typeColors[n.type]}`}
                     >
                       {n.type.charAt(0).toUpperCase()}
                     </span>
@@ -205,12 +205,12 @@ export function NotificationsBell() {
                         {n.title}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{n.message}</p>
-                      <p className="mt-1 font-mono text-[10px] text-gray-400">
+                      <p className="mt-1 font-mono text-3xs text-gray-400">
                         {timeAgo(n.createdAt)}
                       </p>
                     </div>
                     {!n.read && (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#B8FF66]" />
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-orq8-lime" />
                     )}
                   </div>
                 ))
@@ -219,7 +219,7 @@ export function NotificationsBell() {
 
             <div className="border-t border-gray-100 px-4 py-2.5">
               {notifications.length > 0 ? (
-                <p className="font-mono text-[10px] uppercase tracking-wide text-gray-400">
+                <p className="font-mono text-3xs uppercase tracking-wide text-gray-400">
                   {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
                 </p>
               ) : (

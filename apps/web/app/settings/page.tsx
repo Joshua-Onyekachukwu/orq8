@@ -5,7 +5,7 @@ import { SettingsShell } from "../../components/settings-shell";
 import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-[#1a5c2e]";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-orq8-green";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
@@ -212,7 +212,7 @@ export default function SettingsPage() {
 
         <div className="mt-6 flex items-center gap-4">
           <span className="relative h-16 w-16 overflow-hidden rounded-full border border-hairline">
-            <span className="flex h-full w-full items-center justify-center bg-[#0a0a0b] text-lg font-bold text-[#1a5c2e]">
+            <span className="flex h-full w-full items-center justify-center bg-orq8-dark text-lg font-bold text-orq8-green">
               {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
             </span>
           </span>
@@ -328,14 +328,14 @@ export default function SettingsPage() {
           </p>
           <div className="flex items-center gap-3">
             {saveSuccess && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-[#1a5c2e]">
+              <span className="inline-flex items-center gap-1.5 text-sm text-orq8-green">
                 <CheckCircle2 className="h-4 w-4" /> Saved
               </span>
             )}
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-full bg-[#1a5c2e] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
                 <>
@@ -375,7 +375,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-[#1a5c2e]" : "bg-gray-200"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-orq8-green" : "bg-gray-200"}`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
               >
@@ -395,8 +395,8 @@ export default function SettingsPage() {
             <div className="flex items-center gap-2">
               {typeof window !== "undefined" && "Notification" in window ? (
                 <>
-                  <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
-                    Notification.permission === "granted" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" :
+                  <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
+                    Notification.permission === "granted" ? "bg-orq8-lime/10 text-orq8-green" :
                     Notification.permission === "denied" ? "bg-red-50 text-red-600" :
                     "bg-amber-50 text-amber-700"
                   }`}>
@@ -410,14 +410,14 @@ export default function SettingsPage() {
                         // Force re-render to update the badge
                         setNotifPrefs((prev) => ({ ...prev }));
                       })}
-                      className="text-xs font-medium text-[#1a5c2e] hover:underline"
+                      className="text-xs font-medium text-orq8-green hover:underline"
                     >
                       Enable
                     </button>
                   )}
                 </>
               ) : (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-[10px] uppercase text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-3xs uppercase text-gray-500">
                   Not supported
                 </span>
               )}
@@ -455,14 +455,14 @@ export default function SettingsPage() {
                     });
                   } catch { /* silent */ }
                 }}
-                className="text-xs font-medium text-[#1a5c2e] hover:underline"
+                className="text-xs font-medium text-orq8-green hover:underline"
               >
                 Test sound
               </button>
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-[#1a5c2e]" : "bg-gray-200"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-orq8-green" : "bg-gray-200"}`}
                 role="switch"
                 aria-checked={notifPrefs.soundEnabled}
               >
@@ -490,7 +490,7 @@ export default function SettingsPage() {
               setNotifSaving(false);
             }}
             disabled={notifSaving}
-            className="inline-flex items-center gap-2 rounded-full bg-[#1a5c2e] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
           >
             {notifSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : notifSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
             {notifSaved ? "Saved" : "Save preferences"}

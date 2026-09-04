@@ -61,8 +61,8 @@ function priorityBadge(priority: string) {
 
 function statusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-[#E86A33]" />;
+    case "completed": return <CheckCircle2 className="h-4 w-4 text-orq8-green" />;
+    case "in_progress": return <Clock className="h-4 w-4 text-orq8-orange" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
     default: return <Clock className="h-4 w-4 text-muted" />;
   }
@@ -122,9 +122,9 @@ export default async function GoalsPage() {
       {/* Goals grid */}
       <section className="mt-6">
         <div className="flex items-center gap-2 mb-4">
-          <Target aria-hidden="true" className="h-4 w-4 text-[#1a5c2e]" />
+          <Target aria-hidden="true" className="h-4 w-4 text-orq8-green" />
           <h2 className="text-sm font-semibold text-ink">Company Goals</h2>
-          <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
+          <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
             {goals.length}
           </span>
         </div>
@@ -149,12 +149,12 @@ export default async function GoalsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Link href={`/app/goals/${goal.id}`} className="group">
-                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-[#1a5c2e] transition-colors">
+                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-orq8-green transition-colors">
                           {goal.title}
                         </h3>
                       </Link>
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${priorityBadge(goal.priority)}`}
+                        className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${priorityBadge(goal.priority)}`}
                       >
                         {goal.priority}
                       </span>
@@ -165,7 +165,7 @@ export default async function GoalsPage() {
                       </p>
                     )}
                     {goal.dueDate && (
-                      <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${dueDateBadge(goal.dueDate)}`}>
+                      <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold ${dueDateBadge(goal.dueDate)}`}>
                         {formatDueDate(goal.dueDate)}
                       </span>
                     )}
@@ -175,13 +175,13 @@ export default async function GoalsPage() {
 
                 {/* Progress bar */}
                 <div className="mt-4">
-                  <div className="flex items-center justify-between text-[10px] text-muted mb-1">
+                  <div className="flex items-center justify-between text-3xs text-muted mb-1">
                     <span className="uppercase font-semibold tracking-wide">Progress</span>
                     <span className="font-mono tabular-nums">{goal.progress}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-[#1a5c2e] transition-all"
+                      className="h-full rounded-full bg-orq8-green transition-all"
                       style={{ width: `${goal.progress}%` }}
                     />
                   </div>
@@ -212,9 +212,9 @@ export default async function GoalsPage() {
                       <div className="flex items-center gap-1 mb-3">
                         {flowSteps.map((step, i) => (
                           <div key={i} className="flex items-center gap-1">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold ${
-                              step.done ? "bg-[#1a5c2e]/10 text-[#1a5c2e]" :
-                              step.active ? "bg-[#E86A33]/10 text-[#E86A33]" :
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
+                              step.done ? "bg-orq8-green/10 text-orq8-green" :
+                              step.active ? "bg-orq8-orange/10 text-orq8-orange" :
                               "bg-hairline text-muted"
                             }`}>
                               {step.done && !step.active ? "✓" : step.active ? "●" : "○"} {step.label}
@@ -229,23 +229,23 @@ export default async function GoalsPage() {
                         {goalTasks.slice(0, 3).map((task) => (
                           <li key={task.id} className="flex items-center gap-2 text-xs">
                             {statusIcon(task.status)}
-                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-[#1a5c2e]">
+                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-orq8-green">
                               {task.title}
                             </Link>
                             {task.agentId && agentMap.get(task.agentId) && (
-                              <span className="shrink-0 rounded-full bg-[#1a5c2e]/10 px-1.5 py-0.5 text-[9px] font-medium text-[#1a5c2e]">
+                              <span className="shrink-0 rounded-full bg-orq8-green/10 px-1.5 py-0.5 text-2xs font-medium text-orq8-green">
                                 {agentMap.get(task.agentId)!.name}
                               </span>
                             )}
                             {task.cost > 0 && (
-                              <span className="shrink-0 font-mono text-[9px] text-muted">${(task.cost / 100).toFixed(2)}</span>
+                              <span className="shrink-0 font-mono text-2xs text-muted">${(task.cost / 100).toFixed(2)}</span>
                             )}
                           </li>
                         ))}
                       </ul>
 
                       {/* Summary */}
-                      <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
+                      <div className="mt-2 flex items-center gap-3 text-3xs text-muted">
                         {assignedAgents.size > 0 && <span>{assignedAgents.size} agent{assignedAgents.size !== 1 ? "s" : ""} assigned</span>}
                         {totalCost > 0 && <span className="font-mono">${(totalCost / 100).toFixed(2)} total cost</span>}
                         {failed > 0 && <span className="text-red-500">{failed} failed</span>}
@@ -265,7 +265,7 @@ export default async function GoalsPage() {
           <div className="flex items-center gap-2">
             <ListChecks aria-hidden="true" className="h-4 w-4 text-muted" />
             <h2 className="text-sm font-semibold text-ink">Standalone Tasks</h2>
-            <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
+            <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
               {tasks.filter((t) => !t.goalId).length}
             </span>
           </div>
@@ -287,7 +287,7 @@ export default async function GoalsPage() {
                   {['Task', 'Agent', 'Priority', 'Due', 'Status', 'Created'].map((h) => (
                   <th
                     key={h}
-                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                    className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                   >
                     {h}
                   </th>
@@ -304,7 +304,7 @@ export default async function GoalsPage() {
                     <div className="flex items-center gap-2">
                       {statusIcon(task.status)}
                       <div>
-                        <Link href={`/app/tasks/${task.id}`} className="hover:text-[#1a5c2e]">
+                        <Link href={`/app/tasks/${task.id}`} className="hover:text-orq8-green">
                           <p className="text-sm font-medium text-ink">{task.title}</p>
                           {task.description && (
                             <p className="text-xs text-muted truncate max-w-[300px]">
@@ -317,7 +317,7 @@ export default async function GoalsPage() {
                   </td>
                   <td className="px-5 py-3">
                     {task.agentId && agentMap.get(task.agentId) ? (
-                      <span className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 text-[10px] font-medium text-[#0a0a0b]">
+                      <span className="rounded-full bg-orq8-dark/5 px-2 py-0.5 text-3xs font-medium text-orq8-dark">
                         {agentMap.get(task.agentId)!.name}
                       </span>
                     ) : (
@@ -325,13 +325,13 @@ export default async function GoalsPage() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${priorityBadge(task.priority)}`}>
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${priorityBadge(task.priority)}`}>
                       {task.priority}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
                     {task.dueDate ? (
-                      <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${dueDateBadge(task.dueDate)}`}>
+                      <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold ${dueDateBadge(task.dueDate)}`}>
                         {formatDueDate(task.dueDate)}
                       </span>
                     ) : (
@@ -339,7 +339,7 @@ export default async function GoalsPage() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
-                    <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] uppercase">
+                    <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs uppercase">
                       {task.status.replace("_", " ")}
                     </span>
                   </td>

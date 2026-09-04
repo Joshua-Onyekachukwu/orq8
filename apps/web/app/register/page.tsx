@@ -35,19 +35,19 @@ export default async function RegisterPage({
     return (
       <div id="main" className="flex min-h-screen bg-white">
         {/* Left panel — branding */}
-        <div className="hidden w-1/2 flex-col justify-between bg-[#0a0a0b] p-10 lg:flex">
+        <div className="hidden w-1/2 flex-col justify-between bg-orq8-dark p-10 lg:flex">
           <Link
             href="/"
             className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
           >
             ORQ8
-            <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+            <span className="h-2 w-2 rounded-full bg-orq8-green" />
           </Link>
 
           <div className="max-w-md">
             <h2 className="mb-4 text-3xl font-light leading-tight text-white">
               The first cohort is{" "}
-              <span className="text-[#B8FF66]">almost ready</span>
+              <span className="text-orq8-lime">almost ready</span>
             </h2>
             <p className="text-sm leading-relaxed text-white/50">
               We are building ORQ8 so it works reliably from day one. Join the
@@ -64,16 +64,16 @@ export default async function RegisterPage({
         <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
           <Link
             href="/"
-            className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-[#0a0a0b] lg:hidden"
+            className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-ink lg:hidden"
           >
             ORQ8
-            <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+            <span className="h-2 w-2 rounded-full bg-orq8-green" />
           </Link>
 
           <div className="w-full max-w-sm text-center">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-emerald/20 bg-[#1a5c2e]/5">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-emerald/20 bg-orq8-green/5">
               <svg
-                className="h-8 w-8 text-[#B8FF66]"
+                className="h-8 w-8 text-orq8-lime"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -87,7 +87,7 @@ export default async function RegisterPage({
               </svg>
             </div>
 
-            <h1 className="mb-3 text-2xl font-semibold text-[#0a0a0b]">
+            <h1 className="mb-3 text-2xl font-semibold text-ink">
               Registration opens soon
             </h1>
             <p className="mb-8 text-sm leading-relaxed text-gray-500">
@@ -99,13 +99,13 @@ export default async function RegisterPage({
             <div className="flex flex-col gap-3">
               <Link
                 href="/#waitlist"
-                className="inline-flex h-11 items-center justify-center rounded-full bg-[#1a5c2e] px-8 text-sm font-semibold text-white transition-colors hover:bg-[#1a5c2e]/90"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-orq8-green px-8 text-sm font-semibold text-white transition-colors hover:bg-orq8-green/90"
               >
                 Join the waitlist
               </Link>
               <Link
                 href="/"
-                className="inline-flex h-11 items-center justify-center rounded-full border border-gray-200 px-8 text-sm font-medium text-gray-600 transition-colors hover:text-[#0a0a0b]"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-gray-200 px-8 text-sm font-medium text-gray-600 transition-colors hover:text-ink"
               >
                 Back to home
               </Link>
@@ -123,19 +123,19 @@ export default async function RegisterPage({
   return (
     <div id="main" className="flex min-h-screen bg-white">
       {/* Left panel — branding */}
-      <div className="hidden w-1/2 flex-col justify-between bg-[#0a0a0b] p-10 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-orq8-dark p-10 lg:flex">
         <Link
           href="/"
           className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+          <span className="h-2 w-2 rounded-full bg-orq8-green" />
         </Link>
 
         <div className="max-w-md">
           <h2 className="mb-4 text-3xl font-light leading-tight text-white">
             You stay the CEO.{" "}
-            <span className="text-[#B8FF66]">The system runs.</span>
+            <span className="text-orq8-lime">The system runs.</span>
           </h2>
           <p className="text-sm leading-relaxed text-white/50">
             Create your organization, hire your AI team, and start delegating
@@ -152,17 +152,17 @@ export default async function RegisterPage({
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <Link
           href="/"
-          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-[#0a0a0b] lg:hidden"
+          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-ink lg:hidden"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />
+          <span className="h-2 w-2 rounded-full bg-orq8-green" />
         </Link>
 
         <div className="w-full max-w-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#B8FF66]">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-lime">
             Create your organization
           </p>
-          <h1 className="mb-1 text-2xl font-semibold text-[#0a0a0b]">
+          <h1 className="mb-1 text-2xl font-semibold text-ink">
             You stay the CEO
           </h1>
           <p className="mb-8 text-sm text-gray-500">
@@ -177,7 +177,7 @@ export default async function RegisterPage({
               href={
                 next ? `/login?next=${encodeURIComponent(next)}` : "/login"
               }
-              className="font-medium text-[#B8FF66] transition-colors hover:text-[#B8FF66]/80"
+              className="font-medium text-orq8-lime transition-colors hover:text-orq8-lime/80"
             >
               Sign in
             </Link>

@@ -82,18 +82,18 @@ const Faqs: React.FC = () => {
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[40px] lg:gap-[60px]">
           <div className="md:max-w-[480px]">
-            <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#E86A33] mb-[16px]">
+            <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-orq8-orange mb-[16px]">
               FAQ
             </span>
             <h2 className="!text-black !mb-[20px] md:!mb-[24px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
               Questions, before you ask them
             </h2>
-            <p className="md:text-[16px] text-gray-500 !mb-[28px]">
+            <p className="md:text-base text-gray-500 !mb-[28px]">
               Something else on your mind? We read every message. Ask us anything about how ORQ8 would run your company.
             </p>
             <Link
               href="/contact"
-              className="btn-press inline-block rounded-full bg-[#E86A33] px-[28px] py-[12px] uppercase text-[11px] font-bold text-white tracking-[0.15em] hover:bg-[#d45e2a] transition-colors"
+              className="btn-press inline-block rounded-full bg-orq8-orange px-[28px] py-[12px] uppercase text-[11px] font-bold text-white tracking-[0.15em] hover:bg-orq8-orange-dark transition-colors"
             >
               <span className="flex items-center justify-center gap-[12px]">
                 Contact Us{" "}
@@ -108,7 +108,7 @@ const Faqs: React.FC = () => {
                 key={item.id}
                 className={`border rounded-[12px] overflow-hidden transition-colors ${
                   openItem === item.id
-                    ? "bg-[#1a5c2e]/[0.03] border-[#1a5c2e]/20"
+                    ? "bg-orq8-green/[0.03] border-orq8-green/20"
                     : "bg-gray-50 border-gray-100 hover:border-gray-200"
                 }`}
               >
@@ -121,10 +121,10 @@ const Faqs: React.FC = () => {
                   aria-expanded={openItem === item.id}
                   aria-controls={`faq-${item.id}`}
                 >
-                  <span className="text-[16px] font-medium text-black pr-[16px]">
+                  <span className="text-base font-medium text-black pr-[16px]">
                     {item.question}
                   </span>
-                  <span className="block leading-none text-[#E86A33] text-[20px] transition-transform duration-300 flex-none">
+                  <span className="block leading-none text-orq8-orange text-xl transition-transform duration-300 flex-none">
                     <i
                       className={`ri-arrow-down-s-line ${
                         openItem === item.id ? "rotate-180" : ""
@@ -138,7 +138,7 @@ const Faqs: React.FC = () => {
                     openItem === item.id ? "pb-[20px] max-h-[500px]" : "max-h-0"
                   }`}
                 >
-                  <div className="text-gray-500 text-[15px] leading-[1.7]">
+                  <div className="text-gray-500 text-md leading-[1.7]">
                     {item.answer}
                   </div>
                 </div>

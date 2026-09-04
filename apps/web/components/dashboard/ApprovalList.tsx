@@ -24,7 +24,7 @@ function formatCost(cents: number): string {
 function riskBadge(risk: string) {
   if (risk === "high") return "bg-red-100 text-red-700";
   if (risk === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-[#B8FF66]/10 text-[#1a5c2e]";
+  return "bg-orq8-lime/10 text-orq8-green";
 }
 
 interface ApprovalListProps {
@@ -44,7 +44,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
         </h2>
         <Link
           href="/app/approvals"
-          className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-[#1a5c2e]"
+          className="inline-flex items-center gap-1 font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-orq8-green"
         >
           All requests <ArrowUpRight className="h-3 w-3" />
         </Link>
@@ -68,7 +68,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
                 {["Request", "What", "Risk", "Cost", "Action"].map((h) => (
                   <th
                     key={h}
-                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                    className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                   >
                     {h}
                   </th>
@@ -94,7 +94,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5">
                     <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
+                      className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
                     >
                       {a.riskLevel}
                     </span>

@@ -56,7 +56,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="h-8 w-40 rounded-lg border border-hairline bg-canvas pl-8 pr-3 text-xs text-ink outline-none focus:border-[#1a5c2e]"
+              className="h-8 w-40 rounded-lg border border-hairline bg-canvas pl-8 pr-3 text-xs text-ink outline-none focus:border-orq8-green"
             />
           </div>
           {/* Filter */}
@@ -89,7 +89,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                 {["ID", "Agent", "Action", "Cost", "Risk", "Status", "Created"].map((h) => (
                   <th
                     key={h}
-                    className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                    className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                   >
                     {h}
                   </th>
@@ -118,12 +118,12 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${
+                      className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
                         a.riskLevel === "high"
                           ? "bg-red-100 text-red-700"
                           : a.riskLevel === "medium"
                           ? "bg-amber-50 text-amber-700"
-                          : "bg-[#B8FF66]/10 text-[#1a5c2e]"
+                          : "bg-orq8-lime/10 text-orq8-green"
                       }`}
                     >
                       {a.riskLevel}
@@ -135,7 +135,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                         a.status === "pending"
                           ? "bg-amber-50 text-amber-700"
                           : a.status === "approved"
-                          ? "bg-[#B8FF66]/10 text-[#1a5c2e]"
+                          ? "bg-orq8-lime/10 text-orq8-green"
                           : "bg-red-50 text-red-600"
                       }`}
                     >
@@ -156,7 +156,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
         <div className="border-t border-hairline px-5 py-3 text-center">
           <Link
             href="/admin/approvals"
-            className="inline-flex items-center gap-1 text-xs font-medium text-[#1a5c2e] hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
           >
             View all {filtered.length} approvals <ExternalLink className="h-3 w-3" />
           </Link>

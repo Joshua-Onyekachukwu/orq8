@@ -39,7 +39,7 @@ export default async function AuditPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -66,7 +66,7 @@ export default async function AuditPage() {
             <thead>
               <tr className="bg-canvas text-left">
                 {["Time", "Actor", "Action", "Outcome"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
+                  <th key={h} className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted">
                     {h}
                   </th>
                 ))}
@@ -85,8 +85,8 @@ export default async function AuditPage() {
                     {String(e.action ?? "—")}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
-                      String(e.outcome) === "success" ? "bg-[#B8FF66]/10 text-[#1a5c2e]" :
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${
+                      String(e.outcome) === "success" ? "bg-orq8-lime/10 text-orq8-green" :
                       String(e.outcome) === "denied" ? "bg-red-100 text-red-600" :
                       "bg-hairline text-muted"
                     }`}>

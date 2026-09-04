@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             <p className="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
           </section>
         ))}
-        <p className="border-t border-hairline pt-5 font-mono text-[10px] uppercase tracking-wide text-muted">
+        <p className="border-t border-hairline pt-5 font-mono text-3xs uppercase tracking-wide text-muted">
           Full legal copy drafts with the beta launch
         </p>
       </div>

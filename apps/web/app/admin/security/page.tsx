@@ -37,12 +37,12 @@ export default async function SecurityPage() {
 
       {/* Status banner */}
       <div className={`mb-6 flex items-center gap-3 rounded-xl border px-5 py-3 ${
-        status === "elevated" ? "border-amber-200 bg-amber-50" : "border-[#1a5c2e]/20 bg-[#1a5c2e]/5"
+        status === "elevated" ? "border-amber-200 bg-amber-50" : "border-orq8-green/20 bg-orq8-green/5"
       }`}>
         {status === "elevated" ? (
           <AlertTriangle className="h-5 w-5 text-amber-600" />
         ) : (
-          <CheckCircle className="h-5 w-5 text-[#1a5c2e]" />
+          <CheckCircle className="h-5 w-5 text-orq8-green" />
         )}
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">
@@ -78,7 +78,7 @@ export default async function SecurityPage() {
         <h2 className="text-sm font-semibold text-ink mb-4">Failed Login Attempts</h2>
         {failedDetails.length === 0 ? (
           <div className="text-center py-8">
-            <CheckCircle className="mx-auto h-8 w-8 text-[#1a5c2e]/30" />
+            <CheckCircle className="mx-auto h-8 w-8 text-orq8-green/30" />
             <p className="mt-2 text-sm text-muted">No failed login attempts recorded.</p>
           </div>
         ) : (
@@ -87,7 +87,7 @@ export default async function SecurityPage() {
               <thead>
                 <tr className="border-b border-hairline">
                   {["Email", "Failed Attempts", "Locked Until"].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-muted">{h}</th>
+                    <th key={h} className="px-4 py-2.5 text-left font-mono text-3xs font-semibold uppercase tracking-wider text-muted">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -96,7 +96,7 @@ export default async function SecurityPage() {
                   <tr key={i} className="hover:bg-canvas/50">
                     <td className="px-4 py-2.5 text-sm text-ink">{d.email}</td>
                     <td className="px-4 py-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${d.failedCount >= 5 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold ${d.failedCount >= 5 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
                         {d.failedCount} attempts
                       </span>
                     </td>

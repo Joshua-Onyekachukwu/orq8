@@ -69,7 +69,7 @@ function formatDate(iso: string): string {
 }
 
 function taskStatusIcon(status: string) {
-  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-[#1a5c2e]" />;
+  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-orq8-green" />;
   if (status === "in_progress") return <span className="h-2 w-2 rounded-full bg-blue-500" />;
   if (status === "failed") return <span className="h-2 w-2 rounded-full bg-red-500" />;
   return <span className="h-2 w-2 rounded-full bg-hairline" />;
@@ -181,7 +181,7 @@ export default function AgentDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Agent not found</p>
             <Link
               href="/app/agents"
-              className="mt-2 inline-block text-sm text-[#1a5c2e] hover:underline"
+              className="mt-2 inline-block text-sm text-orq8-green hover:underline"
             >
               Return to AI Workforce
             </Link>
@@ -192,11 +192,11 @@ export default function AgentDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b] text-xl font-bold text-[#1a5c2e]">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-xl font-bold text-orq8-green">
                     {agent.name.charAt(0)}
                   </span>
                   <div>
-                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+                    <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
                       {agent.department ?? "General"}
                     </p>
                     <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-ink">
@@ -212,7 +212,7 @@ export default function AgentDetailPage() {
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     agent.status === "active"
                       ? "border border-hairline bg-white text-ink hover:bg-canvas"
-                      : "bg-[#1a5c2e] text-white transition-colors hover:bg-[#144a24]"
+                      : "bg-orq8-green text-white transition-colors hover:bg-orq8-green-dark"
                   }`}
                 >
                   {processing ? (
@@ -229,11 +229,11 @@ export default function AgentDetailPage() {
                 </button>
               </div>
 
-              <p className="mt-3 flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wide">
+              <p className="mt-3 flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-wide">
                 {agent.status === "active" ? (
                   <>
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1a5c2e]" />
-                    <span className="text-[#1a5c2e]">Working now</span>
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-green" />
+                    <span className="text-orq8-green">Working now</span>
                   </>
                 ) : (
                   <>
@@ -245,7 +245,7 @@ export default function AgentDetailPage() {
 
               {agent.currentTask && (
                 <div className="mt-4 rounded-lg bg-canvas px-4 py-3">
-                  <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Current task
                   </p>
                   <p className="mt-0.5 text-sm text-ink">{agent.currentTask}</p>
@@ -257,7 +257,7 @@ export default function AgentDetailPage() {
                   {agent.capabilities.map((cap) => (
                     <span
                       key={cap}
-                      className="rounded-full bg-[#0a0a0b]/5 px-2.5 py-1 text-[11px] font-medium text-[#0a0a0b]"
+                      className="rounded-full bg-orq8-dark/5 px-2.5 py-1 text-[11px] font-medium text-orq8-dark"
                     >
                       {cap}
                     </span>
@@ -267,7 +267,7 @@ export default function AgentDetailPage() {
 
               <dl className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Weekly cost
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium tabular-nums text-ink">
@@ -275,7 +275,7 @@ export default function AgentDetailPage() {
                   </dd>
                 </div>
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Tasks completed
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium tabular-nums text-ink">
@@ -283,7 +283,7 @@ export default function AgentDetailPage() {
                   </dd>
                 </div>
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Hired
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium text-ink">
@@ -298,7 +298,7 @@ export default function AgentDetailPage() {
               <div className="flex items-center gap-2">
                 <Target aria-hidden="true" className="h-4 w-4 text-muted" />
                 <h2 className="text-sm font-semibold text-ink">Recent Tasks</h2>
-                <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
+                <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
                   {tasks.length}
                 </span>
                 <button
@@ -325,7 +325,7 @@ export default function AgentDetailPage() {
                         {["Task", "Status", "Priority", "Due", "Cost"].map((h) => (
                           <th
                             key={h}
-                            className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                            className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                           >
                             {h}
                           </th>
@@ -338,7 +338,7 @@ export default function AgentDetailPage() {
                           <td className="px-5 py-3">
                             <Link
                               href={`/app/tasks/${t.id}`}
-                              className="text-sm font-medium text-ink hover:text-[#1a5c2e]"
+                              className="text-sm font-medium text-ink hover:text-orq8-green"
                             >
                               {t.title}
                             </Link>
@@ -349,7 +349,7 @@ export default function AgentDetailPage() {
                               {t.status.replace("_", " ")}
                             </span>
                           </td>
-                          <td className="whitespace-nowrap px-5 py-3 font-mono text-[10px] uppercase text-muted">
+                          <td className="whitespace-nowrap px-5 py-3 font-mono text-3xs uppercase text-muted">
                             {t.priority}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-xs text-muted">
@@ -388,7 +388,7 @@ export default function AgentDetailPage() {
                       <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-ink">{e.summary}</p>
-                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-muted">
+                        <p className="mt-0.5 font-mono text-3xs uppercase tracking-wide text-muted">
                           {e.type} · {formatDate(e.occurredAt)}
                           {e.cost > 0 && ` · ${formatCost(e.cost)}`}
                         </p>

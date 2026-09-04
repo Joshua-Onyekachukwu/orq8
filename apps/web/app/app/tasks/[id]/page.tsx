@@ -52,7 +52,7 @@ function priorityBadge(priority: string) {
 function statusConfig(status: string) {
   switch (status) {
     case "completed":
-      return { label: "Completed", cls: "bg-[#B8FF66]/10 text-[#1a5c2e]", icon: CheckCircle2 };
+      return { label: "Completed", cls: "bg-orq8-lime/10 text-orq8-green", icon: CheckCircle2 };
     case "in_progress":
       return { label: "In progress", cls: "bg-blue-50 text-blue-700", icon: Clock };
     case "failed":
@@ -169,7 +169,7 @@ export default function TaskDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Task not found</p>
             <Link
               href="/app/goals"
-              className="mt-2 inline-block text-sm text-[#1a5c2e] hover:underline"
+              className="mt-2 inline-block text-sm text-orq8-green hover:underline"
             >
               Return to Goals & Tasks
             </Link>
@@ -180,8 +180,8 @@ export default function TaskDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0a0a0b]/5">
-                    <FileText className="h-5 w-5 text-[#0a0a0b]" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orq8-dark/5">
+                    <FileText className="h-5 w-5 text-orq8-dark" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -190,11 +190,11 @@ export default function TaskDetailPage() {
                       </h1>
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${status.cls}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${status.cls}`}>
                         <status.icon className="h-3 w-3" />
                         {status.label}
                       </span>
-                      <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${priorityBadge(task.priority)}`}>
+                      <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${priorityBadge(task.priority)}`}>
                         {task.priority}
                       </span>
                     </div>
@@ -217,12 +217,12 @@ export default function TaskDetailPage() {
 
               <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline sm:grid-cols-4">
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Assigned to
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {agent ? (
-                      <Link href={`/app/agents/${agent.id}`} className="hover:text-[#1a5c2e]">
+                      <Link href={`/app/agents/${agent.id}`} className="hover:text-orq8-green">
                         {agent.name}
                       </Link>
                     ) : (
@@ -231,12 +231,12 @@ export default function TaskDetailPage() {
                   </dd>
                 </div>
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Goal
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {goal ? (
-                      <Link href={`/app/goals/${goal.id}`} className="hover:text-[#1a5c2e]">
+                      <Link href={`/app/goals/${goal.id}`} className="hover:text-orq8-green">
                         {goal.title}
                       </Link>
                     ) : (
@@ -245,7 +245,7 @@ export default function TaskDetailPage() {
                   </dd>
                 </div>
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Due
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium text-ink">
@@ -253,7 +253,7 @@ export default function TaskDetailPage() {
                   </dd>
                 </div>
                 <div className="bg-canvas px-4 py-3">
-                  <dt className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
                     Cost
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium tabular-nums text-ink">

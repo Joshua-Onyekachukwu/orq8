@@ -111,53 +111,53 @@ export default async function ModelRouterPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#0a0a0b]">Model Router</h1>
-        <p className="mt-1 text-sm text-[#6b7280]">
+        <h1 className="text-2xl font-bold text-ink">Model Router</h1>
+        <p className="mt-1 text-sm text-ink-muted">
           Real-time provider health, routing decisions, and usage patterns.
         </p>
       </div>
 
       {/* Health Summary */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Healthy
           </div>
           <p className="mt-2 text-2xl font-bold text-emerald-600 tabular-nums">{summary.healthy}</p>
-          <p className="text-xs text-[#6b7280]">providers responding</p>
+          <p className="text-xs text-ink-muted">providers responding</p>
         </div>
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <AlertTriangle className="h-4 w-4 text-amber-500" /> Degraded
           </div>
           <p className="mt-2 text-2xl font-bold text-amber-600 tabular-nums">{summary.degraded}</p>
-          <p className="text-xs text-[#6b7280]">partial issues</p>
+          <p className="text-xs text-ink-muted">partial issues</p>
         </div>
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <XCircle className="h-4 w-4 text-red-500" /> Down
           </div>
           <p className="mt-2 text-2xl font-bold text-red-600 tabular-nums">{summary.down}</p>
-          <p className="text-xs text-[#6b7280]">unreachable</p>
+          <p className="text-xs text-ink-muted">unreachable</p>
         </div>
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
-            <WifiOff className="h-4 w-4 text-[#9ca3af]" /> Not Configured
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
+            <WifiOff className="h-4 w-4 text-ink-faint" /> Not Configured
           </div>
-          <p className="mt-2 text-2xl font-bold text-[#9ca3af] tabular-nums">{summary.notConfigured}</p>
-          <p className="text-xs text-[#6b7280]">no keys set</p>
+          <p className="mt-2 text-2xl font-bold text-ink-faint tabular-nums">{summary.notConfigured}</p>
+          <p className="text-xs text-ink-muted">no keys set</p>
         </div>
       </div>
 
       {/* Provider Details */}
-      <div className="rounded-xl border border-[#e5e7eb] bg-white overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#e5e7eb]">
-          <h2 className="text-sm font-semibold text-[#0a0a0b]">Provider Health</h2>
-          <p className="text-xs text-[#6b7280] mt-0.5">Live status from actual provider API probes</p>
+      <div className="rounded-xl border border-hairline bg-white overflow-hidden">
+        <div className="px-6 py-4 border-b border-hairline">
+          <h2 className="text-sm font-semibold text-ink">Provider Health</h2>
+          <p className="text-xs text-ink-muted mt-0.5">Live status from actual provider API probes</p>
         </div>
-        <div className="divide-y divide-[#f3f4f6]">
+        <div className="divide-y divide-hairline-light">
           {providers.map((p) => (
-            <div key={p.slug} className="px-6 py-5 hover:bg-[#f9fafb] transition-colors">
+            <div key={p.slug} className="px-6 py-5 hover:bg-gray-50 transition-colors">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1 min-w-0">
                   <div className="mt-0.5">
@@ -165,13 +165,13 @@ export default async function ModelRouterPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-sm font-semibold text-[#0a0a0b]">{p.provider}</h3>
+                      <h3 className="text-sm font-semibold text-ink">{p.provider}</h3>
                       <StatusBadge status={p.status} />
                       {p.circuitBreaker && p.circuitBreaker.state !== "closed" && (
                         <StatusBadge status={p.circuitBreaker.state} />
                       )}
                     </div>
-                    <p className="text-xs text-[#6b7280] mt-1 font-mono truncate">{p.baseUrl}</p>
+                    <p className="text-xs text-ink-muted mt-1 font-mono truncate">{p.baseUrl}</p>
                     {p.error && (
                       <p className="text-xs text-red-600 mt-1 max-w-lg truncate">{p.error}</p>
                     )}
@@ -179,23 +179,23 @@ export default async function ModelRouterPage() {
                 </div>
                 <div className="flex items-center gap-6 flex-shrink-0">
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Latency</p>
-                    <p className={`text-sm font-medium tabular-nums ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : "text-[#0a0a0b]"}`}>
+                    <p className="text-xs text-ink-muted">Latency</p>
+                    <p className={`text-sm font-medium tabular-nums ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : "text-ink"}`}>
                       {p.latencyMs > 0 ? `${p.latencyMs}ms` : "—"}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Keys</p>
-                    <p className="text-sm font-medium text-[#0a0a0b]">{p.keyCount}</p>
+                    <p className="text-xs text-ink-muted">Keys</p>
+                    <p className="text-sm font-medium text-ink">{p.keyCount}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-[#6b7280]">Models</p>
-                    <p className="text-sm font-medium text-[#0a0a0b]">{p.modelsAvailable.length}</p>
+                    <p className="text-xs text-ink-muted">Models</p>
+                    <p className="text-sm font-medium text-ink">{p.modelsAvailable.length}</p>
                   </div>
                   {p.circuitBreaker && (
                     <div className="text-right">
-                      <p className="text-xs text-[#6b7280]">Circuit</p>
-                      <p className={`text-sm font-medium ${p.circuitBreaker.failureCount > 0 ? "text-amber-600" : "text-[#0a0a0b]"}`}>
+                      <p className="text-xs text-ink-muted">Circuit</p>
+                      <p className={`text-sm font-medium ${p.circuitBreaker.failureCount > 0 ? "text-amber-600" : "text-ink"}`}>
                         {p.circuitBreaker.failureCount} failures
                       </p>
                     </div>
@@ -205,12 +205,12 @@ export default async function ModelRouterPage() {
               {p.modelsAvailable.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {p.modelsAvailable.slice(0, 8).map((model) => (
-                    <span key={model} className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] font-mono text-[#6b7280]">
+                    <span key={model} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs font-mono text-ink-muted">
                       {model}
                     </span>
                   ))}
                   {p.modelsAvailable.length > 8 && (
-                    <span className="inline-flex items-center rounded-md bg-[#f3f4f6] px-2 py-0.5 text-[10px] text-[#6b7280]">
+                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs text-ink-muted">
                       +{p.modelsAvailable.length - 8} more
                     </span>
                   )}
@@ -223,43 +223,43 @@ export default async function ModelRouterPage() {
 
       {/* Routing Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <Activity className="h-4 w-4" /> Total Requests
           </div>
-          <p className="mt-2 text-2xl font-bold text-[#0a0a0b] tabular-nums">{totals.requests}</p>
-          <p className="text-xs text-[#6b7280]">all-time routing decisions</p>
+          <p className="mt-2 text-2xl font-bold text-ink tabular-nums">{totals.requests}</p>
+          <p className="text-xs text-ink-muted">all-time routing decisions</p>
         </div>
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <DollarSign className="h-4 w-4" /> Estimated Cost
           </div>
-          <p className="mt-2 text-2xl font-bold text-[#0a0a0b] tabular-nums">${(totals.costCents / 100).toFixed(2)}</p>
-          <p className="text-xs text-[#6b7280]">total AI infrastructure spend</p>
+          <p className="mt-2 text-2xl font-bold text-ink tabular-nums">${(totals.costCents / 100).toFixed(2)}</p>
+          <p className="text-xs text-ink-muted">total AI infrastructure spend</p>
         </div>
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <div className="flex items-center gap-2 text-xs text-[#6b7280] font-semibold">
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
             <BarChart3 className="h-4 w-4" /> Avg Cost/Request
           </div>
-          <p className="mt-2 text-2xl font-bold text-[#0a0a0b] tabular-nums">
+          <p className="mt-2 text-2xl font-bold text-ink tabular-nums">
             ${totals.requests > 0 ? (totals.costCents / totals.requests / 100).toFixed(4) : "0.00"}
           </p>
-          <p className="text-xs text-[#6b7280]">per routing decision</p>
+          <p className="text-xs text-ink-muted">per routing decision</p>
         </div>
       </div>
 
       {/* Usage by Department */}
       {byDepartment.length > 0 && (
-        <div className="rounded-xl border border-[#e5e7eb] bg-white p-5">
-          <h2 className="text-sm font-semibold text-[#0a0a0b] mb-4">Usage by Department</h2>
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <h2 className="text-sm font-semibold text-ink mb-4">Usage by Department</h2>
           <div className="space-y-3">
             {byDepartment.map((d: any) => (
-              <div key={d.department} className="flex items-center justify-between rounded-lg border border-[#f3f4f6] p-3">
+              <div key={d.department} className="flex items-center justify-between rounded-lg border border-hairline-light p-3">
                 <div>
-                  <p className="text-sm font-medium text-[#0a0a0b]">{d.department}</p>
-                  <p className="text-[10px] text-[#6b7280]">{d.count} events</p>
+                  <p className="text-sm font-medium text-ink">{d.department}</p>
+                  <p className="text-3xs text-ink-muted">{d.count} events</p>
                 </div>
-                <span className="font-mono text-sm text-[#0a0a0b]">${(d.totalCost / 100).toFixed(2)}</span>
+                <span className="font-mono text-sm text-ink">${(d.totalCost / 100).toFixed(2)}</span>
               </div>
             ))}
           </div>

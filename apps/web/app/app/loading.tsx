@@ -2,7 +2,7 @@ export default function DashboardLoading() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Welcome banner skeleton */}
-      <div className="animate-pulse rounded-xl bg-[#0a0a0b] p-6 sm:p-8">
+      <div className="animate-pulse rounded-xl bg-orq8-dark p-6 sm:p-8">
         <div className="h-3 w-32 rounded bg-white/10" />
         <div className="mt-3 h-8 w-64 rounded bg-white/10" />
         <div className="mt-2 h-4 w-48 rounded bg-white/10" />

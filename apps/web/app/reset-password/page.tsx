@@ -11,7 +11,7 @@ export default function ResetPasswordPage({
   return (
     <div
       id="main"
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#0a0a0b] px-6 py-16"
+      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-orq8-dark px-6 py-16"
     >
       {/* Command-center backdrop: grid + soft glows */}
       <div
@@ -20,11 +20,11 @@ export default function ResetPasswordPage({
       />
       <div
         aria-hidden
-        className="absolute -top-48 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-[#0d1a12] blur-[130px]"
+        className="absolute -top-48 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-orq8-green-dark blur-[130px]"
       />
       <div
         aria-hidden
-        className="absolute bottom-[-180px] right-[-120px] h-[360px] w-[360px] rounded-full bg-[#1a5c2e]/10 blur-[110px]"
+        className="absolute bottom-[-180px] right-[-120px] h-[360px] w-[360px] rounded-full bg-orq8-green/10 blur-[110px]"
       />
 
       <Link
@@ -33,13 +33,13 @@ export default function ResetPasswordPage({
       >
         ORQ8
         <span className="h-2 w-2 rounded-full bg-lime" aria-hidden />
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#B8FF66]">
+        <span className="font-mono text-3xs uppercase tracking-[0.2em] text-orq8-lime">
           · command center
         </span>
       </Link>
 
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0d1a12]/80 p-8 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#B8FF66]">
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-orq8-green-dark/80 p-8 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+        <p className="font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-orq8-lime">
           Password Reset
         </p>
         <h1 className="mt-2 text-xl font-semibold text-white">Set a new password</h1>
@@ -69,7 +69,7 @@ async function ResetPasswordPageContent({
         </p>
         <Link
           href="/forgot-password"
-          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-[#1a5c2e] px-6 text-sm font-semibold text-[#0a0a0b] transition-colors hover:bg-[#B8FF66]"
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-orq8-green px-6 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime"
         >
           Request reset link
         </Link>

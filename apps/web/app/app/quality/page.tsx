@@ -96,13 +96,13 @@ export default function QualityPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-ink whitespace-pre-wrap">{event.content}</p>
                       <div className="mt-2 flex items-center gap-3">
-                        <span className="inline-flex items-center rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium text-muted">
+                        <span className="inline-flex items-center rounded-full bg-canvas px-2 py-0.5 text-3xs font-medium text-muted">
                           {event.category}
                         </span>
-                        <span className="text-[10px] text-muted">
+                        <span className="text-3xs text-muted">
                           Importance: {event.importance}/10
                         </span>
-                        <span className="text-[10px] text-muted">
+                        <span className="text-3xs text-muted">
                           {new Date(event.createdAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -135,10 +135,10 @@ export default function QualityPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-red-800 whitespace-pre-wrap">{incident.content}</p>
                       <div className="mt-2 flex items-center gap-3">
-                        <span className="text-[10px] text-red-600">
+                        <span className="text-3xs text-red-600">
                           Severity: {incident.importance >= 9 ? "Critical" : incident.importance >= 7 ? "High" : "Medium"}
                         </span>
-                        <span className="text-[10px] text-red-600">
+                        <span className="text-3xs text-red-600">
                           {new Date(incident.createdAt).toLocaleDateString()}
                         </span>
                       </div>

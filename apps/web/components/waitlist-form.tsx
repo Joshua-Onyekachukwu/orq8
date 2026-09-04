@@ -70,8 +70,8 @@ export function WaitlistForm({
 
   const btn =
     dark
-      ? "bg-[#1a5c2e] text-white hover:bg-[#1a5c2e]-300"
-      : "bg-[#1a5c2e] text-white hover:bg-[#144a24]";
+      ? "bg-orq8-green text-white hover:bg-orq8-green-300"
+      : "bg-orq8-green text-white hover:bg-orq8-green-dark";
 
   // Premium waitlist confirmation screen
   if (status === "done" && waitlistNumber) {
@@ -82,27 +82,27 @@ export function WaitlistForm({
           className={`relative overflow-hidden rounded-2xl border p-8 text-center ${
             dark
               ? "border-lime/30 bg-gradient-to-b from-lime/5 to-transparent"
-              : "border-[#1a5c2e]-200 bg-gradient-to-b from-emerald-50/80 to-white"
+              : "border-orq8-green-200 bg-gradient-to-b from-emerald-50/80 to-white"
           }`}
         >
           {/* Animated checkmark */}
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#B8FF66]/10 animate-fade-in">
-            <svg className="h-8 w-8 text-[#1a5c2e]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-orq8-lime/10 animate-fade-in">
+            <svg className="h-8 w-8 text-orq8-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
 
-          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-[#0a0a0b]"}`}>
+          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-orq8-dark"}`}>
             {isAlready ? "You're already on the list" : "You're officially on the list"}
           </h3>
 
           {/* Waitlist position number */}
           <div className="my-6">
-            <p className={`font-mono text-[10px] uppercase tracking-[0.2em] mb-2 ${dark ? "text-white/50" : "text-muted"}`}>
+            <p className={`font-mono text-3xs uppercase tracking-[0.2em] mb-2 ${dark ? "text-white/50" : "text-muted"}`}>
               Your place
             </p>
             <p className={`text-5xl font-bold tracking-tight tabular-nums animate-fade-in ${
-              dark ? "text-[#1a5c2e]" : "text-[#1a5c2e]"
+              dark ? "text-orq8-green" : "text-orq8-green"
             }`}>
               #{waitlistNumber.toLocaleString()}
             </p>
@@ -114,8 +114,8 @@ export function WaitlistForm({
               : "Congratulations. We're building ORQ8 for you. Your place in the first cohort is reserved. We'll email you when it's your turn."}
           </p>
 
-          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-[#1a5c2e]/80" : "text-[#1a5c2e]"}`}>
-            <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e] animate-pulse" />
+          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-orq8-green/80" : "text-orq8-green"}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-orq8-green animate-pulse" />
             <span>Company of One · First Cohort</span>
           </div>
         </div>

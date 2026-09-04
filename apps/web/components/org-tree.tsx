@@ -301,12 +301,12 @@ export function GrowthTree({ tone = "light" }: { tone?: "dark" | "light" }) {
             type="button"
             onClick={() => setState(s.k)}
             aria-pressed={state === s.k}
-            className={`rounded-full border px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
+            className={`rounded-full border px-4 py-1.5 font-mono text-3xs uppercase tracking-[0.2em] transition-colors ${
               state === s.k
-                ? "border-[#1a5c2e]/60 bg-[#B8FF66]/10 text-[#1a5c2e]"
+                ? "border-orq8-green/60 bg-orq8-lime/10 text-orq8-green"
                 : onDark
-                  ? "border-white/10 text-fog hover:border-white/25 hover:text-[#1a5c2e]"
-                  : "border-[#0a0a0b]/15 text-muted hover:border-[#0a0a0b]/40 hover:text-[#0a0a0b]"
+                  ? "border-white/10 text-fog hover:border-white/25 hover:text-orq8-green"
+                  : "border-orq8-dark/15 text-muted hover:border-orq8-dark/40 hover:text-orq8-dark"
             }`}
           >
             {s.label}

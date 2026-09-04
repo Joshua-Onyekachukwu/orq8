@@ -59,7 +59,7 @@ export function UserActions({ userId, currentStatus }: UserActionsProps) {
               <button
                 type="button"
                 onClick={() => handleAction("active")}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#1a5c2e] hover:bg-[#1a5c2e]/5 transition-colors"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orq8-green hover:bg-orq8-green/5 transition-colors"
               >
                 <CheckCircle className="h-4 w-4" />
                 Enable User

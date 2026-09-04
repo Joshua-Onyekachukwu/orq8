@@ -48,15 +48,15 @@ function formatDate(iso: string): string {
 function riskBadge(risk: string) {
   if (risk === "high") return "bg-red-100 text-red-700";
   if (risk === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-[#E86A33]/10 text-[#E86A33]";
+  return "bg-orq8-orange/10 text-orq8-orange";
 }
 
 function statusBadge(status: string) {
-  if (status === "approved") return "bg-[#1a5c2e]/10 text-[#1a5c2e]";
+  if (status === "approved") return "bg-orq8-green/10 text-orq8-green";
   if (status === "rejected") return "bg-red-100 text-red-600";
   if (status === "modified") return "bg-blue-50 text-blue-600";
   if (status === "expired") return "bg-hairline text-muted";
-  return "bg-[#E86A33]/10 text-[#E86A33]";
+  return "bg-orq8-orange/10 text-orq8-orange";
 }
 
 export default function ApprovalsPage() {
@@ -137,11 +137,11 @@ export default function ApprovalsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Decision Center · {pending.length} pending
             {connected && (
-              <span className="ml-2 inline-flex items-center gap-1 text-[#1a5c2e]/70">
-                <span className="h-1 w-1 rounded-full bg-[#B8FF66] animate-pulse" />
+              <span className="ml-2 inline-flex items-center gap-1 text-orq8-green/70">
+                <span className="h-1 w-1 rounded-full bg-orq8-lime animate-pulse" />
                 Live
               </span>
             )}
@@ -174,7 +174,7 @@ export default function ApprovalsPage() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               filter === f
-                ? "bg-[#0a0a0b] text-white"
+                ? "bg-orq8-dark text-white"
                 : "bg-white text-muted hover:bg-canvas hover:text-ink"
             }`}
           >
@@ -231,7 +231,7 @@ export default function ApprovalsPage() {
       {!loading && pending.length > 0 && filter !== "all" && filter !== "pending" ? null : (
         pending.length > 0 && (
           <section className="mt-6" aria-label="Pending approvals">
-            <h2 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <h2 className="mb-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
               Needs your decision ({pending.length})
             </h2>
             <div className="space-y-3">
@@ -249,7 +249,7 @@ export default function ApprovalsPage() {
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-semibold text-ink">{a.action}</h3>
                           <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
+                            className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
                           >
                             {a.riskLevel} risk
                           </span>
@@ -261,26 +261,26 @@ export default function ApprovalsPage() {
                         {/* Context grid — agent, cost, time, urgency */}
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                           <div className="rounded-lg bg-canvas px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Requested by</p>
+                            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Requested by</p>
                             <p className="mt-0.5 text-xs font-medium text-ink">
                               {a.agentId ? `Agent #${a.agentId.slice(0, 8)}` : 'System'}
                             </p>
                           </div>
                           <div className="rounded-lg bg-canvas px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Estimated cost</p>
+                            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Estimated cost</p>
                             <p className="mt-0.5 text-xs font-medium tabular-nums text-ink">
                               {a.cost > 0 ? formatCost(a.cost) : 'Free'}
                             </p>
                           </div>
                           <div className="rounded-lg bg-canvas px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Submitted</p>
+                            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Submitted</p>
                             <p className="mt-0.5 text-xs font-medium text-ink">
                               {formatDate(a.createdAt)}
                             </p>
                           </div>
                           <div className="rounded-lg bg-canvas px-3 py-2">
-                            <p className="font-mono text-[9px] font-semibold uppercase tracking-wide text-muted">Request ID</p>
-                            <p className="mt-0.5 font-mono text-[10px] font-medium text-muted">
+                            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Request ID</p>
+                            <p className="mt-0.5 font-mono text-3xs font-medium text-muted">
                               #{a.id.slice(0, 8)}
                             </p>
                           </div>
@@ -292,7 +292,7 @@ export default function ApprovalsPage() {
                         type="button"
                         onClick={() => handleDecision(a.id, "approved")}
                         disabled={processingId === a.id}
-                        className="flex items-center gap-1.5 rounded-lg bg-[#1a5c2e] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#144a24] disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
                       >
                         {processingId === a.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -326,7 +326,7 @@ export default function ApprovalsPage() {
       {/* Decided approvals */}
       {!loading && decided.length > 0 && (
         <section className="mt-6" aria-label="Decided approvals">
-          <h2 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+          <h2 className="mb-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
             Past decisions ({decided.length})
           </h2>
           <div className="overflow-hidden rounded-xl border border-hairline bg-white">
@@ -336,7 +336,7 @@ export default function ApprovalsPage() {
                   {["Action", "Risk", "Cost", "Status", "Decided"].map((h) => (
                     <th
                       key={h}
-                      className="whitespace-nowrap px-5 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                      className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                     >
                       {h}
                     </th>
@@ -354,7 +354,7 @@ export default function ApprovalsPage() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
-                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
+                        className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${riskBadge(a.riskLevel)}`}
                       >
                         {a.riskLevel}
                       </span>
@@ -364,7 +364,7 @@ export default function ApprovalsPage() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
-                        className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${statusBadge(a.status)}`}
+                        className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${statusBadge(a.status)}`}
                       >
                         {a.status}
                       </span>

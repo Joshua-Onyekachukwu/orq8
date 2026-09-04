@@ -113,7 +113,7 @@ export default function ReportPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#1a5c2e]">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
             Executive summary
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -161,8 +161,8 @@ export default function ReportPage() {
       {!loading && data && (
         <>
           {/* Report header */}
-          <div className="mt-6 rounded-xl bg-[#0a0a0b] p-6 text-white sm:p-8">
-            <p className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B8FF66]">
+          <div className="mt-6 rounded-xl bg-orq8-dark p-6 text-white sm:p-8">
+            <p className="flex items-center gap-2 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
               <CalendarDays className="h-3.5 w-3.5" />
               {reportDate}
             </p>
@@ -175,8 +175,8 @@ export default function ReportPage() {
           {/* Key metrics */}
           <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <Activity className="h-5 w-5 text-[#1a5c2e]" />
-              <p className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <Activity className="h-5 w-5 text-orq8-green" />
+              <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Total actions
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
@@ -185,7 +185,7 @@ export default function ReportPage() {
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
               <Users className="h-5 w-5 text-indigo-600" />
-              <p className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Active agents
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
@@ -194,7 +194,7 @@ export default function ReportPage() {
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
               <ClipboardCheck className="h-5 w-5 text-amber-600" />
-              <p className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Decisions made
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
@@ -203,7 +203,7 @@ export default function ReportPage() {
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
               <CircleDollarSign className="h-5 w-5 text-amber-600" />
-              <p className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+              <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Total spend
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
@@ -224,7 +224,7 @@ export default function ReportPage() {
               <ul className="mt-3 space-y-2">
                 {completedActions.slice(0, 10).map((e) => (
                   <li key={e.id} className="flex items-start gap-3 text-sm">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1a5c2e]" />
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-green" />
                     <span className="text-ink">{e.summary}</span>
                     {e.reason && (
                       <span className="text-xs text-muted">— {e.reason}</span>
@@ -254,7 +254,7 @@ export default function ReportPage() {
                     <div className="flex items-center gap-2">
                       <ClipboardCheck className="h-4 w-4 text-amber-600" />
                       <span className="text-sm text-ink">{a.action}</span>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-amber-700">
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-3xs font-semibold text-amber-700">
                         {a.riskLevel}
                       </span>
                     </div>
@@ -276,13 +276,13 @@ export default function ReportPage() {
               <div className="mt-3 space-y-4">
                 {Object.entries(byDepartment).map(([dept, events]) => (
                   <div key={dept}>
-                    <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    <p className="mb-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                       {dept} ({events.length} actions)
                     </p>
                     <ul className="space-y-1">
                       {events.slice(0, 5).map((e) => (
                         <li key={e.id} className="flex items-center gap-2 text-sm text-ink">
-                          <span className="h-1 w-1 rounded-full bg-[#1a5c2e]" />
+                          <span className="h-1 w-1 rounded-full bg-orq8-green" />
                           {e.summary}
                         </li>
                       ))}
@@ -304,7 +304,7 @@ export default function ReportPage() {
                       {["Agent", "Tasks", "Spend", "Status"].map((h) => (
                         <th
                           key={h}
-                          className="px-4 py-2.5 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted"
+                          className="px-4 py-2.5 text-left font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
                         >
                           {h}
                         </th>
@@ -325,8 +325,8 @@ export default function ReportPage() {
                           {formatCost(a.weeklyCost)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="flex items-center gap-1.5 text-xs text-[#1a5c2e]">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#1a5c2e]" />
+                          <span className="flex items-center gap-1.5 text-xs text-orq8-green">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orq8-green" />
                             Active
                           </span>
                         </td>
@@ -340,7 +340,7 @@ export default function ReportPage() {
 
           {/* Report footer */}
           <div className="mt-6 rounded-xl border border-hairline bg-canvas p-5">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
               Note
             </p>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">
