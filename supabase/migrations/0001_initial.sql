@@ -77,36 +77,8 @@ create table if not exists public.organizations (
 
 create unique index if not exists organizations_slug_idx on public.organizations (slug);
 
-alter table public.organizations enable row level security;
-alter table public.organizations force row level security;
-
--- Org visible to its members; owners (role = 'owner') can update.
-create policy organizations_select_member on public.organizations
-  for select to authenticated
-  using (
-    exists (
-      select 1 from public.memberships m
-      where m.org_id = organizations.id and m.user_id = auth.uid()
-    )
-  );
-
-create policy organizations_update_owner on public.organizations
-  for update to authenticated
-  using (
-    exists (
-      select 1 from public.memberships m
-      where m.org_id = organizations.id and m.user_id = auth.uid() and m.role = 'owner'
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.memberships m
-      where m.org_id = organizations.id and m.user_id = auth.uid() and m.role = 'owner'
-    )
-  );
-
 -- ---------------------------------------------------------------------------
--- memberships
+-- memberships (created before org policies so they can reference it)
 -- ---------------------------------------------------------------------------
 create table if not exists public.memberships (
   id uuid primary key default gen_random_uuid(),
@@ -141,6 +113,36 @@ create policy memberships_update_org_admin on public.memberships
     exists (
       select 1 from public.memberships m
       where m.org_id = memberships.org_id and m.user_id = auth.uid() and m.role in ('owner', 'admin')
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- organizations RLS policies (memberships table now exists)
+-- ---------------------------------------------------------------------------
+alter table public.organizations enable row level security;
+alter table public.organizations force row level security;
+
+create policy organizations_select_member on public.organizations
+  for select to authenticated
+  using (
+    exists (
+      select 1 from public.memberships m
+      where m.org_id = organizations.id and m.user_id = auth.uid()
+    )
+  );
+
+create policy organizations_update_owner on public.organizations
+  for update to authenticated
+  using (
+    exists (
+      select 1 from public.memberships m
+      where m.org_id = organizations.id and m.user_id = auth.uid() and m.role = 'owner'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.memberships m
+      where m.org_id = organizations.id and m.user_id = auth.uid() and m.role = 'owner'
     )
   );
 
