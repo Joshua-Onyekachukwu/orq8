@@ -38,6 +38,9 @@ import { registerDepartmentRoutes } from './routes/departments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerToolRoutes } from './routes/tools.js';
+import { registerMultiAgentRoutes } from './routes/multi-agent.js';
+import { registerCircuitBreakerRoutes } from './routes/circuit-breaker.js';
+import { registerAgentMemoryRoutes } from './routes/agent-memory.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
@@ -220,6 +223,9 @@ export async function buildApp(
   registerSettingsRoutes(app, deps);
   registerMemberRoutes(app, deps);
   registerToolRoutes(app, deps);
+  registerMultiAgentRoutes(app, deps);
+  registerCircuitBreakerRoutes(app, deps);
+  registerAgentMemoryRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
 
   // Register all built-in tools for the AI workforce

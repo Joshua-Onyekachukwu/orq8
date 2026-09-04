@@ -40,7 +40,7 @@ import type { Db } from '@orq8/db';
 
 // ─── Provider chain types ───────────────────────────────────────────────────
 
-export type LLMProviderId = 'nvidia' | 'litellm' | 'ollama';
+export type LLMProviderId = 'nvidia' | 'openrouter' | 'litellm' | 'ollama';
 
 export interface LLMProviderSpec {
   id: LLMProviderId;
@@ -68,6 +68,11 @@ type NvidiaConfig = Pick<
   | 'NVIDIA_BASE_URL'
   | 'NVIDIA_MODEL'
   | 'NVIDIA_MODEL_FALLBACKS'
+  | 'OPENROUTER_API_KEY'
+  | 'OPENROUTER_API_KEYS'
+  | 'OPENROUTER_BASE_URL'
+  | 'OPENROUTER_MODEL'
+  | 'OPENROUTER_MODEL_FALLBACKS'
   | 'LITELLM_BASE_URL'
   | 'LITELLM_MASTER_KEY'
   | 'OLLAMA_BASE_URL'
@@ -95,6 +100,23 @@ export function buildProviderChain(config: NvidiaConfig): LLMProviderSpec[] {
       apiKeys: nvidiaKeys,
       defaultModel: config.NVIDIA_MODEL,
       modelFallbacks: uniqueKeys(config.NVIDIA_MODEL_FALLBACKS?.split(',') ?? []).filter((m) => m !== config.NVIDIA_MODEL),
+    });
+  }
+
+  // OpenRouter — sits between NVIDIA and LiteLLM in priority
+  const openrouterKeys = uniqueKeys([
+    config.OPENROUTER_API_KEY,
+    ...(config.OPENROUTER_API_KEYS?.split(',').map((k) => k.trim()) ?? []),
+  ]);
+
+  if (openrouterKeys.length > 0) {
+    chain.push({
+      id: 'openrouter',
+      label: 'OpenRouter',
+      baseUrl: config.OPENROUTER_BASE_URL,
+      apiKeys: openrouterKeys,
+      defaultModel: config.OPENROUTER_MODEL,
+      modelFallbacks: uniqueKeys(config.OPENROUTER_MODEL_FALLBACKS?.split(',') ?? []).filter((m) => m !== config.OPENROUTER_MODEL),
     });
   }
 
@@ -489,7 +511,16 @@ export async function chatCompletion(
   let lastError = 'no provider reached';
   const nvidiaFunctionNotFound: NVIDIAFunctionNotFoundDiagnostic[] = [];
 
+  // Import circuit breaker for provider failure handling
+  const { isAvailable, recordSuccess, recordFailure } = await import('./circuit-breaker.js');
+
   for (const provider of chain) {
+    // Circuit breaker: skip providers that are in open state
+    if (!isAvailable(provider.id)) {
+      lastError = `${provider.label} circuit breaker open (too many recent failures)`;
+      continue;
+    }
+
     const endpoint = chatCompletionsEndpoint(provider.baseUrl);
     const keys = provider.apiKeys.length > 0 ? provider.apiKeys : [''];
     // Models tried for this provider: the default first, then NVIDIA fallbacks.
@@ -636,6 +667,8 @@ export async function chatCompletion(
               // Store any 404 diagnostics collected during this provider's traversal
               // so callers can surface actionable warnings.
               if (traceCtx?.orgId) storeNvidiaDiagnostics(traceCtx.orgId, nvidiaFunctionNotFound);
+              // Circuit breaker: record success for this provider/model
+              recordSuccess(provider.id, model);
               return data;
             } finally {
               // Body read is done (success or error path) — release the total budget timer.
@@ -669,6 +702,8 @@ export async function chatCompletion(
       endTrace(traceId, { success: false, error: `${provider.id} unavailable: ${providerError}` });
       if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
     }
+    // Circuit breaker: record provider failure
+    recordFailure(provider.id);
     lastError = `${provider.id}: ${providerError}`;
   }
 
@@ -764,7 +799,7 @@ export function getServedProvider(
   const last = traces[traces.length - 1];
   if (!last) return null;
   if (!last.success) return 'none';
-  if (last.provider === 'nvidia' || last.provider === 'litellm' || last.provider === 'ollama') {
+  if (last.provider === 'nvidia' || last.provider === 'openrouter' || last.provider === 'litellm' || last.provider === 'ollama') {
     return last.provider;
   }
   return 'none';

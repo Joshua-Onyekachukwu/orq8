@@ -23,8 +23,8 @@ import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { broadcastToOrg } from './realtime.js';
 import type { Db } from '@orq8/db';
-import { eq, and } from 'drizzle-orm';
-import { agents } from '@orq8/db';
+import { eq, and, sql } from 'drizzle-orm';
+import { agents, auditEvents } from '@orq8/db';
 
 // ─── Tool Definition Types ──────────────────────────────────────────────────
 
@@ -234,6 +234,15 @@ export async function executeTool(
 ): Promise<ToolExecutionResult> {
   const startTime = Date.now();
 
+  // 0. Generate idempotency key from tool + agent + params
+  const idempotencyKey = generateIdempotencyKey(toolId, ctx.agentId, params);
+
+  // Check if this exact call was already executed (idempotency)
+  const existingResult = await checkIdempotency(db, ctx.orgId, idempotencyKey);
+  if (existingResult) {
+    return existingResult;
+  }
+
   // 1. Look up the tool
   const tool = getTool(toolId);
   if (!tool) {
@@ -435,7 +444,7 @@ export async function executeTool(
       .catch(() => {});
   }
 
-  return {
+  const finalResult: ToolExecutionResult = {
     success,
     output: success ? result : null,
     error: executionError,
@@ -444,6 +453,13 @@ export async function executeTool(
     toolId,
     approvalRequired: false,
   };
+
+  // Store for idempotency (only successful non-approval results)
+  if (success && !finalResult.approvalRequired) {
+    storeIdempotencyResult(ctx.orgId, idempotencyKey, finalResult);
+  }
+
+  return finalResult;
 }
 
 // ─── Tool Handlers ──────────────────────────────────────────────────────────
@@ -475,9 +491,6 @@ function validateParams(tool: ToolDefinition, params: Record<string, unknown>): 
   }
   return null;
 }
-
-// ─── Import for SQL template ────────────────────────────────────────────────
-import { sql } from 'drizzle-orm';
 
 // ─── Default Tool Definitions ───────────────────────────────────────────────
 
@@ -858,4 +871,100 @@ export function registerBuiltinTools(): void {
     retryable: true,
     maxRetries: 2,
   });
+}
+
+// ─── Idempotency ───────────────────────────────────────────────────────────
+
+/**
+ * Generate an idempotency key from tool execution parameters.
+ * Same tool + same agent + same params = same key = skip re-execution.
+ */
+function generateIdempotencyKey(
+  toolId: string,
+  agentId: string,
+  params: Record<string, unknown>,
+): string {
+  const paramStr = JSON.stringify(params, Object.keys(params).sort());
+  // Simple hash — not cryptographic, just for dedup
+  let hash = 0;
+  const str = `${toolId}:${agentId}:${paramStr}`;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return `tool_${toolId}_${Math.abs(hash).toString(36)}`;
+}
+
+// In-memory idempotency cache (bounded, TTL-based)
+const idempotencyCache = new Map<string, { result: ToolExecutionResult; timestamp: number }>();
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_IDEMPOTENCY_ENTRIES = 1000;
+
+/**
+ * Check if this tool execution was already performed (idempotency).
+ * Returns the cached result if found and not expired, null otherwise.
+ */
+async function checkIdempotency(
+  db: Db,
+  orgId: string,
+  key: string,
+): Promise<ToolExecutionResult | null> {
+  const cacheKey = `${orgId}:${key}`;
+  const cached = idempotencyCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL_MS) {
+    return cached.result;
+  }
+
+  // Also check audit trail for recently completed executions
+  try {
+    const recentAudit = await db
+      .select()
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.orgId, orgId),
+          eq(auditEvents.action, 'tool.executed'),
+          sql`${auditEvents.inputRef}::text LIKE ${'%' + key + '%'}`,
+        ),
+      )
+      .orderBy(auditEvents.occurredAt)
+      .limit(1);
+
+    if (recentAudit.length > 0) {
+      const result: ToolExecutionResult = {
+        success: true,
+        output: { idempotent: true, message: 'Tool was already executed (idempotent replay)' },
+        creditsConsumed: 0,
+        durationMs: 0,
+        toolId: key.split('_')[1] ?? '',
+        approvalRequired: false,
+      };
+      return result;
+    }
+  } catch {
+    // Audit check failure is non-fatal
+  }
+
+  return null;
+}
+
+/**
+ * Store a tool execution result for idempotency.
+ */
+function storeIdempotencyResult(
+  orgId: string,
+  key: string,
+  result: ToolExecutionResult,
+): void {
+  const cacheKey = `${orgId}:${key}`;
+
+  // Evict oldest entries if cache is full
+  if (idempotencyCache.size >= MAX_IDEMPOTENCY_ENTRIES) {
+    const oldest = idempotencyCache.keys().next().value;
+    if (oldest) idempotencyCache.delete(oldest);
+  }
+
+  idempotencyCache.set(cacheKey, { result, timestamp: Date.now() });
 }

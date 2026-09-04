@@ -56,7 +56,7 @@ export interface ExecutionResult {
   creditsConsumed?: number;
   creditsRemaining?: number;
   // Which LLM provider executed this command (docs/22): 'nvidia' | 'litellm' | 'ollama' | 'none' (structured fallback)
-  llmProvider?: 'nvidia' | 'litellm' | 'ollama' | 'none';
+  llmProvider?: 'nvidia' | 'openrouter' | 'litellm' | 'ollama' | 'none';
   // Warnings surfaced from the LLM provider chain (e.g. NVIDIA scope issues)
   warnings?: NVIDIAFunctionNotFoundDiagnostic[];
   // New: workflow trace for debugging

@@ -30,6 +30,8 @@ export interface AgentContext {
   constitution: string;
   /** Relevant company memory entries */
   memory: Array<{ content: string; category: string; importance: number }>;
+  /** Agent's own memory — lessons, patterns, preferences learned over time */
+  agentMemory: Array<{ content: string; category: string; importance: number }>;
   /** Active goals the agent should be aware of */
   goals: Array<{ id: string; title: string; status: string; priority: string; progress: number }>;
   /** Recent tasks for this agent */
@@ -58,6 +60,18 @@ export async function buildAgentContext(
   agentId: string,
   taskId?: string,
 ): Promise<AgentContext> {
+  // 8. Get agent-specific memory (lessons, patterns, preferences)
+  const agentMemoryEntries = await db
+    .select()
+    .from(companyMemory)
+    .where(and(
+      eq(companyMemory.orgId, orgId),
+      eq(companyMemory.agentId, agentId),
+      eq(companyMemory.source, 'agent_memory'),
+    ))
+    .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
+    .limit(10);
+
   const [
     agent,
     orgGoals,
@@ -116,6 +130,11 @@ export async function buildAgentContext(
     constitution: constitutionEntries.map(e => e.content).join('\n') || 'No company constitution set.',
     memory: memoryEntries.map(e => ({
       content: e.content,
+      category: e.category,
+      importance: e.importance,
+    })),
+    agentMemory: agentMemoryEntries.map(e => ({
+      content: e.content.replace(/^\[tags:[^\]]+\]\s*/, ''),
       category: e.category,
       importance: e.importance,
     })),
@@ -181,6 +200,14 @@ export function buildContextPrompt(
       .map(m => `- [${m.category}/${m.importance}] ${m.content.slice(0, 200)}`)
       .join('\n');
     parts.push(`## Company Memory\n${memList}`);
+  }
+
+  // Agent's own memory — lessons, patterns, preferences
+  if (ctx.agentMemory.length > 0) {
+    const agentMemList = ctx.agentMemory
+      .map(m => `- [${m.category}] ${m.content.slice(0, 200)}`)
+      .join('\n');
+    parts.push(`## Your Learned Knowledge\n${agentMemList}`);
   }
 
   // Pending approvals
