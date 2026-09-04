@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Shield, Ban, CheckCircle } from "lucide-react";
+import { MoreHorizontal, Ban, CheckCircle, Loader2 } from "lucide-react";
 
 interface UserActionsProps {
   userId: string;
@@ -10,11 +10,25 @@ interface UserActionsProps {
 
 export function UserActions({ userId, currentStatus }: UserActionsProps) {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleAction = async (action: string) => {
     setOpen(false);
-    // Actions would call admin API endpoints
-    console.log(`Admin action: ${action} on user ${userId}`);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -22,9 +36,10 @@ export function UserActions({ userId, currentStatus }: UserActionsProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="rounded-lg p-1.5 text-muted hover:bg-canvas transition-colors"
+        disabled={loading}
+        className="rounded-lg p-1.5 text-muted hover:bg-canvas transition-colors disabled:opacity-50"
       >
-        <MoreHorizontal className="h-4 w-4" />
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
       </button>
 
       {open && (
@@ -34,7 +49,7 @@ export function UserActions({ userId, currentStatus }: UserActionsProps) {
             {currentStatus === "active" ? (
               <button
                 type="button"
-                onClick={() => handleAction("suspend")}
+                onClick={() => handleAction("suspended")}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 transition-colors"
               >
                 <Ban className="h-4 w-4" />
@@ -43,7 +58,7 @@ export function UserActions({ userId, currentStatus }: UserActionsProps) {
             ) : (
               <button
                 type="button"
-                onClick={() => handleAction("enable")}
+                onClick={() => handleAction("active")}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#1a5c2e] hover:bg-[#1a5c2e]/5 transition-colors"
               >
                 <CheckCircle className="h-4 w-4" />

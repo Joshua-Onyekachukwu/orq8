@@ -630,4 +630,113 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
   });
+
+  // ── USER MANAGEMENT ──
+
+  /** PATCH /v1/admin/users/:id — Suspend or enable a user. */
+  app.patch<{ Params: { id: string }; Body: { status: string } }>('/v1/admin/users/:id', async (request, reply) => {
+    const ctx = await requirePlatformAdmin(request, deps);
+    const { status } = request.body;
+    if (!['active', 'suspended', 'disabled'].includes(status)) {
+      return reply.status(400).send({ error: { code: 'validation', message: 'Status must be active, suspended, or disabled' } });
+    }
+    const result = await db
+      .update(users)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(users.id, request.params.id))
+      .returning();
+    if (result.length === 0) {
+      return reply.status(404).send({ error: { code: 'not_found', message: 'User not found' } });
+    }
+    await appendAudit(db, {
+      orgId: '00000000-0000-0000-0000-000000000000',
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: `admin.user.${status}`,
+      outcome: 'success',
+    });
+    return { data: result[0] };
+  });
+
+  // ── MODEL ROUTER MONITORING ──
+
+  /** GET /v1/admin/model-router — Provider routing stats. */
+  app.get('/v1/admin/model-router', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const byDepartment = await db
+      .select({
+        department: sql<string>`COALESCE(${activityEvents.department}, 'unknown')`,
+        count: sql<number>`count(*)::int`,
+        totalCost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int`,
+      })
+      .from(activityEvents)
+      .groupBy(activityEvents.department)
+      .catch(() => []);
+    const byType = await db
+      .select({
+        type: activityEvents.type,
+        count: sql<number>`count(*)::int`,
+        totalCost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int`,
+      })
+      .from(activityEvents)
+      .groupBy(activityEvents.type)
+      .catch(() => []);
+    const [totals] = await db
+      .select({ totalRequests: sql<number>`count(*)::int`, totalCost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` })
+      .from(activityEvents)
+      .catch(() => [{ totalRequests: 0, totalCost: 0 }]);
+    return { data: { totals: { requests: totals?.totalRequests ?? 0, costCents: totals?.totalCost ?? 0 }, byDepartment, byType } };
+  });
+
+  // ── AI USAGE & COST TRACKING ──
+
+  /** GET /v1/admin/ai-usage — Platform-wide AI usage. */
+  app.get('/v1/admin/ai-usage', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [weekly, monthly, allTime] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`).catch(() => [{ count: 0, cost: 0 }]),
+      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${monthAgo}`).catch(() => [{ count: 0, cost: 0 }]),
+      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).catch(() => [{ count: 0, cost: 0 }]),
+    ]);
+    const [credits] = await db.select({ total: sql<number>`COALESCE(sum(${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}), 0)::int`, used: sql<number>`COALESCE(sum(${creditBalances.usedCredits}), 0)::int` }).from(creditBalances).catch(() => [{ total: 0, used: 0 }]);
+    const [agentStats] = await db.select({ total: sql<number>`count(*)::int`, active: sql<number>`count(*) filter (where ${agents.status} = 'active')::int` }).from(agents).catch(() => [{ total: 0, active: 0 }]);
+    return { data: { weekly: { requests: weekly[0]?.count ?? 0, costCents: weekly[0]?.cost ?? 0 }, monthly: { requests: monthly[0]?.count ?? 0, costCents: monthly[0]?.cost ?? 0 }, allTime: { requests: allTime[0]?.count ?? 0, costCents: allTime[0]?.cost ?? 0 }, credits: { total: credits?.total ?? 0, used: credits?.used ?? 0 }, agents: { total: agentStats?.total ?? 0, active: agentStats?.active ?? 0 } } };
+  });
+
+  // ── SECURITY CENTER ──
+
+  /** GET /v1/admin/security — Security signals. */
+  app.get('/v1/admin/security', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    let failedLogins: any[] = [];
+    try { failedLogins = await db.select({ email: sql<string>`email`, failedCount: sql<number>`failed_count`, lockedUntil: sql<Date>`locked_until` }).from(sql`login_lockouts`).where(sql`failed_count > 0`).orderBy(sql`last_failed_at DESC`).limit(20); } catch { /* */ }
+    const [denied] = await db.select({ count: sql<number>`count(*)::int` }).from(sql`audit_events`).where(sql`outcome = 'denied' AND occurred_at >= ${dayAgo}`).catch(() => [{ count: 0 }]);
+    const [adminActs] = await db.select({ count: sql<number>`count(*)::int` }).from(sql`audit_events`).where(sql`action LIKE 'admin.%' AND occurred_at >= ${dayAgo}`).catch(() => [{ count: 0 }]);
+    return { data: { failedLogins: failedLogins.length, failedLoginDetails: failedLogins, deniedEvents: denied?.count ?? 0, adminActions: adminActs?.count ?? 0, status: (denied?.count ?? 0) > 10 ? 'elevated' : 'normal' } };
+  });
+
+  // ── BACKGROUND JOBS ──
+
+  /** GET /v1/admin/jobs — Background job status. */
+  app.get('/v1/admin/jobs', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    let dripPending = 0, dripSent = 0, dripFailed = 0;
+    try {
+      const [p] = await db.select({ count: sql<number>`count(*)::int` }).from(sql`waitlist_emails`).where(sql`status = 'queued'`);
+      const [s] = await db.select({ count: sql<number>`count(*)::int` }).from(sql`waitlist_emails`).where(sql`status = 'sent'`);
+      const [f] = await db.select({ count: sql<number>`count(*)::int` }).from(sql`waitlist_emails`).where(sql`status = 'failed'`);
+      dripPending = p?.count ?? 0; dripSent = s?.count ?? 0; dripFailed = f?.count ?? 0;
+    } catch { /* */ }
+    let waitlistPending = 0;
+    try { const [wp] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'pending')); waitlistPending = wp?.count ?? 0; } catch { /* */ }
+    return { data: { dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed }, waitlist: { pending: waitlistPending }, jobs: [
+      { name: 'Waitlist Drip Sequence', status: dripPending > 0 ? 'has_pending' : 'idle', pending: dripPending, sent: dripSent, failed: dripFailed },
+      { name: 'Waitlist Processing', status: waitlistPending > 0 ? 'has_pending' : 'idle', pending: waitlistPending },
+      { name: 'Weekly Report Generation', status: 'scheduled', nextRun: 'Sunday 00:00 UTC' },
+      { name: 'Credit Reconciliation', status: 'scheduled', nextRun: 'Daily 00:00 UTC' },
+    ] } };
+  });
 }

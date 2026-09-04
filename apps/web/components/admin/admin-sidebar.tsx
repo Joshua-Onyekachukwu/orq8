@@ -5,14 +5,21 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Activity,
+  AlertTriangle,
+  BarChart3,
   Building2,
   ChevronDown,
+  Cpu,
+  Database,
+  FileWarning,
   LayoutDashboard,
   LogOut,
   Menu,
   Settings,
   Shield,
   ShieldCheck,
+  Sparkles,
+  Timer,
   UserCog,
   Users,
   X,
@@ -44,11 +51,26 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Operations",
+    title: "AI Infrastructure",
     items: [
       { label: "AI Agents", href: "/admin/agents", icon: Shield },
+      { label: "Model Router", href: "/admin/model-router", icon: Cpu },
+      { label: "AI Usage", href: "/admin/ai-usage", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
       { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
+      { label: "Background Jobs", href: "/admin/jobs", icon: Timer },
       { label: "Activity Log", href: "/admin/activity", icon: Activity },
+      { label: "Errors & Audit", href: "/admin/errors", icon: FileWarning },
+    ],
+  },
+  {
+    title: "Security",
+    items: [
+      { label: "Security Center", href: "/admin/security", icon: AlertTriangle },
     ],
   },
   {
