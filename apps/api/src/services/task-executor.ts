@@ -87,7 +87,7 @@ export async function executeTask(
   // 2. Enforce pause: if assigned agent is paused, reject execution
   if (task.agentId) {
     const [agent] = await db
-      .select({ status: agents.status })
+      .select({ status: agents.status, authority: agents.authority })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
@@ -100,6 +100,21 @@ export async function executeTask(
         tokensUsed: 0,
         llmUsed: false,
       };
+    }
+
+    // 2b. Enforce authority: check agent's authority profile
+    if (agent?.authority && typeof agent.authority === 'object') {
+      const auth = agent.authority as Record<string, unknown>;
+      if (auth.canExecuteTasks === false) {
+        return {
+          taskId,
+          status: 'failed',
+          result: `Execution blocked: agent does not have permission to execute tasks.`,
+          cost: 0,
+          tokensUsed: 0,
+          llmUsed: false,
+        };
+      }
     }
   }
 
@@ -147,8 +162,17 @@ export async function executeTask(
   // Broadcast: task started
   broadcastToOrg(orgId, { type: 'task.started', taskId: task.id, agentId: task.agentId ?? '', agentName });
 
-  // 4. Build the prompt
-  const systemPrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
+  // 4. Build the prompt with rich context from the context pipeline
+  const { buildAgentContext, buildContextPrompt } = await import('./agent-context.js');
+  const agentContext = task.agentId
+    ? await buildAgentContext(db, orgId, task.agentId, task.id)
+    : null;
+
+  const basePrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
+  const contextSection = agentContext ? buildContextPrompt(agentContext, agentName, agentRole) : '';
+  const systemPrompt = contextSection
+    ? `${basePrompt}\n\n${contextSection}`
+    : basePrompt;
   const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
 
   // 5. Call the LLM (with retry and tracing)

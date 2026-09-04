@@ -247,4 +247,54 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { data: updated[0] };
     },
   );
+
+  // ─── Emergency Stop ──────────────────────────────────────────────────────
+
+  /**
+   * POST /v1/agents/emergency-stop — Pause all agents immediately.
+   */
+  app.post('/v1/agents/emergency-stop', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { emergencyStopAll } = await import('../services/emergency-stop.js');
+    const result = await emergencyStopAll(db, ctx.orgId, ctx.userId);
+    reply.code(200);
+    return { data: result };
+  });
+
+  /**
+   * POST /v1/agents/:id/emergency-stop — Pause a specific agent.
+   */
+  app.post<{ Params: { id: string } }>('/v1/agents/:id/emergency-stop', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { emergencyStopAgent } = await import('../services/emergency-stop.js');
+    const result = await emergencyStopAgent(db, ctx.orgId, request.params.id, ctx.userId);
+    reply.code(200);
+    return { data: result };
+  });
+
+  /**
+   * POST /v1/agents/resume-all — Resume all paused agents.
+   */
+  app.post('/v1/agents/resume-all', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { resumeAllAgents } = await import('../services/emergency-stop.js');
+    const result = await resumeAllAgents(db, ctx.orgId, ctx.userId);
+    reply.code(200);
+    return { data: result };
+  });
+
+  /**
+   * POST /v1/agents/:id/resume — Resume a specific agent.
+   */
+  app.post<{ Params: { id: string } }>('/v1/agents/:id/resume', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { resumeAgent } = await import('../services/emergency-stop.js');
+    const resumed = await resumeAgent(db, ctx.orgId, request.params.id, ctx.userId);
+    if (!resumed) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found or not paused' } };
+    }
+    reply.code(200);
+    return { data: { resumed: true } };
+  });
 }

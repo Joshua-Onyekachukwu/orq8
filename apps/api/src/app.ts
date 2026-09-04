@@ -37,7 +37,10 @@ import { registerConstitutionRoutes } from './routes/constitution.js';
 import { registerDepartmentRoutes } from './routes/departments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerMemberRoutes } from './routes/members.js';
+import { registerToolRoutes } from './routes/tools.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
+import { registerBuiltinTools } from './services/tool-registry.js';
+import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
 import { csrfPlugin } from './plugins/csrf.js';
 import type { AppDeps } from './types.js';
 
@@ -216,6 +219,12 @@ export async function buildApp(
   registerDepartmentRoutes(app, deps);
   registerSettingsRoutes(app, deps);
   registerMemberRoutes(app, deps);
+  registerToolRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
+
+  // Register all built-in tools for the AI workforce
+  registerBuiltinTools();
+  registerBuiltinToolHandlers();
+
   return app;
 }
