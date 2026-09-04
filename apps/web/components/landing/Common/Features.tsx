@@ -11,6 +11,7 @@ const features = [
     ),
     title: "AI Employees",
     description: "Build a team of specialized AI employees with defined roles, budgets, and authority. They execute together.",
+    stat: "Build teams",
   },
   {
     icon: (
@@ -20,6 +21,7 @@ const features = [
     ),
     title: "Command Center",
     description: "Live state of your organization. Active agents, tasks, costs — executive visibility without the noise.",
+    stat: "Full visibility",
   },
   {
     icon: (
@@ -29,6 +31,7 @@ const features = [
     ),
     title: "Approval Gates",
     description: "AI proposes. You decide. Consequential actions route to you. Approve, reject, or modify in one tap.",
+    stat: "You decide",
   },
   {
     icon: (
@@ -38,6 +41,7 @@ const features = [
     ),
     title: "Goals & Tasks",
     description: "Set the direction. Watch it execute. Define goals in plain language. The system breaks them into tasks and tracks progress.",
+    stat: "Plain language",
   },
   {
     icon: (
@@ -47,6 +51,7 @@ const features = [
     ),
     title: "Company Memory",
     description: "Decisions that compound over time. Every decision, lesson, and outcome accumulates. Your company gets smarter.",
+    stat: "Compounds over time",
   },
   {
     icon: (
@@ -56,6 +61,7 @@ const features = [
     ),
     title: "Audit Trail",
     description: "Every action, every dollar, tracked. Time-stamped and immutable. Your company has a complete operational record.",
+    stat: "Immutable",
   },
 ];
 
@@ -63,7 +69,7 @@ const Features: React.FC = () => {
   return (
     <div id="features" className="py-24 lg:py-32 bg-canvas">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        {/* Header */}
+        {/* Header — strong typography, clear hierarchy */}
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-20">
           <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-emerald mb-4">
             Platform
@@ -77,18 +83,26 @@ const Features: React.FC = () => {
           </p>
         </div>
 
-        {/* Feature grid */}
+        {/* Feature grid — 2x3 with stronger visual presence */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group bg-surface rounded-2xl border border-hairline p-6 lg:p-8 hover:border-emerald/30 hover:shadow-lg transition-all duration-300"
+              className="group bg-surface rounded-2xl border border-hairline p-7 lg:p-8 hover:border-emerald/30 hover:shadow-lg transition-all duration-300 relative overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-xl bg-emerald/10 flex items-center justify-center text-emerald mb-5 group-hover:bg-emerald group-hover:text-white transition-colors">
-                {feature.icon}
+              {/* Subtle accent line at top on hover */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-emerald/0 group-hover:bg-emerald transition-colors duration-300" />
+
+              <div className="flex items-start justify-between mb-5">
+                <div className="w-12 h-12 rounded-xl bg-emerald/10 flex items-center justify-center text-emerald group-hover:bg-emerald group-hover:text-white transition-colors duration-300">
+                  {feature.icon}
+                </div>
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {feature.stat}
+                </span>
               </div>
               <h3 className="text-ink font-semibold text-lg mb-3">{feature.title}</h3>
-              <p className="text-ink-muted leading-relaxed">{feature.description}</p>
+              <p className="text-ink-muted leading-relaxed text-[15px]">{feature.description}</p>
             </div>
           ))}
         </div>

@@ -109,7 +109,7 @@ const Pricing: React.FC = () => {
           <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#B8FF66] mb-[16px]">
             Pricing
           </span>
-          <h2 className="!mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
+          <h2 className="!text-white !mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
             Your AI workforce.{" "}
             <span className="text-[#B8FF66]">One operating system.</span>
           </h2>

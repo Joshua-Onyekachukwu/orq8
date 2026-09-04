@@ -12,20 +12,13 @@ const steps = [
   {
     id: 2,
     number: "02",
-    title: "It plans and hires",
+    title: "Your company executes",
     description:
-      "The Executive Agent breaks the goal into tasks, picks the right people, and assigns the work within your budget.",
+      "The Executive Agent plans the work, hires the right specialists, and coordinates them across your tools. Big actions come back for approval.",
   },
   {
     id: 3,
     number: "03",
-    title: "Agents execute",
-    description:
-      "Your AI team works across your tools — writing, coding, researching, analyzing. Big actions come back for approval.",
-  },
-  {
-    id: 4,
-    number: "04",
     title: "You see the outcome",
     description:
       "Approve in one tap. Every Monday, a report on what happened, what it cost, and what's next.",
@@ -59,16 +52,16 @@ const HowItWorks: React.FC = () => {
             <span className="!font-medium text-[#B8FF66]">Your Company of One does the rest.</span>
           </h2>
           <p className="text-white/50 lg:text-[16px] max-w-[520px] mx-auto !mb-0 !leading-relaxed">
-            Four steps, one loop. Most of it runs without you. The consequential always comes back to you.
+            Three steps, one loop. Most of it runs without you. The consequential always comes back to you.
           </p>
         </div>
 
-        {/* Desktop: 4 steps in a row with connecting line */}
+        {/* Desktop: 3 steps in a row with connecting line */}
         <div className="hidden lg:block relative">
           {/* Connecting line behind cards */}
-          <div className="absolute top-[32px] left-[calc(12.5%+12px)] right-[calc(12.5%+12px)] h-[1px] bg-white/[0.08]" />
+          <div className="absolute top-[32px] left-[calc(16.67%+12px)] right-[calc(16.67%+12px)] h-[1px] bg-white/[0.08]" />
 
-          <div className="grid grid-cols-4 gap-[40px] relative">
+          <div className="grid grid-cols-3 gap-[40px] relative">
             {steps.map((step) => (
               <div key={step.id} className="relative">
                 {/* Step badge */}
