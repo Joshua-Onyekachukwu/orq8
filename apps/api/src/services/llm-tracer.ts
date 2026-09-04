@@ -75,6 +75,8 @@ export function startTrace(params: {
   orgId: string;
   phase: LLMTraceEntry['phase'];
   model?: string;
+  /** Actual provider serving the call (e.g. 'nvidia', 'litellm', 'ollama'). */
+  provider?: string;
   temperature?: number;
   maxTokens?: number;
   commandId?: string;
@@ -94,7 +96,7 @@ export function startTrace(params: {
     agentId: params.agentId,
     phase: params.phase,
     model: params.model ?? 'unknown',
-    provider: extractProvider(params.model),
+    provider: params.provider ?? extractProvider(params.model),
     startedAt,
     promptTokens: 0,
     completionTokens: 0,

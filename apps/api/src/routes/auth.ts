@@ -1,5 +1,5 @@
 import { hashPassword, verifyPassword } from '@orq8/auth';
-import { conflict, forbidden, unauthorized, validation } from '@orq8/core';
+import { conflict, forbidden, platformAdminEmails, unauthorized, validation } from '@orq8/core';
 import { createHash, randomBytes } from 'node:crypto';
 import { eq, and, gt, isNull, sql } from 'drizzle-orm';
 import { users as usersTable, passwordResetTokens } from '@orq8/db';
@@ -295,11 +295,14 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const user = await users.findById(db, ctx.userId);
     if (!user) throw unauthorized();
     const memberships = await orgs.findMembershipsByUser(db, ctx.userId);
+    const isPlatformAdmin =
+      user.platformRole === 'admin' || platformAdminEmails(deps.config).has(user.email.toLowerCase());
     return {
       data: {
         user: { id: user.id, email: user.email, name: user.name },
         memberships: memberships.map((m) => ({ org: m.org, role: m.membership.role })),
         active_org_id: ctx.orgId,
+        platformRole: isPlatformAdmin ? 'admin' : 'user',
       },
     };
   });
@@ -313,6 +316,38 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     return {
       data: {
         ...current.org,
+        role: current.membership.role,
+      },
+    };
+  });
+
+  /** PATCH /v1/org — Update current organization details (name). */
+  app.patch('/v1/org', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({
+      name: z.string().trim().min(1).max(200),
+    }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const memberships = await orgs.findMembershipsByUser(db, ctx.userId);
+    const current = memberships.find((m) => m.org.id === ctx.orgId);
+    if (!current) throw unauthorized();
+    if (current.membership.role !== 'owner' && current.membership.role !== 'admin') {
+      throw forbidden('Only owners and admins can update organization details');
+    }
+
+    const updated = await orgs.updateOrg(db, ctx.orgId, { name: parsed.data.name });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'org.renamed',
+      outcome: 'success',
+    });
+
+    return {
+      data: {
+        ...updated,
         role: current.membership.role,
       },
     };

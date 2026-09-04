@@ -17,7 +17,9 @@ describe('email transport', () => {
     expect(result.messageId).toMatch(/^dev-/);
   });
 
-  it('uses nodemailer config when SMTP_HOST is set', async () => {
+  // 20s budget: the transport's own 5s connect/greeting timeouts must make
+  // send() fail fast against an unreachable host, with room for slow DNS.
+  it('uses nodemailer config when SMTP_HOST is set', { timeout: 20_000 }, async () => {
     const config = loadConfig({
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',

@@ -77,6 +77,10 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
             consumed: result.creditsConsumed ?? 0,
             remaining: result.creditsRemaining ?? 0,
           },
+          // Which LLM provider actually ran this command (docs/22): nvidia | litellm | ollama | none
+          llmProvider: result.llmProvider ?? 'none',
+          // Actionable warnings from the LLM provider chain (e.g. NVIDIA scope issues)
+          warnings: result.warnings ?? [],
           // Workflow trace for debugging and monitoring
           workflowTrace: result.workflowTrace
             ? {
@@ -115,6 +119,7 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           message: 'The Executive Agent encountered an error. Please try again or rephrase your command.',
           taskIds: [],
           agentResults: [],
+          llmProvider: 'none',
         },
       };
     }

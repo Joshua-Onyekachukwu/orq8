@@ -108,13 +108,41 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaveSuccess(false);
+    setError(null);
     try {
-      // For now, simulate save — real implementation would call a profile update API
-      await new Promise((r) => setTimeout(r, 500));
+      // Save profile name to the backend (PATCH /v1/auth/me)
+      const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+      if (fullName && fullName !== (user?.name ?? "")) {
+        const profileRes = await fetch("/api/auth/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: fullName }),
+        });
+        if (!profileRes.ok) {
+          const json = await profileRes.json().catch(() => null);
+          throw new Error(json?.error?.message ?? "Failed to save profile");
+        }
+      }
+
+      // Save organization name (owners/admins only)
+      if (org && company && company !== org.name) {
+        const orgRes = await fetch("/api/org", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: company }),
+        });
+        if (!orgRes.ok) {
+          const json = await orgRes.json().catch(() => null);
+          throw new Error(json?.error?.message ?? "Failed to save organization");
+        }
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch {
-      // Silent fail for now
+      // Refresh profile so the displayed data reflects what was saved
+      fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save changes");
     } finally {
       setSaving(false);
     }

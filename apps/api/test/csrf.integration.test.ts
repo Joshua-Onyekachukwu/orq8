@@ -387,10 +387,14 @@ run('CSRF — exempt paths', () => {
   });
 
   it('POST /v1/auth/login is CSRF-exempt', async () => {
+    // Unique email per run: the persistent DB lockout (docs/37) accumulates
+    // failed logins per email, so a fixed address would 429 after a few full
+    // suite runs and break this test even though nothing is wrong.
+    const email = `csrf-exempt-${randomUUID().slice(0, 8)}@test.example.com`;
     const res = await app.inject({
       method: 'POST',
       url: '/v1/auth/login',
-      payload: { email: 'nonexistent@test.com', password: 'wrong' },
+      payload: { email, password: 'wrong' },
       // No CSRF token!
     });
     // Should get 401 (auth failure), not 403 (CSRF failure)

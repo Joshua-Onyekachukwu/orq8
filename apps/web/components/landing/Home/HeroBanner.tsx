@@ -1,80 +1,176 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 const HeroBanner: React.FC = () => {
   return (
-    <div className="bg-navy-950">
-      <div className="xl:max-w-[1920px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          {/* Left — headline, proof, CTA */}
-          <div className="relative order-1 py-[110px] md:py-[140px] pb-[60px] md:pb-[80px] lg:pt-[300px] lg:pb-[160px] ltr:lg:pl-[60px] rtl:lg:pr-[60px] ltr:xl:pl-0 rtl:xl:pr-0 ltr:2xl:pl-[95px] rtl:2xl:pr-[95px]">
-            <div className="px-[12px] 2xl:px-0 mx-auto 2xl:mx-0 sm:max-w-[540px] md:max-w-[720px] lg:max-w-full 2xl:max-w-[720px]">
-              <span className="inline-block py-[8px] md:py-[10px] px-[13px] md:px-[16px] font-bold text-[11px] md:text-xs bg-lime rounded-[10px] text-black tracking-[1.8px] mb-[16px] md:mb-[20px]">
-                THE AI ORGANIZATION OPERATING SYSTEM
-              </span>
+    <div className="relative min-h-screen bg-navy-950 overflow-hidden">
+      {/* Subtle grid pattern — precision, not decoration */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
 
-              <h1 className="!mb-[15px] lg:!mb-[20px] !text-white !font-light uppercase !text-[35px] md:!text-[50px] lg:!text-[60px] xl:!text-[76px] 2xl:!text-[86px] !leading-[1.08] -tracking-[2px] md:-tracking-[3px] xl:-tracking-[4px] text-balance">
-                Run an actual company of{" "}
-                <span className="font-bold text-lime">One</span>
-              </h1>
+      {/* Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-32 pb-20 lg:pt-40 lg:pb-32">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+          {/* Left — Headline, copy, CTA */}
+          <div className="max-w-xl">
+            {/* Eyebrow — mono, tracked, purposeful */}
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-emerald mb-6">
+              AI Organization Operating System
+            </p>
 
-              <p className="lg:text-md xl:text-lg text-white/75 max-w-[560px]">
-                You set the direction. ORQ8 hires the AI team, does the work,
-                and reports back under your approvals and your budget.
-              </p>
+            {/* Headline — Strong, specific, confident */}
+            <h1 className="font-display text-5xl lg:text-6xl xl:text-7xl font-medium text-white leading-[1.05] tracking-tight mb-6">
+              Run a company{" "}
+              <span className="text-emerald">of one</span>
+            </h1>
 
+            {/* Supporting copy — Clear, specific, no buzzwords */}
+            <p className="text-lg lg:text-xl text-slate-400 leading-relaxed mb-10 max-w-lg">
+              You set the direction. ORQ8 hires the AI team, does the work,
+              and reports back under your approvals and your budget.
+            </p>
+
+            {/* Primary CTA */}
+            <div className="flex flex-col sm:flex-row gap-4">
               <Link
-                href="/#waitlist"
-                className="btn-press group inline-block text-center bg-lime rounded-[50px] text-navy-950 font-semibold md:text-[15px] lg:text-md xl:text-[17px] py-[11px] px-[26px] hover:bg-emerald mt-[5px] md:mt-[10px] lg:mt-[18px] xl:mt-[22px]"
+                href="/register"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald text-navy-950 font-semibold text-sm tracking-wide rounded-full hover:bg-emerald-light transition-colors"
               >
-                <span className="inline-flex items-center gap-[10px] ltr:pr-[6px] rtl:pl-[6px]">
-                  Join the waitlist{" "}
-                  <i className="ri-arrow-right-line text-[20px] transition-transform duration-300 group-hover:translate-x-[3px]"></i>
-                </span>
+                Start Free Trial
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
               </Link>
-
-              <div className="mt-[28px] lg:mt-[48px] flex flex-col sm:flex-row sm:items-center gap-[14px] sm:gap-[22px] border border-white/15 bg-white/10 rounded-[24px] p-[16px] md:p-[20px] max-w-[480px] backdrop-blur-md">
-                <div className="flex items-center">
-                  {[1, 2, 3].map((n) => (
-                    <div
-                      key={n}
-                      aria-hidden="true"
-                      className="w-[42px] h-[42px] md:w-[46px] md:h-[46px] rounded-full overflow-hidden border-[2px] border-white flex-none ltr:-mr-[16px] rtl:-ml-[16px]"
-                    >
-                      <Image
-                        src={`/images/founders/founder-${n}.jpg`}
-                        alt=""
-                        width={46}
-                        height={46}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-center w-[42px] h-[42px] md:w-[46px] md:h-[46px] rounded-full border-[2px] border-white bg-primary-500 text-white text-xl">
-                    <i className="ri-add-line"></i>
-                  </div>
-                </div>
-                <span className="block lg:text-md leading-relaxed text-white/90">
-                  1,000+ founders in the queue. First cohort opens soon.
-                </span>
-              </div>
+              <Link
+                href="/about"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 text-white/80 font-medium text-sm tracking-wide rounded-full border border-white/20 hover:border-white/40 hover:text-white transition-colors"
+              >
+                Learn More
+              </Link>
             </div>
+
+            {/* Trust signal — Real, not fake */}
+            <p className="mt-8 text-sm text-slate-500">
+              7-day free trial · No credit card required · Cancel anytime
+            </p>
           </div>
 
-          {/* Right — background image panel */}
-          <div className="relative order-2 h-[500px] sm:h-[600px] lg:h-full ltr:lg:mr-[100px] rtl:lg:ml-[100px] ltr:xl:mr-[215px] rtl:xl:ml-[215px] overflow-hidden rounded-l-[30px] lg:rounded-[30px]">
-            <Image
-              src="/images/hero-bg.png"
-              alt=""
-              fill
-              className="object-cover object-center"
-              priority
-            />
-            {/* Subtle gradient overlay for depth */}
-            <div className="absolute inset-0 bg-gradient-to-r from-navy-950/30 to-transparent" />
+          {/* Right — Product visualization */}
+          <div className="relative lg:h-[600px]">
+            {/* Product mockup — Real ORQ8 UI */}
+            <div className="relative bg-navy-900 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+              {/* Browser chrome */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                </div>
+                <div className="flex-1 mx-4">
+                  <div className="bg-white/5 rounded-md px-3 py-1.5 text-xs text-white/40 font-mono">
+                    app.orq8.ai
+                  </div>
+                </div>
+              </div>
+
+              {/* Dashboard content */}
+              <div className="p-6 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white font-medium text-sm">Executive Dashboard</h3>
+                    <p className="text-white/40 text-xs mt-0.5">3 agents active · 12 tasks today</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald/10 text-emerald text-xs font-medium rounded-full">
+                      <span className="w-1.5 h-1.5 bg-emerald rounded-full animate-pulse" />
+                      Live
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Active Agents", value: "3", change: "+1 today" },
+                    { label: "Tasks Completed", value: "12", change: "86% success" },
+                    { label: "Credits Used", value: "247", change: "of 1,000" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="bg-white/5 rounded-lg p-3">
+                      <p className="text-white/40 text-xs">{stat.label}</p>
+                      <p className="text-white text-xl font-semibold mt-1">{stat.value}</p>
+                      <p className="text-emerald text-xs mt-0.5">{stat.change}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Agent activity */}
+                <div className="bg-white/5 rounded-lg p-4">
+                  <p className="text-white/60 text-xs font-medium uppercase tracking-wider mb-3">
+                    Agent Activity
+                  </p>
+                  <div className="space-y-2">
+                    {[
+                      { name: "Researcher", task: "Analyzing market data", status: "active" },
+                      { name: "Writer", task: "Drafting launch post", status: "active" },
+                      { name: "Engineer", task: "Reviewing PR #142", status: "idle" },
+                    ].map((agent) => (
+                      <div key={agent.name} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${agent.status === "active" ? "bg-emerald" : "bg-white/20"}`} />
+                          <span className="text-white text-sm">{agent.name}</span>
+                        </div>
+                        <span className="text-white/40 text-xs">{agent.task}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Approval pending */}
+                <div className="bg-amber/10 border border-amber/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber/20 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">Marketing requests $250</p>
+                        <p className="text-white/40 text-xs">Within budget · Needs approval</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1.5 bg-emerald text-navy-950 text-xs font-semibold rounded-full">
+                        Approve
+                      </button>
+                      <button className="px-3 py-1.5 border border-white/20 text-white/60 text-xs rounded-full">
+                        Review
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating elements — subtle, purposeful */}
+            <div className="absolute -top-4 -right-4 bg-navy-800 border border-white/10 rounded-xl px-4 py-3 shadow-xl">
+              <p className="text-emerald text-xs font-semibold">+1 agent hired</p>
+              <p className="text-white/40 text-xs mt-0.5">Marketing specialist</p>
+            </div>
+
+            <div className="absolute -bottom-4 -left-4 bg-navy-800 border border-white/10 rounded-xl px-4 py-3 shadow-xl">
+              <p className="text-white text-xs font-medium">Audit Trail</p>
+              <p className="text-white/40 text-xs mt-0.5">Writer published · 2 min ago</p>
+            </div>
           </div>
         </div>
       </div>

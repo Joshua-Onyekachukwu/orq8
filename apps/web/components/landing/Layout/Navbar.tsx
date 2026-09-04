@@ -27,25 +27,10 @@ const Navbar: React.FC = () => {
   const pathname = usePathname();
 
   // Sticky navbar. Glass command-bar once you scroll.
-  // The transparent bar sits over the navy hero on the homepage (white
-  // wordmark) and over light banners on subpages (dark wordmark); once
-  // sticky it gets its own background, so the wordmark follows that.
   const [isSticky, setIsSticky] = useState<boolean>(false);
   const isHome = pathname === "/";
-  const brandColor = isSticky
-    ? "text-black dark:text-white"
-    : isHome
-      ? "text-white"
-      : "text-black dark:text-white";
-  const burgerBar = isSticky
-    ? "bg-dark dark:bg-white"
-    : isHome
-      ? "bg-white"
-      : "bg-dark dark:bg-white";
-
-  // Theme: light only for now. The dark: styles remain in the codebase for a
-  // future dark-mode pass, but nothing reads the stored theme or applies the
-  // "dark" class, so the site always renders in the white/navy design.
+  const brandColor = "text-white";
+  const burgerBar = "bg-white";
 
   // Scroll-spy: on the homepage, highlight the section currently in view.
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -70,9 +55,7 @@ const Navbar: React.FC = () => {
     return () => document.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Scroll-spy on the homepage: the section whose top band is nearest the
-  // viewport's 35% line is "active". Position-based (getBoundingClientRect)
-  // so it works everywhere, including reduced-motion and embedded webviews.
+  // Scroll-spy on the homepage
   useEffect(() => {
     if (!isHome) {
       setActiveSection(null);
@@ -83,10 +66,6 @@ const Navbar: React.FC = () => {
       .filter((s): s is string => Boolean(s));
     const update = () => {
       const band = window.innerHeight * 0.35;
-      // The active section is the one LOWEST on the page whose top has
-      // crossed the band line (null while the hero is in view). Using the
-      // greatest crossing top, not array order, since menu order and page
-      // order differ.
       let current: string | null = null;
       let currentTop = -Infinity;
       for (const id of ids) {
@@ -139,7 +118,6 @@ const Navbar: React.FC = () => {
         .getElementById(section)
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      // Let the Link navigate to "/#section"; the effect above does the scroll.
       setPendingScroll(section);
     }
   };
@@ -149,8 +127,6 @@ const Navbar: React.FC = () => {
       return isHome && activeSection === item.section;
     }
     if (item.href === "/") {
-      // Home is active only at the top of the homepage, not while a section
-      // is in view (the section item takes over).
       return isHome && !activeSection;
     }
     return normalized(pathname) === normalized(item.href);
@@ -161,17 +137,19 @@ const Navbar: React.FC = () => {
       className={`inline-flex items-center gap-[7px] text-[24px] font-bold tracking-[-1.2px] leading-none ${brandColor} transition-colors duration-300 ${className}`}
     >
       ORQ8
-      <span className="w-[8px] h-[8px] rounded-full bg-lime inline-block"></span>
+      <span className="w-[8px] h-[8px] rounded-full bg-[#B8FF66] inline-block"></span>
     </span>
   );
 
   return (
     <>
       <div
-        className="finance-navbar fixed top-0 right-0 left-0 transition-[background-color,box-shadow,padding] duration-300 h-auto z-[5] py-[20px] md:py-[25px]"
+        className={`finance-navbar fixed top-0 right-0 left-0 transition-[background-color,box-shadow,padding] duration-300 h-auto z-[50] py-[20px] md:py-[24px] ${
+          isSticky ? "bg-[#0A0A0B]/95 backdrop-blur-md border-b border-white/[0.06]" : ""
+        }`}
         id="navbar"
       >
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] 2xl:max-w-[1744px] mx-auto px-[12px]">
+        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
           <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between">
             {/* Logo — far left */}
             <Link href="/" className="inline-block flex-none" aria-label="ORQ8 home">
@@ -187,9 +165,9 @@ const Navbar: React.FC = () => {
                 className="inline-block relative leading-none"
                 onClick={handleToggleMobileMenu}
               >
-                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
-                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-opacity duration-300`}></span>
-                <span className={`h-[3px] w-[30px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
+                <span className={`h-[2px] w-[24px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
+                <span className={`h-[2px] w-[24px] my-[5px] block ${burgerBar} transition-opacity duration-300`}></span>
+                <span className={`h-[2px] w-[24px] my-[5px] block ${burgerBar} transition-transform duration-300`}></span>
               </button>
             </div>
 
@@ -197,12 +175,7 @@ const Navbar: React.FC = () => {
             <div className="hidden lg:flex items-center grow basis-full">
               {/* Centered menu */}
               <div className="flex-1 flex justify-center">
-                <ul
-                  className="navbar-nav flex flex-row gap-[18px] xl:gap-[30px] 2xl:gap-[46px] bg-white dark:bg-navy-900 rounded-[60px] lg:py-[20px] lg:px-[24px] xl:py-[30px] xl:px-[40px] 2xl:px-[80px]"
-                  style={{
-                    boxShadow: "0px 4px 30px 0px rgba(146, 139, 221, 0.10)",
-                  }}
-                >
+                <ul className="navbar-nav flex flex-row gap-[24px] xl:gap-[32px]">
                   {menuItems.map((item) => (
                     <li key={item.href}>
                       <Link
@@ -215,10 +188,10 @@ const Navbar: React.FC = () => {
                         aria-current={
                           isItemActive(item) ? "true" : undefined
                         }
-                        className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
+                        className={`uppercase tracking-[0.15em] text-[11px] font-medium transition-colors hover:text-[#B8FF66] ${
                           isItemActive(item)
-                            ? "text-emerald"
-                            : "text-black dark:text-white"
+                            ? "text-[#B8FF66]"
+                            : "text-white/60"
                         }`}
                       >
                         {item.label}
@@ -232,18 +205,18 @@ const Navbar: React.FC = () => {
               <Link
                 href="/#waitlist"
                 onClick={(e) => handleSectionClick(e, "waitlist")}
-                className="btn-press group inline-block flex-none rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime"
+                className="btn-press group inline-block flex-none rounded-full bg-[#B8FF66] px-[20px] py-[10px] uppercase text-[11px] font-bold text-[#0A0A0B] tracking-[0.15em] hover:bg-[#A3E855] transition-colors"
               >
-                <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
+                <span className="flex items-center justify-center gap-[10px]">
                   JOIN THE WAITLIST{" "}
-                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-navy-950/15 text-navy-950 flex items-center justify-center text-md transition-transform duration-300 group-hover:translate-x-[2px] group-hover:-translate-y-[1px]"></i>
+                  <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-[#0A0A0B]/10 text-[#0A0A0B] flex items-center justify-center text-[12px] transition-transform duration-300 group-hover:translate-x-[2px] group-hover:-translate-y-[1px]"></i>
                 </span>
               </Link>
             </div>
 
             {/* For Responsive */}
             <div
-              className={`bg-white dark:bg-navy-900 rounded-[15px] border border-gray-200 dark:border-white/10 mt-[20px] p-[20px] md:p-[30px] w-full hidden lg:!hidden ${
+              className={`bg-[#0A0A0B] border border-white/[0.06] rounded-[12px] mt-[20px] p-[24px] w-full hidden lg:!hidden ${
                 isActiveMobileMenu ? "" : "active"
               }`}
               id="navbar-collapse"
@@ -252,7 +225,7 @@ const Navbar: React.FC = () => {
                 {menuItems.map((item, i) => (
                   <li
                     key={item.href}
-                    className={`my-[14px] md:my-[16px] first:mt-0 last:mb-0 transition-all duration-300 ${
+                    className={`my-[16px] first:mt-0 last:mb-0 transition-all duration-300 ${
                       isActiveMobileMenu ? "opacity-0 translate-y-3" : "opacity-100 translate-y-0"
                     }`}
                     style={{ transitionDelay: isActiveMobileMenu ? "0ms" : `${60 + i * 45}ms` }}
@@ -261,17 +234,15 @@ const Navbar: React.FC = () => {
                       href={item.href}
                       onClick={(e) => {
                         if (item.section) {
-                          // Same treatment as the desktop nav: smooth-scroll in
-                          // place on the homepage, navigate + scroll elsewhere.
                           handleSectionClick(e, item.section);
                         }
                         setActiveMobileMenu(true);
                       }}
                       aria-current={isItemActive(item) ? "true" : undefined}
-                      className={`uppercase tracking-[1.8px] text-xs font-medium transition-colors hover:text-emerald ${
+                      className={`uppercase tracking-[0.15em] text-[11px] font-medium transition-colors hover:text-[#B8FF66] ${
                         isItemActive(item)
-                          ? "text-emerald"
-                          : "text-black dark:text-white"
+                          ? "text-[#B8FF66]"
+                          : "text-white/60"
                       }`}
                     >
                       {item.label}
@@ -286,11 +257,11 @@ const Navbar: React.FC = () => {
                   handleSectionClick(e, "waitlist");
                   setActiveMobileMenu(true);
                 }}
-                className="btn-press inline-block rounded-[60px] bg-emerald p-[7px] md:p-[10px] uppercase text-xs font-bold text-navy-950 tracking-[1px] md:tracking-[1.8px] hover:bg-lime mt-[15px]"
+                className="btn-press inline-block rounded-full bg-[#B8FF66] px-[20px] py-[10px] uppercase text-[11px] font-bold text-[#0A0A0B] tracking-[0.15em] hover:bg-[#A3E855] mt-[16px]"
               >
-                <span className="ltr:ml-[15px] rtl:mr-[15px] ltr:md:ml-[20px] rtl:md:mr-[20px] flex items-center justify-center gap-[15px] md:gap-[20px]">
+                <span className="flex items-center justify-center gap-[10px]">
                   JOIN THE WAITLIST{" "}
-                  <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-navy-950/15 text-navy-950 flex items-center justify-center text-md"></i>
+                  <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-[#0A0A0B]/10 text-[#0A0A0B] flex items-center justify-center text-[12px]"></i>
                 </span>
               </Link>
             </div>

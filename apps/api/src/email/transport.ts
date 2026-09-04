@@ -35,6 +35,12 @@ function getTransporter(config: AppConfig): Transporter | undefined {
       auth: config.SMTP_USER
         ? { user: config.SMTP_USER, pass: config.SMTP_PASS ?? '' }
         : undefined,
+      // Fail fast when the SMTP server is unreachable instead of hanging on the
+      // OS connect timeout (which can take minutes). Email must never block the
+      // request path indefinitely — the caller turns failures into queued rows.
+      connectionTimeout: 5_000,
+      greetingTimeout: 5_000,
+      socketTimeout: 30_000,
     });
   }
   return cachedTransporter;

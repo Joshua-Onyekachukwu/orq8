@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import type { RealtimeEvent } from './use-realtime';
+import { useEffect, useRef, useState } from 'react';
+import { subscribeRealtime, type RealtimeEvent } from '../lib/realtime-client';
 
 interface Notification {
   id: string;
@@ -14,8 +14,10 @@ interface Notification {
 
 /**
  * Maps SSE realtime events to notification bell entries.
- * Listens to the same SSE stream as DashboardRealtime but creates
- * in-app notifications instead of just flashing status messages.
+ *
+ * Listens to the same shared SSE stream as DashboardRealtime (single
+ * connection, lib/realtime-client) but creates in-app notifications instead
+ * of just flashing status messages.
  */
 export function useRealtimeNotifications(options: {
   enabled?: boolean;
@@ -24,73 +26,27 @@ export function useRealtimeNotifications(options: {
   const { enabled = true, onNotification } = options;
   const [connected, setConnected] = useState(false);
   const [lastNotification, setLastNotification] = useState<Notification | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const onNotificationRef = useRef(onNotification);
   onNotificationRef.current = onNotification;
 
   useEffect(() => {
     if (!enabled) return;
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const url = `${apiBase}/v1/events`;
-
-    let retryTimeout: ReturnType<typeof setTimeout>;
-    let retryDelay = 1000;
-    const maxRetryDelay = 30000;
-
-    function connect() {
-      try {
-        const es = new EventSource(url, { withCredentials: true });
-        eventSourceRef.current = es;
-
-        es.onopen = () => {
-          setConnected(true);
-          retryDelay = 1000;
-        };
-
-        es.onmessage = (event) => {
-          try {
-            const data: RealtimeEvent = JSON.parse(event.data);
-
-            // Skip heartbeats
-            if (data.type === 'heartbeat') return;
-
-            // Map event to notification
-            const notification = mapEventToNotification(data);
-            if (notification) {
-              setLastNotification(notification);
-              onNotificationRef.current?.(notification);
-            }
-          } catch {
-            // Ignore parse errors
-          }
-        };
-
-        es.onerror = () => {
-          setConnected(false);
-          es.close();
-          eventSourceRef.current = null;
-
-          retryTimeout = setTimeout(() => {
-            retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
-            connect();
-          }, retryDelay);
-        };
-      } catch {
-        retryTimeout = setTimeout(connect, retryDelay);
+    return subscribeRealtime((message) => {
+      if (message.kind === 'status') {
+        setConnected(message.connected);
+        return;
       }
-    }
+      const event = message.event;
+      // Skip heartbeats
+      if (event.type === 'heartbeat') return;
 
-    connect();
-
-    return () => {
-      clearTimeout(retryTimeout);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      const notification = mapEventToNotification(event);
+      if (notification) {
+        setLastNotification(notification);
+        onNotificationRef.current?.(notification);
       }
-      setConnected(false);
-    };
+    });
   }, [enabled]);
 
   return { connected, lastNotification };

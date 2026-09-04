@@ -56,6 +56,7 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       const prefs = await getNotificationPrefs(db, ctx.orgId);
       if (shouldNotify(prefs, 'inApp', 'approval')) {
         createNotification(
+          db,
           ctx.orgId,
           'approval',
           'Approval Required',
@@ -135,6 +136,7 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         if (shouldNotify(prefs, 'inApp', 'approval')) {
           const statusLabel = parsed.data.status === 'approved' ? 'Approved' : parsed.data.status === 'rejected' ? 'Rejected' : 'Modified';
           createNotification(
+            db,
             ctx.orgId,
             'approval',
             `Approval ${statusLabel}`,

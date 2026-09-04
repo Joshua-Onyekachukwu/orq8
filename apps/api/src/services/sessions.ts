@@ -15,7 +15,6 @@ import type { RedisClient } from './redis.js';
  * - On session expiry: Redis TTL handles automatic cleanup
  */
 
-const SESSION_CACHE_PREFIX = 'session:';
 const SESSION_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days (matches session expiry)
 
 interface CachedSession {
@@ -24,9 +23,14 @@ interface CachedSession {
   orgId: string;
   role: string;
   email: string;
+  platformRole: string;
   revokedAt: string | null;
   expiresAt: string;
 }
+
+// v2: includes platformRole. Bumped so pre-flag cache entries (no platformRole)
+// are treated as misses and re-resolved from the DB instead of guessing 'user'.
+const SESSION_CACHE_PREFIX = 'session:v2:';
 
 export async function createSession(
   db: Db,
@@ -86,8 +90,14 @@ export async function findSessionByToken(
 
         return {
           session: sessionRecord,
-          user: { id: parsed.userId, email: parsed.email, name: null as string | null },
+          user: {
+            id: parsed.userId,
+            email: parsed.email,
+            name: null as string | null,
+            platformRole: parsed.platformRole ?? 'user',
+          },
           role: parsed.role,
+          platformRole: parsed.platformRole ?? 'user',
         };
       }
     } catch {
@@ -99,7 +109,7 @@ export async function findSessionByToken(
   const [row] = await db
     .select({
       session: sessions,
-      user: { id: users.id, email: users.email, name: users.name },
+      user: { id: users.id, email: users.email, name: users.name, platformRole: users.platformRole },
       role: memberships.role,
     })
     .from(sessions)
@@ -122,6 +132,7 @@ export async function findSessionByToken(
         orgId: row.session.orgId,
         role: row.role,
         email: row.user.email,
+        platformRole: row.user.platformRole,
         revokedAt: (row.session.revokedAt as Date | null)?.toISOString() ?? null,
         expiresAt: row.session.expiresAt.toISOString(),
       };
@@ -138,7 +149,12 @@ export async function findSessionByToken(
     }
   }
 
-  return row;
+  return {
+    session: row.session,
+    user: row.user,
+    role: row.role,
+    platformRole: row.user.platformRole,
+  };
 }
 
 export async function revokeSession(

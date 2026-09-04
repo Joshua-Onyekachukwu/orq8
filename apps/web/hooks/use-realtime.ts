@@ -1,92 +1,47 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  subscribeRealtime,
+  type RealtimeEvent,
+} from '../lib/realtime-client';
 
-export type RealtimeEvent =
-  | { type: 'task.started'; taskId: string; agentId: string; agentName: string }
-  | { type: 'task.completed'; taskId: string; agentId: string; agentName: string; result: string }
-  | { type: 'task.failed'; taskId: string; agentId: string; agentName: string; error: string }
-  | { type: 'approval.created'; approvalId: string; action: string }
-  | { type: 'approval.decided'; approvalId: string; status: string }
-  | { type: 'agent.status_changed'; agentId: string; status: string }
-  | { type: 'command.processed'; commandId: string; summary: string }
-  | { type: 'credits.consumed'; amount: number; remaining: number; operationType: string }
-  | { type: 'heartbeat'; timestamp: number };
+export type { RealtimeEvent } from '../lib/realtime-client';
 
 interface UseRealtimeOptions {
   enabled?: boolean;
   onEvent?: (event: RealtimeEvent) => void;
 }
 
+/**
+ * Subscribe to the org's realtime stream.
+ *
+ * Uses the shared single EventSource (lib/realtime-client) — consumers no
+ * longer open one connection each (the API caps streams per user, so multiple
+ * per-page connections tripped 429). Returns connection status and the latest
+ * non-heartbeat event.
+ */
 export function useRealtime(options: UseRealtimeOptions = {}) {
   const { enabled = true, onEvent } = options;
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<RealtimeEvent | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
   useEffect(() => {
     if (!enabled) return;
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const url = `${apiBase}/v1/events`;
-
-    let retryTimeout: ReturnType<typeof setTimeout>;
-    let retryDelay = 1000;
-    const maxRetryDelay = 30000;
-
-    function connect() {
-      try {
-        const es = new EventSource(url, { withCredentials: true });
-        eventSourceRef.current = es;
-
-        es.onopen = () => {
-          setConnected(true);
-          retryDelay = 1000; // Reset retry delay on successful connection
-        };
-
-        es.onmessage = (event) => {
-          try {
-            const data: RealtimeEvent = JSON.parse(event.data);
-
-            // Skip heartbeats for UI state but still reset retry
-            if (data.type === 'heartbeat') return;
-
-            setLastEvent(data);
-            onEventRef.current?.(data);
-          } catch {
-            // Ignore parse errors
-          }
-        };
-
-        es.onerror = () => {
-          setConnected(false);
-          es.close();
-          eventSourceRef.current = null;
-
-          // Reconnect with exponential backoff
-          retryTimeout = setTimeout(() => {
-            retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
-            connect();
-          }, retryDelay);
-        };
-      } catch {
-        // EventSource creation failed — retry
-        retryTimeout = setTimeout(connect, retryDelay);
+    return subscribeRealtime((message) => {
+      if (message.kind === 'status') {
+        setConnected(message.connected);
+        return;
       }
-    }
-
-    connect();
-
-    return () => {
-      clearTimeout(retryTimeout);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      setConnected(false);
-    };
+      const event = message.event;
+      // Skip heartbeats for UI state (they keep the connection alive only)
+      if (event.type === 'heartbeat') return;
+      setLastEvent(event);
+      onEventRef.current?.(event);
+    });
   }, [enabled]);
 
   return { connected, lastEvent };

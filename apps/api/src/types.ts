@@ -17,6 +17,10 @@ export interface AuthContext {
   userId: string;
   orgId: string;
   sessionId: string;
+  // Membership role in the session's org: owner|admin|member|viewer (org-scoped).
   role: string;
   email: string;
+  // Platform-level role from users.platform_role: user|admin (platform-wide).
+  // Gates /v1/admin/* and the /admin console; distinct from membership role.
+  platformRole: string;
 }

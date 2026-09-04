@@ -1,5 +1,9 @@
 import type { AppConfig } from '@orq8/core';
 import type { Logger } from 'pino';
+// ioredis is a hard dependency (apps/api/package.json). Static ESM import — the
+// previous dynamic `require('ioredis')` threw in this `type: module` package
+// (tsx/node ESM has no `require`), silently falling back to in-memory forever.
+import { Redis } from 'ioredis';
 
 /**
  * Redis client — wraps `ioredis` with automatic reconnection and graceful fallback.
@@ -168,9 +172,6 @@ class RealRedis implements RedisClient {
     this.logger = logger;
 
     try {
-      // Dynamic import to avoid hard dependency when Redis is not configured
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Redis = require('ioredis').default ?? require('ioredis');
       this.client = new Redis(url, {
         maxRetriesPerRequest: 3,
         retryStrategy(times: number) {

@@ -21,13 +21,47 @@ const envSchema = z.object({
   // Model gateway + local models (docs/22, 51.3)
   LITELLM_BASE_URL: z.string().url().optional(),
   LITELLM_MASTER_KEY: z.string().optional(),
+  // Local Ollama fallback — enabled only when OLLAMA_BASE_URL is set
+  // (e.g. http://localhost:11434). Tried after NVIDIA NIM and LiteLLM.
   OLLAMA_BASE_URL: z.string().url().optional(),
+  OLLAMA_MODEL: z.string().default('llama3.1'),
 
   // NVIDIA NIM — direct provider (docs/22). When set, ORQ8 calls NVIDIA NIM
   // directly without needing a LiteLLM gateway. Free tier: 1000 credits.
+  //
+  // Multi-key support: NVIDIA_API_KEYS accepts a comma-separated list of extra
+  // keys. The full pool (NVIDIA_API_KEY + NVIDIA_API_KEYS) is rotated round-
+  // robin across concurrent requests and failed-over automatically when one
+  // key is rate-limited (429), invalid (401/403), or lacks a model (404).
   NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_API_KEYS: z.string().optional(),
   NVIDIA_BASE_URL: z.string().url().default('https://integrate.api.nvidia.com/v1'),
   NVIDIA_MODEL: z.string().default('nvidia/llama-3.1-nemotron-70b-instruct'),
+  // Comma-separated models tried after NVIDIA_MODEL when the account lacks
+  // access to it (404 "Function not found for account"). Account entitlements
+  // vary per model, so ORQ8 walks the list before escalating to LiteLLM.
+  NVIDIA_MODEL_FALLBACKS: z.string().optional(),
+
+  // OpenRouter — multi-model gateway (docs/22.1). When set, ORQ8 can route
+  // to any model available on OpenRouter (Claude, GPT-4o, Gemini, etc.).
+  //
+  // Multi-key support: OPENROUTER_API_KEYS accepts a comma-separated list.
+  // Keys are rotated round-robin and failed-over automatically.
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEYS: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
+  OPENROUTER_MODEL: z.string().default('openai/gpt-4o-mini'),
+  // Comma-separated fallback models tried when OPENROUTER_MODEL fails.
+  OPENROUTER_MODEL_FALLBACKS: z.string().optional(),
+
+  // LLM request timeouts (docs/22) — unprovisioned provider functions
+  // sometimes HANG instead of returning 404, so the chain must fail fast:
+  // LLM_HEADERS_TIMEOUT_MS bounds how long we wait for the server to respond
+  // at all, and LLM_TIMEOUT_MS is the overall budget including the body read.
+  // Once headers arrive the request is alive, so the total can stay generous
+  // for slow-but-legitimate long generations.
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
+  LLM_HEADERS_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 
   // Observability (docs/39)
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
@@ -66,7 +100,21 @@ const envSchema = z.object({
   // Internal endpoints (e.g. POST /v1/internal/waitlist/process-due) — required
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),
+
+  // Platform-admin bootstrap (docs/34.x): comma-separated emails that may act as
+  // platform admins (users.platform_role = 'admin') without a DB write. Intended
+  // to promote the first operator account; afterwards promote in the DB.
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
 });
+
+export function platformAdminEmails(config: AppConfig): Set<string> {
+  return new Set(
+    (config.PLATFORM_ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
 
 export type AppConfig = z.infer<typeof envSchema>;
 

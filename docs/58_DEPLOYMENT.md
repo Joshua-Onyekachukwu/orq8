@@ -199,6 +199,62 @@ Plan of record: **everything above runs on $0 until early users force paid upgra
 
 ---
 
+## 58.11b Railway — API host (current)
+
+Since the repo moved the API to Railway (`railway.json` → `apps/api/Dockerfile` →
+`apps/api/scripts/start-railway.sh`), the API's environment variables are set on the
+Railway service (Dashboard → Project → Service → Variables, or `railway variables` CLI),
+not in Vercel. The web project stays on Vercel with `API_URL` pointing at the Railway
+deployment URL. Migrations run in `start-railway.sh` before the server boots, so no
+separate migrate step is needed on deploy.
+
+### Railway API service — environment variables
+
+| Var | Value | Notes |
+|---|---|---|
+| `DATABASE_URL` | managed Postgres (Railway or Supabase) | required; must be `postgres://` with password |
+| `SESSION_SECRET` | random ≥32 chars | `openssl rand -base64 32`; boot guard refuses dev defaults (docs/37.2) |
+| `ENCRYPTION_KEY` | random ≥32 chars | AES-256-GCM wrapping key (docs/23.5); changing it orphans stored provider keys |
+| `ENCRYPTION_KEY_KID` | `v1` | keep for key rotation (docs/23.5) |
+| `ALLOWED_ORIGINS` | web origin(s) | comma-separated, e.g. `https://orq8-web.vercel.app` |
+| `PORT` | `3001` | Railway injects `PORT`; `loadConfig` also defaults to 3001 |
+| `INTERNAL_TOKEN` | random ≥32 chars | enables `/v1/internal/*` cron/process-due endpoints |
+| `LOG_LEVEL` | `info` | default fine |
+
+### Model provider vars (set when a working provider key exists)
+
+The provider chain is **NVIDIA NIM → LiteLLM → Ollama** (`apps/api/src/services/llm.ts`);
+only configured providers are used, and the first provider in the list that serves a
+successful response wins. Set these on the Railway API service once the keys are verified:
+
+| Var | Value | Notes |
+|---|---|---|
+| `NVIDIA_API_KEY` | `nvapi-...` | primary key; validated **before** applying (see below) |
+| `NVIDIA_API_KEYS` | `nvapi-...,nvapi-...` | extra keys pooled with the primary, rotated round-robin + auto-failover (429/401/403/404) |
+| `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | default if unset |
+| `NVIDIA_MODEL` | `nvidia/llama-3.1-nemotron-70b-instruct` | default if unset |
+| `NVIDIA_MODEL_FALLBACKS` | comma-separated models | walked when the primary model 404s for the account, before escalating to LiteLLM |
+| `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` | optional | used when set, after NVIDIA |
+| `OLLAMA_BASE_URL` | optional | local-only; do **not** set on Railway unless self-hosted |
+
+> **Verify before applying:** a key whose account lacks the *Public API Endpoints*
+> entitlement passes `GET /v1/models` (200) but fails every `POST /v1/chat/completions`
+> with `404 "Function not found for account '<accountId>'"`. Probe first:
+>
+> ```bash
+> curl -s -o /dev/null -w "%{http_code}\n" --max-time 20 https://integrate.api.nvidia.com/v1/chat/completions \
+>   -H "Authorization: Bearer $NVIDIA_API_KEY" -H "Content-Type: application/json" \
+>   -d '{"model":"nvidia/llama-3.1-nemotron-70b-instruct","messages":[{"role":"user","content":"hi"}],"max_tokens":8}'
+> ```
+>
+> Only apply keys that return `200`. If every key 404s under the same Account ID, the
+> fix is account-level: log in at build.nvidia.com → accept model terms (**Get API Key**
+> on each model card) → regenerate keys **with the Public API Endpoints scope** →
+> re-probe → only then set the vars and redeploy. Persistent org-level 404s go to
+> `help@build.nvidia.com` with the Account ID from the error body.
+
+---
+
 ## 58.11 What's intentionally NOT here (yet)
 
 - **No auth on Vercel** — we use our own session auth (ADR-007); Supabase Auth is not used.

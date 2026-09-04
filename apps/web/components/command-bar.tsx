@@ -44,6 +44,14 @@ interface CommandResult {
     consumed: number;
     remaining: number;
   };
+  llmProvider?: string;
+  warnings?: Array<{
+    model: string;
+    keySuffix: string;
+    accountId?: string;
+    nvidiaDetail?: string;
+    hint: string;
+  }>;
 }
 
 const SAMPLE_COMMANDS = [
@@ -279,6 +287,25 @@ export function CommandBar() {
                     {result.credits.consumed} credits used
                   </span>
                   <span>{result.credits.remaining} remaining</span>
+                </div>
+              )}
+
+              {/* NVIDIA Scope Warnings */}
+              {result.warnings && result.warnings.length > 0 && (
+                <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">NVIDIA Access Warning</span>
+                  </div>
+                  {result.warnings.map((w, i) => (
+                    <div key={i} className="text-sm text-amber-900 mb-2 last:mb-0">
+                      <p className="font-medium">Model: {w.model}</p>
+                      <p className="text-xs text-amber-700 mt-1">{w.hint}</p>
+                      {w.accountId && (
+                        <p className="text-xs text-amber-600 mt-1 font-mono">Account ID: {w.accountId}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 

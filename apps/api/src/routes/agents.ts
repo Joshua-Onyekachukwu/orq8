@@ -79,6 +79,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       const prefs = await getNotificationPrefs(db, ctx.orgId);
       if (shouldNotify(prefs, 'inApp', 'agent')) {
         createNotification(
+          db,
           ctx.orgId,
           'agent',
           'AI Employee Hired',

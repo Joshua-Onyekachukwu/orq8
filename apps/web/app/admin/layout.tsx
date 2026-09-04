@@ -13,6 +13,7 @@ type MeData = {
     role: string;
   }[];
   active_org_id: string | null;
+  platformRole?: string;
 };
 
 /**
@@ -51,14 +52,16 @@ export default async function AdminLayout({
     redirect("/login?next=/admin");
   }
 
-  // SECURITY: Verify the user has admin or owner role.
-  // Only owners and admins can access the admin dashboard.
-  const activeMembership = me.memberships.find(
-    (m) => m.org.id === me.active_org_id
-  ) ?? me.memberships[0];
+  // SECURITY: /admin is the PLATFORM console — it reads every tenant's users,
+  // orgs, and activity. Access requires users.platform_role = 'admin' (or a
+  // PLATFORM_ADMIN_EMAILS bootstrap match). The org membership role (owner/admin)
+  // is org-scoped and deliberately grants NO platform access; those users are
+  // redirected to their org dashboard.
+  const activeMembership =
+    me.memberships.find((m) => m.org.id === me.active_org_id) ?? me.memberships[0];
   const userRole = activeMembership?.role ?? "member";
-  if (userRole !== "owner" && userRole !== "admin") {
-    // Non-admin users are redirected to the user dashboard
+  const platformRole = me.platformRole ?? "user";
+  if (platformRole !== "admin") {
     redirect("/app");
   }
 
@@ -75,6 +78,7 @@ export default async function AdminLayout({
           orgName={orgName}
           plan={plan}
           userRole={userRole}
+          platformRole={platformRole}
         />
         <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}

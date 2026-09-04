@@ -201,6 +201,7 @@ export async function executeTask(
       const prefs = await getNotificationPrefs(db, orgId);
       if (shouldNotify(prefs, 'inApp', 'agent')) {
         createNotification(
+          db,
           orgId,
           'agent',
           'Agent Error',
@@ -288,6 +289,7 @@ export async function executeTask(
     const prefs = await getNotificationPrefs(db, orgId);
     if (shouldNotify(prefs, 'inApp', 'task')) {
       createNotification(
+        db,
         orgId,
         'task',
         'Task Completed',

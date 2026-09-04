@@ -24,6 +24,9 @@ export const users = pgTable(
     name: text('name'),
     passwordHash: text('password_hash').notNull(),
     status: text('status').notNull().default('active'),
+    // Platform-level role ('user' | 'admin') — gates /v1/admin/* and /admin.
+    // Distinct from membership.role (owner|admin|member), which is org-scoped.
+    platformRole: text('platform_role').notNull().default('user'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -588,6 +591,28 @@ export type NewFileRecord = typeof files.$inferInsert;
 // ─── Login Lockouts ────────────────────────────────────────────────────────
 // Persists brute-force lockout state to the database so it survives restarts.
 // One row per email address. Rows are cleaned up after lockout expires.
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    type: text('type').notNull(), // approval | task | credit | agent | system
+    title: text('title').notNull(),
+    message: text('message').notNull(),
+    read: boolean('read').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('notifications_org_created_idx').on(t.orgId, t.createdAt),
+    index('notifications_org_read_idx').on(t.orgId, t.read),
+  ],
+);
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
 
 export const loginLockouts = pgTable(
   'login_lockouts',

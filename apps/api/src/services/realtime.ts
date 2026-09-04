@@ -55,8 +55,11 @@ export function registerRealtimeEndpoint(app: FastifyInstance, deps: AppDeps): v
     const { requireAuth } = await import('../plugins/auth.js');
     const ctx = await requireAuth(request, deps);
 
-    // Limit per-user concurrent SSE connections to prevent memory exhaustion
-    const MAX_CONNECTIONS_PER_USER = 3;
+    // Limit per-user concurrent SSE connections to prevent memory exhaustion.
+    // The web app shares ONE stream per tab (lib/realtime-client) but a user
+    // legitimately has several tabs + the dev server reconnects, so the cap
+    // must allow more than one stream per tab.
+    const MAX_CONNECTIONS_PER_USER = 8;
     let userCount = 0;
     for (const clients of connections.values()) {
       for (const c of clients) {

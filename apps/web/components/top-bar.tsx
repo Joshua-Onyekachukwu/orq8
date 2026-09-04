@@ -21,9 +21,11 @@ interface TopBarProps {
   orgName: string;
   plan: string;
   userRole: string;
+  /** Platform-level role ("admin" | "user") — gates the Admin Dashboard link. */
+  platformRole?: string;
 }
 
-export function TopBar({ userName, orgName, plan, userRole }: TopBarProps) {
+export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopBarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,7 +177,7 @@ export function TopBar({ userName, orgName, plan, userRole }: TopBarProps) {
                     <Settings className="h-4 w-4 text-muted" />
                     Settings
                   </Link>
-                  {userRole === "owner" || userRole === "admin" ? (
+                  {platformRole === "admin" ? (
                     <Link
                       href="/admin"
                       onClick={() => setProfileOpen(false)}

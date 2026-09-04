@@ -102,211 +102,204 @@ const Pricing: React.FC = () => {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <>
-      <div
-        className="relative z-[2] bg-center bg-cover bg-no-repeat pt-[70px] md:pt-[90px] lg:pt-[110px] xl:pt-[130px] 2xl:pt-[150px]"
-        style={{ backgroundImage: "url(/images/pricing-bg.jpg)" }}
-      >
-        <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
-          {/* Header */}
-          <div className="mb-[30px] md:mb-[40px] lg:mb-[50px] mx-auto text-center md:max-w-[580px] lg:max-w-[680px]">
-            <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orange-400 mb-[10px] lg:mb-[15px]">
-              Pricing
+    <div className="relative z-[2] bg-[#0A0A0B] py-[80px] md:py-[120px] lg:py-[160px]">
+      <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
+        {/* Header */}
+        <div className="mb-[50px] md:mb-[60px] lg:mb-[70px] mx-auto text-center md:max-w-[600px]">
+          <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#B8FF66] mb-[16px]">
+            Pricing
+          </span>
+          <h2 className="!mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
+            Your AI workforce.{" "}
+            <span className="text-[#B8FF66]">One operating system.</span>
+          </h2>
+          <p className="!mb-0 mt-[16px] text-white/50 md:text-[16px]">
+            Start with a 7-day trial. Build your AI organization, delegate
+            real work, and see what ORQ8 can do for your company.
+          </p>
+
+          {/* Annual toggle */}
+          <div className="flex items-center justify-center gap-[16px] mt-[32px] md:mt-[40px]">
+            <span
+              className={`text-[13px] font-medium ${
+                !annual ? "text-white" : "text-white/40"
+              }`}
+            >
+              Monthly
             </span>
-            <h2 className="!mb-[12px] md:!mb-[16px] !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] !text-white">
-              Your AI workforce.{" "}
-              <span className="text-lime">One operating system.</span>
-            </h2>
-            <p className="!mb-0 mt-[12px] md:mt-[16px] text-white/60 md:text-[15px] lg:text-md">
-              Start with a 7-day trial. Build your AI organization, delegate
-              real work, and see what ORQ8 can do for your company.
-            </p>
-
-            {/* Annual toggle */}
-            <div className="flex items-center justify-center gap-[14px] mt-[24px] md:mt-[30px]">
+            <button
+              type="button"
+              onClick={() => setAnnual(!annual)}
+              className={`relative w-[52px] h-[28px] rounded-full transition-colors ${
+                annual ? "bg-[#B8FF66]" : "bg-white/20"
+              }`}
+              aria-label={`Switch to ${annual ? "monthly" : "annual"} billing`}
+            >
               <span
-                className={`text-[13px] font-medium ${
-                  !annual ? "text-white" : "text-white/40"
+                className={`absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 ${
+                  annual
+                    ? "left-[27px] bg-[#0A0A0B]"
+                    : "left-[3px] bg-white"
                 }`}
-              >
-                Monthly
+              />
+            </button>
+            <span
+              className={`text-[13px] font-medium ${
+                annual ? "text-white" : "text-white/40"
+              }`}
+            >
+              Annual
+            </span>
+            {annual && (
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-[#B8FF66]/15 text-[#B8FF66] px-[12px] py-[4px] rounded-full">
+                Save ~20%
               </span>
-              <button
-                type="button"
-                onClick={() => setAnnual(!annual)}
-                className={`relative w-[52px] h-[28px] rounded-full transition-colors ${
-                  annual ? "bg-lime" : "bg-white/20"
-                }`}
-                aria-label={`Switch to ${annual ? "monthly" : "annual"} billing`}
-              >
-                <span
-                  className={`absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 ${
-                    annual
-                      ? "left-[27px] bg-navy-950"
-                      : "left-[3px] bg-white"
-                  }`}
-                />
-              </button>
-              <span
-                className={`text-[13px] font-medium ${
-                  annual ? "text-white" : "text-white/40"
-                }`}
-              >
-                Annual
-              </span>
-              {annual && (
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-lime/15 text-lime px-[10px] py-[3px] rounded-full">
-                  Save ~20%
-                </span>
-              )}
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Plans */}
-          <div className="md:max-w-[1316px] mx-auto relative top-[140px] -mt-[140px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[25px]">
-              {pricingPlans.map((plan, index) => {
-                const popular = Boolean(plan.popular);
-                const price = annual ? plan.annualPrice : plan.monthlyPrice;
+        {/* Plans */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
+          {pricingPlans.map((plan, index) => {
+            const popular = Boolean(plan.popular);
+            const price = annual ? plan.annualPrice : plan.monthlyPrice;
 
-                return (
-                  <div
-                    key={index}
-                    className={`lift-card relative border-[2px] md:border-[5px] lg:border-[10px] ${
-                      popular ? "border-lime" : "border-white/20"
-                    } rounded-[15px] md:rounded-[30px] bg-navy-800 py-[25px] md:py-[35px] lg:py-[45px] px-[18px] md:px-[25px] lg:px-[30px] ${
-                      popular ? "xl:-mt-[30px] xl:pb-[60px]" : ""
-                    }`}
-                  >
-                    {popular && (
-                      <span className="absolute -top-[14px] left-1/2 -translate-x-1/2 bg-lime text-black text-[10px] font-bold uppercase tracking-[1.8px] rounded-[50px] px-[14px] py-[6px]">
-                        Most popular
-                      </span>
-                    )}
-
-                    {/* Plan name */}
-                    <span
-                      className={`block mb-[6px] md:mb-[8px] uppercase font-bold tracking-[1.8px] text-xs ${
-                        popular ? "text-lime" : "text-white/60"
-                      }`}
-                    >
-                      {plan.title}
-                    </span>
-
-                    {/* Tagline */}
-                    <p className="!mb-[14px] md:mb-[18px] text-[13px] text-lime/80 font-medium">
-                      {plan.tagline}
-                    </p>
-
-                    {/* Trial badge */}
-                    <span className="inline-block mb-[12px] md:mb-[18px] rounded-[50px] border border-lime/40 text-lime text-[9px] font-bold uppercase tracking-[1.8px] px-[12px] py-[5px]">
-                      7 days free
-                    </span>
-
-                    {/* Description */}
-                    <p className="text-[#8f8f99] -tracking-[0.16px] md:text-[14px] lg:text-[15px] leading-[1.6]">
-                      {plan.description}
-                    </p>
-
-                    {/* Price */}
-                    <div className="mt-[20px] md:mt-[30px] mb-[6px] block leading-none text-white text-[40px] md:text-[45px] lg:text-[55px] font-light -tracking-[2.5px] md:-tracking-[3.6px]">
-                      {price}{" "}
-                      <span className="text-base md:text-[15px] tracking-[.5px] md:tracking-[1.5px] font-normal text-[#8F8F99] ltr:-ml-[4px] rtl:-mr-[4px]">
-                        / mo
-                      </span>
-                    </div>
-
-                    {annual && (
-                      <p className="text-lime/70 text-[12px] font-medium">
-                        ${annual
-                          ? plan.title === "Founder"
-                            ? "390"
-                            : plan.title === "Team"
-                            ? "948"
-                            : "2388"
-                          : ""}/year billed annually
-                      </p>
-                    )}
-
-                    <p className="text-[#8f8f99] -tracking-[0.14px] text-[13px]">
-                      Card required. Cancel any time.
-                    </p>
-
-                    {/* Features */}
-                    <ul className="my-[30px] lg:my-[35px]">
-                      {plan.features.map((feature, featureIndex) => (
-                        <li
-                          key={featureIndex}
-                          className="mb-[11px] relative ltr:pl-[30px] rtl:pr-[30px] ltr:md:pl-[35px] rtl:md:pr-[35px] text-white -tracking-[0.16px] md:text-[14px] lg:text-[15px]"
-                        >
-                          <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 ltr:-left-[2px] rtl:-right-[2px] text-lime text-[22px] md:text-[24px]"></i>
-                          {feature.text}
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* CTA */}
-                    <Link
-                      href={plan.cta.href}
-                      className={`btn-press block w-full rounded-[60px] ${
-                        popular
-                          ? "bg-lime text-black hover:bg-emerald"
-                          : "bg-white/10 text-white hover:bg-lime hover:text-black"
-                      } p-[7px] md:p-[10px] uppercase text-xs font-bold tracking-[1.8px] transition-colors`}
-                    >
-                      <span className="flex items-center justify-center gap-[15px] md:gap-[20px]">
-                        {plan.cta.label}{" "}
-                        <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-navy-950/15 text-current flex items-center justify-center text-md"></i>
-                      </span>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Enterprise */}
-            <div className="mt-[25px] lift-card border-[2px] md:border-[5px] lg:border-[10px] border-white/20 rounded-[15px] md:rounded-[30px] bg-navy-800 px-[18px] md:px-[30px] lg:px-[45px] py-[25px] md:py-[35px] lg:py-[40px]">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-[25px] md:gap-[35px] lg:gap-[50px]">
-                <div className="lg:max-w-[280px] lg:flex-shrink-0">
-                  <span className="block mb-[10px] md:mb-[15px] uppercase font-bold tracking-[1.8px] text-xs text-white/60">
-                    Enterprise
+            return (
+              <div
+                key={index}
+                className={`relative border ${
+                  popular ? "border-[#B8FF66]" : "border-white/[0.08]"
+                } rounded-[16px] bg-white/[0.03] py-[32px] px-[28px] ${
+                  popular ? "xl:-mt-[16px] xl:pb-[48px]" : ""
+                }`}
+              >
+                {popular && (
+                  <span className="absolute -top-[12px] left-1/2 -translate-x-1/2 bg-[#B8FF66] text-[#0A0A0B] text-[10px] font-bold uppercase tracking-[0.15em] rounded-full px-[16px] py-[6px]">
+                    Most popular
                   </span>
-                  <h3 className="!mb-0 !font-light !text-xl md:!text-2xl lg:!text-[28px] -tracking-[1px] md:-tracking-[1.6px] !text-white">
-                    Custom AI organizations for larger teams.
-                  </h3>
-                  <p className="!mb-0 mt-[10px] md:mt-[14px] text-[#8f8f99] md:text-[14px] lg:text-[15px]">
-                    Bespoke governance, dedicated infrastructure, and a team that
-                    gets you running.
-                  </p>
+                )}
+
+                {/* Plan name */}
+                <span
+                  className={`block mb-[8px] uppercase font-bold tracking-[0.15em] text-[11px] ${
+                    popular ? "text-[#B8FF66]" : "text-white/50"
+                  }`}
+                >
+                  {plan.title}
+                </span>
+
+                {/* Tagline */}
+                <p className="!mb-[16px] text-[13px] text-[#B8FF66]/80 font-medium">
+                  {plan.tagline}
+                </p>
+
+                {/* Trial badge */}
+                <span className="inline-block mb-[20px] rounded-full border border-[#B8FF66]/40 text-[#B8FF66] text-[10px] font-bold uppercase tracking-[0.15em] px-[14px] py-[5px]">
+                  7 days free
+                </span>
+
+                {/* Description */}
+                <p className="text-white/50 text-[15px] leading-[1.6]">
+                  {plan.description}
+                </p>
+
+                {/* Price */}
+                <div className="mt-[24px] mb-[8px] block leading-none text-white text-[48px] md:text-[56px] font-light -tracking-[2px]">
+                  {price}{" "}
+                  <span className="text-[15px] tracking-[0.05em] font-normal text-white/40">
+                    / mo
+                  </span>
                 </div>
-                <ul className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-[25px] gap-y-[12px] md:gap-y-[14px]">
-                  {enterpriseFeatures.map((feature, featureIndex) => (
+
+                {annual && (
+                  <p className="text-[#B8FF66]/70 text-[12px] font-medium">
+                    ${annual
+                      ? plan.title === "Founder"
+                        ? "390"
+                        : plan.title === "Team"
+                        ? "948"
+                        : "2388"
+                      : ""}/year billed annually
+                  </p>
+                )}
+
+                <p className="text-white/40 text-[13px]">
+                  Card required. Cancel any time.
+                </p>
+
+                {/* Features */}
+                <ul className="my-[32px] space-y-[12px]">
+                  {plan.features.map((feature, featureIndex) => (
                     <li
                       key={featureIndex}
-                      className="relative ltr:pl-[28px] rtl:pr-[28px] text-white -tracking-[0.16px] md:text-[14px] lg:text-[15px]"
+                      className="relative pl-[28px] text-white text-[15px]"
                     >
-                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 ltr:-left-[2px] rtl:-right-[2px] text-lime text-[22px] md:text-[24px]"></i>
-                      {feature}
+                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]"></i>
+                      {feature.text}
                     </li>
                   ))}
                 </ul>
-                <div className="lg:flex-shrink-0">
-                  <Link
-                    href="/contact/"
-                    className="btn-press block w-full lg:w-auto rounded-[60px] bg-white/10 hover:bg-lime hover:text-black p-[7px] md:p-[10px] lg:px-[26px] uppercase text-xs font-bold text-white tracking-[1.8px]"
-                  >
-                    <span className="flex items-center justify-center gap-[15px] md:gap-[20px]">
-                      Contact us{" "}
-                      <i className="ri-arrow-right-up-line w-[30px] md:w-[36px] h-[30px] md:h-[36px] rounded-full bg-white dark:bg-dark text-black dark:text-white flex items-center justify-center text-md"></i>
-                    </span>
-                  </Link>
-                </div>
+
+                {/* CTA */}
+                <Link
+                  href={plan.cta.href}
+                  className={`btn-press block w-full rounded-full ${
+                    popular
+                      ? "bg-[#B8FF66] text-[#0A0A0B] hover:bg-[#A3E855]"
+                      : "bg-white/[0.06] text-white hover:bg-[#B8FF66] hover:text-[#0A0A0B]"
+                  } p-[12px] uppercase text-[11px] font-bold tracking-[0.15em] transition-colors`}
+                >
+                  <span className="flex items-center justify-center gap-[12px]">
+                    {plan.cta.label}{" "}
+                    <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm"></i>
+                  </span>
+                </Link>
               </div>
+            );
+          })}
+        </div>
+
+        {/* Enterprise */}
+        <div className="mt-[24px] border border-white/[0.08] rounded-[16px] bg-white/[0.03] px-[28px] md:px-[36px] py-[28px] md:py-[36px]">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-[28px] md:gap-[36px] lg:gap-[50px]">
+            <div className="lg:max-w-[300px] lg:flex-shrink-0">
+              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-[11px] text-white/50">
+                Enterprise
+              </span>
+              <h3 className="!mb-0 !font-normal !text-[24px] md:!text-[28px] -tracking-[0.5px] !text-white">
+                Custom AI organizations for larger teams.
+              </h3>
+              <p className="!mb-0 mt-[12px] text-white/50 text-[15px]">
+                Bespoke governance, dedicated infrastructure, and a team that
+                gets you running.
+              </p>
+            </div>
+            <ul className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-[28px] gap-y-[14px]">
+              {enterpriseFeatures.map((feature, featureIndex) => (
+                <li
+                  key={featureIndex}
+                  className="relative pl-[28px] text-white text-[15px]"
+                >
+                  <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]"></i>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <div className="lg:flex-shrink-0">
+              <Link
+                href="/contact"
+                className="btn-press block w-full lg:w-auto rounded-full bg-white/[0.06] hover:bg-[#B8FF66] hover:text-[#0A0A0B] p-[12px] lg:px-[28px] uppercase text-[11px] font-bold text-white tracking-[0.15em] transition-colors"
+              >
+                <span className="flex items-center justify-center gap-[12px]">
+                  Contact us{" "}
+                  <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm"></i>
+                </span>
+              </Link>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

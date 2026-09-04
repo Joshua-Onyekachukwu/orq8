@@ -1,6 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { agents, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
-import { chatJson } from './llm.js';
+import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
@@ -55,8 +55,10 @@ export interface ExecutionResult {
   }>;
   creditsConsumed?: number;
   creditsRemaining?: number;
-  // Which LLM provider executed this command (docs/22): 'nvidia' | 'litellm' | 'none' (structured fallback)
-  llmProvider?: 'nvidia' | 'litellm' | 'none';
+  // Which LLM provider executed this command (docs/22): 'nvidia' | 'litellm' | 'ollama' | 'none' (structured fallback)
+  llmProvider?: 'nvidia' | 'litellm' | 'ollama' | 'none';
+  // Warnings surfaced from the LLM provider chain (e.g. NVIDIA scope issues)
+  warnings?: NVIDIAFunctionNotFoundDiagnostic[];
   // New: workflow trace for debugging
   workflowTrace?: WorkflowTrace;
 }
@@ -678,6 +680,10 @@ export async function executeCommand(
     return buildErrorResult(commandId, command, `Intent analysis error: ${msg}`, trace, startTime);
   }
 
+  // Collect any NVIDIA 404 diagnostics surfaced during intent analysis so
+  // the command response can carry actionable warnings (e.g. scope missing).
+  const nvidiaWarnings = popNvidiaDiagnostics(orgId);
+
   // ── Step 3: Check Credits ──
   const creditStep = startStep(trace, 'credit_check');
   const operationType = `task.${intent.category}`;
@@ -915,7 +921,11 @@ export async function executeCommand(
     agentResults,
     creditsConsumed,
     creditsRemaining,
-    llmProvider: config.NVIDIA_API_KEY ? 'nvidia' : config.LITELLM_BASE_URL ? 'litellm' : 'none',
+    // Provider that actually served the intent analysis (or 'none' when the
+    // LLM chain was unreachable and the structured fallback ran)
+    llmProvider: getServedProvider(orgId, 'intent_analysis', commandId) ?? 'none',
+    // Surface any NVIDIA scope/access warnings collected during the LLM chain.
+    warnings: nvidiaWarnings.length > 0 ? nvidiaWarnings : undefined,
     workflowTrace,
   };
 }

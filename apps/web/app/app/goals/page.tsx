@@ -194,9 +194,11 @@ export default async function GoalsPage() {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-ink truncate">
-                        {goal.title}
-                      </h3>
+                      <Link href={`/app/goals/${goal.id}`} className="group">
+                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-emerald transition-colors">
+                          {goal.title}
+                        </h3>
+                      </Link>
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${priorityBadge(goal.priority)}`}
                       >
@@ -244,7 +246,9 @@ export default async function GoalsPage() {
                         {goalTasks.slice(0, 3).map((task) => (
                           <li key={task.id} className="flex items-center gap-2 text-xs">
                             {statusIcon(task.status)}
-                            <span className="truncate text-ink">{task.title}</span>
+                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-emerald">
+                              {task.title}
+                            </Link>
                             {task.agentId && agentMap.get(task.agentId) && (
                               <span className="shrink-0 rounded-full bg-navy-900/5 px-1.5 py-0.5 text-[9px] font-medium text-navy-900">
                                 {agentMap.get(task.agentId)!.name}
@@ -312,12 +316,14 @@ export default async function GoalsPage() {
                     <div className="flex items-center gap-2">
                       {statusIcon(task.status)}
                       <div>
-                        <p className="text-sm font-medium text-ink">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-muted truncate max-w-[300px]">
-                            {task.description}
-                          </p>
-                        )}
+                        <Link href={`/app/tasks/${task.id}`} className="hover:text-emerald">
+                          <p className="text-sm font-medium text-ink">{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs text-muted truncate max-w-[300px]">
+                              {task.description}
+                            </p>
+                          )}
+                        </Link>
                       </div>
                     </div>
                   </td>

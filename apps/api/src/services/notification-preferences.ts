@@ -151,7 +151,7 @@ export async function notifyWithPrefs(
   if (inApp && shouldNotify(prefs, 'inApp', type)) {
     // Dynamic import to avoid circular dependency
     const { createNotification } = await import('../routes/notifications.js');
-    createNotification(orgId, inApp.notificationType, inApp.title, inApp.message);
+    await createNotification(db, orgId, inApp.notificationType, inApp.title, inApp.message);
     inAppCreated = true;
   }
 
@@ -170,7 +170,8 @@ export async function notifyWithPrefs(
 
     // Queue email for sending
     const { createNotification } = await import('../routes/notifications.js');
-    createNotification(
+    await createNotification(
+      db,
       orgId,
       'credit',
       `Email: ${emailContent.subject}`,

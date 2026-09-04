@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Pause,
@@ -227,15 +228,15 @@ export default function AgentsPage() {
               className="rounded-xl border border-hairline bg-white p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <Link href={`/app/agents/${a.id}`} className="group flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-sm font-bold text-emerald">
                     {a.name.charAt(0)}
                   </span>
-                  <div>
-                    <h2 className="text-sm font-semibold text-ink">{a.name}</h2>
-                    <p className="text-xs text-muted">{a.role}</p>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm font-semibold text-ink group-hover:text-emerald transition-colors">{a.name}</h2>
+                    <p className="truncate text-xs text-muted">{a.role}</p>
                   </div>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={() => handleToggleStatus(a)}

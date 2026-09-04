@@ -14,6 +14,7 @@ type MeData = {
     role: string;
   }[];
   active_org_id: string | null;
+  platformRole?: string;
 };
 
 /**
@@ -97,6 +98,7 @@ export default async function AppLayout({
   const hasSession = !!me;
 
   const userRole = active?.role ?? "member";
+  const platformRole = me?.platformRole ?? "user";
 
   return (
     <div id="main" className="min-h-screen bg-canvas">
@@ -113,6 +115,7 @@ export default async function AppLayout({
           orgName={orgName}
           plan={plan}
           userRole={userRole}
+          platformRole={platformRole}
         />
         <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}

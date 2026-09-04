@@ -5,30 +5,30 @@ import { Reveal } from "../Common/Reveal";
 
 const OurJourney: React.FC = () => {
   return (
-    <section className="bg-gray-50 py-20 md:py-28 lg:py-32">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="bg-[#0A0A0B] py-[80px] md:py-[120px] lg:py-[160px]">
+      <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <Reveal>
-          <div className="mb-12 md:mb-16">
-            <span className="mb-3 block text-xs font-bold uppercase tracking-[0.2em] text-emerald">
+          <div className="mb-[48px] md:mb-[64px]">
+            <span className="mb-[12px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
               Our Story
             </span>
-            <h2 className="text-3xl font-light leading-tight tracking-tight text-navy-950 md:text-4xl">
+            <h2 className="text-[32px] md:text-[40px] font-normal leading-tight tracking-tight text-white">
               Why we built ORQ8
             </h2>
           </div>
         </Reveal>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-[24px] md:grid-cols-2">
           {/* Mission */}
           <Reveal>
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 md:p-10 lg:p-12">
-              <span className="mb-4 block text-xs font-bold uppercase tracking-[0.2em] text-emerald">
+            <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-[32px] md:p-[40px] lg:p-[48px]">
+              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
                 Our Mission
               </span>
-              <h3 className="mb-4 text-2xl font-light leading-tight tracking-tight text-navy-950">
+              <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
                 Make AI organizations accessible to every founder
               </h3>
-              <p className="text-sm leading-relaxed text-gray-500 md:text-base">
+              <p className="text-[15px] leading-relaxed text-white/50 md:text-[16px]">
                 Every solo founder deserves the operational power of a full
                 company. ORQ8 gives you specialized AI employees, an Executive
                 Agent that plans and coordinates, approval gates that keep you in
@@ -40,14 +40,14 @@ const OurJourney: React.FC = () => {
 
           {/* Vision */}
           <Reveal>
-            <div className="rounded-2xl border border-emerald/20 bg-emerald/5 p-8 md:p-10 lg:p-12">
-              <span className="mb-4 block text-xs font-bold uppercase tracking-[0.2em] text-emerald">
+            <div className="rounded-[16px] border border-[#B8FF66]/20 bg-[#B8FF66]/5 p-[32px] md:p-[40px] lg:p-[48px]">
+              <span className="mb-[16px] block text-[11px] font-bold uppercase tracking-[0.2em] text-[#B8FF66]">
                 Our Vision
               </span>
-              <h3 className="mb-4 text-2xl font-light leading-tight tracking-tight text-navy-950">
+              <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
                 A world where one person can run a real company
               </h3>
-              <p className="text-sm leading-relaxed text-gray-500 md:text-base">
+              <p className="text-[15px] leading-relaxed text-white/50 md:text-[16px]">
                 We started ORQ8 because the tools solo founders use today
                 require them to do everything themselves: accounting, marketing,
                 operations, support. None of it connects. None of it runs without
@@ -61,17 +61,17 @@ const OurJourney: React.FC = () => {
 
         {/* CTA */}
         <Reveal>
-          <div className="mt-16 text-center">
-            <p className="mb-6 text-sm text-gray-400">
+          <div className="mt-[64px] text-center">
+            <p className="mb-[24px] text-[14px] text-white/40">
               Join the first cohort and build your AI organization.
             </p>
             <a
               href="/#waitlist"
-              className="inline-flex items-center gap-2 rounded-full bg-emerald px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald/90"
+              className="inline-flex items-center gap-[10px] rounded-full bg-[#B8FF66] px-[28px] py-[12px] text-[14px] font-semibold text-[#0A0A0B] transition-colors hover:bg-[#A3E855]"
             >
               JOIN THE WAITLIST
               <svg
-                className="h-4 w-4"
+                className="h-[16px] w-[16px]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

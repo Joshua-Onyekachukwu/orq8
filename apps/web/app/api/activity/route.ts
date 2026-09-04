@@ -1,7 +1,26 @@
 import { NextRequest } from "next/server";
-import { proxyApiJson } from "../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../lib/api";
 
-// GET /api/activity — list activity events
+function getSessionToken(request: NextRequest): string | null {
+  return request.cookies.get(SESSION_COOKIE)?.value ?? null;
+}
+
+// GET /api/activity — list activity events (supports agent_id, type, limit, offset)
 export async function GET(request: NextRequest) {
-  return proxyApiJson(request, "/v1/activity");
+  const token = getSessionToken(request);
+  if (!token) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(request.url);
+  const qs = url.searchParams.toString();
+
+  try {
+    const res = await fetch(`${API_URL}/v1/activity${qs ? `?${qs}` : ""}`, {
+      headers: proxyAuthHeaders(token),
+      cache: "no-store",
+    });
+    if (!res.ok) return Response.json({ error: "Failed" }, { status: res.status });
+    return Response.json(await res.json());
+  } catch {
+    return Response.json({ error: "Backend unavailable" }, { status: 502 });
+  }
 }

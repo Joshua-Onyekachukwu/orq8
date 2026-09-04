@@ -14,9 +14,16 @@ export async function requireAuth(request: FastifyRequest, deps: AppDeps): Promi
   const found = await findSessionByToken(deps.db, token, deps.redis);
   if (!found) throw unauthorized('Invalid session');
 
-  const { session, user, role } = found;
+  const { session, user, role, platformRole } = found;
   if (session.revokedAt) throw unauthorized('Session has been revoked');
   if (session.expiresAt.getTime() < Date.now()) throw sessionExpired();
 
-  return { userId: user.id, orgId: session.orgId, sessionId: session.id, role, email: user.email };
+  return {
+    userId: user.id,
+    orgId: session.orgId,
+    sessionId: session.id,
+    role,
+    email: user.email,
+    platformRole: platformRole ?? 'user',
+  };
 }

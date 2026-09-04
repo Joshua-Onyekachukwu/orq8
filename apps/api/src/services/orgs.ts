@@ -30,6 +30,18 @@ export async function createMembership(
     .values({ orgId: input.orgId, userId: input.userId, role: input.role, status: 'active' });
 }
 
+export async function updateOrg(db: Db, orgId: string, input: { name?: string }) {
+  const updates: Record<string, unknown> = {};
+  if (input.name !== undefined) updates.name = input.name.trim();
+  const [row] = await db
+    .update(organizations)
+    .set(updates)
+    .where(eq(organizations.id, orgId))
+    .returning();
+  if (!row) throw new Error('updateOrg returned no row');
+  return row;
+}
+
 export async function findMembershipsByUser(db: Db, userId: string) {
   return db
     .select({
