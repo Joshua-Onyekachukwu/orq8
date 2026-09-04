@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Shield, Zap, Target, Users, ClipboardCheck } from "lucide-react";
 
 interface HealthScoreProps {
   activeAgents: number;
@@ -14,13 +14,22 @@ interface HealthScoreProps {
   totalGoals: number;
 }
 
-function computeScore(props: HealthScoreProps): {
+interface ScoreResult {
   score: number;
   label: string;
+  description: string;
   color: string;
-  bg: string;
-  breakdown: { label: string; value: number; max: number; weight: string }[];
-} {
+  strokeColor: string;
+  segments: {
+    label: string;
+    icon: React.ElementType;
+    value: number;
+    display: string;
+    status: "good" | "warning" | "critical" | "neutral";
+  }[];
+}
+
+function computeScore(props: HealthScoreProps): ScoreResult {
   const {
     activeAgents,
     totalAgents,
@@ -33,117 +42,165 @@ function computeScore(props: HealthScoreProps): {
     totalGoals,
   } = props;
 
-  // Weighted components (out of 100)
+  // Individual scores (0-100)
   const agentScore = totalAgents > 0 ? (activeAgents / totalAgents) * 100 : 0;
   const taskScore = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const creditScore = creditsTotal > 0 ? (creditsRemaining / creditsTotal) * 100 : 0;
   const approvalScore = pendingApprovals === 0 ? 100 : Math.max(0, 100 - pendingApprovals * 20);
   const goalScore = totalGoals > 0 ? (activeGoals / totalGoals) * 100 : 0;
 
-  // Weighted average: agents 25%, tasks 25%, credits 20%, approvals 15%, goals 15%
-  const score = Math.round(
-    agentScore * 0.25 +
-    taskScore * 0.25 +
-    creditScore * 0.20 +
-    approvalScore * 0.15 +
-    goalScore * 0.15
-  );
+  // Weighted: agents 25%, tasks 30%, credits 20%, approvals 10%, goals 15%
+  const raw = agentScore * 0.25 + taskScore * 0.30 + creditScore * 0.20 + approvalScore * 0.10 + goalScore * 0.15;
+  const score = Math.max(0, Math.min(100, Math.round(raw)));
 
-  const clamped = Math.max(0, Math.min(100, score));
-
+  // Status
   let label: string;
+  let description: string;
   let color: string;
-  let bg: string;
+  let strokeColor: string;
 
-  if (clamped >= 80) {
+  if (score >= 80) {
     label = "Thriving";
+    description = "Your company is running smoothly. AI employees are productive and goals are on track.";
     color = "text-[#1a5c2e]";
-    bg = "bg-[#1a5c2e]";
-  } else if (clamped >= 60) {
+    strokeColor = "#1a5c2e";
+  } else if (score >= 60) {
     label = "Healthy";
+    description = "Good momentum. Some areas could use attention to reach full potential.";
     color = "text-[#B8FF66]";
-    bg = "bg-[#B8FF66]";
-  } else if (clamped >= 40) {
-    label = "Needs attention";
-    color = "text-amber-600";
-    bg = "bg-amber-500";
+    strokeColor = "#B8FF66";
+  } else if (score >= 40) {
+    label = "Needs Attention";
+    description = "Several areas need founder input. Review pending approvals and stalled tasks.";
+    color = "text-[#E86A33]";
+    strokeColor = "#E86A33";
   } else {
-    label = "At risk";
+    label = "At Risk";
+    description = "Critical issues detected. Immediate action needed to get back on track.";
     color = "text-red-500";
-    bg = "bg-red-500";
+    strokeColor = "#ef4444";
   }
 
+  // Determine status for each segment
+  const segStatus = (val: number): "good" | "warning" | "critical" | "neutral" =>
+    val >= 70 ? "good" : val >= 40 ? "warning" : totalAgents === 0 && val === 0 ? "neutral" : "critical";
+
   return {
-    score: clamped,
+    score,
     label,
+    description,
     color,
-    bg,
-    breakdown: [
-      { label: "Agent utilization", value: Math.round(agentScore), max: 100, weight: "25%" },
-      { label: "Task completion", value: Math.round(taskScore), max: 100, weight: "25%" },
-      { label: "Credit health", value: Math.round(creditScore), max: 100, weight: "20%" },
-      { label: "Approval flow", value: Math.round(approvalScore), max: 100, weight: "15%" },
-      { label: "Goal momentum", value: Math.round(goalScore), max: 100, weight: "15%" },
+    strokeColor,
+    segments: [
+      { label: "Workforce", icon: Users, value: Math.round(agentScore), display: `${activeAgents}/${totalAgents}`, status: segStatus(agentScore) },
+      { label: "Execution", icon: Target, value: Math.round(taskScore), display: `${completedTasks}/${totalTasks}`, status: segStatus(taskScore) },
+      { label: "Credits", icon: Zap, value: Math.round(creditScore), display: `${creditsRemaining}`, status: segStatus(creditScore) },
+      { label: "Approvals", icon: ClipboardCheck, value: Math.round(approvalScore), display: pendingApprovals === 0 ? "Clear" : `${pendingApprovals} pending`, status: segStatus(approvalScore) },
+      { label: "Goals", icon: Shield, value: Math.round(goalScore), display: `${activeGoals} active`, status: segStatus(goalScore) },
     ],
   };
 }
 
+function StatusDot({ status }: { status: "good" | "warning" | "critical" | "neutral" }) {
+  const color =
+    status === "good" ? "bg-[#1a5c2e]" :
+    status === "warning" ? "bg-[#E86A33]" :
+    status === "critical" ? "bg-red-500" :
+    "bg-gray-300";
+  return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
+}
+
 export function HealthScore(props: HealthScoreProps) {
-  const { score, label, color, bg, breakdown } = computeScore(props);
+  const { score, label, description, color, strokeColor, segments } = computeScore(props);
   const Icon = score >= 70 ? TrendingUp : score >= 40 ? Minus : TrendingDown;
 
+  // SVG ring calculations
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
   return (
-    <div className="rounded-xl border border-hairline bg-white p-5">
+    <div className="rounded-xl border border-hairline bg-white p-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink">Company Health</h2>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${color} ${bg}/10`}>
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Company Health</h2>
+          <p className="mt-0.5 text-[11px] text-muted">Composite performance score</p>
+        </div>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide ${color} bg-current/5`}>
           <Icon className="h-3 w-3" />
           {label}
         </span>
       </div>
 
-      {/* Score ring */}
-      <div className="mt-5 flex items-center gap-6">
-        <div className="relative h-20 w-20 shrink-0">
-          <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="#f3f4f6" strokeWidth="6" />
+      {/* Score ring + description */}
+      <div className="mt-6 flex items-start gap-6">
+        <div className="relative h-24 w-24 shrink-0">
+          <svg className="h-24 w-24 -rotate-90" viewBox="0 0 88 88">
+            {/* Background ring */}
             <circle
-              cx="40"
-              cy="40"
-              r="34"
+              cx="44"
+              cy="44"
+              r={radius}
               fill="none"
-              stroke="currentColor"
-              strokeWidth="6"
-              strokeDasharray={`${(score / 100) * 213.6} 213.6`}
+              stroke="#f5f5f5"
+              strokeWidth="7"
+            />
+            {/* Score ring */}
+            <circle
+              cx="44"
+              cy="44"
+              r={radius}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="7"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
               strokeLinecap="round"
-              className={color}
+              className="transition-all duration-700 ease-out"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xl font-bold text-ink">{score}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold tracking-tight text-ink">{score}</span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-muted">/ 100</span>
           </div>
         </div>
 
-        <div className="flex-1 space-y-2">
-          {breakdown.map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-muted">{item.label}</span>
-                <span className="font-mono text-muted">{item.weight}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs leading-relaxed text-muted">{description}</p>
+        </div>
+      </div>
+
+      {/* Segment breakdown */}
+      <div className="mt-6 space-y-3">
+        {segments.map((seg) => {
+          const SegIcon = seg.icon;
+          return (
+            <div key={seg.label}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <StatusDot status={seg.status} />
+                  <span className="text-[11px] font-medium text-ink">{seg.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono tabular-nums text-muted">{seg.display}</span>
+                  <span className="text-[10px] font-mono tabular-nums text-muted/60 w-8 text-right">{seg.value}%</span>
+                </div>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-hairline overflow-hidden">
+              <div className="mt-1.5 h-1.5 rounded-full bg-hairline overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    item.value >= 70 ? "bg-[#1a5c2e]" :
-                    item.value >= 40 ? "bg-amber-400" :
-                    "bg-red-400"
+                  className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    seg.status === "good" ? "bg-[#1a5c2e]" :
+                    seg.status === "warning" ? "bg-[#E86A33]" :
+                    seg.status === "critical" ? "bg-red-400" :
+                    "bg-gray-200"
                   }`}
-                  style={{ width: `${item.value}%` }}
+                  style={{ width: `${seg.value}%` }}
                 />
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
