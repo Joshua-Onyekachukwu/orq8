@@ -256,47 +256,67 @@ export async function executeTask(
 
   const durationMs = Date.now() - startTime;
   const cost = Math.max(1, Math.ceil(tokensUsed / 1000)); // 1 credit per 1K tokens
+  const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
 
-  // 6. Mark task as completed
+  // 6. Mark task as completed or failed
   await db
     .update(tasks)
     .set({
-      status: 'completed',
+      status: taskSucceeded ? 'completed' : 'failed',
       cost,
+      result: result.slice(0, 2000),
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
 
-  // Broadcast: task completed
-  broadcastToOrg(orgId, { type: 'task.completed', taskId: task.id, agentId: task.agentId ?? '', agentName, result: result.slice(0, 200) });
+  // Broadcast: task completed or failed
+  if (taskSucceeded) {
+    broadcastToOrg(orgId, { type: 'task.completed', taskId: task.id, agentId: task.agentId ?? '', agentName, result: result.slice(0, 200) });
+  } else {
+    broadcastToOrg(orgId, { type: 'task.failed', taskId: task.id, agentId: task.agentId ?? '', agentName, error: result.slice(0, 200) });
+  }
 
   // 7. Update agent stats
   if (task.agentId) {
     const [agent] = await db
-      .select({ tasksCompleted: agents.tasksCompleted })
+      .select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
 
-    await db
-      .update(agents)
-      .set({
-        tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
-        currentTask: null,
-        weeklyCost: undefined, // Will be computed from activity events
-        updatedAt: new Date(),
-      })
-      .where(eq(agents.id, task.agentId));
+    if (taskSucceeded) {
+      await db
+        .update(agents)
+        .set({
+          tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
+          currentTask: null,
+          lastActiveAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(agents.id, task.agentId));
+    } else {
+      await db
+        .update(agents)
+        .set({
+          tasksFailed: (agent?.tasksFailed ?? 0) + 1,
+          currentTask: null,
+          lastActiveAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(agents.id, task.agentId));
+    }
   }
 
-  // 8. Record activity: task completed
+  // 8. Record activity: task completed or failed
   await db.insert(activityEvents).values({
     orgId,
     agentId: task.agentId,
     taskId: task.id,
-    type: 'completed',
-    summary: `Completed: ${task.title}`,
-    reason: `Task executed by ${agentName} in ${(durationMs / 1000).toFixed(1)}s`,
+    type: taskSucceeded ? 'completed' : 'failed',
+    summary: taskSucceeded ? `Completed: ${task.title}` : `Failed: ${task.title}`,
+    reason: taskSucceeded
+      ? `Task executed by ${agentName} in ${(durationMs / 1000).toFixed(1)}s`
+      : `Task failed: ${result.slice(0, 200)}`,
     cost,
     department: null,
   });
@@ -304,12 +324,14 @@ export async function executeTask(
   // 9. Store result in company memory
   await db.insert(companyMemory).values({
     orgId,
-    category: 'context',
-    content: `Task completed: "${task.title}" — Result: ${result.slice(0, 500)}`,
+    category: taskSucceeded ? 'context' : 'lesson',
+    content: taskSucceeded
+      ? `Task completed: "${task.title}" — Result: ${result.slice(0, 500)}`
+      : `Task failed: "${task.title}" — Error: ${result.slice(0, 500)}`,
     source: agentName,
     agentId: task.agentId,
     taskId: task.id,
-    importance: 5,
+    importance: taskSucceeded ? 5 : 7,
   });
 
   // 10. Audit
@@ -319,11 +341,31 @@ export async function executeTask(
     actorId: task.agentId,
     agentId: task.agentId,
     taskId: task.id,
-    action: 'task.completed',
+    action: taskSucceeded ? 'task.completed' : 'task.failed',
     tool: 'llm',
     cost,
-    outcome: 'success',
+    outcome: taskSucceeded ? 'success' : 'failure',
   });
+
+  // 10b. Submit feedback to Executive Agent — agent reports completion or failure
+  if (task.agentId) {
+    try {
+      const { submitFeedback } = await import('./multi-agent.js');
+      await submitFeedback(db, {
+        orgId,
+        agentId: task.agentId,
+        taskId: task.id,
+        feedbackType: taskSucceeded ? 'completion' : 'blocker',
+        summary: taskSucceeded
+          ? `Completed "${task.title}" in ${(durationMs / 1000).toFixed(1)}s`
+          : `Failed to complete "${task.title}": ${result.slice(0, 200)}`,
+        details: result.slice(0, 500),
+        requiresFounderAttention: !taskSucceeded,
+      });
+    } catch {
+      // Feedback failure is non-fatal
+    }
+  }
 
   // 11. Notify: task completed (gated by notification preferences)
   try {
@@ -343,7 +385,7 @@ export async function executeTask(
 
   return {
     taskId,
-    status: 'completed',
+    status: taskSucceeded ? 'completed' : 'failed',
     result,
     cost,
     tokensUsed,
