@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { ProvidersClient, type CatalogItem, type KeyItem } from "../../../components/providers-client";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: "Providers" };
 
 // docs/23.3: settings UX for provider cards, masked keys, add/rotate/revoke/test.

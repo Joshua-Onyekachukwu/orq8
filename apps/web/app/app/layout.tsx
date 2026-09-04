@@ -4,8 +4,9 @@ import { AppSidebar } from "../../components/app-sidebar";
 import { AppErrorBoundary } from "../../components/app-error-boundary";
 import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
+import { AnalyticsProvider } from "../../components/analytics-provider";
 
-export const dynamic = "force-dynamic";
+
 
 type MeData = {
   user: { id: string; email: string; name: string | null };
@@ -105,6 +106,12 @@ export default async function AppLayout({
 
   return (
     <div id="main" className="min-h-screen bg-canvas">
+      <AnalyticsProvider
+        userId={me?.user.id}
+        orgId={active?.org.id}
+        userName={userName}
+        userEmail={me?.user.email}
+      />
       <AppSidebar
         orgName={orgName}
         plan={plan}

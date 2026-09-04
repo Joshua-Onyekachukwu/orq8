@@ -4,7 +4,6 @@ import { AdminSidebar } from "../../components/admin/admin-sidebar";
 import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
-export const dynamic = "force-dynamic";
 
 type MeData = {
   user: { id: string; email: string; name: string | null };
