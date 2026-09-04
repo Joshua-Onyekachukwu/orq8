@@ -1,321 +1,231 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Users,
-  ArrowRight,
   ArrowLeft,
+  ArrowRight,
   Check,
   Loader2,
+  Lightbulb,
+  Building2,
+  Users,
+  Target,
+  ListChecks,
+  Sparkles,
+  Shield,
+  Layers,
 } from "lucide-react";
 
-interface OnboardingStep {
-  id: string;
-  title: string;
+type SourceType = "idea" | "existing";
+
+interface CompanyAnalysis {
+  companyName: string;
   description: string;
+  industry: string;
+  targetMarket: string;
+  problem: string;
+  solution: string;
+  businessModel: string;
+  stage: string;
+  priorities: string[];
+  risks: string[];
+  existingSystems?: string[];
+  sourceType: SourceType;
+  rawInput: string;
 }
 
-const steps: OnboardingStep[] = [
-  {
-    id: "organization",
-    title: "Create your organization",
-    description: "Set up your AI company's foundation",
-  },
-  {
-    id: "constitution",
-    title: "Choose your constitution",
-    description: "Define how your AI organization operates",
-  },
-  {
-    id: "agents",
-    title: "Hire your first AI team",
-    description: "Select the specialists for your organization",
-  },
-];
+interface ProposedAgent {
+  name: string;
+  role: string;
+  department: string;
+  responsibilities: string[];
+  capabilities: string[];
+  tools: string[];
+}
 
-const constitutionTypes = [
-  {
-    type: "founder_led" as const,
-    name: "Founder-Led",
-    description: "Maximum control. All significant decisions route to you. Best for early-stage companies where you want full oversight.",
-    principles: ["All spending requires approval", "All external communications require approval", "Weekly executive briefings", "You control the Constitution directly"],
-  },
-  {
-    type: "growth" as const,
-    name: "Growth-Focused",
-    description: "Balance speed with oversight. Routine operations run autonomously, strategic decisions come to you.",
-    principles: ["Routine tasks execute automatically", "Spending above $100 requires approval", "Strategic decisions route to CEO", "Weekly progress reports"],
-  },
-  {
-    type: "efficiency" as const,
-    name: "Efficiency-First",
-    description: "Maximum automation. Only exceptional decisions require intervention. Best for mature operations.",
-    principles: ["Minimal approval requirements", "Cost optimization prioritized", "Automated exception handling", "Monthly executive summaries"],
-  },
-  {
-    type: "custom" as const,
-    name: "Custom",
-    description: "Define your own operating principles from scratch. Full control over every aspect of governance.",
-    principles: ["Define your own approval thresholds", "Customize agent permissions", "Set your own reporting cadence", "Full flexibility"],
-  },
-];
+interface CompanyPlan {
+  rationale: string;
+  departments: { name: string; description: string }[];
+  agents: ProposedAgent[];
+  goals: { title: string; description: string; priority: string }[];
+  tasks: { title: string; description: string; goalIndex: number; agentRole: string; priority: string }[];
+}
 
-const defaultAgents = [
-  {
-    role: "Executive Agent",
-    name: "Atlas",
-    description: "Your chief of staff. Coordinates all agents, manages priorities, and ensures everything runs smoothly. Reports directly to you.",
-    selected: true,
-    required: true,
+interface ActivationResult {
+  departments: { id: string; name: string }[];
+  agents: { id: string; name: string; role: string }[];
+  goals: { id: string; title: string }[];
+  tasks: { id: string; title: string }[];
+  memoryCount: number;
+}
+
+type Phase = "path" | "describe" | "analyzing" | "analysis" | "planning" | "plan" | "activating" | "done";
+
+const suggestionPrompts: Record<SourceType, string[]> = {
+  idea: [
+    "I'm building a SaaS platform that helps small businesses manage their finances",
+    "I have an idea for a productivity app that helps remote teams stay focused",
+    "I want to build an e-commerce marketplace for handmade goods",
+    "I'm creating an AI tool that helps freelancers write proposals faster",
+  ],
+  existing: [
+    "We run a digital marketing agency with 5 clients and a team of contractors",
+    "I have a Shopify store selling eco-friendly home products, around $10k/month revenue",
+    "We built a mobile app for restaurant reservations and just hit 10,000 users",
+    "I run a consulting business with a small team, a website, and a CRM",
+  ],
+};
+
+const sourceDescriptions: Record<SourceType, { title: string; subtitle: string }> = {
+  idea: {
+    title: "Start from an idea",
+    subtitle: "You have a concept, a problem you want to solve, or an early vision. ORQ8 will help you structure it into a company.",
   },
-  {
-    role: "Research Agent",
-    name: "Athena",
-    description: "Gathers and analyzes information. Monitors competitors, markets, and opportunities. Provides intelligence for decision-making.",
-    selected: true,
-    required: false,
+  existing: {
+    title: "You have an existing company",
+    subtitle: "You already operate a business. ORQ8 will understand what you have and build your AI workforce around it.",
   },
-  {
-    role: "Operations Agent",
-    name: "Atlas",
-    description: "Manages day-to-day execution. Coordinates tasks, tracks progress, and ensures projects stay on schedule and within budget.",
-    selected: true,
-    required: false,
-  },
-  {
-    role: "Marketing Agent",
-    name: "Mercury",
-    description: "Handles marketing communications, content creation, and campaign management. Builds your brand presence.",
-    selected: false,
-    required: false,
-  },
-  {
-    role: "Engineering Agent",
-    name: "Forge",
-    description: "Manages technical development, code review, and deployment. Handles engineering tasks and technical infrastructure.",
-    selected: false,
-    required: false,
-  },
-  {
-    role: "Finance Agent",
-    name: "Ledger",
-    description: "Manages budgets, tracks expenses, and provides financial reporting. Monitors spending across all departments.",
-    selected: false,
-    required: false,
-  },
-];
+};
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [organization, setOrganization] = useState({
-    name: "",
-    description: "",
-    objective: "",
-  });
-  const [constitution, setConstitution] = useState<typeof constitutionTypes[0] | null>(null);
-  const [agents, setAgents] = useState(defaultAgents);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [phase, setPhase] = useState<Phase>("path");
+  const [sourceType, setSourceType] = useState<SourceType | null>(null);
+  const [description, setDescription] = useState("");
+  const [analysis, setAnalysis] = useState<CompanyAnalysis | null>(null);
+  const [plan, setPlan] = useState<CompanyPlan | null>(null);
+  const [activation, setActivation] = useState<ActivationResult | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progressLabel, setProgressLabel] = useState("");
+  const [isLoadingState, setIsLoadingState] = useState(true);
+  const [editedAnalysis, setEditedAnalysis] = useState<CompanyAnalysis | null>(null);
+  const typingRef = useRef<number | null>(null);
 
-  // Load saved state from API on mount — restores step + all data
+  // Load saved state so the founder can resume
   useEffect(() => {
     async function loadState() {
       try {
-        const res = await fetch("/api/onboarding");
+        const res = await fetch("/api/company-builder/state");
         if (res.ok) {
           const json = await res.json();
-          const state = json.data;
-          if (state?.completedAt) {
-            setIsComplete(true);
+          const state = json?.data;
+          if (state?.completedAt || state?.activation) {
             router.push("/app");
             return;
           }
-          // Restore step number
-          if (typeof state?.stepNumber === "number") {
-            setCurrentStep(state.stepNumber);
-          }
-          // Restore organization data
-          if (state?.organization) {
-            setOrganization({
-              name: state.organization.name ?? "",
-              description: state.organization.description ?? "",
-              objective: state.organization.objective ?? "",
-            });
-          }
-          // Restore constitution
-          if (state?.constitution) {
-            const found = constitutionTypes.find((c) => c.type === state.constitution.type);
-            setConstitution(found || null);
-          }
-          // Restore agents
-          if (state?.agents && Array.isArray(state.agents)) {
-            // Merge with defaults to preserve required flags and descriptions
-            const restored = defaultAgents.map((def) => {
-              const saved = state.agents.find((a: any) => a.role === def.role);
-              return saved ? { ...def, selected: saved.selected ?? def.selected } : def;
-            });
-            setAgents(restored);
+          if (state?.analysis) {
+            setAnalysis(state.analysis);
+            setEditedAnalysis(state.analysis);
+            setSourceType(state.analysis.sourceType ?? "idea");
+            setPhase(state.plan ? "plan" : "analysis");
+            if (state.plan) setPlan(state.plan);
           }
         }
       } catch {
-        // Ignore errors — start fresh
+        // Start fresh
       } finally {
-        setIsLoading(false);
+        setIsLoadingState(false);
       }
     }
     loadState();
   }, [router]);
 
-  // Save state to API on every change (debounced)
-  const saveState = useCallback(async (step: number, org: typeof organization, con: typeof constitution, ag: typeof agents) => {
-    const stepId = steps[step]?.id ?? "organization";
-    try {
-      await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          step: stepId,
-          data: {
-            stepNumber: step,
-            organization: org,
-            constitution: con,
-            agents: ag,
-          },
-        }),
-      });
-    } catch {
-      // Best-effort save — don't block the UI
-    }
-  }, []);
-
-  // Debounced auto-save on any data change
-  useEffect(() => {
-    if (isComplete || isLoading) return;
-    const timeout = setTimeout(() => {
-      saveState(currentStep, organization, constitution, agents);
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [organization, constitution, agents, currentStep, isComplete, isLoading, saveState]);
-
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      // Save immediately on step advance
-      saveState(nextStep, organization, constitution, agents);
-    } else {
-      handleComplete();
-    }
+  const startPath = (type: SourceType) => {
+    setSourceType(type);
+    setPhase("describe");
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      const prevStep = currentStep - 1;
-      setCurrentStep(prevStep);
-      saveState(prevStep, organization, constitution, agents);
-    }
-  };
-
-  const handleComplete = async () => {
-    setIsSaving(true);
+  const runAnalyze = useCallback(async () => {
+    if (!description.trim() || description.trim().length < 10 || !sourceType) return;
+    setPhase("analyzing");
     setError(null);
+    setProgressLabel("Understanding your company...");
     try {
-      // Hire selected agents via the real API
-      const selectedAgents = agents.filter((a) => a.selected);
-      const hirePromises = selectedAgents.map((a) =>
-        fetch("/api/agents", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: a.name,
-            role: a.role,
-            department: a.role.includes("Executive")
-              ? "Executive"
-              : a.role.includes("Research")
-              ? "Research"
-              : a.role.includes("Operations")
-              ? "Operations"
-              : a.role.includes("Marketing")
-              ? "Marketing"
-              : a.role.includes("Engineering")
-              ? "Engineering"
-              : a.role.includes("Finance")
-              ? "Finance"
-              : undefined,
-          }),
-        })
-      );
-
-      await Promise.allSettled(hirePromises);
-
-      // Mark onboarding as complete
-      await fetch("/api/onboarding", {
+      const res = await fetch("/api/company-builder?action=analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          step: "complete",
-          data: {
-            stepNumber: 3,
-            organization,
-            constitution,
-            agents: selectedAgents,
-            complete: true,
-          },
-        }),
+        body: JSON.stringify({ description: description.trim(), sourceType }),
       });
-
-      setIsComplete(true);
-      router.push("/app");
+      const json = await res.json();
+      if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Analysis failed");
+      const a = json.data.analysis as CompanyAnalysis;
+      setAnalysis(a);
+      setEditedAnalysis(a);
+      setPhase("analysis");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to complete onboarding");
-      setIsSaving(false);
+      setError(err instanceof Error ? err.message : "Failed to analyze your company");
+      setPhase("describe");
+    }
+  }, [description, sourceType]);
+
+  // Debounced auto-analyze while typing (min length)
+  useEffect(() => {
+    if (phase !== "describe" || !sourceType) return;
+    if (description.trim().length < 10) return;
+    if (typingRef.current) window.clearTimeout(typingRef.current);
+    typingRef.current = window.setTimeout(() => {
+      runAnalyze();
+    }, 1400);
+    return () => {
+      if (typingRef.current) window.clearTimeout(typingRef.current);
+    };
+  }, [description, phase, sourceType, runAnalyze]);
+
+  const generatePlan = async () => {
+    if (!analysis) return;
+    setPhase("planning");
+    setError(null);
+    setProgressLabel("Designing your organization...");
+    try {
+      const res = await fetch("/api/company-builder?action=plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysis: editedAnalysis ?? analysis }),
+      });
+      const json = await res.json();
+      if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Plan generation failed");
+      setPlan(json.data.plan as CompanyPlan);
+      setPhase("plan");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate your plan");
+      setPhase("analysis");
     }
   };
 
-  const toggleAgent = (index: number) => {
-    const agent = agents[index];
-    if (!agent || agent.required) return;
-    const newAgents = [...agents];
-    newAgents[index] = { ...agent, selected: !agent.selected };
-    setAgents(newAgents);
-  };
-
-  const canProceed = () => {
-    switch (currentStep) {
-      case 0:
-        return organization.name.trim().length > 0;
-      case 1:
-        return constitution !== null;
-      case 2:
-        return agents.filter((a) => a.selected).length >= 1;
-      default:
-        return false;
+  const activateCompany = async () => {
+    if (!plan) return;
+    setPhase("activating");
+    setError(null);
+    setProgressLabel("Hiring your AI employees...");
+    try {
+      const res = await fetch("/api/company-builder?action=activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const json = await res.json();
+      if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Activation failed");
+      setActivation(json.data.activation as ActivationResult);
+      setPhase("done");
+      setTimeout(() => router.push("/app"), 2200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to activate your company");
+      setPhase("plan");
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-orq8-dark p-6">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-orq8-lime" />
-          <p className="mt-4 text-sm text-white/60">Loading your progress...</p>
-        </div>
-      </div>
-    );
-  }
+  const updateAnalysisField = (key: keyof CompanyAnalysis, value: string) => {
+    if (!editedAnalysis) return;
+    setEditedAnalysis({ ...editedAnalysis, [key]: value });
+  };
 
-  if (isComplete) {
+  // ── Loading state ──
+  if (isLoadingState) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-orq8-dark p-6">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-orq8-lime" />
-          <p className="mt-4 text-lg text-white">Setting up your organization...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-orq8-lime" />
       </div>
     );
   }
@@ -329,204 +239,480 @@ export default function OnboardingPage() {
             <span className="text-xl font-bold text-white">ORQ8</span>
             <span className="h-2 w-2 rounded-full bg-orq8-lime" />
           </div>
-          <span className="text-sm text-white/50">
-            Step {currentStep + 1} of {steps.length}
+          <span className="font-mono text-3xs uppercase tracking-[0.2em] text-white/40">
+            Company Builder
           </span>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-white/10">
-        <div
-          className="h-full bg-orq8-lime transition-all duration-300"
-          style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-        />
-      </div>
-
-      {/* Content */}
-      <div className="mx-auto max-w-2xl px-6 py-12">
-        <div className="mb-8">
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
-            Step {currentStep + 1}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-white">
-            {steps[currentStep]?.title}
-          </h1>
-          <p className="mt-2 text-white/60">{steps[currentStep]?.description}</p>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-900/30 border border-red-700/50 px-4 py-3 text-sm text-red-200">
-            {error}
-          </div>
-        )}
-
-        {/* Step 1: Organization */}
-        {currentStep === 0 && (
-          <div className="space-y-6">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
-                Organization Name *
-              </label>
-              <input
-                type="text"
-                value={organization.name}
-                onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
-                placeholder="My AI Company"
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-orq8-lime focus:bg-white/10"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
-                Description (optional)
-              </label>
-              <textarea
-                value={organization.description}
-                onChange={(e) => setOrganization({ ...organization, description: e.target.value })}
-                placeholder="What does your company do?"
-                rows={3}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-orq8-lime focus:bg-white/10"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-white/80">
-                Primary Objective (optional)
-              </label>
-              <textarea
-                value={organization.objective}
-                onChange={(e) => setOrganization({ ...organization, objective: e.target.value })}
-                placeholder="What is the main goal for your AI organization?"
-                rows={2}
-                className="w-full rounded-lg border border-white/20 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none transition-colors focus:border-orq8-lime focus:bg-white/10"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Constitution */}
-        {currentStep === 1 && (
-          <div className="space-y-4">
-            {constitutionTypes.map((type) => (
-              <button
-                key={type.type}
-                onClick={() => setConstitution(type)}
-                className={`w-full rounded-xl border p-5 text-left transition-all ${
-                  constitution?.type === type.type
-                    ? "border-orq8-lime bg-orq8-lime/5"
-                    : "border-white/10 hover:border-white/20"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{type.name}</h3>
-                    <p className="mt-1 text-sm text-white/60">{type.description}</p>
-                  </div>
-                  {constitution?.type === type.type && (
-                    <Check className="h-5 w-5 shrink-0 text-orq8-lime" />
-                  )}
-                </div>
-                <ul className="mt-4 space-y-2">
-                  {type.principles.map((principle) => (
-                    <li key={principle} className="flex items-center gap-2 text-sm text-white/70">
-                      <span className="h-1 w-1 rounded-full bg-orq8-lime" />
-                      {principle}
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Step 3: Agents */}
-        {currentStep === 2 && (
-          <div className="space-y-4">
-            <p className="text-sm text-white/60">
-              Select the AI employees for your organization. Required agents are pre-selected.
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        {/* ── PATH SELECTION ── */}
+        {phase === "path" && (
+          <div className="animate-fade-up">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              Welcome to ORQ8
             </p>
-            {agents.map((agent, index) => (
+            <h1 className="mt-3 text-3xl font-semibold text-white">How are you starting?</h1>
+            <p className="mt-3 max-w-xl text-white/60">
+              Tell us what you're building — ORQ8 will understand it, structure it, and build your
+              AI workforce to operate it.
+            </p>
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
               <button
-                key={agent.role}
-                onClick={() => toggleAgent(index)}
-                disabled={agent.required}
-                className={`w-full rounded-xl border p-4 text-left transition-all ${
-                  agent.selected
-                    ? "border-orq8-lime bg-orq8-lime/5"
-                    : "border-white/10 hover:border-white/20"
-                } ${agent.required ? "opacity-75" : ""}`}
+                onClick={() => startPath("idea")}
+                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06]"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                        agent.selected ? "bg-orq8-lime text-ink" : "bg-white/10 text-white/60"
-                      }`}
-                    >
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-white">{agent.name}</h3>
-                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-3xs uppercase text-white/50">
-                          {agent.role}
-                        </span>
-                        {agent.required && (
-                          <span className="rounded-full bg-orq8-lime/20 px-2 py-0.5 text-3xs text-orq8-lime">
-                            Required
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-white/60">{agent.description}</p>
-                    </div>
-                  </div>
-                  <div
-                    className={`mt-1 h-5 w-5 shrink-0 rounded border-2 ${
-                      agent.selected ? "border-orq8-lime bg-orq8-lime" : "border-white/30"
-                    }`}
-                  >
-                    {agent.selected && <Check className="h-4 w-4 text-ink" />}
-                  </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-lime/10 text-orq8-lime">
+                  <Lightbulb className="h-5 w-5" />
                 </div>
+                <h2 className="mt-4 text-lg font-semibold text-white">{sourceDescriptions.idea.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/50">{sourceDescriptions.idea.subtitle}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-lime">
+                  Start with an idea <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
               </button>
-            ))}
+
+              <button
+                onClick={() => startPath("existing")}
+                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06]"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-orange/10 text-orq8-orange">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <h2 className="mt-4 text-lg font-semibold text-white">{sourceDescriptions.existing.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/50">{sourceDescriptions.existing.subtitle}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-orange">
+                  Connect your company <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Navigation */}
-        <div className="mt-10 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className="flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white disabled:opacity-50 disabled:hover:text-white/60"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!canProceed() || isSaving}
-            className="flex items-center gap-2 rounded-lg bg-orq8-lime px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime/90 disabled:opacity-50 disabled:hover:bg-orq8-lime"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Setting up...
-              </>
-            ) : currentStep === steps.length - 1 ? (
-              <>
-                Enter Command Center
-                <ArrowRight className="h-4 w-4" />
-              </>
-            ) : (
-              <>
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        </div>
+        {/* ── DESCRIBE ── */}
+        {phase === "describe" && sourceType && (
+          <div className="animate-fade-up">
+            <button onClick={() => setPhase("path")} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              {sourceType === "idea" ? "Starting from an idea" : "Existing company"}
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">
+              {sourceType === "idea" ? "Tell ORQ8 about your idea" : "Tell ORQ8 about your company"}
+            </h1>
+            <p className="mt-3 text-white/60">
+              {sourceType === "idea"
+                ? "Describe your idea naturally — the problem, the customer, and what you want to build. ORQ8 will begin structuring it immediately."
+                : "Describe your existing company — what you do, your market, your team, and your current situation. ORQ8 will analyze it and propose how to build your AI workforce around it."}
+            </p>
+
+            <div className="mt-8">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => {
+                  if (description.trim().length >= 10) runAnalyze();
+                }}
+                placeholder={
+                  sourceType === "idea"
+                    ? "e.g. I'm building a SaaS platform that helps small businesses manage their finances..."
+                    : "e.g. We run a digital marketing agency with 5 clients, a team of 6, and a website at..."
+                }
+                rows={5}
+                className="w-full resize-none rounded-xl border border-white/20 bg-white/5 px-5 py-4 text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:bg-white/10"
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-white/35">
+                <span>{description.trim().length} characters</span>
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-orq8-lime" />
+                  ORQ8 analyzes as you describe — no forms needed
+                </span>
+              </div>
+            </div>
+
+            {/* Suggestions */}
+            <div className="mt-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-white/40">Not sure where to start? Try:</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {suggestionPrompts[sourceType].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setDescription(s)}
+                    className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:border-orq8-lime/50 hover:text-white"
+                  >
+                    {s.length > 70 ? s.slice(0, 70) + "…" : s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 flex items-center justify-between">
+              <span className="text-sm text-white/40">ORQ8 continues automatically after you describe your company.</span>
+              <button
+                onClick={runAnalyze}
+                disabled={description.trim().length < 10}
+                className="flex items-center gap-2 rounded-lg bg-orq8-lime px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime/90 disabled:opacity-40"
+              >
+                Analyze my company <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ANALYZING ── */}
+        {(phase === "analyzing" || phase === "planning") && (
+          <div className="animate-fade-in flex flex-col items-center py-24 text-center">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-orq8-lime animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-orq8-lime" />
+            </div>
+            <h2 className="mt-8 text-xl font-semibold text-white">
+              {phase === "analyzing" ? "Understanding your company" : "Designing your organization"}
+            </h2>
+            <p className="mt-2 max-w-md text-white/50">{progressLabel}</p>
+            <div className="mt-10 w-full max-w-sm space-y-3">
+              {["Building company context", "Extracting structure and priorities", "Preparing your operating plan"].map((step, i) => (
+                <div key={step} className="flex items-center gap-3 text-sm">
+                  {i === 0 ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-orq8-lime" />
+                  ) : (
+                    <Check className="h-4 w-4 text-orq8-lime/40" />
+                  )}
+                  <span className={i === 0 ? "text-white/80" : "text-white/40"}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── ANALYSIS REVIEW ── */}
+        {phase === "analysis" && editedAnalysis && (
+          <div className="animate-fade-up">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-orq8-lime" />
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+                ORQ8's understanding
+              </p>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold text-white">Here's what ORQ8 learned</h1>
+            <p className="mt-2 text-white/60">
+              Review and correct anything that's wrong. This becomes your Company Brain — the foundation of your AI workforce.
+            </p>
+
+            <div className="mt-8 space-y-6">
+              <Field label="Company name" value={editedAnalysis.companyName} onChange={(v) => updateAnalysisField("companyName", v)} placeholder="Your company or product name" />
+              <Field label="Description" value={editedAnalysis.description} onChange={(v) => updateAnalysisField("description", v)} textarea placeholder="What your company does" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Industry" value={editedAnalysis.industry} onChange={(v) => updateAnalysisField("industry", v)} placeholder="e.g. Fintech" />
+                <Field label="Target market" value={editedAnalysis.targetMarket} onChange={(v) => updateAnalysisField("targetMarket", v)} placeholder="Who your customers are" />
+              </div>
+              <Field label="Problem" value={editedAnalysis.problem} onChange={(v) => updateAnalysisField("problem", v)} textarea placeholder="The problem you solve" />
+              <Field label="Solution" value={editedAnalysis.solution} onChange={(v) => updateAnalysisField("solution", v)} textarea placeholder="How you solve it" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Business model" value={editedAnalysis.businessModel} onChange={(v) => updateAnalysisField("businessModel", v)} placeholder="How you make money" />
+                <Field label="Stage" value={editedAnalysis.stage} onChange={(v) => updateAnalysisField("stage", v)} placeholder="idea / launched / growing" />
+              </div>
+
+              {/* Priorities */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-white/80">Priorities</label>
+                <div className="space-y-2">
+                  {editedAnalysis.priorities.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-lime" />
+                      <input
+                        value={p}
+                        onChange={(e) => {
+                          const next = [...editedAnalysis.priorities];
+                          next[i] = e.target.value;
+                          setEditedAnalysis({ ...editedAnalysis, priorities: next });
+                        }}
+                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-orq8-lime"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Risks */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-white/80">Risks & unknowns</label>
+                <div className="space-y-2">
+                  {editedAnalysis.risks.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-orange" />
+                      <input
+                        value={r}
+                        onChange={(e) => {
+                          const next = [...editedAnalysis.risks];
+                          next[i] = e.target.value;
+                          setEditedAnalysis({ ...editedAnalysis, risks: next });
+                        }}
+                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-orq8-lime"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {error && <ErrorBanner message={error} />}
+
+            <div className="mt-10 flex items-center justify-between">
+              <button
+                onClick={() => setPhase("describe")}
+                className="flex items-center gap-2 text-sm text-white/50 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" /> Redo description
+              </button>
+              <p className="hidden text-xs text-white/35 sm:block">Your corrections are included in the plan.</p>
+              <button
+                onClick={generatePlan}
+                className="flex items-center gap-2 rounded-lg bg-orq8-lime px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime/90"
+              >
+                Design my organization <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── PLAN REVIEW ── */}
+        {phase === "plan" && plan && (
+          <div className="animate-fade-up">
+            <div className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-orq8-lime" />
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+                Your Operating Plan
+              </p>
+            </div>
+            <h1 className="mt-3 text-3xl font-semibold text-white">Your ORQ8 company is ready to form</h1>
+            <p className="mt-3 max-w-2xl text-white/60">{plan.rationale}</p>
+
+            {error && <ErrorBanner message={error} />}
+
+            <div className="mt-10 space-y-10">
+              {/* Departments */}
+              <section>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-orq8-orange" />
+                  <h2 className="text-lg font-semibold text-white">Departments ({plan.departments.length})</h2>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {plan.departments.map((d) => (
+                    <div key={d.name} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <h3 className="font-semibold text-white">{d.name}</h3>
+                      <p className="mt-1 text-sm text-white/50">{d.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* AI Employees */}
+              <section>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-orq8-lime" />
+                  <h2 className="text-lg font-semibold text-white">AI Employees ({plan.agents.length})</h2>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {plan.agents.map((a) => (
+                    <div key={a.role + a.name} className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10 text-sm font-bold text-orq8-lime">
+                          {a.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-white">{a.name}</h3>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-3xs uppercase tracking-wide text-white/50">{a.role}</span>
+                          </div>
+                          <p className="text-sm text-white/40">Department: {a.department}</p>
+                        </div>
+                      </div>
+                      {a.responsibilities.length > 0 && (
+                        <ul className="mt-3 space-y-1.5">
+                          {a.responsibilities.map((r, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-white/60">
+                              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orq8-lime" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {a.capabilities.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {a.capabilities.map((c, i) => (
+                            <span key={i} className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-3xs text-white/50">{c}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Goals */}
+              <section>
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-orq8-orange" />
+                  <h2 className="text-lg font-semibold text-white">Goals ({plan.goals.length})</h2>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {plan.goals.map((g, i) => (
+                    <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-white">{g.title}</h3>
+                        <span className={`rounded-full px-2.5 py-0.5 text-3xs uppercase ${
+                          g.priority === "urgent" ? "bg-orq8-orange/20 text-orq8-orange"
+                          : g.priority === "high" ? "bg-orq8-lime/15 text-orq8-lime"
+                          : "bg-white/10 text-white/50"
+                        }`}>
+                          {g.priority}
+                        </span>
+                      </div>
+                      {g.description && <p className="mt-1 text-sm text-white/50">{g.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Tasks */}
+              <section>
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-orq8-lime" />
+                  <h2 className="text-lg font-semibold text-white">Initial tasks ({plan.tasks.length})</h2>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {plan.tasks.map((t, i) => (
+                    <div key={i} className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-3xs text-white/60">{i + 1}</span>
+                      <div>
+                        <p className="text-sm font-medium text-white">{t.title}</p>
+                        <p className="mt-0.5 text-3xs text-white/40">
+                          {t.agentRole} · {plan.goals[t.goalIndex]?.title ?? "Company goal"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6">
+              <button
+                onClick={() => setPhase("analysis")}
+                className="flex items-center gap-2 text-sm text-white/50 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to understanding
+              </button>
+              <button
+                onClick={activateCompany}
+                className="flex items-center gap-2 rounded-xl bg-orq8-lime px-8 py-3.5 text-sm font-semibold text-ink transition-all hover:bg-orq8-lime/90 hover:shadow-lg hover:shadow-orq8-lime/20"
+              >
+                <Sparkles className="h-4 w-4" />
+                Activate my company
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ACTIVATING ── */}
+        {phase === "activating" && (
+          <div className="animate-fade-in flex flex-col items-center py-24 text-center">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-orq8-lime animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-orq8-lime" />
+            </div>
+            <h2 className="mt-8 text-xl font-semibold text-white">Building your company</h2>
+            <p className="mt-2 text-white/50">{progressLabel}</p>
+            <div className="mt-10 w-full max-w-sm space-y-3 text-left">
+              {[
+                "Creating departments",
+                "Hiring AI employees",
+                "Setting goals and tasks",
+                "Seeding your Company Brain",
+              ].map((step, i) => (
+                <div key={step} className="flex items-center gap-3 text-sm">
+                  {i < 2 ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-orq8-lime" />
+                  ) : (
+                    <Check className="h-4 w-4 text-orq8-lime/40" />
+                  )}
+                  <span className={i < 2 ? "text-white/80" : "text-white/40"}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── DONE ── */}
+        {phase === "done" && activation && (
+          <div className="animate-fade-up flex flex-col items-center py-24 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orq8-lime/15">
+              <Check className="h-10 w-10 text-orq8-lime" />
+            </div>
+            <h1 className="mt-6 text-3xl font-semibold text-white">Your company is operational</h1>
+            <p className="mt-3 max-w-md text-white/60">
+              ORQ8 has built your AI workforce and is preparing your command center.
+            </p>
+            <div className="mt-10 grid w-full max-w-lg grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Departments" value={activation.departments.length} />
+              <Stat label="AI Employees" value={activation.agents.length} />
+              <Stat label="Goals" value={activation.goals.length} />
+              <Stat label="Tasks" value={activation.tasks.length} />
+            </div>
+            <Loader2 className="mt-10 h-5 w-5 animate-spin text-orq8-lime" />
+            <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ─── Small presentational components ────────────────────────────────────────
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  textarea,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  textarea?: boolean;
+}) {
+  const cls =
+    "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime";
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-white/80">{label}</label>
+      {textarea ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={2} className={`${cls} resize-none`} />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-1 text-3xs uppercase tracking-wide text-white/40">{label}</p>
+    </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="mt-6 rounded-lg border border-red-700/50 bg-red-900/30 px-4 py-3 text-sm text-red-200">
+      {message}
     </div>
   );
 }

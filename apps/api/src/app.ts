@@ -44,6 +44,7 @@ import { registerAgentMemoryRoutes } from './routes/agent-memory.js';
 import { registerFeedbackRoutes } from './routes/feedback.js';
 import { registerMigrationRoutes } from './routes/migration.js';
 import { registerQualityRoutes } from './routes/quality.js';
+import { registerCompanyBuilderRoutes } from './routes/company-builder.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
@@ -232,6 +233,7 @@ export async function buildApp(
   registerFeedbackRoutes(app, deps);
   registerMigrationRoutes(app, deps);
   registerQualityRoutes(app, deps);
+  registerCompanyBuilderRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
 
   // Register all built-in tools for the AI workforce

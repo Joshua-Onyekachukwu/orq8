@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageErrorBoundary } from "../../../../components/page-error-boundary";
+import { CommandBar } from "../../../../components/command-bar";
 import {
   ArrowLeft,
   Target,
@@ -21,6 +22,7 @@ import {
   Calendar,
   Shield,
   ArrowUpRight,
+  Command,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -389,6 +391,23 @@ export default function GoalDetailPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* ── Contextual Executive Agent — knows this goal ── */}
+            <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <Command className="h-4 w-4 text-orq8-green" />
+                <p className="text-xs font-semibold text-muted">
+                  Executive Agent <span className="font-normal text-muted">— working on “{goal.title}”</span>
+                </p>
+              </div>
+              <CommandBar
+                context={{
+                  page: "goal-detail",
+                  goalId: goal.id,
+                  goalTitle: goal.title,
+                }}
+              />
             </div>
 
             {/* ── Health + AI Employees side by side ── */}

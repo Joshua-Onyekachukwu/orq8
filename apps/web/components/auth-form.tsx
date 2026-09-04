@@ -112,7 +112,8 @@ export function AuthForm({
         }
         return;
       }
-      router.push(target ?? "/app");
+      // New founders go through the Company Builder; returning users go to dashboard.
+      router.push(mode === "register" ? "/onboarding" : (target ?? "/app"));
       router.refresh();
     } catch {
       setError("Network error. Is the API running?");

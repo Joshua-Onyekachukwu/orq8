@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageErrorBoundary } from "../../../../components/page-error-boundary";
+import { CommandBar } from "../../../../components/command-bar";
 import {
   ArrowLeft,
   Pause,
@@ -14,6 +15,7 @@ import {
   Target,
   Activity as ActivityIcon,
   Clock,
+  Command,
 } from "lucide-react";
 
 interface Agent {
@@ -291,6 +293,24 @@ export default function AgentDetailPage() {
                   </dd>
                 </div>
               </dl>
+            </div>
+
+            {/* Contextual Executive Agent — knows this employee */}
+            <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <Command className="h-4 w-4 text-orq8-green" />
+                <p className="text-xs font-semibold text-muted">
+                  Executive Agent <span className="font-normal text-muted">— directing “{agent.name}”</span>
+                </p>
+              </div>
+              <CommandBar
+                context={{
+                  page: "agent-detail",
+                  agentId: agent.id,
+                  agentName: agent.name,
+                  departmentName: agent.department ?? undefined,
+                }}
+              />
             </div>
 
             {/* Tasks */}

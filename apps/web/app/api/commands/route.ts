@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         ...proxyAuthHeaders(token, "application/json"),
       },
-      body: JSON.stringify({ command }),
+      body: JSON.stringify({ command, context: body.context }),
     });
 
     const data = await res.json().catch(() => null);

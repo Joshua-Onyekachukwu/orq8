@@ -10,6 +10,21 @@ import type { AppDeps } from '../types.js';
 
 const commandBody = z.object({
   command: z.string().trim().min(3).max(2000),
+  // Optional founder context so the Executive Agent understands what the
+  // founder is looking at (e.g. viewing a goal → "break this down").
+  context: z
+    .object({
+      page: z.string().max(100).optional(),
+      goalId: z.string().uuid().optional(),
+      goalTitle: z.string().max(200).optional(),
+      agentId: z.string().uuid().optional(),
+      agentName: z.string().max(200).optional(),
+      departmentId: z.string().uuid().optional(),
+      departmentName: z.string().max(200).optional(),
+      taskId: z.string().uuid().optional(),
+      taskTitle: z.string().max(200).optional(),
+    })
+    .optional(),
 });
 
 export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -37,6 +52,24 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
 
     logger.info({ orgId: ctx.orgId, userId: ctx.userId, command: parsed.data.command }, 'Executive Agent: processing command');
 
+    // Build a human-readable context note from the founder's current view
+    const c = parsed.data.context;
+    const contextParts: string[] = [];
+    if (c?.goalTitle || c?.goalId) {
+      contextParts.push(`viewing goal "${c.goalTitle ?? c.goalId}"`);
+    }
+    if (c?.agentName || c?.agentId) {
+      contextParts.push(`viewing AI employee "${c.agentName ?? c.agentId}"`);
+    }
+    if (c?.departmentName || c?.departmentId) {
+      contextParts.push(`viewing department "${c.departmentName ?? c.departmentId}"`);
+    }
+    if (c?.taskTitle || c?.taskId) {
+      contextParts.push(`viewing task "${c.taskTitle ?? c.taskId}"`);
+    }
+    if (c?.page) contextParts.push(`on page ${c.page}`);
+    const contextNote = contextParts.length > 0 ? contextParts.join(', ') : undefined;
+
     try {
       const result = await executiveAgent.executeCommand(
         config,
@@ -44,6 +77,7 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
         ctx.orgId,
         ctx.userId,
         parsed.data.command,
+        contextNote,
       );
 
       logger.info({ commandId: result.commandId, status: result.status, taskCount: result.taskIds.length }, 'Executive Agent: command processed');

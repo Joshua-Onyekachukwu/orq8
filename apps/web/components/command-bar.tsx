@@ -31,7 +31,19 @@ interface CommandResult {
   warnings?: any[];
 }
 
-export function CommandBar() {
+export interface CommandContext {
+  page?: string;
+  goalId?: string;
+  goalTitle?: string;
+  agentId?: string;
+  agentName?: string;
+  departmentId?: string;
+  departmentName?: string;
+  taskId?: string;
+  taskTitle?: string;
+}
+
+export function CommandBar({ context }: { context?: CommandContext }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
@@ -73,7 +85,7 @@ export function CommandBar() {
       const response = await fetch("/api/commands", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify({ command, context }),
       });
       const data = await response.json();
       const newResult = data?.data ?? data;

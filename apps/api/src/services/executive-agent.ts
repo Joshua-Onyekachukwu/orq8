@@ -315,12 +315,19 @@ export async function analyzeIntent(
   ctx: ExecutiveContext,
   command: string,
   commandId?: string,
+  contextNote?: string,
 ): Promise<IntentAnalysis> {
   const contextPrompt = buildContextPrompt(ctx);
   const fullSystemPrompt = `${EXECUTIVE_AGENT_SYSTEM_PROMPT}\n\n${contextPrompt}`;
 
+  // Context-aware commands: if the founder is viewing a goal/agent/page, make
+  // the intent analysis aware of it so "break this down" resolves correctly.
+  const userMessage = contextNote
+    ? `[Current founder context: ${contextNote}]\n\nCommand: ${command}`
+    : command;
+
   // Try LLM with tracing
-  const llmResult = await chatJson<IntentAnalysis>(config, fullSystemPrompt, command, {
+  const llmResult = await chatJson<IntentAnalysis>(config, fullSystemPrompt, userMessage, {
     temperature: 0.3,
     max_tokens: 1024,
     _trace: {
@@ -602,6 +609,7 @@ export async function executeCommand(
   orgId: string,
   userId: string,
   command: string,
+  contextNote?: string,
 ): Promise<ExecutionResult> {
   const commandId = crypto.randomUUID();
   const startTime = Date.now();
@@ -632,7 +640,7 @@ export async function executeCommand(
   const intentStep = startStep(trace, 'intent_analysis');
   let intent: IntentAnalysis;
   try {
-    intent = await analyzeIntent(config, ctx, command, commandId);
+    intent = await analyzeIntent(config, ctx, command, commandId, contextNote);
 
     const intentError = validateIntent(intent);
     if (intentError) {
