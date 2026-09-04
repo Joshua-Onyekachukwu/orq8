@@ -581,21 +581,34 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
-  /** GET /v1/admin/providers — Provider health and configuration status. */
+  /** GET /v1/admin/providers — Provider health and configuration status with real-time probing. */
   app.get('/v1/admin/providers', async (request) => {
     await requirePlatformAdmin(request, deps);
 
-    const providers = [];
-    const nvidiaKeys = (deps.config as any).nvidiaApiKeys ?? [];
-    providers.push({ name: 'NVIDIA', slug: 'nvidia', configured: nvidiaKeys.length > 0, keyCount: nvidiaKeys.length, status: nvidiaKeys.length > 0 ? 'configured' : 'not_configured' });
+    const { probeAllProviders } = await import('../services/provider-health.js');
+    const healthResult = await probeAllProviders(deps.config);
 
-    const openrouterKey = (deps.config as any).openrouterApiKey ?? '';
-    providers.push({ name: 'OpenRouter', slug: 'openrouter', configured: !!openrouterKey, keyCount: openrouterKey ? 1 : 0, status: openrouterKey ? 'configured' : 'not_configured' });
+    // Also get circuit breaker states
+    const { getAllCircuitStates } = await import('../services/circuit-breaker.js');
+    const circuits = getAllCircuitStates();
 
-    const ollamaUrl = (deps.config as any).ollamaBaseUrl ?? '';
-    providers.push({ name: 'Ollama (Local)', slug: 'ollama', configured: !!ollamaUrl, keyCount: ollamaUrl ? 1 : 0, status: ollamaUrl ? 'configured' : 'not_configured' });
+    // Merge circuit breaker state into provider results
+    const providers = healthResult.providers.map((p) => {
+      const circuit = circuits.find((c) => c.providerId === p.slug);
+      return {
+        ...p,
+        circuitBreaker: circuit ? {
+          state: circuit.state,
+          failureCount: circuit.failureCount,
+          cooldownRemainingMs: circuit.cooldownRemainingMs,
+        } : null,
+      };
+    });
 
-    return { data: providers };
+    return {
+      data: providers,
+      summary: healthResult.summary,
+    };
   });
 
   /** GET /v1/admin/audit — Platform audit trail. */
