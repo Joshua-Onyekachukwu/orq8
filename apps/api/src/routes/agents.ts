@@ -61,6 +61,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** Get a single agent. */
   app.get<{ Params: { id: string } }>('/v1/agents/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Validate UUID format to prevent SQL errors on malformed IDs
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(request.params.id)) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found' } };
+    }
     const agent = await agents.findById(db, ctx.orgId, request.params.id);
     if (!agent) {
       reply.code(404);
@@ -156,6 +161,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     '/v1/agents/:id',
     async (request, reply) => {
       const ctx = await requireAuth(request, deps);
+      // Validate UUID format to prevent SQL errors on malformed IDs
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(request.params.id)) {
+        reply.code(404);
+        return { error: { code: 'not_found', message: 'Agent not found' } };
+      }
       const parsed = patchBody.safeParse(request.body);
       if (!parsed.success) throw validation(parsed.error.flatten());
 

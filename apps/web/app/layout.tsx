@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description:
     "Tell ORQ8 what you want. It hires the team, does the work, and reports back. The AI Organization Operating System for one-person companies.",
   icons: {
-    icon: "/images/logo.svg",
+    icon: "/favicon.png",
     apple: "/images/logo-white.png",
   },
 };

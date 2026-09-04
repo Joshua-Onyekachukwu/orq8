@@ -98,7 +98,7 @@ export function AppSidebar({
       <div className="flex h-16 items-center justify-between border-b border-white/[0.06] px-5">
         <Link href="/app" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.svg" alt="ORQ8" className="h-8 w-auto" />
+          <img src="/images/logo-white.png" alt="ORQ8" className="h-8 w-auto" />
         </Link>
         <button
           onClick={() => setMobileOpen(false)}

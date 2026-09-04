@@ -1,22 +1,47 @@
 -- ORQ8 Supabase RLS Policies
 -- Run this in the Supabase SQL Editor
--- These policies protect the most sensitive tables: agents, approvals, credits
--- ORQ8 manages its own PostgreSQL (via Drizzle), so these policies are for
--- the Supabase-hosted tables that sync or shadow ORQ8 data.
+-- Fixed: tables created before functions, reserved words quoted
 
 -- ============================================================
--- 1. Enable RLS on all tables
+-- 1. Create helper tables FIRST (functions reference them)
 -- ============================================================
 
--- Note: These policies apply to Supabase's own auth.users table
--- and any additional tables you create in Supabase for auth-related data.
+-- User-Org Mapping Table (for RLS lookups)
+CREATE TABLE IF NOT EXISTS public.user_org_mapping (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  org_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  PRIMARY KEY (user_id, org_id)
+);
 
--- For ORQ8's main tables (agents, approvals, credits), the protection is
--- already handled by ORQ8's server-side requireAuth() + orgId scoping.
--- These RLS policies add a SECOND layer of defense at the database level.
+ALTER TABLE public.user_org_mapping ENABLE ROW LEVEL SECURITY;
+
+-- Users can only see their own mapping
+CREATE POLICY "users_own_mapping" ON public.user_org_mapping
+  FOR SELECT USING (auth.uid() = user_id);
 
 -- ============================================================
--- 2. Auth helper function
+-- 2. Platform Admins Table
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.platform_admins (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.platform_admins ENABLE ROW LEVEL SECURITY;
+
+-- Only admins can see admin list
+CREATE POLICY "admins_only" ON public.platform_admins
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.platform_admins
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- ============================================================
+-- 3. Auth helper functions (after tables exist)
 -- ============================================================
 
 -- Function to get the current user's org_id from their JWT metadata
@@ -38,39 +63,7 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ============================================================
--- 3. User-Org Mapping Table (for RLS lookups)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.user_org_mapping (
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  org_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member',
-  PRIMARY KEY (user_id, org_id)
-);
-
-ALTER TABLE public.user_org_mapping ENABLE ROW LEVEL SECURITY;
-
--- Users can only see their own mapping
-CREATE POLICY "users_own_mapping" ON public.user_org_mapping
-  FOR SELECT USING (auth.uid() = user_id);
-
--- ============================================================
--- 4. Platform Admins Table
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.platform_admins (
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.platform_admins ENABLE ROW LEVEL SECURITY;
-
--- Only admins can see admin list
-CREATE POLICY "admins_only" ON public.platform_admins
-  FOR SELECT USING (public.is_platform_admin());
-
--- ============================================================
--- 5. Sync trigger — when a user signs up via Supabase Auth,
+-- 4. Sync trigger — when a user signs up via Supabase Auth,
 --    automatically create their org mapping if not exists
 -- ============================================================
 
@@ -91,21 +84,14 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================
--- 6. Notes on ORQ8's main tables
+-- 5. Notes on ORQ8's main tables
 -- ============================================================
 
 -- ORQ8's main PostgreSQL tables (agents, approvals, tasks, goals, etc.)
 -- are managed by Drizzle ORM and connected via direct PostgreSQL connection.
 -- These tables already have org_id scoping via requireAuth() middleware.
 --
--- If you want to add RLS to these tables in the future, you would:
---
--- 1. Create views or materialized views in Supabase that mirror ORQ8 tables
--- 2. Add RLS policies on those views
--- 3. Or use Supabase's Foreign Data Wrapper to connect to ORQ8's PostgreSQL
---
--- For now, the RLS protection is:
---   Layer 1: ORQ8 server-side (requireAuth + orgId scoping)
---   Layer 2: This Supabase auth layer (for auth-related data)
+-- Layer 1: ORQ8 server-side (requireAuth + orgId scoping)
+-- Layer 2: This Supabase auth layer (for auth-related data)
 --
 -- This is sufficient for the MVP. Add deeper RLS when scaling.

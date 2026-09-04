@@ -190,7 +190,7 @@ create table if not exists public.audit_events (
   tool text,
   input_ref text,
   result_ref text,
-  authorization text,
+  "authorization" text,
   approval_id uuid,
   policy_ref text,
   cost integer,
