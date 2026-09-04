@@ -1,4 +1,4 @@
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
@@ -640,22 +640,69 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (!['active', 'suspended', 'disabled'].includes(status)) {
       return reply.status(400).send({ error: { code: 'validation', message: 'Status must be active, suspended, or disabled' } });
     }
+
+    // Prevent self-suspension
+    if (request.params.id === ctx.userId && status !== 'active') {
+      return reply.status(400).send({ error: { code: 'validation', message: 'Cannot suspend or disable your own account' } });
+    }
+
+    // Get the target user first
+    const [targetUser] = await db
+      .select({ id: users.id, email: users.email, name: users.name, status: users.status })
+      .from(users)
+      .where(eq(users.id, request.params.id))
+      .limit(1);
+
+    if (!targetUser) {
+      return reply.status(404).send({ error: { code: 'not_found', message: 'User not found' } });
+    }
+
+    // Update user status
     const result = await db
       .update(users)
       .set({ status, updatedAt: new Date() })
       .where(eq(users.id, request.params.id))
       .returning();
-    if (result.length === 0) {
-      return reply.status(404).send({ error: { code: 'not_found', message: 'User not found' } });
+
+    // If suspending/disabling, revoke all active sessions
+    if (status === 'suspended' || status === 'disabled') {
+      const { sessions: sessionsTable } = await import('@orq8/db');
+      await db
+        .update(sessionsTable)
+        .set({ revokedAt: new Date() })
+        .where(
+          and(
+            eq(sessionsTable.userId, request.params.id),
+            sql`${sessionsTable.revokedAt} IS NULL`,
+          ),
+        );
     }
+
+    // Audit the action with full context
     await appendAudit(db, {
       orgId: '00000000-0000-0000-0000-000000000000',
       actorType: 'user',
       actorId: ctx.userId,
       action: `admin.user.${status}`,
+      inputRef: JSON.stringify({
+        targetUserId: targetUser.id,
+        targetEmail: targetUser.email,
+        targetName: targetUser.name,
+        previousStatus: targetUser.status,
+        newStatus: status,
+      }),
       outcome: 'success',
     });
-    return { data: result[0] };
+
+    return {
+      data: {
+        id: result[0]?.id,
+        email: result[0]?.email,
+        name: result[0]?.name,
+        status: result[0]?.status,
+        updatedAt: result[0]?.updatedAt,
+      },
+    };
   });
 
   // ── MODEL ROUTER MONITORING ──
