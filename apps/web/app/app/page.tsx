@@ -17,6 +17,7 @@ import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
 import { ExecutiveAgentPanel } from "../../components/dashboard/ExecutiveAgentPanel";
 import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
 import { HealthScore } from "../../components/dashboard/HealthScore";
+import { GoalExecutionPanel } from "../../components/dashboard/GoalExecutionPanel";
 import { fetchWithAuth, formatCost } from "../../lib/api";
 
 export const metadata = { title: "Dashboard — ORQ8" };
@@ -282,18 +283,26 @@ export default async function AppPage() {
         />
       </div>
 
-      {/* Company Health Score */}
-      <HealthScore
-        activeAgents={activeAgents}
-        totalAgents={agentList.length}
-        completedTasks={completedTasks}
-        totalTasks={totalTasks}
-        creditsRemaining={credits?.remaining ?? 0}
-        creditsTotal={credits?.total ?? 100}
-        pendingApprovals={pendingApprovals}
-        activeGoals={dashboard?.active_goals ?? 0}
-        totalGoals={dashboard?.total_goals ?? 0}
-      />
+      {/* Company Health + Goal Execution — side by side */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <HealthScore
+          activeAgents={activeAgents}
+          totalAgents={agentList.length}
+          completedTasks={completedTasks}
+          totalTasks={totalTasks}
+          creditsRemaining={credits?.remaining ?? 0}
+          creditsTotal={credits?.total ?? 100}
+          pendingApprovals={pendingApprovals}
+          activeGoals={dashboard?.active_goals ?? 0}
+          totalGoals={dashboard?.total_goals ?? 0}
+        />
+        <GoalExecutionPanel
+          totalGoals={dashboard?.total_goals ?? 0}
+          activeGoals={dashboard?.active_goals ?? 0}
+          completedTasks={completedTasks}
+          totalTasks={totalTasks}
+        />
+      </div>
 
       {/* Two-column layout: Executive Agent + Activity Feed */}
       <div className="grid gap-6 lg:grid-cols-5">

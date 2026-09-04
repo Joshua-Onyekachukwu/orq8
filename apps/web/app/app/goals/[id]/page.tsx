@@ -11,9 +11,19 @@ import {
   Clock,
   AlertCircle,
   RefreshCw,
-  Loader2,
+  Bot,
   ListChecks,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
+  DollarSign,
+  Calendar,
+  Shield,
+  ArrowUpRight,
 } from "lucide-react";
+
+/* ── Types ── */
 
 interface Goal {
   id: string;
@@ -34,6 +44,7 @@ interface Task {
   status: string;
   priority: string;
   agentId: string | null;
+  goalId: string | null;
   dueDate: string | null;
   cost: number;
   result: string | null;
@@ -44,7 +55,23 @@ interface Agent {
   id: string;
   name: string;
   role: string;
+  department: string | null;
+  status: string;
 }
+
+interface ActivityEvent {
+  id: number;
+  agentId: string | null;
+  taskId: string | null;
+  type: string;
+  summary: string;
+  reason: string | null;
+  cost: number;
+  department: string | null;
+  occurredAt: string;
+}
+
+/* ── Helpers ── */
 
 function priorityBadge(priority: string) {
   switch (priority) {
@@ -58,18 +85,29 @@ function priorityBadge(priority: string) {
 function statusBadge(status: string) {
   switch (status) {
     case "completed": return "bg-[#B8FF66]/10 text-[#1a5c2e]";
+    case "active": return "bg-blue-50 text-blue-700";
     case "paused": return "bg-amber-50 text-amber-700";
     case "cancelled": return "bg-gray-100 text-gray-500";
-    default: return "bg-blue-50 text-blue-700";
+    default: return "bg-gray-100 text-gray-600";
   }
 }
 
 function taskStatusIcon(status: string) {
   switch (status) {
     case "completed": return <CheckCircle2 className="h-4 w-4 text-[#1a5c2e]" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-blue-500" />;
+    case "in_progress": return <Clock className="h-4 w-4 text-[#E86A33]" />;
     case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-muted" />;
+    default: return <Clock className="h-4 w-4 text-gray-400" />;
+  }
+}
+
+function taskStatusLabel(status: string) {
+  switch (status) {
+    case "completed": return "Completed";
+    case "in_progress": return "In Progress";
+    case "failed": return "Failed";
+    case "pending": return "Pending";
+    default: return status;
   }
 }
 
@@ -89,6 +127,70 @@ function formatDueDate(dateStr: string | null): string {
   }
 }
 
+function formatCost(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function getGoalHealth(
+  goal: Goal,
+  tasks: Task[]
+): { label: string; icon: React.ElementType; color: string; bg: string; description: string } {
+  if (goal.status === "completed") {
+    return { label: "Achieved", icon: CheckCircle2, color: "text-[#1a5c2e]", bg: "bg-[#B8FF66]/10", description: "This goal has been completed." };
+  }
+  if (goal.status === "cancelled") {
+    return { label: "Cancelled", icon: AlertCircle, color: "text-gray-500", bg: "bg-gray-100", description: "This goal has been cancelled." };
+  }
+
+  const completed = tasks.filter(t => t.status === "completed").length;
+  const failed = tasks.filter(t => t.status === "failed").length;
+  const inProgress = tasks.filter(t => t.status === "in_progress").length;
+
+  // Check overdue
+  if (goal.dueDate) {
+    const due = new Date(goal.dueDate);
+    const now = new Date();
+    if (due < now && goal.progress < 100) {
+      return { label: "Overdue", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50", description: "This goal is past its deadline and not yet complete." };
+    }
+  }
+
+  // Check blocked (failed tasks)
+  if (failed > 0 && completed === 0) {
+    return { label: "At Risk", icon: TrendingDown, color: "text-red-500", bg: "bg-red-50", description: "Tasks are failing with no completions yet." };
+  }
+
+  // Check stalled
+  if (inProgress === 0 && completed === 0 && tasks.length > 0) {
+    return { label: "Stalled", icon: Minus, color: "text-amber-600", bg: "bg-amber-50", description: "No tasks are in progress." };
+  }
+
+  // On track
+  if (goal.progress >= 50) {
+    return { label: "On Track", icon: TrendingUp, color: "text-[#1a5c2e]", bg: "bg-[#B8FF66]/10", description: "Making good progress toward completion." };
+  }
+
+  return { label: "In Progress", icon: Clock, color: "text-blue-600", bg: "bg-blue-50", description: "Work is underway." };
+}
+
+/* ── Tab type ── */
+type TaskTab = "all" | "completed" | "in_progress" | "pending" | "failed";
+
+/* ── Component ── */
+
 export default function GoalDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
@@ -96,8 +198,10 @@ export default function GoalDetailPage() {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TaskTab>("all");
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -105,16 +209,25 @@ export default function GoalDetailPage() {
     try {
       const [goalRes, tasksRes, agentsRes] = await Promise.all([
         fetch(`/api/goals/${id}`),
-        fetch(`/api/tasks?goal_id=${id}&limit=50`),
+        fetch(`/api/tasks?goal_id=${id}&limit=100`),
         fetch("/api/agents"),
       ]);
       if (!goalRes.ok) throw new Error("Failed to load goal");
       const goalJson = await goalRes.json();
       setGoal(goalJson.data ?? null);
       const tasksJson = await tasksRes.json().catch(() => null);
-      setTasks(tasksJson?.data ?? []);
+      const taskList: Task[] = tasksJson?.data ?? [];
+      setTasks(taskList);
       const agentsJson = await agentsRes.json().catch(() => null);
       setAgents(agentsJson?.data ?? []);
+
+      // Fetch activity for tasks in this goal
+      if (taskList.length > 0) {
+        const taskIds = taskList.map(t => t.id).join(",");
+        const actRes = await fetch(`/api/activity?task_ids=${taskIds}&limit=20`);
+        const actJson = await actRes.json().catch(() => null);
+        setActivity(actJson?.data ?? []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load goal");
     } finally {
@@ -126,13 +239,31 @@ export default function GoalDetailPage() {
     fetchAll();
   }, [fetchAll]);
 
-  const agentMap = new Map(agents.map((a) => [a.id, a]));
-  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const agentMap = new Map(agents.map(a => [a.id, a]));
+  const completedTasks = tasks.filter(t => t.status === "completed");
+  const inProgressTasks = tasks.filter(t => t.status === "in_progress");
+  const pendingTasks = tasks.filter(t => t.status === "pending");
+  const failedTasks = tasks.filter(t => t.status === "failed");
+  const totalCost = tasks.reduce((sum, t) => sum + t.cost, 0);
+
+  // Agents working on this goal
+  const assignedAgentIds = new Set(tasks.filter(t => t.agentId).map(t => t.agentId!));
+  const assignedAgents = agents.filter(a => assignedAgentIds.has(a.id));
+
+  // Health
+  const health = goal ? getGoalHealth(goal, tasks) : null;
+
+  // Filtered tasks by tab
+  const filteredTasks = activeTab === "all" ? tasks
+    : activeTab === "completed" ? completedTasks
+    : activeTab === "in_progress" ? inProgressTasks
+    : activeTab === "pending" ? pendingTasks
+    : failedTasks;
 
   if (loading && !goal) {
     return (
       <PageErrorBoundary pageName="Goal" backHref="/app/goals">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-5xl">
           <div className="animate-pulse space-y-4">
             <div className="h-5 w-32 rounded bg-hairline" />
             <div className="h-40 rounded-xl border border-hairline bg-white p-6" />
@@ -145,7 +276,7 @@ export default function GoalDetailPage() {
 
   return (
     <PageErrorBoundary pageName="Goal" backHref="/app/goals">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <Link
           href="/app/goals"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
@@ -180,7 +311,7 @@ export default function GoalDetailPage() {
           </div>
         ) : (
           <>
-            {/* Goal card */}
+            {/* ── Goal Overview ── */}
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -204,15 +335,6 @@ export default function GoalDetailPage() {
                         {goal.description}
                       </p>
                     )}
-                    <p className="mt-2 flex items-center gap-3 text-xs text-muted">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatDueDate(goal.dueDate)}
-                      </span>
-                      <span>
-                        {completedTasks}/{tasks.length} tasks completed
-                      </span>
-                    </p>
                   </div>
                 </div>
                 <button
@@ -226,43 +348,209 @@ export default function GoalDetailPage() {
                 </button>
               </div>
 
-              {/* Progress */}
-              <div className="mt-6">
+              {/* Goal meta row */}
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatDueDate(goal.dueDate)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <ListChecks className="h-3.5 w-3.5" />
+                  {completedTasks.length}/{tasks.length} tasks completed
+                </span>
+                {totalCost > 0 && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {formatCost(totalCost)} total cost
+                  </span>
+                )}
+                <span className="text-gray-300">·</span>
+                <span className="text-gray-400">
+                  Created {new Date(goal.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mt-5">
                 <div className="flex items-center justify-between text-xs text-muted">
                   <span className="font-mono text-[10px] font-semibold uppercase tracking-wide">
                     Progress
                   </span>
                   <span className="font-mono tabular-nums">{goal.progress}%</span>
                 </div>
-                <div className="mt-1.5 h-2 rounded-full bg-muted/10 overflow-hidden">
+                <div className="mt-1.5 h-2.5 rounded-full bg-muted/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#1a5c2e] transition-all"
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      goal.progress >= 80 ? "bg-[#1a5c2e]" :
+                      goal.progress >= 40 ? "bg-[#B8FF66]" :
+                      "bg-[#E86A33]"
+                    }`}
                     style={{ width: `${goal.progress}%` }}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Tasks */}
+            {/* ── Health + AI Employees side by side ── */}
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              {/* Goal Health */}
+              {health && (
+                <div className={`rounded-xl border border-hairline bg-white p-5`}>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-ink">Goal Health</h2>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase ${health.color} ${health.bg}`}>
+                      <health.icon className="h-3 w-3" />
+                      {health.label}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-muted">{health.description}</p>
+
+                  {/* Task summary mini-bars */}
+                  <div className="mt-4 space-y-2">
+                    {completedTasks.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[#1a5c2e]" />
+                        <span className="text-xs text-ink">{completedTasks.length} completed</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-[#1a5c2e]" style={{ width: `${(completedTasks.length / tasks.length) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {inProgressTasks.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-[#E86A33]" />
+                        <span className="text-xs text-ink">{inProgressTasks.length} in progress</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-[#E86A33]" style={{ width: `${(inProgressTasks.length / tasks.length) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {pendingTasks.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-gray-400" />
+                        <span className="text-xs text-ink">{pendingTasks.length} pending</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-gray-300" style={{ width: `${(pendingTasks.length / tasks.length) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {failedTasks.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                        <span className="text-xs text-ink">{failedTasks.length} failed</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-red-400" style={{ width: `${(failedTasks.length / tasks.length) * 100}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* AI Employees */}
+              <div className="rounded-xl border border-hairline bg-white p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-ink">AI Employees</h2>
+                  <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
+                    {assignedAgents.length}
+                  </span>
+                </div>
+
+                {assignedAgents.length === 0 ? (
+                  <div className="mt-4 rounded-lg border border-dashed border-hairline p-4 text-center">
+                    <Bot className="mx-auto h-5 w-5 text-muted/30" />
+                    <p className="mt-1 text-xs text-muted">No agents assigned to tasks in this goal</p>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {assignedAgents.map(agent => {
+                      const agentTasks = tasks.filter(t => t.agentId === agent.id);
+                      const agentCompleted = agentTasks.filter(t => t.status === "completed").length;
+                      const agentCost = agentTasks.reduce((s, t) => s + t.cost, 0);
+                      const isWorking = agentTasks.some(t => t.status === "in_progress");
+
+                      return (
+                        <div key={agent.id} className="flex items-center gap-3 rounded-lg border border-hairline p-3">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1a5c2e] text-xs font-bold text-[#B8FF66]">
+                            {agent.name.charAt(0)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-ink">{agent.name}</p>
+                              {isWorking && (
+                                <span className="flex items-center gap-1 text-[10px] text-[#E86A33]">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[#E86A33] animate-pulse" />
+                                  Working
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted">
+                              {agent.role}
+                              {agent.department && ` · ${agent.department}`}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-ink">{agentCompleted}/{agentTasks.length}</p>
+                            <p className="text-[10px] text-muted">tasks</p>
+                          </div>
+                          {agentCost > 0 && (
+                            <div className="text-right">
+                              <p className="text-xs font-mono text-ink">{formatCost(agentCost)}</p>
+                              <p className="text-[10px] text-muted">cost</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Tasks with Tabs ── */}
             <section className="mt-6">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 border-b border-hairline pb-3">
                 <ListChecks className="h-4 w-4 text-muted" />
                 <h2 className="text-sm font-semibold text-ink">Tasks</h2>
-                <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
-                  {tasks.length}
-                </span>
+                <div className="flex items-center gap-1 ml-2">
+                  {(["all", "completed", "in_progress", "pending", "failed"] as TaskTab[]).map(tab => {
+                    const count = tab === "all" ? tasks.length
+                      : tab === "completed" ? completedTasks.length
+                      : tab === "in_progress" ? inProgressTasks.length
+                      : tab === "pending" ? pendingTasks.length
+                      : failedTasks.length;
+                    if (tab !== "all" && count === 0) return null;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveTab(tab)}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase transition-colors ${
+                          activeTab === tab
+                            ? "bg-[#0a0a0b] text-white"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        {tab === "in_progress" ? "Active" : tab} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {tasks.length === 0 ? (
-                <div className="mt-3 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
+              {filteredTasks.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
                   <ListChecks className="mx-auto h-6 w-6 text-muted/30" />
                   <p className="mt-2 text-sm text-muted">
-                    No tasks linked to this goal yet
+                    {activeTab === "all"
+                      ? "No tasks linked to this goal yet"
+                      : `No ${activeTab === "in_progress" ? "active" : activeTab} tasks`
+                    }
                   </p>
                 </div>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {tasks.map((t) => (
+                  {filteredTasks.map(t => (
                     <Link
                       key={t.id}
                       href={`/app/tasks/${t.id}`}
@@ -271,7 +559,12 @@ export default function GoalDetailPage() {
                       <div className="flex items-start gap-3">
                         <span className="mt-0.5 shrink-0">{taskStatusIcon(t.status)}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-ink">{t.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-ink">{t.title}</p>
+                            <span className="shrink-0 rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-muted">
+                              {taskStatusLabel(t.status)}
+                            </span>
+                          </div>
                           {t.description && (
                             <p className="mt-0.5 text-xs text-muted line-clamp-1">
                               {t.description}
@@ -279,29 +572,88 @@ export default function GoalDetailPage() {
                           )}
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                             {t.agentId && agentMap.get(t.agentId) && (
-                              <span className="rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 font-medium text-[#0a0a0b]">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#0a0a0b]/5 px-2 py-0.5 font-medium text-[#0a0a0b]">
+                                <Bot className="h-2.5 w-2.5" />
                                 {agentMap.get(t.agentId)!.name}
                               </span>
                             )}
-                            <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono uppercase">
+                            <span className={`rounded-full px-2 py-0.5 font-mono uppercase ${priorityBadge(t.priority)}`}>
                               {t.priority}
                             </span>
                             {t.dueDate && (
-                              <span>{formatDueDate(t.dueDate)}</span>
+                              <span className="inline-flex items-center gap-1">
+                                <Calendar className="h-2.5 w-2.5" />
+                                {formatDueDate(t.dueDate)}
+                              </span>
+                            )}
+                            {t.cost > 0 && (
+                              <span className="font-mono">{formatCost(t.cost)}</span>
                             )}
                           </div>
+                          {t.result && (
+                            <div className="mt-2 rounded-lg bg-[#B8FF66]/5 border border-[#B8FF66]/20 px-3 py-2">
+                              <p className="font-mono text-[9px] font-semibold uppercase text-[#1a5c2e] mb-0.5">Result</p>
+                              <p className="text-xs text-ink leading-relaxed">{t.result}</p>
+                            </div>
+                          )}
                         </div>
-                        {t.status === "completed" && (
-                          <span className="shrink-0 rounded-full bg-[#B8FF66]/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-[#1a5c2e]">
-                            Done
-                          </span>
-                        )}
                       </div>
                     </Link>
                   ))}
                 </div>
               )}
             </section>
+
+            {/* ── Activity Feed ── */}
+            {activity.length > 0 && (
+              <section className="mt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="h-4 w-4 text-muted" />
+                  <h2 className="text-sm font-semibold text-ink">Recent Activity</h2>
+                  <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-[10px] text-muted">
+                    {activity.length}
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-hairline bg-white divide-y divide-hairline">
+                  {activity.map(event => {
+                    const agent = event.agentId ? agentMap.get(event.agentId) : null;
+                    const task = tasks.find(t => t.id === event.taskId);
+                    return (
+                      <div key={event.id} className="flex items-start gap-3 px-4 py-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1a5c2e]/10 mt-0.5">
+                          {event.type === "completed" ? (
+                            <CheckCircle2 className="h-3 w-3 text-[#1a5c2e]" />
+                          ) : event.type === "failed" ? (
+                            <AlertCircle className="h-3 w-3 text-red-500" />
+                          ) : (
+                            <Clock className="h-3 w-3 text-[#E86A33]" />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-ink">{event.summary}</p>
+                          <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted">
+                            {agent && <span className="font-medium">{agent.name}</span>}
+                            {task && (
+                              <Link href={`/app/tasks/${task.id}`} className="hover:text-[#1a5c2e]">
+                                {task.title}
+                              </Link>
+                            )}
+                            <span>{formatTimeAgo(event.occurredAt)}</span>
+                            {event.cost > 0 && (
+                              <span className="font-mono">{formatCost(event.cost)}</span>
+                            )}
+                          </div>
+                          {event.reason && (
+                            <p className="mt-0.5 text-[10px] text-muted italic">Because: {event.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
