@@ -89,9 +89,11 @@ export function registerMigrationRoutes(app: FastifyInstance, deps: AppDeps): vo
       return { error: 'Forbidden' };
     }
 
+    // Split into statements, stripping SQL comment lines first so a comment
+    // that precedes a CREATE TABLE in the same chunk does not drop the table.
     const statements = MIGRATION_SQL.split(';')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith('--'));
+      .map((s) => s.split(/\r?\n/).filter((line) => !line.trim().startsWith('--')).join('\n').trim())
+      .filter((s) => s.length > 0);
 
     const results: Array<{ statement: string; status: string; error?: string }> = [];
 
