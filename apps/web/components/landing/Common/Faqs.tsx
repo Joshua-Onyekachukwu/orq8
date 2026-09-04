@@ -82,22 +82,22 @@ const Faqs: React.FC = () => {
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[40px] lg:gap-[60px]">
           <div className="md:max-w-[480px]">
-            <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-emerald mb-[16px]">
+            <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#E86A33] mb-[16px]">
               FAQ
             </span>
-            <h2 className="!text-ink !mb-[20px] md:!mb-[24px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
+            <h2 className="!text-black !mb-[20px] md:!mb-[24px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
               Questions, before you ask them
             </h2>
-            <p className="md:text-[16px] text-ink-muted !mb-[28px]">
+            <p className="md:text-[16px] text-gray-500 !mb-[28px]">
               Something else on your mind? We read every message. Ask us anything about how ORQ8 would run your company.
             </p>
             <Link
               href="/contact"
-              className="btn-press inline-block rounded-full bg-emerald px-[28px] py-[12px] uppercase text-[11px] font-bold text-navy-950 tracking-[0.15em] hover:bg-emerald-dark transition-colors"
+              className="btn-press inline-block rounded-full bg-[#E86A33] px-[28px] py-[12px] uppercase text-[11px] font-bold text-white tracking-[0.15em] hover:bg-[#d45e2a] transition-colors"
             >
               <span className="flex items-center justify-center gap-[12px]">
                 Contact Us{" "}
-                <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-navy-950/10 text-navy-950 flex items-center justify-center text-sm"></i>
+                <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-white/10 text-white flex items-center justify-center text-sm"></i>
               </span>
             </Link>
           </div>
@@ -106,21 +106,25 @@ const Faqs: React.FC = () => {
             {faqItems.map((item) => (
               <div
                 key={item.id}
-                className="bg-canvas border border-hairline rounded-[12px] overflow-hidden"
+                className={`border rounded-[12px] overflow-hidden transition-colors ${
+                  openItem === item.id
+                    ? "bg-[#1a5c2e]/[0.03] border-[#1a5c2e]/20"
+                    : "bg-gray-50 border-gray-100 hover:border-gray-200"
+                }`}
               >
                 <button
-                  className={`w-full text-left px-[24px] py-[20px] flex items-center justify-between transition-colors hover:bg-hairline-light ${
-                    openItem === item.id ? "bg-hairline-light" : ""
+                  className={`w-full text-left px-[24px] py-[20px] flex items-center justify-between transition-colors ${
+                    openItem === item.id ? "" : ""
                   }`}
                   type="button"
                   onClick={() => toggleAccordion(item.id)}
                   aria-expanded={openItem === item.id}
                   aria-controls={`faq-${item.id}`}
                 >
-                  <span className="text-[16px] font-medium text-ink pr-[16px]">
+                  <span className="text-[16px] font-medium text-black pr-[16px]">
                     {item.question}
                   </span>
-                  <span className="block leading-none text-emerald text-[20px] transition-transform duration-300 flex-none">
+                  <span className="block leading-none text-[#E86A33] text-[20px] transition-transform duration-300 flex-none">
                     <i
                       className={`ri-arrow-down-s-line ${
                         openItem === item.id ? "rotate-180" : ""
@@ -134,7 +138,7 @@ const Faqs: React.FC = () => {
                     openItem === item.id ? "pb-[20px] max-h-[500px]" : "max-h-0"
                   }`}
                 >
-                  <div className="text-ink-muted text-[15px] leading-[1.7]">
+                  <div className="text-gray-500 text-[15px] leading-[1.7]">
                     {item.answer}
                   </div>
                 </div>

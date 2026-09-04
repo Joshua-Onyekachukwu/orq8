@@ -33,7 +33,32 @@
   --color-emerald-dark: #059669; /* Press states */
   --color-emerald-muted: #10b98115; /* Subtle backgrounds */
 
+
+  /* Primary — Trezo Finance compatibility (used by Navbar, SidebarSettings, GoTop) */
+  --color-primary-50: #ecf0ff;
+  --color-primary-100: #dde4ff;
+  --color-primary-200: #c2cdff;
+  --color-primary-300: #9caaff;
+  --color-primary-400: #757dff;
+  --color-primary-500: #605dff;
+  --color-primary-600: #4936f5;
+  --color-primary-700: #3e2ad8;
+  --color-primary-800: #3225ae;
+  --color-primary-900: #2d2689;
   /* Warm accent — Amber for warnings, highlights */
+
+  /* Dark/Gray — Trezo Finance compatibility */
+  --color-dark: #000000;
+  --color-gray-50: #f6f7f9;
+  --color-gray-100: #eceef2;
+  --color-gray-200: #d5d9e2;
+  --color-gray-300: #b1bbc8;
+  --color-gray-400: #8695aa;
+  --color-gray-500: #64748b;
+  --color-gray-600: #526077;
+  --color-gray-700: #434e61;
+  --color-gray-800: #3a4252;
+  --color-gray-900: #23272e;
   --color-amber: #f59e0b;
   --color-amber-light: #fbbf24;
 
@@ -541,4 +566,45 @@ body {
     width: 45px !important;
     height: 45px !important;
   }
+}
+/* =====================================================================
+ * Trezo Finance landing styles — imported as-is
+ * ===================================================================== */
+
+/* Finance navbar: sticky glass bar */
+.is-sticky .finance-navbar {
+  @apply py-[15px];
+  box-shadow: 0px 4px 30px 0px rgba(146, 139, 221, 0.1);
+}
+.is-sticky .finance-navbar .navbar-nav {
+  @apply p-0 !shadow-none;
+}
+
+/* Mobile hamburger animation */
+#navbar-burger-menu.active span:first-child {
+  transform-origin: 10% 10%;
+  @apply rotate-[45deg];
+}
+#navbar-burger-menu.active span:nth-child(2) {
+  opacity: 0;
+}
+#navbar-burger-menu.active span:last-child {
+  transform-origin: 10% 90%;
+  @apply -rotate-[45deg];
+}
+
+/* Mobile menu collapse */
+#navbar-collapse.active {
+  @apply block;
+}
+
+/* Sidebar settings toggle */
+.sidebar-settings .rtl-mode-toggle span span {
+  @apply left-[5px];
+}
+.sidebar-settings .rtl-mode-toggle:hover span span {
+  @apply bg-primary-500;
+}
+[dir="rtl"] .sidebar-settings .rtl-mode-toggle span span {
+  @apply bg-primary-500 left-[17px];
 }

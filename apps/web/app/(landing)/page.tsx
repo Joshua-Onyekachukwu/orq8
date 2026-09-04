@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import About from "@/components/landing/Common/About";
 import Faqs from "@/components/landing/Common/Faqs";
-import FeaturesOrbital from "@/components/landing/Common/Features";
+import Features from "@/components/landing/Common/Features";
 import HowItWorks from "@/components/landing/Common/HowItWorks";
 import Pricing from "@/components/landing/Common/Pricing";
 import Testimonials from "@/components/landing/Common/Testimonials";
@@ -19,31 +19,24 @@ export default function Home() {
   return (
     <>
       <HeroBanner />
-
       <Reveal>
         <About />
       </Reveal>
-
       <Reveal>
         <HowItWorks />
       </Reveal>
-
       <Reveal>
-        <FeaturesOrbital />
+        <Features />
       </Reveal>
-
       <Reveal>
         <Testimonials />
       </Reveal>
-
       <Reveal>
         <Pricing />
       </Reveal>
-
       <Reveal>
         <Faqs />
       </Reveal>
-
       <Reveal>
         <Cta />
       </Reveal>

@@ -3,10 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 
-/* ───────────────────────────────────────────────────────────────
-   Pricing — ORQ8 pricing with Work Credits model
-   ─────────────────────────────────────────────────────────────── */
-
 interface PricingPlan {
   title: string;
   tagline: string;
@@ -38,7 +34,7 @@ const pricingPlans: PricingPlan[] = [
       { text: "Basic analytics", included: true },
       { text: "1 organization", included: true },
     ],
-    cta: { label: "Start free trial", href: "/#waitlist" },
+    cta: { label: "Start free trial", href: "/register" },
   },
   {
     title: "Team",
@@ -61,7 +57,7 @@ const pricingPlans: PricingPlan[] = [
       { text: "Team collaboration", included: true },
       { text: "Priority support", included: true },
     ],
-    cta: { label: "Start free trial", href: "/#waitlist" },
+    cta: { label: "Start free trial", href: "/register" },
     popular: true,
   },
   {
@@ -82,31 +78,29 @@ const pricingPlans: PricingPlan[] = [
       { text: "Larger execution limits", included: true },
       { text: "Priority support", included: true },
     ],
-    cta: { label: "Start free trial", href: "/#waitlist" },
+    cta: { label: "Start free trial", href: "/register" },
   },
-];
-
-const enterpriseFeatures = [
-  "Custom AI workforce size",
-  "Custom Work Credit pricing",
-  "Unlimited organizations",
-  "SSO + SCIM",
-  "Advanced security + governance",
-  "Dedicated infrastructure options",
-  "Custom AI policies",
-  "Advanced API limits",
-  "SLA + dedicated support",
 ];
 
 const Pricing: React.FC = () => {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <div className="relative z-[2] bg-[#0A0A0B] py-[80px] md:py-[120px] lg:py-[160px]">
-      <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
+    <div className="relative z-[2] bg-[#0a0a0b] py-[80px] md:py-[120px] lg:py-[160px]">
+      {/* Subtle grid */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
+
+      <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         {/* Header */}
         <div className="mb-[50px] md:mb-[60px] lg:mb-[70px] mx-auto text-center md:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#B8FF66] mb-[16px]">
+          <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-[#E86A33] mb-[16px]">
             Pricing
           </span>
           <h2 className="!text-white !mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
@@ -121,7 +115,7 @@ const Pricing: React.FC = () => {
           {/* Annual toggle */}
           <div className="flex items-center justify-center gap-[16px] mt-[32px] md:mt-[40px]">
             <span
-              className={`text-[13px] font-medium ${
+              className={`text-[13px] font-medium transition-colors ${
                 !annual ? "text-white" : "text-white/40"
               }`}
             >
@@ -138,13 +132,13 @@ const Pricing: React.FC = () => {
               <span
                 className={`absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 ${
                   annual
-                    ? "left-[27px] bg-[#0A0A0B]"
+                    ? "left-[27px] bg-[#0a0a0b]"
                     : "left-[3px] bg-white"
                 }`}
               />
             </button>
             <span
-              className={`text-[13px] font-medium ${
+              className={`text-[13px] font-medium transition-colors ${
                 annual ? "text-white" : "text-white/40"
               }`}
             >
@@ -167,39 +161,40 @@ const Pricing: React.FC = () => {
             return (
               <div
                 key={index}
-                className={`relative border ${
-                  popular ? "border-[#B8FF66]" : "border-white/[0.08]"
-                } rounded-[16px] bg-white/[0.03] py-[32px] px-[28px] ${
-                  popular ? "xl:-mt-[16px] xl:pb-[48px]" : ""
+                className={`relative border rounded-[16px] py-[32px] px-[28px] transition-all duration-300 group ${
+                  popular
+                    ? "border-[#B8FF66] bg-white/[0.04] xl:-mt-[16px] xl:pb-[48px] hover:bg-white/[0.07]"
+                    : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.05]"
                 }`}
               >
                 {popular && (
-                  <span className="absolute -top-[12px] left-1/2 -translate-x-1/2 bg-[#B8FF66] text-[#0A0A0B] text-[10px] font-bold uppercase tracking-[0.15em] rounded-full px-[16px] py-[6px]">
+                  <div className="absolute -top-[14px] left-1/2 -translate-x-1/2 flex items-center gap-[6px] bg-[#E86A33] text-white text-[10px] font-bold uppercase tracking-[0.12em] rounded-full px-[18px] py-[7px] shadow-[0_4px_12px_rgba(232,106,51,0.3)]">
+                    <span className="w-[4px] h-[4px] rounded-full bg-white animate-pulse" />
                     Most popular
-                  </span>
+                  </div>
                 )}
 
                 {/* Plan name */}
                 <span
                   className={`block mb-[8px] uppercase font-bold tracking-[0.15em] text-[11px] ${
-                    popular ? "text-[#B8FF66]" : "text-white/50"
+                    popular ? "text-[#B8FF66]" : "text-[#E86A33]"
                   }`}
                 >
                   {plan.title}
                 </span>
 
                 {/* Tagline */}
-                <p className="!mb-[16px] text-[13px] text-[#B8FF66]/80 font-medium">
+                <p className="text-white/50 -tracking-[0.16px] md:text-[15px] mb-[12px]">
                   {plan.tagline}
                 </p>
 
                 {/* Trial badge */}
-                <span className="inline-block mb-[20px] rounded-full border border-[#B8FF66]/40 text-[#B8FF66] text-[10px] font-bold uppercase tracking-[0.15em] px-[14px] py-[5px]">
+                <span className="inline-block mb-[16px] rounded-full border border-white/15 text-white/50 text-[10px] font-bold uppercase tracking-[0.12em] px-[12px] py-[4px]">
                   7 days free
                 </span>
 
                 {/* Description */}
-                <p className="text-white/50 text-[15px] leading-[1.6]">
+                <p className="text-white/45 -tracking-[0.16px] md:text-[14px]">
                   {plan.description}
                 </p>
 
@@ -213,17 +208,11 @@ const Pricing: React.FC = () => {
 
                 {annual && (
                   <p className="text-[#B8FF66]/70 text-[12px] font-medium">
-                    ${annual
-                      ? plan.title === "Founder"
-                        ? "390"
-                        : plan.title === "Team"
-                        ? "948"
-                        : "2388"
-                      : ""}/year billed annually
+                    ${plan.title === "Founder" ? "390" : plan.title === "Team" ? "948" : "2388"}/year billed annually
                   </p>
                 )}
 
-                <p className="text-white/40 text-[13px]">
+                <p className="text-white/35 text-[13px]">
                   Card required. Cancel any time.
                 </p>
 
@@ -234,7 +223,7 @@ const Pricing: React.FC = () => {
                       key={featureIndex}
                       className="relative pl-[28px] text-white text-[15px]"
                     >
-                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]"></i>
+                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]" />
                       {feature.text}
                     </li>
                   ))}
@@ -243,15 +232,15 @@ const Pricing: React.FC = () => {
                 {/* CTA */}
                 <Link
                   href={plan.cta.href}
-                  className={`btn-press block w-full rounded-full ${
+                  className={`block w-full rounded-[60px] p-[12px] uppercase text-[11px] font-bold tracking-[0.15em] transition-all duration-300 ${
                     popular
-                      ? "bg-[#B8FF66] text-[#0A0A0B] hover:bg-[#A3E855]"
-                      : "bg-white/[0.06] text-white hover:bg-[#B8FF66] hover:text-[#0A0A0B]"
-                  } p-[12px] uppercase text-[11px] font-bold tracking-[0.15em] transition-colors`}
+                      ? "bg-[#B8FF66] text-[#0a0a0b] hover:bg-[#a3e855] hover:shadow-[0_4px_20px_rgba(184,255,102,0.25)]"
+                      : "bg-white/[0.06] text-white hover:bg-[#B8FF66] hover:text-[#0a0a0b] hover:shadow-[0_4px_20px_rgba(184,255,102,0.15)]"
+                  }`}
                 >
                   <span className="flex items-center justify-center gap-[12px]">
                     {plan.cta.label}{" "}
-                    <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm"></i>
+                    <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm" />
                   </span>
                 </Link>
               </div>
@@ -260,27 +249,37 @@ const Pricing: React.FC = () => {
         </div>
 
         {/* Enterprise */}
-        <div className="mt-[24px] border border-white/[0.08] rounded-[16px] bg-white/[0.03] px-[28px] md:px-[36px] py-[28px] md:py-[36px]">
+        <div className="mt-[24px] border border-white/[0.08] rounded-[16px] bg-white/[0.02] px-[28px] md:px-[36px] py-[28px] md:py-[36px] transition-all hover:border-white/[0.15] hover:bg-white/[0.04]">
           <div className="flex flex-col lg:flex-row lg:items-center gap-[28px] md:gap-[36px] lg:gap-[50px]">
             <div className="lg:max-w-[300px] lg:flex-shrink-0">
-              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-[11px] text-white/50">
+              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-[11px] text-[#E86A33]">
                 Enterprise
               </span>
               <h3 className="!mb-0 !font-normal !text-[24px] md:!text-[28px] -tracking-[0.5px] !text-white">
                 Custom AI organizations for larger teams.
               </h3>
-              <p className="!mb-0 mt-[12px] text-white/50 text-[15px]">
+              <p className="!mb-0 mt-[12px] text-white/45 text-[15px]">
                 Bespoke governance, dedicated infrastructure, and a team that
                 gets you running.
               </p>
             </div>
             <ul className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-[28px] gap-y-[14px]">
-              {enterpriseFeatures.map((feature, featureIndex) => (
+              {[
+                "Custom AI workforce size",
+                "Custom Work Credit pricing",
+                "Unlimited organizations",
+                "SSO + SCIM",
+                "Advanced security + governance",
+                "Dedicated infrastructure options",
+                "Custom AI policies",
+                "Advanced API limits",
+                "SLA + dedicated support",
+              ].map((feature, featureIndex) => (
                 <li
                   key={featureIndex}
                   className="relative pl-[28px] text-white text-[15px]"
                 >
-                  <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]"></i>
+                  <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-[#B8FF66] text-[18px]" />
                   {feature}
                 </li>
               ))}
@@ -288,11 +287,11 @@ const Pricing: React.FC = () => {
             <div className="lg:flex-shrink-0">
               <Link
                 href="/contact"
-                className="btn-press block w-full lg:w-auto rounded-full bg-white/[0.06] hover:bg-[#B8FF66] hover:text-[#0A0A0B] p-[12px] lg:px-[28px] uppercase text-[11px] font-bold text-white tracking-[0.15em] transition-colors"
+                className="block w-full lg:w-auto rounded-[60px] bg-white/[0.06] hover:bg-[#B8FF66] hover:text-[#0a0a0b] p-[12px] lg:px-[28px] uppercase text-[11px] font-bold text-white tracking-[0.15em] transition-all duration-300"
               >
                 <span className="flex items-center justify-center gap-[12px]">
                   Contact us{" "}
-                  <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm"></i>
+                  <i className="ri-arrow-right-up-line w-[28px] h-[28px] rounded-full bg-current/10 text-current flex items-center justify-center text-sm" />
                 </span>
               </Link>
             </div>

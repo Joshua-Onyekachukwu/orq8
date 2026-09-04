@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import PricingHero from "@/components/landing/Common/PricingHero";
 import Pricing from "@/components/landing/Common/Pricing";
+import PricingComparison from "@/components/landing/Common/PricingComparison";
 
 export const metadata: Metadata = {
   title: "Pricing — ORQ8",
@@ -13,6 +14,7 @@ export default function PricingPage() {
     <>
       <PricingHero />
       <Pricing />
+      <PricingComparison />
     </>
   );
 }
