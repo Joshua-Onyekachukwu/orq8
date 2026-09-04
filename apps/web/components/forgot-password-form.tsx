@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-sm text-white placeholder:text-gray-400 outline-none transition-colors focus:border-[#1a5c2e] focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-[#1a5c2e] focus:ring-2 focus:ring-[#1a5c2e]/20 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
 
 export function ForgotPasswordForm() {
