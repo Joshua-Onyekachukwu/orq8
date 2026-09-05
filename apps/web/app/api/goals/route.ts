@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const res = await fetch(`${API_URL}/v1/goals`, {
+    // Forward query params (status, team_id, …) so team pages can filter.
+    const qs = request.nextUrl.search;
+    const res = await fetch(`${API_URL}/v1/goals${qs}`, {
       headers: proxyAuthHeaders(token),
       next: { revalidate: 30 },
     });

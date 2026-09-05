@@ -33,6 +33,21 @@ interface DepartmentOption {
   name: string;
 }
 
+interface Goal {
+  id: string;
+  title: string;
+  status: string;
+  progress: number;
+  priority: string;
+}
+
+interface TaskItem {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+}
+
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
@@ -59,6 +74,40 @@ export default function TeamsPage() {
   const [confirmTeam, setConfirmTeam] = useState<Team | null>(null);
   const [confirmAction, setConfirmAction] = useState<"archive" | "delete">("archive");
   const [confirmBusy, setConfirmBusy] = useState(false);
+
+  // Team-scoped goals/tasks (Task 8 — team pages show their work)
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [teamGoals, setTeamGoals] = useState<Record<string, Goal[]>>({});
+  const [teamTasks, setTeamTasks] = useState<Record<string, TaskItem[]>>({});
+  const [teamWorkLoading, setTeamWorkLoading] = useState<string | null>(null);
+
+  const toggleTeamWork = async (teamId: string) => {
+    if (expandedTeam === teamId) {
+      setExpandedTeam(null);
+      return;
+    }
+    setExpandedTeam(teamId);
+    if (!teamGoals[teamId] && !teamTasks[teamId]) {
+      setTeamWorkLoading(teamId);
+      try {
+        const [goalsRes, tasksRes] = await Promise.all([
+          fetch(`/api/goals?team_id=${encodeURIComponent(teamId)}&limit=10`),
+          fetch(`/api/tasks?team_id=${encodeURIComponent(teamId)}&limit=10`),
+        ]);
+        const [goalsJson, tasksJson] = await Promise.all([
+          goalsRes.ok ? goalsRes.json() : { data: [] },
+          tasksRes.ok ? tasksRes.json() : { data: [] },
+        ]);
+        setTeamGoals((prev) => ({ ...prev, [teamId]: goalsJson.data ?? [] }));
+        setTeamTasks((prev) => ({ ...prev, [teamId]: tasksJson.data ?? [] }));
+      } catch {
+        setTeamGoals((prev) => ({ ...prev, [teamId]: [] }));
+        setTeamTasks((prev) => ({ ...prev, [teamId]: [] }));
+      } finally {
+        setTeamWorkLoading(null);
+      }
+    }
+  };
 
   const fetchTeams = useCallback(async () => {
     setLoading(true);
@@ -312,12 +361,70 @@ export default function TeamsPage() {
                 </div>
               </dl>
 
-              <Link
-                href="/app/agents"
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
-              >
-                <Users className="h-3.5 w-3.5" /> Assign AI employees
-              </Link>
+              <div className="mt-4 flex items-center gap-3">
+                <Link
+                  href="/app/agents"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
+                >
+                  <Users className="h-3.5 w-3.5" /> Assign AI employees
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => toggleTeamWork(team.id)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
+                  aria-expanded={expandedTeam === team.id}
+                >
+                  <Settings className="h-3.5 w-3.5" /> Goals & Tasks
+                </button>
+              </div>
+
+              {expandedTeam === team.id && (
+                <div className="mt-3 rounded-lg border border-hairline bg-canvas/50 p-3">
+                  {teamWorkLoading === team.id ? (
+                    <p className="text-xs text-muted">Loading team work…</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Goals</p>
+                        {(teamGoals[team.id] ?? []).length === 0 ? (
+                          <p className="mt-1 text-xs text-muted">No goals assigned to this team.</p>
+                        ) : (
+                          <ul className="mt-1.5 space-y-1.5">
+                            {(teamGoals[team.id] ?? []).map((g) => (
+                              <li key={g.id} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="truncate text-ink">{g.title}</span>
+                                <span className="flex shrink-0 items-center gap-2">
+                                  <span className="h-1.5 w-16 overflow-hidden rounded-full bg-hairline">
+                                    <span className="block h-full rounded-full bg-orq8-green" style={{ width: `${g.progress}%` }} />
+                                  </span>
+                                  <span className="font-mono tabular-nums text-muted">{g.progress}%</span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Tasks</p>
+                        {(teamTasks[team.id] ?? []).length === 0 ? (
+                          <p className="mt-1 text-xs text-muted">No tasks assigned to this team.</p>
+                        ) : (
+                          <ul className="mt-1.5 space-y-1.5">
+                            {(teamTasks[team.id] ?? []).map((t) => (
+                              <li key={t.id} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="truncate text-ink">{t.title}</span>
+                                <span className={`shrink-0 font-mono text-2xs uppercase ${t.status === "completed" ? "text-orq8-green" : t.status === "failed" ? "text-red-600" : "text-muted"}`}>
+                                  {t.status}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </article>
           ))}
         </div>

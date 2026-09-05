@@ -12,15 +12,21 @@
  * failure mode or any equivalent faint-text regression returns.
  *
  * It checks two layers:
- *   1. TOKEN RESOLUTION (the actual failure) — reads globals.css, resolves the
- *      muted foreground token against the white card surface, and computes the
- *      WCAG AA contrast ratio. Also asserts `--color-muted` (background) and
+ *   1. TOKEN RESOLUTION (the actual failure) — reads globals.css, parses the
+ *      `:root` (light) and `.dark` token blocks, resolves the semantic
+ *      foreground/background pairs (muted text on cards, ink, foreground, dark
+ *      parchment/fog on abyss/void), and computes the WCAG AA contrast ratio
+ *      for BOTH themes. Also asserts `--muted` (background) and
  *      `--muted-foreground` (text) are distinct, and that the unlayered
  *      `.text-muted` override exists outside Tailwind's @layer utilities.
  *   2. SOURCE SCAN — walks apps/web/{app,components} and fails on banned
  *      faint-text utilities (`text-ink-faint`, `text-gray-200/300/400`), which
  *      are below ~4.5:1 on light surfaces. An explicit allowlist documents the
  *      only justified exceptions (decorative separators / dark-surface tokens).
+ *
+ * NOTE: token-level pairs are the tripwire for the design system; the dashboard
+ * also carries a dev-only rendered check (components/contrast-self-check.tsx)
+ * that samples actual computed styles in the browser.
  *
  * Run: `pnpm --filter @orq8/web test:contrast`  (or `node scripts/contrast-check.mjs`)
  * Exit code 1 = regression detected.
@@ -64,7 +70,7 @@ function contrastRatio(a, b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-// ─── 1. Token-resolution check on the real CSS ────────────────────────────────
+// ─── 1. Token-resolution check on the real CSS (light + dark themes) ───────────
 
 console.log("contrast-check: reading", path.relative(process.cwd(), GLOBALS));
 const css = readFileSync(GLOBALS, "utf8");
@@ -86,26 +92,81 @@ if (bgToken === fgToken) {
   fail(`--muted and --muted-foreground resolve identically (${bgToken}) — text-muted == background`);
 }
 
-// Contrast of muted TEXT against the white card surface (light mode).
-const fgHex = /#([0-9a-f]{6})/i.exec(fgToken ?? "")?.[0];
-if (!fgHex) {
-  fail(`cannot parse --muted-foreground value (${fgToken})`);
-} else {
-  const fg = hexToRgb(fgHex);
-  const white = [255, 255, 255];
-  const ratio = fg ? contrastRatio(fg, white) : 0;
-  console.log(`  muted text ${fgHex} on white: ${ratio.toFixed(2)}:1 (WCAG AA ≥ 4.5)`);
-  if (ratio < 4.5) fail(`muted foreground ${fgHex} is ${ratio.toFixed(2)}:1 on white — below WCAG AA (4.5:1)`);
+// Parse a CSS block into { token: rawValue }. Handles :root (light) and .dark.
+function parseTokenBlock(block) {
+  const tokens = {};
+  for (const m of block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/gi)) {
+    tokens[m[1]] = m[2].trim();
+  }
+  return tokens;
 }
 
-// Secondary text token (text-ink-muted) should also clear AA on white.
-const inkMuted = /--color-ink-muted:\s*#([0-9a-f]{6})/i.exec(css)?.[0];
-if (inkMuted) {
-  const rgb = hexToRgb(inkMuted.split(":").pop().trim());
-  const ratio = rgb ? contrastRatio(rgb, [255, 255, 255]) : 0;
-  console.log(`  ink-muted ${inkMuted.split(":").pop().trim()} on white: ${ratio.toFixed(2)}:1`);
-  if (ratio < 4.5) fail(`--color-ink-muted is ${ratio.toFixed(2)}:1 on white — below WCAG AA`);
+function resolveColor(tokenName, tokens) {
+  let value = tokens[tokenName];
+  for (let depth = 0; depth < 6 && value; depth++) {
+    const hex = /^#([0-9a-f]{6})$/i.exec(value);
+    if (hex) return `#${hex[1].toLowerCase()}`;
+    // oklch(1 0 0) is white (light surfaces); anything else non-hex is unparsable here.
+    if (/^oklch\(1\s+0\s+0\)$/i.test(value)) return "#ffffff";
+    const ref = /^var\(--([a-z0-9-]+)\)$/i.exec(value);
+    if (ref) {
+      value = tokens[ref[1]];
+      continue;
+    }
+    return null;
+  }
+  return null;
 }
+
+// Locate the :root block (light theme) and the .dark block.
+function blockAfter(pattern) {
+  const start = pattern.exec(css);
+  if (!start) return null;
+  const open = css.indexOf("{", start.index);
+  const close = css.indexOf("}", open);
+  return css.slice(open + 1, close);
+}
+
+// The --color-* palette lives across several `@theme`/`@theme inline` blocks;
+// semantic tokens in :root (light) and .dark override/point at it. Merge them
+// all (later blocks may redefine tokens).
+const themeBlocks = [...css.matchAll(/@theme(?:\s+inline)?\s*\{([^}]*)\}/gs)].map((m) => m[1]);
+const palette = Object.assign({}, ...themeBlocks.map(parseTokenBlock));
+const rootBlock = blockAfter(/(?:^|\n)\s*:root\s*\{/m) ?? "";
+const darkBlock = blockAfter(/(?:^|\n)\/\*\s*---break---\s*\*\/\s*\.dark\s*\{/m) ?? "";
+if (Object.keys(palette).length === 0 || rootBlock === "" || darkBlock === "") {
+  fail("could not locate @theme inline / :root / .dark token blocks in globals.css");
+}
+const lightTokens = { ...palette, ...parseTokenBlock(rootBlock) };
+const darkTokens = { ...palette, ...parseTokenBlock(darkBlock) };
+
+/** Resolve a foreground + background token pair and assert AA. */
+function checkPair({ theme, fgName, bgName, label, tokens }) {
+  const fgHex = resolveColor(fgName, tokens);
+  const bgHex = resolveColor(bgName, tokens);
+  if (!fgHex || !bgHex) {
+    fail(`${theme}: cannot resolve pair ${label} (${fgName} → ${fgHex ?? "?"} on ${bgName} → ${bgHex ?? "?"})`);
+    return;
+  }
+  const fg = hexToRgb(fgHex);
+  const bg = hexToRgb(bgHex);
+  const ratio = fg && bg ? contrastRatio(fg, bg) : 0;
+  console.log(`  [${theme}] ${label}: ${fgHex} on ${bgHex} = ${ratio.toFixed(2)}:1 (WCAG AA ≥ 4.5)`);
+  if (ratio < 4.5) fail(`${theme}: ${label} is ${ratio.toFixed(2)}:1 — below WCAG AA (4.5:1)`);
+}
+
+// Light theme pairs — white cards on the light background.
+checkPair({ theme: "light", fgName: "muted-foreground", bgName: "card", label: "muted text on card", tokens: lightTokens });
+checkPair({ theme: "light", fgName: "color-ink-muted", bgName: "card", label: "ink-muted on card", tokens: lightTokens });
+checkPair({ theme: "light", fgName: "color-ink", bgName: "card", label: "ink on card", tokens: lightTokens });
+checkPair({ theme: "light", fgName: "foreground", bgName: "card", label: "foreground on card", tokens: lightTokens });
+
+// Dark theme pairs — parchment/fog text on abyss cards and void background.
+checkPair({ theme: "dark", fgName: "muted-foreground", bgName: "card", label: "muted text on card", tokens: darkTokens });
+checkPair({ theme: "dark", fgName: "foreground", bgName: "card", label: "foreground on card", tokens: darkTokens });
+checkPair({ theme: "dark", fgName: "foreground", bgName: "background", label: "foreground on background", tokens: darkTokens });
+checkPair({ theme: "dark", fgName: "muted-foreground", bgName: "background", label: "muted text on background", tokens: darkTokens });
+checkPair({ theme: "dark", fgName: "primary-foreground", bgName: "primary", label: "primary-foreground on primary (emerald CTA)", tokens: darkTokens });
 
 // ─── 2. Source scan — banned faint text utilities ─────────────────────────────
 

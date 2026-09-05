@@ -246,6 +246,77 @@ typecheck clean; web production build passes; `test:contrast` PASS. **Known gaps
 provider E2E (no creds); connector ACTION handlers not yet implemented; briefing email needs
 SMTP/Resend configured in prod; migration `0004` must be applied to prod DB before deploy.
 
+### 2026-09-05 — Executor, simulation apply, exec-agent structure, org integration tests, contrast self-check
+
+**Original problem**: remaining Phases 8–16 gaps — the engineering sandbox was record-only
+(no actual command execution), simulation "apply" merely flipped a state flag (no
+materialization, no approval gate), goals/tasks had no `team_id`, the Executive Agent's
+context had no department/team structure (so "which team owns this?" was unanswerable),
+there was no team/department/agent integration test suite, and contrast protection covered
+source scans but not rendered computation or dark mode.
+
+**Architecture chosen**: reuse the existing approval gate for simulation apply (first apply
+call creates the pending approval — nothing is created; after founder approval the next apply
+materializes inside one transaction, idempotent by org+name lookups with provenance in
+`agents.config`); a subprocess boundary that is honest about its limits (per-org scratch dir,
+tree-kill timeout, ulimit CPU/memory, output caps, env allowlist, path containment, audit —
+container/gVisor documented as the remaining production boundary); `shell: true` with a single
+command string (the only quoting-safe spawn on Windows — an args array mangles inner quotes
+via cmd /s /c); compact deterministic `OrgStructure` for the exec agent with per-team
+active/blocked(failed)/overdue aggregates; API-level integration tests with real Bearer
+sessions plus RLS tests via `request.jwt.claims` emulation; dev-only rendered contrast
+self-check plus a token-pair audit extended to the dark theme.
+
+**Files changed (this session)**:
+
+- `apps/api/src/services/executor.ts` (new) — `executeCommand` boundary + `toSafeSummary`,
+  `validateCommand`, `assertInsideSandbox`, `scrubEnv`, `killTree`; 22 tests
+  (`test/executor.test.ts`).
+- `apps/api/src/routes/engineering.ts` — `POST /v1/sandbox-runs` now actually executes
+  (server-determined scratch `working_dir`, persists stdout/stderr/exitCode/resultSummary,
+  audits `sandbox.run.*`); `updateSandboxRun` accepts `workingDir`.
+- `apps/api/src/services/simulation.ts` — `saveProposal` (named structured proposal),
+  `OrgProposal` types, approval-gated `applySimulation` (pending→create approval only;
+  approved→transactional materialization of departments/teams/agents/goals with
+  `simulation.apply.*_created` audits + provenance; already_applied no-op), exported
+  `riskFromSimulation`/`buildApprovalDescription`; `packages/db/src/schema.ts` +
+  `supabase/migrations/0007_add_simulation_proposal.sql` (proposal jsonb column).
+- `apps/api/src/routes/simulation.ts` — `POST /v1/simulations/:id/proposal` (zod-validated,
+  duplicate-name rejection) + apply result mapping (202 pending_approval / 400 rejected /
+  applied / already_applied).
+- `apps/api/src/services/executive-agent.ts` — `buildOrgStructure` + `formatOrgStructure`
+  (departments, teams with owner/members, per-team work flags, unassigned count, org-scoped
+  task aggregates), injected into `buildContextPrompt`; tests
+  (`test/executive-agent-context.test.ts`).
+- `test/org-structure-integration.test.ts` (new) — API create/reassign/pause/archive,
+  cross-org 401/404, foreign-departmentId 400, RLS direct-SQL; `test/simulation.test.ts`
+  (new) — pure helpers + DB-gated apply flow (gate → approve → materialize → idempotent
+  re-apply → reject).
+- Task 8 — `packages/db/src/schema.ts` + `supabase/migrations/0006_add_team_id_to_goals_tasks.sql`
+  (`team_id` on goals+tasks, `onDelete: set null`, indexes), goals API `teamId`
+  create/update with in-org validation + `team_id` filter, web proxy forwards params
+  (`app/api/goals/route.ts`), team cards show Goals & Tasks (`app/app/teams/page.tsx`).
+- `apps/web/components/contrast-self-check.tsx` (new) — dev-only rendered contrast
+  diagnostic (computed styles, nearest non-transparent background, AA 4.5, visible alert on
+  failure, nothing in production); `data-contrast-check` attributes on dashboard stat cards.
+- `apps/web/scripts/contrast-check.mjs` — dark-mode token audit: parses `@theme` palette +
+  `:root` + `.dark` blocks, asserts 9 semantic pairs ≥ 4.5:1 (light ink/ink-muted/muted/
+  foreground on card; dark muted/foreground on card + background; emerald CTA).
+
+**Bugs found & fixed**: (1) cmd.exe quoting destroyed `node -e "…"` args via args-array spawn
+(empty script, exit 0) — switched to `shell: true` single-string spawn (verified by test);
+(2) vitest `beforeAll` at module level runs even under `describe.skip` — moved hooks inside
+the skip-gated describe; (3) `AuditInput` has no free-form `detail` — structured context goes
+in `resultRef` (JSON, per existing convention); (4) contrast script failed to resolve tokens
+because the palette lives across multiple `@theme` blocks and `@theme {` ≠ `@theme inline {`
+— parse all blocks, optional `inline` modifier.
+
+**Verification**: API typecheck 0 errors; API tests **296 passed / 0 failed** (224 DB-gated
+skipped locally — no Postgres in this environment; run against infra compose/Supabase in CI);
+web typecheck clean; web production build passes; `test:contrast` PASS (9 light+dark pairs).
+**Not done / blocked**: live-DB integration runs (no local Postgres), connector action
+handlers, live provider E2E (no creds), briefing email needs SMTP/Resend in prod.
+
 ---
 
 ## Superseded / corrected decisions

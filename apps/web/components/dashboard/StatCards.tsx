@@ -82,13 +82,21 @@ export function DashboardStats(props: StatCardsProps) {
             >
               <Icon className="h-4 w-4" />
             </span>
-            <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
+            <p
+              data-contrast-check={`stat-card-label-${s.key}`}
+              className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted"
+            >
               {s.label}
             </p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight text-ink tabular-nums">
+            <p
+              data-contrast-check={`stat-card-value-${s.key}`}
+              className="mt-1 text-2xl font-semibold tracking-tight text-ink tabular-nums"
+            >
               {s.getValue(props)}
             </p>
-            <p className="mt-0.5 text-xs text-muted">{s.getNote(props)}</p>
+            <p data-contrast-check={`stat-card-note-${s.key}`} className="mt-0.5 text-xs text-muted">
+              {s.getNote(props)}
+            </p>
           </Link>
         );
       })}

@@ -1,5 +1,5 @@
-import { eq, and, desc } from 'drizzle-orm';
-import { agents, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
@@ -12,11 +12,40 @@ import type { Agent } from '@orq8/db';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface OrgStructureTeam {
+  id: string;
+  name: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  lead: string | null; // team owner
+  status: string; // active | archived
+  members: Array<{
+    id: string;
+    name: string;
+    role: string;
+    status: string;
+    currentTask: string | null;
+  }>;
+  work: {
+    activeTasks: number;
+    blockedTasks: number;
+    overdueTasks: number;
+  };
+}
+
+export interface OrgStructure {
+  departments: Array<{ id: string; name: string; status: string }>;
+  teams: OrgStructureTeam[];
+  unassignedAgents: number;
+  counts: { departments: number; teams: number; agents: number; activeAgents: number };
+}
+
 export interface ExecutiveContext {
   orgId: string;
   userId: string;
   orgName?: string;
   agents: Agent[];
+  orgStructure: OrgStructure;
   activeGoals: Array<{ id: string; title: string; status: string; priority: string; progress: number }>;
   activeTasks: Array<{ id: string; title: string; status: string; agentId: string | null }>;
   pendingApprovals: number;
@@ -225,21 +254,155 @@ function validateIntent(intent: IntentAnalysis): string | null {
  * Build the full Executive Agent context from the database.
  * This gives the LLM awareness of the organization's current state.
  */
+/** Statuses that count as "in flight" for team work summaries. */
+const ACTIVE_TASK_STATUSES = new Set(['pending', 'in_progress']);
+const CLOSED_TASK_STATUSES = new Set(['completed', 'cancelled']);
+
+/**
+ * Build a compact, deterministic org-structure view: departments, teams with
+ * owners and members, per-team work status. This is the ONLY org-structure
+ * representation the Executive Agent receives — never the raw tables.
+ */
+export async function buildOrgStructure(
+  db: Db,
+  orgId: string,
+  orgAgents: Agent[],
+): Promise<OrgStructure> {
+  const [deptRows, teamRows, taskAgg, overdueAgg] = await Promise.all([
+    db.select({ id: departments.id, name: departments.name, status: departments.status }).from(departments).where(eq(departments.orgId, orgId)),
+    db.select({ id: teams.id, name: teams.name, departmentId: teams.departmentId, lead: teams.lead, status: teams.status }).from(teams).where(eq(teams.orgId, orgId)),
+    // Task counts grouped by team + status (org-scoped).
+    db
+      .select({ teamId: tasks.teamId, status: tasks.status, count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(and(eq(tasks.orgId, orgId), sql`${tasks.teamId} is not null`))
+      .groupBy(tasks.teamId, tasks.status),
+    // Overdue = not closed and due before now, grouped by team.
+    db
+      .select({ teamId: tasks.teamId, count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.orgId, orgId),
+          sql`${tasks.teamId} is not null`,
+          sql`${tasks.dueDate} is not null and ${tasks.dueDate} < now()`,
+          sql`${tasks.status} not in ('completed', 'cancelled')`,
+        ),
+      )
+      .groupBy(tasks.teamId),
+  ]);
+
+  const deptById = new Map(deptRows.map((d) => [d.id, d]));
+  const statusCounts = new Map<string, Record<string, number>>();
+  for (const row of taskAgg) {
+    if (!row.teamId) continue;
+    const bucket = statusCounts.get(row.teamId) ?? {};
+    bucket[row.status] = (bucket[row.status] ?? 0) + row.count;
+    statusCounts.set(row.teamId, bucket);
+  }
+  const overdueByTeam = new Map(overdueAgg.filter((r) => r.teamId).map((r) => [r.teamId!, r.count]));
+
+  const teamsView: OrgStructureTeam[] = teamRows.map((team) => {
+    const members = orgAgents
+      .filter((a) => a.teamId === team.id)
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        role: a.role,
+        status: a.status,
+        currentTask: a.currentTask ?? null,
+      }));
+    const counts = statusCounts.get(team.id) ?? {};
+    const activeTasks = Object.entries(counts)
+      .filter(([status]) => ACTIVE_TASK_STATUSES.has(status))
+      .reduce((n, [, c]) => n + c, 0);
+    const blockedTasks = counts.failed ?? 0;
+    return {
+      id: team.id,
+      name: team.name,
+      departmentId: team.departmentId,
+      departmentName: team.departmentId ? (deptById.get(team.departmentId)?.name ?? null) : null,
+      lead: team.lead ?? null,
+      status: team.status,
+      members,
+      work: {
+        activeTasks,
+        blockedTasks,
+        overdueTasks: overdueByTeam.get(team.id) ?? 0,
+      },
+    };
+  });
+
+  const unassignedAgents = orgAgents.filter((a) => !a.teamId).length;
+  return {
+    departments: deptRows,
+    teams: teamsView.sort((a, b) => a.name.localeCompare(b.name)),
+    unassignedAgents,
+    counts: {
+      departments: deptRows.length,
+      teams: teamRows.length,
+      agents: orgAgents.length,
+      activeAgents: orgAgents.filter((a) => a.status === 'active').length,
+    },
+  };
+}
+
+/**
+ * Render the org structure as a compact, deterministic prompt block.
+ * Pure function — unit-testable without a database.
+ */
+export function formatOrgStructure(structure: OrgStructure): string {
+  const lines: string[] = [];
+  lines.push(`### Organization Structure (${structure.counts.departments} departments, ${structure.counts.teams} teams, ${structure.counts.agents} AI employees, ${structure.unassignedAgents} unassigned)`);
+
+  if (structure.teams.length === 0) {
+    lines.push('No teams exist yet — the organization has no formal structure.');
+    return lines.join('\n');
+  }
+
+  for (const dept of structure.departments) {
+    if (dept.status === 'archived') continue;
+    const deptTeams = structure.teams.filter((t) => t.departmentId === dept.id);
+    const members = deptTeams.reduce((n, t) => n + t.members.length, 0);
+    lines.push(`- Department: ${dept.name} (${deptTeams.length} teams, ${members} members)`);
+  }
+  // Teams without a department
+  const orphanTeams = structure.teams.filter((t) => !t.departmentId);
+  if (orphanTeams.length > 0) {
+    lines.push(`- Teams without a department: ${orphanTeams.map((t) => t.name).join(', ')}`);
+  }
+
+  for (const team of structure.teams) {
+    if (team.status === 'archived') continue;
+    const owner = team.lead ? `, owner: ${team.lead}` : '';
+    const memberList = team.members.map((m) => `${m.name} (${m.role}, ${m.status})${m.currentTask ? ` — ${m.currentTask}` : ''}`).join('; ');
+    const workFlags: string[] = [];
+    if (team.work.activeTasks > 0) workFlags.push(`${team.work.activeTasks} active`);
+    if (team.work.blockedTasks > 0) workFlags.push(`BLOCKED: ${team.work.blockedTasks} failed`);
+    if (team.work.overdueTasks > 0) workFlags.push(`OVERDUE: ${team.work.overdueTasks}`);
+    lines.push(`- Team: ${team.name}${owner}${workFlags.length > 0 ? ` [${workFlags.join(', ')}]` : ''} — ${memberList || 'no members'}`);
+  }
+
+  return lines.join('\n');
+}
+
 export async function buildContext(db: Db, orgId: string): Promise<ExecutiveContext> {
-  const [orgAgents, orgGoals, orgTasks, orgApprovals, orgMemory] = await Promise.all([
-    db.select().from(agents).where(eq(agents.orgId, orgId)),
+  const orgAgents = await db.select().from(agents).where(eq(agents.orgId, orgId));
+  const [orgGoals, orgTasks, orgApprovals, orgMemory, orgStructure] = await Promise.all([
     db.select().from(goals).where(eq(goals.orgId, orgId)).orderBy(desc(goals.createdAt)).limit(10),
     db.select().from(tasks).where(eq(tasks.orgId, orgId)).orderBy(desc(tasks.createdAt)).limit(20),
     db.select({ id: approvals.id }).from(approvals).where(
       and(eq(approvals.orgId, orgId), eq(approvals.status, 'pending')),
     ),
     db.select().from(companyMemory).where(eq(companyMemory.orgId, orgId)).orderBy(desc(companyMemory.createdAt)).limit(10),
+    buildOrgStructure(db, orgId, orgAgents),
   ]);
 
   return {
     orgId,
     userId: '',
     agents: orgAgents,
+    orgStructure,
     activeGoals: orgGoals.map(g => ({
       id: g.id,
       title: g.title,
@@ -281,10 +444,14 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     ? ctx.recentMemory.map(m => `- [${m.category}] ${m.content}`).join('\n')
     : 'No company memory yet.';
 
+  const structureBlock = formatOrgStructure(ctx.orgStructure);
+
   return `## ORGANIZATION CONTEXT
 
 ### AI Employees
 ${agentList}
+
+${structureBlock}
 
 ### Active Goals
 ${goalList}
@@ -298,8 +465,9 @@ ${taskList}
 ${memoryList}
 
 ### Instructions
-You have full awareness of the organization's current state.
+You have full awareness of the organization's current state, including its departments, teams, team owners, members and where work is blocked or overdue.
 Use this context to make informed decisions about task decomposition and agent selection.
+When the founder asks who owns work or who is responsible, answer from the organization structure above.
 If no suitable agent exists, recommend hiring one.
 Always be specific about which agent should handle each task.`;
 }

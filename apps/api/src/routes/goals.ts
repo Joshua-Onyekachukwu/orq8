@@ -5,13 +5,14 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import type { AppDeps } from '../types.js';
-import { goals, tasks } from '@orq8/db';
+import { goals, tasks, teams, type Db } from '@orq8/db';
 
 const createGoalBody = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   dueDate: z.string().datetime().optional(), // ISO date string
+  teamId: z.string().uuid().optional(),
 });
 
 const updateGoalBody = z.object({
@@ -21,6 +22,7 @@ const updateGoalBody = z.object({
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   progress: z.number().int().min(0).max(100).optional(),
   dueDate: z.string().datetime().optional().nullable(),
+  teamId: z.string().uuid().optional().nullable(),
 });
 
 const createTaskBody = z.object({
@@ -28,6 +30,7 @@ const createTaskBody = z.object({
   description: z.string().trim().max(2000).optional(),
   goalId: z.string().uuid().optional(),
   agentId: z.string().uuid().optional(),
+  teamId: z.string().uuid().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   dueDate: z.string().datetime().optional(),
 });
@@ -38,10 +41,30 @@ const updateTaskBody = z.object({
   status: z.enum(['pending', 'in_progress', 'completed', 'failed', 'cancelled']).optional(),
   agentId: z.string().uuid().optional().nullable(),
   goalId: z.string().uuid().optional().nullable(),
+  teamId: z.string().uuid().optional().nullable(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   dueDate: z.string().datetime().optional().nullable(),
   result: z.string().max(5000).optional().nullable(),
 });
+
+/**
+ * Validate that a team belongs to the requesting org (IDOR guard).
+ * Returns the team id or null; throws a 400 validation error for foreign teams.
+ */
+async function resolveTeamInOrg(
+  db: Db,
+  orgId: string,
+  teamId: string | null | undefined,
+): Promise<string | null> {
+  if (!teamId) return null;
+  const [team] = await db
+    .select({ id: teams.id })
+    .from(teams)
+    .where(and(eq(teams.id, teamId), eq(teams.orgId, orgId)))
+    .limit(1);
+  if (!team) throw validation({ teamId: ['Team not found in this organization'] });
+  return team.id;
+}
 
 export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
@@ -56,8 +79,10 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
 
+    const teamId = url.searchParams.get('team_id') ?? undefined;
     const conditions = [eq(goals.orgId, ctx.orgId)];
     if (status) conditions.push(eq(goals.status, status));
+    if (teamId) conditions.push(eq(goals.teamId, teamId));
 
     const [totalRow] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -94,6 +119,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const parsed = createGoalBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
+    const teamId = await resolveTeamInOrg(db, ctx.orgId, parsed.data.teamId);
     const [goal] = await db
       .insert(goals)
       .values({
@@ -102,6 +128,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
         description: parsed.data.description ?? null,
         priority: parsed.data.priority,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+        teamId,
         status: 'active',
         progress: 0,
       })
@@ -132,6 +159,9 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (parsed.data.priority !== undefined) updates.priority = parsed.data.priority;
     if (parsed.data.progress !== undefined) updates.progress = parsed.data.progress;
     if (parsed.data.dueDate !== undefined) updates.dueDate = parsed.data.dueDate ? new Date(parsed.data.dueDate) : null;
+    if (parsed.data.teamId !== undefined) {
+      updates.teamId = await resolveTeamInOrg(db, ctx.orgId, parsed.data.teamId);
+    }
 
     const result = await db
       .update(goals)
@@ -185,9 +215,11 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
 
+    const teamId = url.searchParams.get('team_id') ?? undefined;
     const conditions = [eq(tasks.orgId, ctx.orgId)];
     if (goalId) conditions.push(eq(tasks.goalId, goalId));
     if (agentId) conditions.push(eq(tasks.agentId, agentId));
+    if (teamId) conditions.push(eq(tasks.teamId, teamId));
     if (status) conditions.push(eq(tasks.status, status));
     if (priority) conditions.push(eq(tasks.priority, priority));
 
@@ -234,6 +266,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const parsed = createTaskBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
+    const teamId = await resolveTeamInOrg(db, ctx.orgId, parsed.data.teamId);
     const [task] = await db
       .insert(tasks)
       .values({
@@ -242,6 +275,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
         description: parsed.data.description ?? null,
         goalId: parsed.data.goalId ?? null,
         agentId: parsed.data.agentId ?? null,
+        teamId,
         priority: parsed.data.priority,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
         status: 'pending',
@@ -273,6 +307,9 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (parsed.data.status !== undefined) updates.status = parsed.data.status;
     if (parsed.data.agentId !== undefined) updates.agentId = parsed.data.agentId;
     if (parsed.data.goalId !== undefined) updates.goalId = parsed.data.goalId;
+    if (parsed.data.teamId !== undefined) {
+      updates.teamId = await resolveTeamInOrg(db, ctx.orgId, parsed.data.teamId);
+    }
     if (parsed.data.priority !== undefined) updates.priority = parsed.data.priority;
     if (parsed.data.dueDate !== undefined) updates.dueDate = parsed.data.dueDate ? new Date(parsed.data.dueDate) : null;
     if (parsed.data.result !== undefined) updates.result = parsed.data.result;

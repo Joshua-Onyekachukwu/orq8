@@ -212,7 +212,7 @@ export async function getSandboxRun(db: Db, orgId: string, id: string): Promise<
 export async function updateSandboxRun(
   db: Db,
   id: string,
-  updates: Partial<Pick<SandboxRun, 'state' | 'stdout' | 'stderr' | 'exitCode' | 'resultSummary' | 'startedAt' | 'finishedAt' | 'usedCredits' | 'allocatedCredits'>>,
+  updates: Partial<Pick<SandboxRun, 'state' | 'stdout' | 'stderr' | 'exitCode' | 'resultSummary' | 'startedAt' | 'finishedAt' | 'usedCredits' | 'allocatedCredits' | 'workingDir'>>,
 ): Promise<SandboxRun | undefined> {
   const rows = await db
     .update(sandboxRuns)

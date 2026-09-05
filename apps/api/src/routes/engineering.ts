@@ -15,6 +15,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
+import { executeCommand, toSafeSummary } from '../services/executor.js';
 import {
   listRepositories,
   getRepository,
@@ -290,7 +291,8 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
     const parsed = sandboxBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
-    // Verify repository ownership
+    // Verify repository ownership (org-scoped — the client can never run a
+    // command against another org's repository).
     const repo = await getRepository(db, ctx.orgId, parsed.data.repositoryId);
     if (!repo) {
       reply.code(404);
@@ -299,12 +301,84 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
 
     const run = await createSandboxRun(db, {
       orgId: ctx.orgId,
-      ...parsed.data,
-      state: 'queued',
+      repositoryId: parsed.data.repositoryId,
+      branch: parsed.data.branch,
+      command: parsed.data.command,
+      // The working directory is server-determined: the run's own scratch dir
+      // inside the org sandbox root. The client-supplied value is ignored —
+      // containment is enforced inside the executor.
+      workingDir: '',
+      runnerEnv: parsed.data.runnerEnv,
+      state: 'running',
+      allocatedCredits: parsed.data.allocatedCredits,
+      timeoutMs: parsed.data.timeoutMs,
+      maxMemoryMb: parsed.data.maxMemoryMb,
+      startedAt: new Date(),
     } as NewSandboxRun);
 
+    let result;
+    try {
+      result = await executeCommand({
+        orgId: ctx.orgId,
+        runId: run.id,
+        command: parsed.data.command,
+        timeoutMs: parsed.data.timeoutMs,
+        maxMemoryMb: parsed.data.maxMemoryMb,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sandbox execution failed';
+      await updateSandboxRun(db, run.id, {
+        state: 'failed',
+        resultSummary: JSON.stringify({ error: message }),
+        finishedAt: new Date(),
+      });
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'user',
+        actorId: ctx.userId,
+        action: 'sandbox.run.rejected',
+        outcome: 'failure',
+        resultRef: JSON.stringify({ message }),
+      });
+      reply.code(400);
+      return { error: { code: 'execution_rejected', message } };
+    }
+
+    const stateMap: Record<string, string> = {
+      completed: 'completed',
+      failed: 'failed',
+      timed_out: 'timeout',
+      cancelled: 'cancelled',
+    };
+    const summary = toSafeSummary(result);
+    const updated = await updateSandboxRun(db, run.id, {
+      state: stateMap[result.status] ?? 'failed',
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+      resultSummary: JSON.stringify(summary),
+      workingDir: result.workingDir,
+      finishedAt: new Date(),
+    });
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: `sandbox.run.${result.status}`,
+      outcome: result.status === 'completed' ? 'success' : 'failure',
+      resultRef: JSON.stringify({
+        repositoryId: parsed.data.repositoryId,
+        executionId: result.executionId,
+        durationMs: result.durationMs,
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        truncated: result.stdoutTruncated || result.stderrTruncated,
+      }),
+    });
+
     reply.code(202);
-    return { data: run };
+    return { data: updated };
   });
 
   app.get<{ Params: { id: string } }>('/v1/sandbox-runs/:id', async (request, reply) => {

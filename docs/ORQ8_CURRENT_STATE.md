@@ -95,24 +95,34 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 
 - **P1 — Task 1: Real GitHub OAuth** — **CODE COMPLETE + TESTED** (see §5.1). Remaining:
   live credentials + end-to-end against real GitHub.
-- **P1 — Task 4: Sandboxed engineering command executor** (isolated subprocess runner with
-  strict timeouts, output caps, exit codes, audit; true container isolation is Future).
+- **P1 — Task 4: Sandboxed engineering command executor** — **DONE** (§5.3): per-org
+  scratch workspace, timeout tree-kill, ulimit CPU/memory caps, output caps, env scrubbing,
+  path containment, structured results, audit; 22 unit tests. Production container/gVisor
+  isolation documented as the remaining boundary (see executor.ts header).
 - **P2 — Task 2: Connector health/refresh/reconnect lifecycle** (states: connected/healthy/
-  degraded/expired/revoked/disconnected + UI).
-- **P2 — Task 3: Webhook receivers** — **DONE (this session)** for GitHub + Linear: HMAC
-  verify, idempotency, durable events, rule-based processing, internal cron endpoint.
-- **P2 — Task 5: Simulation apply** (formal proposal spec; idempotent materialization of
-  departments/agents/goals after approval).
-- **P2 — Task 6: Team/department integration test suite** (API + RLS; cross-org rejection).
-- **P2 — Task 7: Executive Agent team awareness** (structured, minimal team context injection;
-  cross-org safe). *Partially done* — agent-context resolves team membership; prompt injection
-  layer still to add.
+  degraded/expired/revoked/disconnected + UI) — health + disconnect routes exist; full
+  lifecycle UI still to build.
+- **P2 — Task 3: Webhook receivers** — **DONE** for GitHub + Linear: HMAC verify,
+  idempotency, durable events, rule-based processing, internal cron endpoint.
+- **P2 — Task 5: Simulation apply** — **DONE** (§5.3): structured proposal endpoint
+  (`POST /v1/simulations/:id/proposal`), founder-approval gate via the approvals table,
+  transactional idempotent materialization of departments/teams/agents/goals with
+  provenance + audit. Migration `0007` (proposal jsonb column).
+- **P2 — Task 6: Team/department integration test suite** — **DONE** (§5.3): API-level
+  create/reassign/pause/archive, cross-org 401/404 rejection, RLS direct-SQL enforcement
+  tests (skip-gated on live DB / Supabase auth context).
+- **P2 — Task 7: Executive Agent team awareness** — **DONE** (§5.3): compact
+  `OrgStructure` block (departments/teams/owners/members/blocked+overdue work) built
+  org-scoped and injected into the exec-agent prompt; pure formatter tests + DB-gated
+  isolation tests.
 - **P2 — Connector actions (new)**: implement real GitHub/Gmail/Linear ACTION handlers
   (list repos, create PR, send email …) behind `canAgentUseCapability` + `recordOutcome`;
   wire into tool-handlers so agents can actually use connectors.
-- **P2 — Task 8: Team-scoped goals/tasks** (`team_id` on goals/tasks, RLS, API, team pages).
-- **P2 — Task 11: Business Import / Voice / Monaco** — only after P1/P2 foundational tasks
-  are stable; no speculative infra.
+- **P2 — Task 8: Team-scoped goals/tasks** — **DONE** (§5.3): `team_id` on goals + tasks
+  (migration `0006`), in-org team validation on create/update, `team_id` list filters
+  (web proxies now forward params), team cards show goals + tasks.
+- **P2 — Task 11: Business Import / Voice / Monaco** — no foundations exist in the
+  codebase; remains gated on P1/P2 stability (see §4 — no speculative infra).
 - **P1 — Task 9/10: Production deployment + smoke test** (requires credentials — see §4).
 - **Future — Task 12**: k6 load tests, DR runbook, gVisor evaluation, concurrent-command
   production test, PostHog live receipt, more connectors.
@@ -154,6 +164,35 @@ swap, authorize URL, redirect-URI validation, exchange success/error/no-config, 
 no-token-leak). **Verification**: API typecheck 0 errors, full suite **211 passed / 0 failed**,
 web typecheck clean. **Blocker**: `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` not set (need a
 GitHub OAuth App with callback `<APP_URL>/api/integrations/callback/github`); live E2E not run.
+
+## 5.3 This session — executor, simulation apply, exec-agent context, org integration tests, contrast self-check
+
+Built (all verified below): **sandboxed executor** (`apps/api/src/services/executor.ts`,
+22 tests — containment, env scrub, timeout kill, output caps, structured results; wired into
+`POST /v1/sandbox-runs` with audit; `sandbox_runs.working_dir` now records the server-
+determined scratch dir; client-supplied working dirs are ignored); **simulation apply**
+(proposal endpoint, approval-gated materialization — departments/teams/agents/goals created
+in one transaction with provenance `config.sourceSimulationId/sourceProposalId/reportsTo`,
+idempotent re-apply, audits at every step; migration `0007_add_simulation_proposal.sql`);
+**Executive Agent org structure** (`buildOrgStructure` + `formatOrgStructure` — departments,
+teams with owners/members, per-team active/blocked(failed)/overdue work, unassigned agents,
+compact deterministic prompt block; org-scoped aggregates); **Task 6 integration suite**
+(`test/org-structure-integration.test.ts` — API create/reassign/pause/archive with real
+sessions, cross-org 401/404, cross-org departmentId rejected 400, RLS direct-SQL tests via
+`request.jwt.claims`, skip-gated); **Team-scoped goals/tasks** (Task 8 — `team_id` column
+migration `0006`, API validation + `team_id` filter, web proxy forwards query params, team
+cards show goals/tasks); **dashboard contrast self-check** (`components/contrast-self-check.tsx`
+— dev-only, computes real computed-style contrast on `data-contrast-check` elements, visible
+red alert below 4.5:1, nothing in production); **contrast-check.mjs dark-mode audit** — now
+parses `@theme` palette + `:root` + `.dark` blocks and asserts 9 semantic pairs (light:
+ink/ink-muted/muted/foreground on card; dark: muted/foreground on card + background,
+emerald CTA primary-foreground) all ≥ 4.5:1.
+
+**Verification**: API typecheck 0 errors; API tests **296 passed / 0 failed** (224 DB-gated
+skipped — no local Postgres; run against infra compose / Supabase in CI); web typecheck
+clean; web production build passes; `test:contrast` PASS (all 9 light+dark pairs ≥ 4.5:1).
+**Not done / blocked**: live DB integration tests (no local Postgres here), connector action
+handlers, live provider E2E (no creds), briefing email needs SMTP/Resend in prod.
 
 ## 6. Environment Audit (presence as of last audit — values never recorded here)
 

@@ -384,12 +384,14 @@ export const goals = pgTable(
     progress: integer('progress').notNull().default(0), // 0-100
     priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
     dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
+    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('goals_org_idx').on(t.orgId),
     index('goals_due_date_idx').on(t.dueDate),
+    index('goals_team_idx').on(t.teamId),
   ],
 );
 
@@ -407,6 +409,7 @@ export const tasks = pgTable(
     status: text('status').notNull().default('pending'), // pending | in_progress | completed | failed | cancelled
     priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
     dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
+    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
     cost: integer('cost').notNull().default(0), // cost in cents
     result: text('result'), // execution result when completed
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -416,6 +419,7 @@ export const tasks = pgTable(
     index('tasks_org_idx').on(t.orgId),
     index('tasks_status_idx').on(t.orgId, t.status),
     index('tasks_agent_idx').on(t.agentId),
+    index('tasks_team_idx').on(t.teamId),
     index('tasks_priority_idx').on(t.orgId, t.priority),
     index('tasks_due_date_idx').on(t.dueDate),
   ],
@@ -1108,6 +1112,9 @@ export const simulations = pgTable(
     assumptions: text('assumptions').array(),
     metrics: jsonb('metrics'),
     recommendation: text('recommendation'),
+    // Structured organizational proposal (departments/teams/agents/goals) that
+    // must be founder-approved before apply materializes it (Task 5).
+    proposal: jsonb('proposal'),
     state: text('state').notNull().default('draft'), // draft | proposed | reviewed | applied
     appliedAt: timestamp('applied_at', { withTimezone: true }),
     appliedBy: uuid('applied_by'),

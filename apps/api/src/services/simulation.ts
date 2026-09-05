@@ -1,6 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { eq, and, desc } from 'drizzle-orm';
 import {
   simulations,
+  departments,
+  teams,
+  agents,
+  goals,
   analyticsEvents,
   type Db,
   type Simulation,
@@ -9,6 +14,7 @@ import {
   type NewAnalyticsEvent,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { findByOrg as findApprovalsByOrg, createApproval } from './approvals.js';
 
 // ─── Simulation Engine ───────────────────────────────────────────────────────
 
@@ -217,33 +223,343 @@ function riskRecommendation(risk: string): string {
   }
 }
 
+// ─── Structured proposal + founder-approved apply (Task 5) ──────────────────
+
+export interface ProposalAgent {
+  name: string;
+  role: string;
+  reportsTo?: string;
+  weeklyCost?: number;
+  capabilities?: string[];
+}
+
+export interface ProposalTeam {
+  name: string;
+  description?: string;
+  lead?: string;
+  agents?: ProposalAgent[];
+}
+
+export interface ProposalDepartment {
+  name: string;
+  description?: string;
+  head?: string;
+  teams?: ProposalTeam[];
+}
+
+export interface OrgProposal {
+  proposalId: string;
+  createdAt: string;
+  rationale: string;
+  departments: ProposalDepartment[];
+  goals?: { title: string; description?: string }[];
+}
+
+export type SimulationApplyResult =
+  | { status: 'pending_approval'; approvalId: string; simulation: Simulation }
+  | { status: 'rejected'; approvalId: string; simulation: Simulation }
+  | { status: 'already_applied'; simulation: Simulation }
+  | {
+      status: 'applied';
+      simulation: Simulation;
+      created: { departments: number; teams: number; agents: number; goals: number };
+    };
+
+/**
+ * Persist a structured organizational proposal onto a simulation. The proposal
+ * becomes the contract that the founder approves before anything is created.
+ * Amending an existing proposal preserves its proposalId for provenance.
+ */
+export async function saveProposal(
+  db: Db,
+  orgId: string,
+  simId: string,
+  input: Omit<OrgProposal, 'proposalId' | 'createdAt'>,
+): Promise<OrgProposal> {
+  const sim = await getSimulation(db, orgId, simId);
+  if (!sim) throw new Error('Simulation not found');
+  if (sim.state === 'applied') {
+    throw new Error('Simulation is already applied — proposals cannot be amended');
+  }
+
+  const previous = (sim.proposal ?? null) as OrgProposal | null;
+  const proposal: OrgProposal = {
+    proposalId: previous?.proposalId ?? randomUUID(),
+    createdAt: previous?.createdAt ?? new Date().toISOString(),
+    rationale: input.rationale,
+    departments: input.departments,
+    goals: input.goals,
+  };
+
+  await updateSimulation(db, simId, {
+    proposal: proposal as unknown as Record<string, unknown>,
+    state: 'proposed',
+  });
+
+  await appendAudit(db, {
+    orgId,
+    actorType: 'user',
+    action: 'simulation.proposal.saved',
+    outcome: 'success',
+    resultRef: JSON.stringify({ simulationId: simId, proposalId: proposal.proposalId, departments: proposal.departments.length }),
+  });
+
+  return proposal;
+}
+
+export function riskFromSimulation(sim: Simulation): 'low' | 'medium' | 'high' {
+  switch (sim.projectedRisk) {
+    case 'critical':
+    case 'high':
+      return 'high';
+    case 'medium':
+      return 'medium';
+    default:
+      return 'low';
+  }
+}
+
+export function buildApprovalDescription(sim: Simulation, proposal: OrgProposal): string {
+  const deptCount = proposal.departments.length;
+  const teamCount = proposal.departments.reduce((n, d) => n + (d.teams?.length ?? 0), 0);
+  const agentCount = proposal.departments.reduce(
+    (n, d) => n + (d.teams?.reduce((m, t) => m + (t.agents?.length ?? 0), 0) ?? 0),
+    0,
+  );
+  const deptNames = proposal.departments.map((d) => d.name).join(', ');
+  return (
+    `Apply simulation "${sim.name}": create ${deptCount} department(s) (${deptNames}), ` +
+    `${teamCount} team(s) and ${agentCount} AI employee(s). ` +
+    `Rationale: ${proposal.rationale}. ` +
+    `Risk: ${sim.projectedRisk ?? 'low'}.`
+  );
+}
+
+async function findByName(db: Db, table: 'department' | 'team' | 'agent', orgId: string, name: string) {
+  if (table === 'department') {
+    const rows = await db.select().from(departments).where(and(eq(departments.orgId, orgId), eq(departments.name, name))).limit(1);
+    return rows[0];
+  }
+  if (table === 'team') {
+    const rows = await db.select().from(teams).where(and(eq(teams.orgId, orgId), eq(teams.name, name))).limit(1);
+    return rows[0];
+  }
+  const rows = await db.select().from(agents).where(and(eq(agents.orgId, orgId), eq(agents.name, name))).limit(1);
+  return rows[0];
+}
+
+/**
+ * Materialize the approved proposal inside a single transaction. Idempotent:
+ * entities that already exist (same org + name) are skipped, so a retried or
+ * partially-failed apply never duplicates or orphans records. Every creation is
+ * audited with its provenance (source simulation + proposal).
+ */
+async function materializeProposal(
+  db: Db,
+  orgId: string,
+  sim: Simulation,
+  proposal: OrgProposal,
+  actorId: string,
+): Promise<{ departments: number; teams: number; agents: number; goals: number }> {
+  const created = { departments: 0, teams: 0, agents: 0, goals: 0 };
+
+  await db.transaction(async (tx) => {
+    const deptIds: Record<string, string> = {};
+
+    for (const dept of proposal.departments) {
+      let existing = await findByName(tx, 'department', orgId, dept.name);
+      if (!existing) {
+        existing = (
+          await tx
+            .insert(departments)
+            .values({
+              orgId,
+              name: dept.name,
+              description: dept.description ?? null,
+              head: dept.head ?? null,
+              status: 'active',
+            })
+            .returning()
+        )[0];
+        created.departments += 1;
+        await appendAudit(tx, {
+          orgId,
+          actorType: 'user',
+          actorId,
+          action: 'simulation.apply.department_created',
+          outcome: 'success',
+          resultRef: JSON.stringify({ simulationId: sim.id, proposalId: proposal.proposalId, name: dept.name }),
+        });
+      }
+      deptIds[dept.name] = existing!.id;
+
+      for (const team of dept.teams ?? []) {
+        let teamRow = await findByName(tx, 'team', orgId, team.name);
+        if (!teamRow) {
+          teamRow = (
+            await tx
+              .insert(teams)
+              .values({
+                orgId,
+                departmentId: deptIds[dept.name],
+                name: team.name,
+                description: team.description ?? null,
+                lead: team.lead ?? null,
+                status: 'active',
+              })
+              .returning()
+          )[0];
+          created.teams += 1;
+          await appendAudit(tx, {
+            orgId,
+            actorType: 'user',
+            actorId,
+            action: 'simulation.apply.team_created',
+            outcome: 'success',
+            resultRef: JSON.stringify({ simulationId: sim.id, proposalId: proposal.proposalId, department: dept.name, name: team.name }),
+          });
+        }
+        const teamId = teamRow!.id;
+
+        for (const agent of team.agents ?? []) {
+          let agentRow = await findByName(tx, 'agent', orgId, agent.name);
+          if (!agentRow) {
+            agentRow = (
+              await tx
+                .insert(agents)
+                .values({
+                  orgId,
+                  name: agent.name,
+                  role: agent.role,
+                  departmentId: deptIds[dept.name],
+                  teamId,
+                  status: 'active',
+                  weeklyCost: agent.weeklyCost ?? 0,
+                  capabilities: agent.capabilities ?? [],
+                  // Provenance — never silently created; traceable to source.
+                  config: {
+                    sourceSimulationId: sim.id,
+                    sourceProposalId: proposal.proposalId,
+                    reportsTo: agent.reportsTo ?? null,
+                  },
+                })
+                .returning()
+            )[0];
+            created.agents += 1;
+            await appendAudit(tx, {
+              orgId,
+              actorType: 'user',
+              actorId,
+              action: 'simulation.apply.agent_created',
+              outcome: 'success',
+              resultRef: JSON.stringify({
+                simulationId: sim.id,
+                proposalId: proposal.proposalId,
+                department: dept.name,
+                team: team.name,
+                name: agent.name,
+                role: agent.role,
+              }),
+            });
+          }
+        }
+      }
+    }
+
+    for (const goal of proposal.goals ?? []) {
+      const rows = await tx.select().from(goals).where(and(eq(goals.orgId, orgId), eq(goals.title, goal.title))).limit(1);
+      if (rows.length === 0) {
+        await tx.insert(goals).values({ orgId, title: goal.title, description: goal.description ?? null, status: 'active' });
+        created.goals += 1;
+        await appendAudit(tx, {
+          orgId,
+          actorType: 'user',
+          actorId,
+          action: 'simulation.apply.goal_created',
+          outcome: 'success',
+          resultRef: JSON.stringify({ simulationId: sim.id, proposalId: proposal.proposalId, title: goal.title }),
+        });
+      }
+    }
+  });
+
+  return created;
+}
+
+/**
+ * Founder-approved simulation apply. Never materializes without an approved
+ * approval record: the first call creates the pending approval (the gate), the
+ * call after the founder approves materializes the proposal transactionally.
+ * Idempotent — an already-applied simulation returns without re-creating.
+ */
 export async function applySimulation(
   db: Db,
   orgId: string,
   simId: string,
   appliedBy: string,
-): Promise<Simulation | undefined> {
+): Promise<SimulationApplyResult> {
   const sim = await getSimulation(db, orgId, simId);
-  if (!sim) return undefined;
+  if (!sim) throw new Error('Simulation not found');
+  if (sim.state === 'applied') {
+    return { status: 'already_applied', simulation: sim };
+  }
   if (sim.state !== 'proposed' && sim.state !== 'reviewed') {
-    throw new Error(`Simulation is in state "${sim.state}" and cannot be applied`);
+    throw new Error(`Simulation is in state "${sim.state}" — create a proposal first`);
   }
 
-  const updated = await updateSimulation(db, simId, {
-    state: 'applied',
-    appliedAt: new Date(),
-    appliedBy,
+  const proposal = (sim.proposal ?? null) as OrgProposal | null;
+  if (!proposal || proposal.departments.length === 0) {
+    throw new Error('Simulation has no structured proposal — submit one via the proposal endpoint first');
+  }
+
+  const actionKey = `simulation.apply:${simId}`;
+  const existing = (await findApprovalsByOrg(db, orgId, { limit: 100 })).find((a) => a.action === actionKey);
+
+  if (existing && existing.status === 'pending') {
+    return { status: 'pending_approval', approvalId: existing.id, simulation: sim };
+  }
+  if (existing && existing.status === 'rejected') {
+    return { status: 'rejected', approvalId: existing.id, simulation: sim };
+  }
+  if (existing && existing.status === 'approved') {
+    const created = await materializeProposal(db, orgId, sim, proposal, appliedBy);
+    const updated = await updateSimulation(db, simId, {
+      state: 'applied',
+      appliedAt: new Date(),
+      appliedBy,
+    });
+    await appendAudit(db, {
+      orgId,
+      actorType: 'user',
+      actorId: appliedBy,
+      action: 'simulation.applied',
+      outcome: 'success',
+      resultRef: JSON.stringify({ simulationId: simId, proposalId: proposal.proposalId, ...created }),
+    });
+    return { status: 'applied', simulation: updated!, created };
+  }
+
+  // No approval record yet → create the approval gate. Nothing is created.
+  const approval = await createApproval(db, {
+    orgId,
+    agentId: null,
+    action: actionKey,
+    description: buildApprovalDescription(sim, proposal),
+    cost: 0,
+    riskLevel: riskFromSimulation(sim),
+    status: 'pending',
   });
 
   await appendAudit(db, {
     orgId,
     actorType: 'user',
     actorId: appliedBy,
-    action: 'simulation.applied',
+    action: 'simulation.apply.requested',
     outcome: 'success',
+    resultRef: JSON.stringify({ simulationId: simId, approvalId: approval.id, proposalId: proposal.proposalId }),
   });
 
-  return updated;
+  return { status: 'pending_approval', approvalId: approval.id, simulation: sim };
 }
 
 // ─── Analytics Events (companion log) ────────────────────────────────────────

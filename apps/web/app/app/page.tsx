@@ -15,6 +15,7 @@ import { CommandBar } from "../../components/command-bar";
 import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget";
 
 import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
+import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import { ExecutiveAgentPanel } from "../../components/dashboard/ExecutiveAgentPanel";
 import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
 import { HealthScore } from "../../components/dashboard/HealthScore";
@@ -104,16 +105,16 @@ function StatCard({
       className="group rounded-xl border border-hairline bg-white p-5 transition-all hover:border-hairline hover:shadow-sm"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted">{label}</span>
+        <span data-contrast-check="stat-card-label" className="text-xs font-medium text-muted">{label}</span>
         <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}>
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-2 text-2xl font-bold tracking-tight text-ink">
+      <p data-contrast-check="stat-card-value" className="mt-2 text-2xl font-bold tracking-tight text-ink">
         {value}
       </p>
       <div className="mt-2 flex items-center gap-1">
-        <span className="text-xs text-muted">{subtext}</span>
+        <span data-contrast-check="stat-card-subtext" className="text-xs text-muted">{subtext}</span>
         <ArrowUpRight className="h-3 w-3 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </div>
     </Link>
@@ -335,6 +336,9 @@ export default async function AppPage() {
 
       {/* Quick Actions FAB */}
       <QuickActionsHub />
+
+      {/* Dev-only contrast diagnostic — renders nothing in production */}
+      <ContrastSelfCheck />
     </div>
   );
 }
