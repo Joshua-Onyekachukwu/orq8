@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { analytics } from "@/lib/analytics";
 import {
   ArrowLeft,
   ArrowRight,
@@ -134,6 +135,7 @@ export default function OnboardingPage() {
 
   const startPath = (type: SourceType) => {
     setSourceType(type);
+    analytics.onboardingStarted(type);
     setPhase("describe");
   };
 
@@ -207,8 +209,14 @@ export default function OnboardingPage() {
       });
       const json = await res.json();
       if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Activation failed");
-      setActivation(json.data.activation as ActivationResult);
+      const act = json.data.activation as ActivationResult;
+      setActivation(act);
       setPhase("done");
+      analytics.onboardingCompleted(
+        act?.departments?.length ?? 0,
+        act?.agents?.length ?? 0,
+        act?.goals?.length ?? 0,
+      );
       setTimeout(() => router.push("/app"), 2200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to activate your company");

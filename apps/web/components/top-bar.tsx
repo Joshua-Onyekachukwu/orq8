@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { analytics, resetAnalytics } from "@/lib/analytics";
 import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
@@ -129,7 +130,15 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
                   )}
                 </div>
                 <div className="border-t border-gray-100 pt-1">
-                  <Link href="/api/auth/logout" className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-500 hover:bg-gray-50">
+                  <Link
+                    href="/api/auth/logout"
+                    className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-500 hover:bg-gray-50"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      analytics.userLoggedOut();
+                      resetAnalytics();
+                    }}
+                  >
                     <LogOut className="h-4 w-4" /> Sign out
                   </Link>
                 </div>

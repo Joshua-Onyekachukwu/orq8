@@ -1,100 +1,121 @@
 /**
  * ORQ8 Analytics — PostHog Integration
  *
- * This module provides a thin analytics abstraction that wraps PostHog.
- * When POSTHOG_KEY is set, events are sent to PostHog.
- * When not set, events are logged to console (dev mode).
+ * Thin client-side analytics abstraction over PostHog.
+ *
+ * When NEXT_PUBLIC_POSTHOG_KEY is set, events are sent to PostHog.
+ * When not set, events are logged to console (dev mode) so development
+ * never throws or silently drops data.
+ *
+ * Privacy rules (docs/16):
+ *   - Never send API keys, passwords, tokens, provider secrets, or raw
+ *     prompt/response bodies. Command events send length only, never content.
+ *   - Identifiers are ORQ8 user/org IDs (not emails unless the caller opts in
+ *     via the profile payload on identify).
  *
  * Setup:
- *   1. Create a PostHog project at posthog.com
- *   2. Add POSTHOG_KEY and POSTHOG_HOST to Railway env vars
- *   3. The analytics provider auto-initializes on app load
+ *   1. Add NEXT_PUBLIC_POSTHOG_KEY (project API key) to the web app env.
+ *   2. Optional NEXT_PUBLIC_POSTHOG_HOST — defaults to US cloud.
+ *   3. <AnalyticsProvider> in the root layout initializes + tracks pageviews.
  *
  * Events tracked:
- *   - Page views (automatic via provider)
- *   - Feature usage (goals created, agents hired, commands sent)
- *   - Auth events (register, login, logout)
- *   - AI execution events (command sent, task completed, agent delegated)
- *   - Provider events (key added, provider tested)
- *   - Error events (API failures, LLM failures)
- *   - Performance events (slow requests, timeouts)
+ *   - Page views (automatic)
+ *   - Auth (register, login, logout)
+ *   - Onboarding (started, completed)
+ *   - Conversion (agent hired, goal created)
+ *   - Executive Agent commands (sent, completed)
  */
 
 "use client";
 
-// PostHog instance (lazy-loaded, typed as any to avoid hard dep)
-let posthogInstance: any = null;
+import posthog from "posthog-js";
+
+// PostHog singleton — init happens at most once regardless of how many
+// providers mount across layouts (root + app subtree).
+let initialized = false;
+let posthogInstance: typeof posthog | null = null;
+
+function getKey(): string | undefined {
+  return process.env.NEXT_PUBLIC_POSTHOG_KEY;
+}
+
+function getHost(): string {
+  return process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+}
 
 /**
- * Initialize PostHog. Call once on app mount.
+ * Initialize PostHog. Safe to call multiple times (idempotent).
  */
-export async function initAnalytics(options: {
-  key?: string;
-  host?: string;
-  userId?: string;
-  orgId?: string;
-  userName?: string;
-  userEmail?: string;
-}): Promise<void> {
-  const key = options.key || process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const host =
-    options.host ||
-    process.env.NEXT_PUBLIC_POSTHOG_HOST ||
-    "https://us.i.posthog.com";
-
+export function initAnalytics(): void {
+  if (initialized) return;
+  const key = getKey();
   if (!key) {
-    console.log("[analytics] No POSTHOG_KEY set — events logged to console only");
+    console.log("[analytics] No NEXT_PUBLIC_POSTHOG_KEY set — events logged to console only");
+    initialized = true; // Don't re-warn on every mount
     return;
   }
 
   try {
-    const mod = await import(/* webpackIgnore: true */ "posthog-js").catch(() => null);
-    if (!mod) return;
-    const PostHog = mod.default;
-    PostHog.init(key, {
-      api_host: host,
+    posthog.init(key, {
+      api_host: getHost(),
       autocapture: false, // We control what we capture
       persistence: "localStorage",
-      capture_pageview: false, // We handle page views manually
+      capture_pageview: false, // We track pageviews manually via route changes
       capture_pageleave: true,
+      disable_session_recording: true,
     });
-    posthogInstance = PostHog;
-
-    if (options.userId) {
-      PostHog.identify(options.userId, {
-        org_id: options.orgId,
-        name: options.userName,
-        email: options.userEmail,
-      });
-    }
+    posthogInstance = posthog;
+    initialized = true;
   } catch {
     console.warn("[analytics] Failed to initialize PostHog");
+    initialized = true;
   }
+}
+
+function ensureClient(): boolean {
+  if (typeof window === "undefined") return false;
+  initAnalytics();
+  return true;
 }
 
 /**
  * Track an analytics event.
+ * Falls back to console logging when PostHog is not configured.
  */
-export function track(
-  event: string,
-  properties?: Record<string, unknown>,
-): void {
+export function track(event: string, properties?: Record<string, unknown>): void {
+  if (!ensureClient()) return;
   if (posthogInstance) {
-    posthogInstance.capture(event, properties);
+    try {
+      posthogInstance.capture(event, properties);
+    } catch {
+      /* never let analytics break the app */
+    }
   } else {
     console.log(`[analytics] ${event}`, properties);
   }
 }
 
 /**
- * Identify the current user.
+ * Track a page view for the current path.
+ */
+export function trackPageView(pathname: string): void {
+  track("$pageview", { pathname });
+}
+
+/**
+ * Identify the current user with safe properties (no email unless profile given).
  */
 export function identifyUser(
   userId: string,
   properties?: Record<string, unknown>,
 ): void {
+  if (!userId || !ensureClient()) return;
   if (posthogInstance) {
-    posthogInstance.identify(userId, properties);
+    try {
+      posthogInstance.identify(userId, properties);
+    } catch {
+      /* non-fatal */
+    }
   }
 }
 
@@ -102,8 +123,13 @@ export function identifyUser(
  * Reset analytics (on logout).
  */
 export function resetAnalytics(): void {
+  if (!ensureClient()) return;
   if (posthogInstance) {
-    posthogInstance.reset();
+    try {
+      posthogInstance.reset();
+    } catch {
+      /* non-fatal */
+    }
   }
 }
 
@@ -118,9 +144,10 @@ export const analytics = {
   userLoggedOut: () => track("user_logged_out"),
 
   // Onboarding
-  onboardingStarted: () => track("onboarding_started"),
-  onboardingCompleted: (steps: number) =>
-    track("onboarding_completed", { steps }),
+  onboardingStarted: (path: "idea" | "existing") =>
+    track("onboarding_started", { path }),
+  onboardingCompleted: (departments: number, agents: number, goals: number) =>
+    track("onboarding_completed", { departments, agents, goals }),
 
   // Agents
   agentHired: (role: string) => track("agent_hired", { role }),
@@ -132,9 +159,9 @@ export const analytics = {
   goalCreated: (priority: string) => track("goal_created", { priority }),
   goalCompleted: (goalId: string) => track("goal_completed", { goal_id: goalId }),
 
-  // Commands
-  commandSent: (command: string, length: number) =>
-    track("command_sent", { command_length: length }),
+  // Commands — length only, never the command content
+  commandSent: (command: string) =>
+    track("command_sent", { command_length: command.length }),
   commandCompleted: (status: string, durationMs: number) =>
     track("command_completed", { status, duration_ms: durationMs }),
 
@@ -143,33 +170,19 @@ export const analytics = {
     track("task_created", { agent_role: agentRole }),
   taskCompleted: (agentRole: string, durationMs: number) =>
     track("task_completed", { agent_role: agentRole, duration_ms: durationMs }),
-  taskFailed: (agentRole: string, error: string) =>
-    track("task_failed", { agent_role: agentRole, error }),
-  toolExecuted: (toolId: string, success: boolean) =>
-    track("tool_executed", { tool_id: toolId, success }),
+  taskFailed: (agentRole: string) => track("task_failed", { agent_role: agentRole }),
 
   // Providers
   providerKeyAdded: (provider: string) =>
     track("provider_key_added", { provider }),
-  providerKeyTested: (provider: string, success: boolean) =>
-    track("provider_key_tested", { provider, success }),
-  providerFallback: (from: string, to: string, reason: string) =>
-    track("provider_fallback", { from, to, reason }),
 
   // Credits
   creditsLow: (remaining: number) =>
     track("credits_low", { remaining }),
-  creditsExhausted: () => track("credits_exhausted"),
 
   // Errors
   apiError: (endpoint: string, status: number) =>
     track("api_error", { endpoint, status }),
-  llmError: (provider: string, error: string) =>
-    track("llm_error", { provider, error }),
-
-  // Performance
-  slowRequest: (endpoint: string, durationMs: number) =>
-    track("slow_request", { endpoint, duration_ms: durationMs }),
 
   // Navigation
   pageViewed: (page: string) => track("$pageview", { page }),

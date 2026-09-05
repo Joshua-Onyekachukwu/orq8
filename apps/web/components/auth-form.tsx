@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 
 type AuthMode = "login" | "register";
 
@@ -111,6 +112,12 @@ export function AuthForm({
           );
         }
         return;
+      }
+      // Analytics: track the conversion (never send password/credentials)
+      if (mode === "register") {
+        analytics.userRegistered("email");
+      } else {
+        analytics.userLoggedIn("email");
       }
       // New founders go through the Company Builder; returning users go to dashboard.
       router.push(mode === "register" ? "/onboarding" : (target ?? "/app"));

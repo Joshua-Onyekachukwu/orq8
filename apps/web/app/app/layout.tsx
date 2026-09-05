@@ -4,7 +4,7 @@ import { AppSidebar } from "../../components/app-sidebar";
 import { AppErrorBoundary } from "../../components/app-error-boundary";
 import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
-import { AnalyticsProvider } from "../../components/analytics-provider";
+import { IdentifyUser } from "../../components/identify-user";
 
 
 
@@ -106,7 +106,7 @@ export default async function AppLayout({
 
   return (
     <div id="main" className="min-h-screen bg-canvas">
-      <AnalyticsProvider
+      <IdentifyUser
         userId={me?.user.id}
         orgId={active?.org.id}
         userName={userName}

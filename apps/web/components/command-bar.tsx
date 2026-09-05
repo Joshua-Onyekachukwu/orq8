@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRealtime } from "../hooks/use-realtime";
 import { CommandInput } from "./command-bar-input";
 import { CommandResultDisplay } from "./command-bar-result";
+import { analytics } from "@/lib/analytics";
 
 interface CommandResult {
   commandId: string;
@@ -81,6 +82,8 @@ export function CommandBar({ context }: { context?: CommandContext }) {
     setIsProcessing(true);
     setResult(null);
     setApprovalStatus("idle");
+    const startTime = performance.now();
+    analytics.commandSent(command); // length only — never content
     try {
       const response = await fetch("/api/commands", {
         method: "POST",
@@ -93,7 +96,9 @@ export function CommandBar({ context }: { context?: CommandContext }) {
       if (newResult && newResult.status !== "error") {
         setHistory((prev) => [newResult, ...prev].slice(0, 10));
       }
+      analytics.commandCompleted(newResult?.status ?? "unknown", Math.round(performance.now() - startTime));
     } catch {
+      analytics.commandCompleted("error", Math.round(performance.now() - startTime));
       setResult({
         commandId: "", command, plan: { action: "error", description: "Failed to process command", agents: [], estimatedCost: 0, requiresApproval: false },
         approvalRequest: null, status: "error", message: "Something went wrong. Please try again.", taskIds: [],
