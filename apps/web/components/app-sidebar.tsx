@@ -113,7 +113,7 @@ export function AppSidebar({
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
           <div className="h-2 w-2 rounded-full bg-orq8-lime animate-pulse" />
-          <span className="text-[11px] font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
+          <span className="text-overline font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export function AppSidebar({
           Provider Keys
         </Link>
         <div className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/30">
-          <div className="h-7 w-7 rounded-full bg-orq8-green flex items-center justify-center text-[11px] font-bold text-orq8-lime">
+          <div className="h-7 w-7 rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">

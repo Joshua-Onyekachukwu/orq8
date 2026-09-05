@@ -114,7 +114,7 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
               <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-100 bg-white py-2 shadow-lg">
                 <div className="border-b border-gray-100 px-4 py-3">
                   <p className="text-2sm font-medium text-gray-900">{userName}</p>
-                  <p className="text-[11px] text-gray-400">{orgName}</p>
+                  <p className="text-overline text-gray-400">{orgName}</p>
                 </div>
                 <div className="py-1">
                   <Link href="/app/profile" className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-600 hover:bg-gray-50" onClick={() => setProfileOpen(false)}>

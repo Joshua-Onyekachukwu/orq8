@@ -655,5 +655,6 @@ body {
    Use those standard Tailwind classes instead. */
 .text-2xs { font-size: 9px; line-height: 1.4; }
 .text-3xs { font-size: 10px; line-height: 1.4; }
+.text-overline { font-size: 11px; line-height: 1.45; }
 .text-2sm { font-size: 13px; line-height: 1.5; }
 .text-md { font-size: 15px; line-height: 1.6; }

@@ -92,7 +92,7 @@ const Footer: React.FC = () => {
                   <button
                     type="submit"
                     disabled={status === "loading"}
-                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-full bg-orq8-lime p-[6px] md:p-[6px] uppercase text-[11px] font-bold text-orq8-dark tracking-[0.15em] hover:bg-orq8-lime mt-[12px] md:mt-0 disabled:opacity-60 transition-colors"
+                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-full bg-orq8-lime p-[6px] md:p-[6px] uppercase text-overline font-bold text-orq8-dark tracking-[0.15em] hover:bg-orq8-lime mt-[12px] md:mt-0 disabled:opacity-60 transition-colors"
                   >
                     <span className="flex items-center justify-center gap-[10px]">
                       {status === "loading" ? "Joining…" : "Join the waitlist"}{" "}
@@ -106,7 +106,7 @@ const Footer: React.FC = () => {
             {/* Link columns */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-[32px] lg:gap-[40px] lg:ltr:justify-end lg:rtl:justify-start">
               <div>
-                <span className="block uppercase font-bold tracking-[0.15em] text-[11px] text-white/40 mb-[20px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[0.15em] text-overline text-white/40 mb-[20px] md:mb-[24px]">
                   Product
                 </span>
                 <ul className="space-y-[14px] md:space-y-[16px]">
@@ -138,7 +138,7 @@ const Footer: React.FC = () => {
               </div>
 
               <div>
-                <span className="block uppercase font-bold tracking-[0.15em] text-[11px] text-white/40 mb-[20px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[0.15em] text-overline text-white/40 mb-[20px] md:mb-[24px]">
                   Company
                 </span>
                 <ul className="space-y-[14px] md:space-y-[16px]">
@@ -170,7 +170,7 @@ const Footer: React.FC = () => {
               </div>
 
               <div>
-                <span className="block uppercase font-bold tracking-[0.15em] text-[11px] text-white/40 mb-[20px] md:mb-[24px]">
+                <span className="block uppercase font-bold tracking-[0.15em] text-overline text-white/40 mb-[20px] md:mb-[24px]">
                   Next steps
                 </span>
                 <ul className="space-y-[14px] md:space-y-[16px]">

@@ -83,7 +83,7 @@ const HowItWorks: React.FC = () => {
         <div className="mt-[40px] md:mt-[50px] lg:mt-[60px] text-center">
           <Link
             href="/register"
-            className="btn-press inline-block rounded-full bg-orq8-green px-[28px] py-[14px] uppercase text-[11px] font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-green-dark"
+            className="btn-press inline-block rounded-full bg-orq8-green px-[28px] py-[14px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-green-dark"
           >
             <span className="flex items-center justify-center gap-[12px]">
               Get Started

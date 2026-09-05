@@ -503,7 +503,7 @@ export default function GoalDetailPage() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted">
+                            <p className="text-overline text-muted">
                               {agent.role}
                               {agent.department && ` · ${agent.department}`}
                             </p>

@@ -18,7 +18,7 @@ const HeroBanner: React.FC = () => {
           {/* Eyebrow */}
           <div className="inline-flex items-center gap-[10px] rounded-full border border-white/10 bg-white/5 backdrop-blur-sm px-[18px] py-[8px] mb-[28px] md:mb-[32px]">
             <span className="w-[6px] h-[6px] rounded-full bg-orq8-lime animate-pulse" />
-            <span className="uppercase text-[11px] font-bold tracking-[1.8px] text-orq8-lime">
+            <span className="uppercase text-overline font-bold tracking-[1.8px] text-orq8-lime">
               AI Organization Operating System
             </span>
           </div>
@@ -36,13 +36,13 @@ const HeroBanner: React.FC = () => {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-[14px]">
-            <Link href="/register" className="inline-block rounded-full bg-orq8-orange px-[28px] py-[14px] uppercase text-[11px] font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-orange-dark">
+            <Link href="/register" className="inline-block rounded-full bg-orq8-orange px-[28px] py-[14px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-orange-dark">
               <span className="flex items-center justify-center gap-[12px]">
                 Get Started
                 <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm" />
               </span>
             </Link>
-            <Link href="/about" className="inline-block rounded-full border border-white/15 bg-white/5 backdrop-blur-sm px-[28px] py-[14px] uppercase text-[11px] font-bold text-white/70 tracking-[1.8px] transition-all hover:border-white/30 hover:text-white hover:bg-white/10">
+            <Link href="/about" className="inline-block rounded-full border border-white/15 bg-white/5 backdrop-blur-sm px-[28px] py-[14px] uppercase text-overline font-bold text-white/70 tracking-[1.8px] transition-all hover:border-white/30 hover:text-white hover:bg-white/10">
               <span className="flex items-center justify-center gap-[12px]">
                 Learn More
                 <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/10 text-white/60 flex items-center justify-center text-2sm" />

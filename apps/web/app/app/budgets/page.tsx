@@ -86,7 +86,7 @@ export default function BudgetsPage() {
         </div>
         <button
           type="button"
-          onClick={fetchData}
+          aria-label="Refresh budgets" onClick={fetchData}
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         >

@@ -314,7 +314,7 @@ export function GrowthTree({ tone = "light" }: { tone?: "dark" | "light" }) {
         ))}
       </div>
       <p
-        className={`mt-6 text-center font-mono text-[11px] uppercase tracking-[0.22em] ${
+        className={`mt-6 text-center font-mono text-overline uppercase tracking-[0.22em] ${
           onDark ? "text-fog" : "text-muted"
         }`}
       >

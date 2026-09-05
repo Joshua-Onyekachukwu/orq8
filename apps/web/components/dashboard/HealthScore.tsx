@@ -125,7 +125,7 @@ export function HealthScore(props: HealthScoreProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-ink">Company Health</h2>
-          <p className="mt-0.5 text-[11px] text-muted">Composite performance score</p>
+          <p className="mt-0.5 text-overline text-muted">Composite performance score</p>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-3xs font-semibold uppercase tracking-wide ${color} bg-current/5`}>
           <Icon className="h-3 w-3" />
@@ -180,7 +180,7 @@ export function HealthScore(props: HealthScoreProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <StatusDot status={seg.status} />
-                  <span className="text-[11px] font-medium text-ink">{seg.label}</span>
+                  <span className="text-overline font-medium text-ink">{seg.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-3xs font-mono tabular-nums text-muted">{seg.display}</span>

@@ -99,10 +99,10 @@ const AboutContent: React.FC = () => {
                   Marketing requests $250 for a LinkedIn campaign.
                 </p>
                 <div className="mt-[16px] flex gap-[8px]">
-                  <span className="rounded-[8px] bg-orq8-lime px-[12px] py-[6px] text-[11px] font-bold uppercase tracking-wider text-orq8-dark">
+                  <span className="rounded-[8px] bg-orq8-lime px-[12px] py-[6px] text-overline font-bold uppercase tracking-wider text-orq8-dark">
                     Approve
                   </span>
-                  <span className="rounded-[8px] border border-white/[0.08] px-[12px] py-[6px] text-[11px] font-bold uppercase tracking-wider text-white/50">
+                  <span className="rounded-[8px] border border-white/[0.08] px-[12px] py-[6px] text-overline font-bold uppercase tracking-wider text-white/50">
                     Reject
                   </span>
                 </div>

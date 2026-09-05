@@ -102,7 +102,7 @@ const ContactForm: React.FC = () => {
                   <div>
                     <label
                       htmlFor="contact-name"
-                      className="mb-[8px] block text-[11px] font-semibold uppercase tracking-widest text-white/40"
+                      className="mb-[8px] block text-overline font-semibold uppercase tracking-widest text-white/40"
                     >
                       Name
                     </label>
@@ -120,7 +120,7 @@ const ContactForm: React.FC = () => {
                   <div>
                     <label
                       htmlFor="contact-email"
-                      className="mb-[8px] block text-[11px] font-semibold uppercase tracking-widest text-white/40"
+                      className="mb-[8px] block text-overline font-semibold uppercase tracking-widest text-white/40"
                     >
                       Email
                     </label>
@@ -139,7 +139,7 @@ const ContactForm: React.FC = () => {
                 <div>
                   <label
                     htmlFor="contact-subject"
-                    className="mb-[8px] block text-[11px] font-semibold uppercase tracking-widest text-white/40"
+                    className="mb-[8px] block text-overline font-semibold uppercase tracking-widest text-white/40"
                   >
                     Subject
                   </label>
@@ -155,7 +155,7 @@ const ContactForm: React.FC = () => {
                 <div>
                   <label
                     htmlFor="contact-message"
-                    className="mb-[8px] block text-[11px] font-semibold uppercase tracking-widest text-white/40"
+                    className="mb-[8px] block text-overline font-semibold uppercase tracking-widest text-white/40"
                   >
                     Message
                   </label>

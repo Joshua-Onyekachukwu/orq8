@@ -259,7 +259,7 @@ export default function AgentDetailPage() {
                   {agent.capabilities.map((cap) => (
                     <span
                       key={cap}
-                      className="rounded-full bg-orq8-dark/5 px-2.5 py-1 text-[11px] font-medium text-orq8-dark"
+                      className="rounded-full bg-orq8-dark/5 px-2.5 py-1 text-overline font-medium text-orq8-dark"
                     >
                       {cap}
                     </span>

@@ -221,7 +221,7 @@ export default async function AdminDashboardPage() {
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-ink">{link.label}</p>
-                <p className="text-[11px] text-muted">{link.desc}</p>
+                <p className="text-overline text-muted">{link.desc}</p>
               </div>
               <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-orq8-green" />
             </Link>

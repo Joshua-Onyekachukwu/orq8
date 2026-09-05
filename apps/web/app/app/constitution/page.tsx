@@ -296,7 +296,7 @@ export default function ConstitutionPage() {
             placeholder="Add a core value..."
             className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
           />
-          <button type="button" onClick={addValue} className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark">
+          <button type="button" aria-label="Add company value" onClick={addValue} className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark">
             <Plus className="h-4 w-4" />
           </button>
         </div>

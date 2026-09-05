@@ -48,7 +48,7 @@ const PricingComparison: React.FC = () => {
     <div className="bg-white py-[40px] md:py-[60px] lg:py-[80px]">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         <div className="mb-[30px] md:mb-[40px] text-center">
-          <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-orq8-orange mb-[12px]">
+          <span className="block uppercase font-bold tracking-[0.2em] text-overline text-orq8-orange mb-[12px]">
             Compare plans
           </span>
           <h2 className="!text-black !font-normal !text-[28px] md:!text-[36px] lg:!text-[42px] -tracking-[0.5px] md:-tracking-[1px]">
@@ -66,16 +66,16 @@ const PricingComparison: React.FC = () => {
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%]">
                   <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange">Founder</span>
-                  <span className="block text-[11px] text-gray-400 mt-[2px]">$39/mo</span>
+                  <span className="block text-overline text-gray-400 mt-[2px]">$39/mo</span>
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%] bg-orq8-green/[0.03] rounded-t-[8px]">
                   <span className="text-xs font-bold uppercase tracking-wider text-orq8-green">Team</span>
-                  <span className="block text-[11px] text-gray-400 mt-[2px]">$99/mo</span>
+                  <span className="block text-overline text-gray-400 mt-[2px]">$99/mo</span>
                   <span className="inline-block mt-[4px] text-2xs font-bold uppercase tracking-wider bg-orq8-orange text-white px-[8px] py-[2px] rounded-full">Popular</span>
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%]">
                   <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange">Company</span>
-                  <span className="block text-[11px] text-gray-400 mt-[2px]">$249/mo</span>
+                  <span className="block text-overline text-gray-400 mt-[2px]">$249/mo</span>
                 </th>
               </tr>
             </thead>
@@ -101,17 +101,17 @@ const PricingComparison: React.FC = () => {
               <tr>
                 <td className="py-[20px] px-[20px]" />
                 <td className="py-[20px] px-[20px] text-center">
-                  <Link href="/register" className="inline-block rounded-full border border-gray-200 px-[20px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-gray-600 hover:border-orq8-green hover:text-orq8-green transition-colors">
+                  <Link href="/register" className="inline-block rounded-full border border-gray-200 px-[20px] py-[10px] text-overline font-bold uppercase tracking-wider text-gray-600 hover:border-orq8-green hover:text-orq8-green transition-colors">
                     Start free trial
                   </Link>
                 </td>
                 <td className="py-[20px] px-[20px] text-center bg-orq8-green/[0.03] rounded-b-[8px]">
-                  <Link href="/register" className="inline-block rounded-full bg-orq8-green px-[20px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-white hover:bg-orq8-green-dark transition-colors">
+                  <Link href="/register" className="inline-block rounded-full bg-orq8-green px-[20px] py-[10px] text-overline font-bold uppercase tracking-wider text-white hover:bg-orq8-green-dark transition-colors">
                     Start free trial
                   </Link>
                 </td>
                 <td className="py-[20px] px-[20px] text-center">
-                  <Link href="/register" className="inline-block rounded-full border border-gray-200 px-[20px] py-[10px] text-[11px] font-bold uppercase tracking-wider text-gray-600 hover:border-orq8-green hover:text-orq8-green transition-colors">
+                  <Link href="/register" className="inline-block rounded-full border border-gray-200 px-[20px] py-[10px] text-overline font-bold uppercase tracking-wider text-gray-600 hover:border-orq8-green hover:text-orq8-green transition-colors">
                     Start free trial
                   </Link>
                 </td>

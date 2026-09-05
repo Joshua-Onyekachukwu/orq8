@@ -89,7 +89,7 @@ const Cta: React.FC = () => {
                     <button
                       type="submit"
                       disabled={status === "loading"}
-                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-orq8-orange text-white font-bold uppercase text-[11px] tracking-[0.15em] px-[28px] h-[52px] hover:bg-orq8-orange-dark disabled:opacity-60 transition-colors"
+                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-orq8-orange text-white font-bold uppercase text-overline tracking-[0.15em] px-[28px] h-[52px] hover:bg-orq8-orange-dark disabled:opacity-60 transition-colors"
                     >
                       {status === "loading" ? (
                         <>

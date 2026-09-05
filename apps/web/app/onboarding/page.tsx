@@ -752,7 +752,7 @@ function EntityList({ label, items }: { label: string; items: string[] }) {
   if (!items.length) return null;
   return (
     <div className="mb-2 last:mb-0">
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{label}</p>
+      <p className="mb-1 text-overline font-semibold uppercase tracking-wider text-white/40">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {items.map((item, i) => (
           <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/80">

@@ -48,7 +48,7 @@ const About: React.FC = () => {
               ))}
             </div>
 
-            <Link href="/register" className="inline-block rounded-full bg-orq8-lime px-[28px] py-[14px] uppercase text-[11px] font-bold text-orq8-green tracking-[1.8px] transition-all hover:bg-orq8-lime">
+            <Link href="/register" className="inline-block rounded-full bg-orq8-lime px-[28px] py-[14px] uppercase text-overline font-bold text-orq8-green tracking-[1.8px] transition-all hover:bg-orq8-lime">
               <span className="flex items-center justify-center gap-[12px]">GET STARTED <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-orq8-green/10 text-orq8-green flex items-center justify-center text-2sm"></i></span>
             </Link>
           </div>

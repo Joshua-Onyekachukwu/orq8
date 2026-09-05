@@ -82,7 +82,7 @@ const Faqs: React.FC = () => {
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[40px] lg:gap-[60px]">
           <div className="md:max-w-[480px]">
-            <span className="block uppercase font-bold tracking-[0.2em] text-[11px] text-orq8-orange mb-[16px]">
+            <span className="block uppercase font-bold tracking-[0.2em] text-overline text-orq8-orange mb-[16px]">
               FAQ
             </span>
             <h2 className="!text-black !mb-[20px] md:!mb-[24px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
@@ -93,7 +93,7 @@ const Faqs: React.FC = () => {
             </p>
             <Link
               href="/contact"
-              className="btn-press inline-block rounded-full bg-orq8-orange px-[28px] py-[12px] uppercase text-[11px] font-bold text-white tracking-[0.15em] hover:bg-orq8-orange-dark transition-colors"
+              className="btn-press inline-block rounded-full bg-orq8-orange px-[28px] py-[12px] uppercase text-overline font-bold text-white tracking-[0.15em] hover:bg-orq8-orange-dark transition-colors"
             >
               <span className="flex items-center justify-center gap-[12px]">
                 Contact Us{" "}
