@@ -61,28 +61,28 @@ const PricingComparison: React.FC = () => {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-[16px] px-[20px] text-2sm font-semibold text-gray-400 uppercase tracking-wider w-[35%]">
+                <th className="text-left py-[16px] px-[20px] text-2sm font-semibold text-gray-600 uppercase tracking-wider w-[35%]">
                   Feature
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%]">
-                  <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange">Founder</span>
-                  <span className="block text-overline text-gray-400 mt-[2px]">$39/mo</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange-bright">Founder</span>
+                  <span className="block text-overline text-gray-600 mt-[2px]">$39/mo</span>
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%] bg-orq8-green/[0.03] rounded-t-[8px]">
                   <span className="text-xs font-bold uppercase tracking-wider text-orq8-green">Team</span>
-                  <span className="block text-overline text-gray-400 mt-[2px]">$99/mo</span>
+                  <span className="block text-overline text-gray-600 mt-[2px]">$99/mo</span>
                   <span className="inline-block mt-[4px] text-2xs font-bold uppercase tracking-wider bg-orq8-orange text-white px-[8px] py-[2px] rounded-full">Popular</span>
                 </th>
                 <th className="text-center py-[16px] px-[20px] w-[22%]">
-                  <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange">Company</span>
-                  <span className="block text-overline text-gray-400 mt-[2px]">$249/mo</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-orq8-orange-bright">Company</span>
+                  <span className="block text-overline text-gray-600 mt-[2px]">$249/mo</span>
                 </th>
               </tr>
             </thead>
             <tbody>
               {comparisonData.map((row, i) => (
                 <tr key={i} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                  <td className="py-[14px] px-[20px] text-sm text-gray-600 font-medium">
+                  <td className="py-[14px] px-[20px] text-sm text-gray-700 font-medium">
                     {row.feature}
                   </td>
                   <td className="py-[14px] px-[20px] text-center">
@@ -123,21 +123,18 @@ const PricingComparison: React.FC = () => {
         {/* Mobile cards */}
         <div className="md:hidden space-y-[20px]">
           {comparisonData.map((row, i) => (
-            <div key={i} className="border-b border-gray-100 pb-[16px]">
-              <p className="text-2sm font-semibold text-gray-500 uppercase tracking-wider mb-[10px]">
+            <div key={i} className="border-b border-gray-100 pb-[16px]">                    <p className="text-2sm font-semibold text-gray-600 uppercase tracking-wider mb-[10px]">
                 {row.feature}
               </p>
               <div className="grid grid-cols-3 gap-[12px]">
-                <div className="text-center">
-                  <p className="text-3xs font-bold uppercase text-gray-400 mb-[4px]">Founder</p>
+                <div className="text-center">                      <p className="text-3xs font-bold uppercase text-gray-600 mb-[4px]">Founder</p>
                   <CellValue value={row.founder} />
                 </div>
                 <div className="text-center bg-orq8-green/[0.03] rounded-[6px] py-[4px]">
                   <p className="text-3xs font-bold uppercase text-orq8-green mb-[4px]">Team</p>
                   <CellValue value={row.team} />
                 </div>
-                <div className="text-center">
-                  <p className="text-3xs font-bold uppercase text-gray-400 mb-[4px]">Company</p>
+                <div className="text-center">                      <p className="text-3xs font-bold uppercase text-gray-600 mb-[4px]">Company</p>
                   <CellValue value={row.company} />
                 </div>
               </div>

@@ -50,7 +50,7 @@ function getSeverityStyles(severity: string): SevStyle {
     case "critical": return { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" };
     case "high": return { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500" };
     case "medium": return { bg: "bg-yellow-50", text: "text-yellow-700", dot: "bg-yellow-500" };
-    default: return { bg: "bg-gray-50", text: "text-gray-700", dot: "bg-gray-400" };
+    default: return { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400" };
   }
 }
 

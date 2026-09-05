@@ -9,7 +9,7 @@ const ContactInfo: React.FC = () => {
         Let&apos;s talk about your company
       </h2>
 
-      <p className="mb-10 max-w-md text-base leading-relaxed text-gray-500">
+      <p className="mb-10 max-w-md text-base leading-relaxed text-gray-700">
         Have questions about how ORQ8 works? Want to discuss enterprise options?
         We read every message and respond within 24 hours.
       </p>
@@ -17,7 +17,7 @@ const ContactInfo: React.FC = () => {
       <div className="space-y-8">
         {/* Email */}
         <div>
-          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-400">
+          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-600">
             GENERAL INQUIRIES
           </span>
           <a
@@ -30,7 +30,7 @@ const ContactInfo: React.FC = () => {
 
         {/* Address */}
         <div>
-          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-400">
+          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-600">
             ADDRESS
           </span>
           <p className="text-base text-black">
@@ -44,7 +44,7 @@ const ContactInfo: React.FC = () => {
 
         {/* Hours */}
         <div>
-          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-400">
+          <span className="mb-1 block text-3xs font-semibold uppercase tracking-widest text-gray-600">
             OPEN HOURS
           </span>
           <p className="text-base text-black">
@@ -54,15 +54,14 @@ const ContactInfo: React.FC = () => {
 
         {/* Social */}
         <div>
-          <span className="mb-2 block text-3xs font-semibold uppercase tracking-widest text-gray-400">
+          <span className="mb-2 block text-3xs font-semibold uppercase tracking-widest text-gray-500">
             FOLLOW US
           </span>
           <div className="flex items-center gap-3">
             <a
               href="https://twitter.com/orq8"
               target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-orq8-green hover:text-orq8-green"
+              rel="noopener noreferrer"                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:border-orq8-green hover:text-orq8-green"
               aria-label="Twitter"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -72,8 +71,7 @@ const ContactInfo: React.FC = () => {
             <a
               href="https://linkedin.com/company/orq8"
               target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-orq8-green hover:text-orq8-green"
+              rel="noopener noreferrer"                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:border-orq8-green hover:text-orq8-green"
               aria-label="LinkedIn"
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">

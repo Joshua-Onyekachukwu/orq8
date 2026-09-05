@@ -31,7 +31,7 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium text-ink">Maintenance Mode</p>
                 <p className="text-xs text-muted">Temporarily disable access</p>
               </div>
-              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
                 Off
               </span>
             </div>
@@ -116,7 +116,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Subscriptions and payment processing</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.STRIPE_SECRET_KEY ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-500"
+                process.env.STRIPE_SECRET_KEY ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-700"
               }`}>
                 {process.env.STRIPE_SECRET_KEY ? "Configured" : "Not configured"}
               </span>
@@ -127,7 +127,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted">Transactional and drip emails</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                process.env.SMTP_HOST ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-500"
+                process.env.SMTP_HOST ? "bg-orq8-green/10 text-orq8-lime" : "bg-gray-100 text-gray-700"
               }`}>
                 {process.env.SMTP_HOST ? "Configured" : "Not configured"}
               </span>

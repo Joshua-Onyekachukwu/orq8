@@ -14,7 +14,7 @@ const PricingHero: React.FC = () => {
             Your AI workforce.{" "}
             <span className="text-orq8-green">One operating system.</span>
           </h1>
-          <p className="max-w-[600px] text-base md:text-lg leading-relaxed text-gray-500">
+          <p className="max-w-[600px] text-base md:text-lg leading-relaxed text-gray-700">
             Start with a 7-day trial. Build your AI organization, delegate
             real work, and see what ORQ8 can do for your company.
           </p>

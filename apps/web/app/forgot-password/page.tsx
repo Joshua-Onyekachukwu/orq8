@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         </Link>
 
         <div className="w-full max-w-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-lime">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-green">
             Password Reset
           </p>
           <h1 className="mb-1 text-2xl font-semibold text-ink">
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
             Remember your password?{" "}
             <Link
               href="/login"
-              className="font-medium text-orq8-lime transition-colors hover:text-orq8-lime/80"
+              className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
             >
               Sign in
             </Link>

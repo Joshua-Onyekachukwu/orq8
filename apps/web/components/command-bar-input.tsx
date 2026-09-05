@@ -54,11 +54,11 @@ export function CommandInput({ isProcessing, onSubmit, onSuggestionClick }: Comm
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             placeholder="Tell your Executive Agent what to do..."
-            className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 outline-none"
+            className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 outline-none"
             disabled={isProcessing}
           />
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-gray-400 sm:inline">
+            <span className="hidden text-xs text-gray-500 sm:inline">
               <kbd className="rounded border border-gray-200 px-1.5 py-0.5 font-mono text-3xs">⌘K</kbd>
             </span>
             <button

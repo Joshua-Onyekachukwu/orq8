@@ -169,7 +169,7 @@ export function AuthForm({
           onClick={onToggle}
           aria-label={show ? "Hide password" : "Show password"}
           aria-pressed={show}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-orq8-green"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-orq8-green"
         >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>

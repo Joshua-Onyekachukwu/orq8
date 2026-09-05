@@ -34,7 +34,7 @@ const About: React.FC = () => {
             <h2 className="!mb-[12px] md:!mb-[15px] lg:!mb-[20px] !font-light !text-2xl md:!text-4xl lg:!text-[42px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
               A company that runs itself. <span className="text-black">Under your control.</span>
             </h2>
-            <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-500">
+            <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-700">
               Every solo founder juggles 12+ disconnected tools and starts every morning copying data between tabs. ORQ8 replaces that chaos with one operating system: AI employees handle the work, you handle the decisions, and the Executive Agent coordinates everything in between.
             </p>
 
@@ -43,7 +43,7 @@ const About: React.FC = () => {
                 <div key={i} className="relative mb-[20px] md:mb-[25px] last:mb-0 ltr:pl-[48px] rtl:pr-[48px] ltr:md:pl-[64px] rtl:md:pr-[64px] md:pt-[7px]">
                   <div className="rounded-full flex items-center justify-center w-[35px] h-[35px] md:w-[44px] md:h-[44px] text-orq8-green border border-orq8-green/20 bg-orq8-green/5 text-lg md:text-[22px] absolute top-0 ltr:left-0 rtl:right-0"><i className="ri-check-double-line"></i></div>
                   <h3 className="!font-medium !text-xl md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] md:!mb-[12px]">{f.title}</h3>
-                  <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-500">{f.description}</p>
+                  <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-700">{f.description}</p>
                 </div>
               ))}
             </div>

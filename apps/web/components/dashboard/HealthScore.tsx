@@ -73,7 +73,7 @@ function computeScore(props: HealthScoreProps): ScoreResult {
     label = "Needs Attention";
     description = "Several areas need founder input. Review pending approvals and stalled tasks.";
     color = "text-orq8-orange";
-    strokeColor = "#E86A33";
+    strokeColor = "#c14f1f";
   } else {
     label = "At Risk";
     description = "Critical issues detected. Immediate action needed to get back on track.";

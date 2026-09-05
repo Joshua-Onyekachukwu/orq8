@@ -88,8 +88,8 @@ function statusConfig(status: string) {
       };
     case "not_configured":
       return {
-        color: "bg-gray-100 text-gray-500",
-        dot: "bg-gray-300",
+        color: "bg-gray-100 text-gray-700",
+        dot: "bg-gray-400",
         label: "Not configured",
         icon: Circle,
       };
@@ -340,7 +340,7 @@ export default async function AdminHealthPage() {
                 <dd className={`font-medium ${
                   health?.subsystems.find((s) => s.name === "Redis")?.status === "operational"
                     ? "text-orq8-green"
-                    : "text-amber-600"
+                    : "text-amber-700"
                 }`}>
                   {health?.subsystems.find((s) => s.name === "Redis")?.status === "operational"
                     ? "Connected"

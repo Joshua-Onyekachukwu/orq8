@@ -105,7 +105,7 @@ export function CommandResultDisplay({
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green" />
         )}
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900 whitespace-pre-wrap">{result.message}</p>
+          <p className="text-sm font-medium text-ink whitespace-pre-wrap">{result.message}</p>
 
           {/* Credits consumed */}
           {result.credits && result.credits.consumed > 0 && (
@@ -138,7 +138,7 @@ export function CommandResultDisplay({
             <div className="mt-4 rounded-lg bg-gray-50 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-gray-400" />
+                  <Bot className="h-4 w-4 text-gray-500" />
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Execution</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export function CommandResultDisplay({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {statusIcon(ar.status)}
-                        <span className="text-sm font-medium text-gray-900">{ar.taskTitle}</span>
+                        <span className="text-sm font-medium text-ink">{ar.taskTitle}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-orq8-green/5 px-2 py-0.5 text-3xs font-medium text-orq8-green">
@@ -178,8 +178,7 @@ export function CommandResultDisplay({
                         </span>
                       </div>
                     </div>
-                    {ar.status === "completed" && ar.result && (
-                      <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-500 max-h-20 overflow-hidden">
+                    {ar.status === "completed" && ar.result && (                        <div className="mt-2 rounded bg-gray-100 p-2 text-xs text-gray-600 max-h-20 overflow-hidden">
                         {ar.result.slice(0, 200)}{ar.result.length > 200 ? "..." : ""}
                       </div>
                     )}
@@ -192,15 +191,13 @@ export function CommandResultDisplay({
           {/* Task Decomposition */}
           {result.plan.taskDecomposition && result.plan.taskDecomposition.length > 1 && (
             <div className="mt-3 rounded-lg bg-gray-50 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <ListTodo className="h-4 w-4 text-gray-400" />
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Breakdown</p>
+              <div className="flex items-center gap-2 mb-2">                  <ListTodo className="h-4 w-4 text-gray-500" />
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Breakdown</p>
               </div>
               <div className="space-y-1.5">
                 {result.plan.taskDecomposition.map((step, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm">
-                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-green" />
-                    <span className="text-gray-900">{step.title}</span>
+                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-green" />                      <span className="text-ink">{step.title}</span>
                   </div>
                 ))}
               </div>

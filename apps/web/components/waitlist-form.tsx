@@ -108,7 +108,7 @@ export function WaitlistForm({
             </p>
           </div>
 
-          <p className={`text-sm leading-relaxed max-w-sm mx-auto ${dark ? "text-white/70" : "text-gray-600"}`}>
+          <p className={`text-sm leading-relaxed max-w-sm mx-auto ${dark ? "text-white/70" : "text-gray-700"}`}>
             {isAlready
               ? "We have your details. We'll be in touch when your cohort opens."
               : "Congratulations. We're building ORQ8 for you. Your place in the first cohort is reserved. We'll email you when it's your turn."}

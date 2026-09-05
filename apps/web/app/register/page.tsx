@@ -111,7 +111,7 @@ export default async function RegisterPage({
               </Link>
             </div>
 
-            <p className="mt-6 text-xs text-gray-400 uppercase tracking-widest">
+            <p className="mt-6 text-xs text-gray-500 uppercase tracking-widest">
               Existing users can still sign in normally
             </p>
           </div>
@@ -159,7 +159,7 @@ export default async function RegisterPage({
         </Link>
 
         <div className="w-full max-w-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-lime">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-green">
             Create your organization
           </p>
           <h1 className="mb-1 text-2xl font-semibold text-ink">
@@ -177,7 +177,7 @@ export default async function RegisterPage({
               href={
                 next ? `/login?next=${encodeURIComponent(next)}` : "/login"
               }
-              className="font-medium text-orq8-lime transition-colors hover:text-orq8-lime/80"
+              className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
             >
               Sign in
             </Link>

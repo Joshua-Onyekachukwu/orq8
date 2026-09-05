@@ -52,7 +52,7 @@ const Testimonials: React.FC = () => {
             Early users share their{" "}
             <span className="text-orq8-green">experience</span>
           </h2>
-          <p className="text-gray-400 text-2sm mt-[12px] !mb-0">
+          <p className="text-gray-700 text-2sm mt-[12px] !mb-0">
             Demo profiles from our design process — real testimonials coming soon.
           </p>
         </div>
@@ -99,7 +99,7 @@ const Testimonials: React.FC = () => {
                       <h3 className="!text-base md:!text-md !font-semibold !mb-[5px]">
                         {t.name}
                       </h3>
-                      <span className="block text-gray-400 text-sm">
+                      <span className="block text-gray-700 text-sm">
                         {t.position}
                       </span>
                     </div>

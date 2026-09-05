@@ -88,7 +88,7 @@ const Faqs: React.FC = () => {
             <h2 className="!text-black !mb-[20px] md:!mb-[24px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
               Questions, before you ask them
             </h2>
-            <p className="md:text-base text-gray-500 !mb-[28px]">
+            <p className="md:text-base text-gray-700 !mb-[28px]">
               Something else on your mind? We read every message. Ask us anything about how ORQ8 would run your company.
             </p>
             <Link
@@ -138,7 +138,7 @@ const Faqs: React.FC = () => {
                     openItem === item.id ? "pb-[20px] max-h-[500px]" : "max-h-0"
                   }`}
                 >
-                  <div className="text-gray-500 text-md leading-[1.7]">
+                  <div className="text-gray-700 text-md leading-[1.7]">
                     {item.answer}
                   </div>
                 </div>

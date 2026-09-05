@@ -40,7 +40,7 @@ const Features: React.FC = () => {
       <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
         {/* Header */}
         <div className="mb-[40px] md:mb-[50px] lg:mb-[70px] mx-auto text-center md:max-w-[495px] lg:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange mb-[10px] lg:mb-[15px]">Platform</span>
+          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange-bright mb-[10px] lg:mb-[15px]">Platform</span>
           <h2 className="!mb-[16px] !font-normal !text-2xl md:!text-4xl lg:!text-[42px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px] text-white">
             An operating system, not a chatbot
           </h2>
@@ -78,7 +78,7 @@ const Features: React.FC = () => {
             <div className="w-[140px] h-[140px] rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-[0_0_60px_rgba(255,255,255,0.15)]">
               <div className="text-center">
                 <span className="block text-orq8-dark text-[24px] font-bold leading-none">ORQ8</span>
-                <span className="block text-orq8-orange text-3xs uppercase tracking-[3px] mt-[6px] font-bold">Core</span>
+                <span className="block text-orq8-orange-bright text-3xs uppercase tracking-[3px] mt-[6px] font-bold">Core</span>
               </div>
             </div>
             <div className="absolute inset-[-10px] rounded-full border border-orq8-lime/25 animate-ping" style={{animationDuration:"3s"}} />

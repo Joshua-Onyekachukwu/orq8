@@ -20,7 +20,7 @@ const typeColors: Record<string, string> = {
   task: "bg-orq8-lime/10 text-orq8-green",
   credit: "bg-red-50 text-red-600",
   agent: "bg-orq8-orange/10 text-orq8-orange",
-  system: "bg-gray-50 text-gray-500",
+  system: "bg-gray-100 text-gray-600",
 };
 
 function timeAgo(dateStr: string): string {
@@ -141,10 +141,10 @@ export function NotificationsBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
+        className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
         title="Notifications"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-5 w-5 text-gray-600" />
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 font-mono text-2xs font-bold text-white">
             {unread > 99 ? "99+" : unread}
@@ -184,7 +184,7 @@ export function NotificationsBell() {
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center">
-                  <Bell className="mx-auto h-8 w-8 text-gray-300" />
+                  <Bell className="mx-auto h-8 w-8 text-gray-400" />
                   <p className="mt-2 text-sm text-gray-500">No notifications yet</p>
                 </div>
               ) : (
@@ -205,7 +205,7 @@ export function NotificationsBell() {
                         {n.title}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{n.message}</p>
-                      <p className="mt-1 font-mono text-3xs text-gray-400">
+                      <p className="mt-1 font-mono text-3xs text-gray-500">
                         {timeAgo(n.createdAt)}
                       </p>
                     </div>
@@ -219,7 +219,7 @@ export function NotificationsBell() {
 
             <div className="border-t border-gray-100 px-4 py-2.5">
               {notifications.length > 0 ? (
-                <p className="font-mono text-3xs uppercase tracking-wide text-gray-400">
+                <p className="font-mono text-3xs uppercase tracking-wide text-gray-500">
                   {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
                 </p>
               ) : (
@@ -231,7 +231,7 @@ export function NotificationsBell() {
                       fetchNotifications();
                     } catch { /* silent */ }
                   }}
-                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-400 transition-colors hover:text-gray-700"
+                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-600 transition-colors hover:text-gray-900"
                 >
                   <FlaskConical className="h-3 w-3" /> Seed sample notifications
                 </button>

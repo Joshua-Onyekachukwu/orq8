@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
           If an account exists with that email, we&apos;ve sent a password
           reset link.
         </p>
-        <p className="mt-4 text-xs text-gray-400">
+        <p className="mt-4 text-xs text-gray-500">
           Didn&apos;t receive it? Check your spam folder, or{" "}
           <button
             type="button"

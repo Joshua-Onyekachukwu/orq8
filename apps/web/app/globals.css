@@ -40,7 +40,7 @@
   --color-emerald-muted: #1a5c2e15; /* Subtle backgrounds */
 
   /* Orange — action, attention, approvals */
-  --color-orange: #E86A33;
+  --color-orange: #c14f1f;
 
 
   /* Primary — ORQ8 green scale (remapped from navy for compatibility) */
@@ -619,19 +619,27 @@ body {
 .bg-orq8-green { background-color: #1a5c2e; }
 .bg-orq8-green-dark { background-color: #144a24; }
 .bg-orq8-lime { background-color: #B8FF66; }
-.bg-orq8-orange { background-color: #E86A33; }
-.bg-orq8-orange-dark { background-color: #d45e2a; }
+/* Deep orange is the default: it clears 4.5:1 on white AND on the off-white
+ * panels (>= 4.9:1) used across the app. For DARK surfaces use
+ * .text-orq8-orange-bright / keep fills readable with white labels. */
+.bg-orq8-orange { background-color: #b84a1e; }
+.bg-orq8-orange-dark { background-color: #a03f19; }
 
 /* Brand text */
 .text-orq8-dark { color: #0a0a0b; }
 .text-orq8-green { color: #1a5c2e; }
 .text-orq8-lime { color: #B8FF66; }
-.text-orq8-orange { color: #E86A33; }
+.text-orq8-orange { color: #b84a1e; }
+/* Bright orange reserved for accent text on DARK backgrounds (#E86A33 there
+ * reaches ~6:1). The default .text-orq8-orange is the deep tone that clears
+ * 4.5:1 on white surfaces. */
+.text-orq8-orange-bright { color: #E86A33; }
+.bg-orq8-orange-bright { background-color: #E86A33; }
 
 /* Brand borders */
 .border-orq8-green { border-color: #1a5c2e; }
 .border-orq8-lime { border-color: #B8FF66; }
-.border-orq8-orange { border-color: #E86A33; }
+.border-orq8-orange { border-color: #b84a1e; }
 
 /* Brand ring/focus */
 .ring-orq8-green { --tw-ring-color: #1a5c2e; }
@@ -643,7 +651,7 @@ body {
 .hover\:bg-orq8-green-dark:hover { background-color: #0d1a12; }
 .hover\:text-orq8-green:hover { color: #1a5c2e; }
 .hover\:text-orq8-lime:hover { color: #c8ff8a; }
-.hover\:text-orq8-orange:hover { color: #d45e2a; }
+.hover\:text-orq8-orange:hover { color: #a8431a; }
 
 /* Text muted on dark backgrounds */
 .text-orq8-muted-on-dark { color: rgba(255,255,255,0.5); }
@@ -658,3 +666,23 @@ body {
 .text-overline { font-size: 11px; line-height: 1.45; }
 .text-2sm { font-size: 13px; line-height: 1.5; }
 .text-md { font-size: 15px; line-height: 1.6; }
+/*
+ * Tailwind v4 maps text-muted to --color-muted, which is the *background*
+ * shade (#f5f5f5) — painting text with it makes 400+ muted labels nearly
+ * invisible on light surfaces. Muted TEXT must be the darker foreground
+ * token instead. bg-muted keeps using the pale --color-muted background.
+ */
+.text-muted { color: var(--muted-foreground, #737373); }
+
+/* Variant classes Tailwind generates from the same broken mapping. Each needs
+   its own override or the text falls back to the near-white background token. */
+.hover\:text-muted:hover { color: var(--muted-foreground, #737373); }
+.group-hover\:text-muted:is(.group:hover *) { color: var(--muted-foreground, #737373); }
+
+/* Opacity variants — Tailwind emits color-mix on the near-white background
+   token (text-muted/30 on white ≈ 1.2:1). Bake the real foreground color in:
+   readable at every opacity, still lighter than the full-strength muted text. */
+.text-muted\/30 { color: rgba(115, 115, 115, 0.45); }
+.text-muted\/40 { color: rgba(115, 115, 115, 0.58); }
+.text-muted\/50 { color: rgba(115, 115, 115, 0.72); }
+.text-muted\/60 { color: rgba(115, 115, 115, 0.86); }

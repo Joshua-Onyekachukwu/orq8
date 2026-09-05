@@ -70,7 +70,7 @@ function StatusBadge({ status }: { status: string }) {
     healthy: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", label: "Healthy" },
     degraded: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Degraded" },
     down: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500", label: "Down" },
-    not_configured: { bg: "bg-gray-50", text: "text-gray-500", dot: "bg-gray-400", label: "Not Configured" },
+    not_configured: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400", label: "Not Configured" },
     closed: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", label: "Closed" },
     open: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500", label: "Open" },
     half_open: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Half-Open" },
@@ -90,7 +90,7 @@ function ProviderIcon({ slug }: { slug: string }) {
   if (slug === "openrouter") return <Activity className="h-5 w-5 text-purple-600" />;
   if (slug === "ollama") return <Server className="h-5 w-5 text-blue-600" />;
   if (slug === "litellm") return <Wifi className="h-5 w-5 text-orange-600" />;
-  return <Server className="h-5 w-5 text-gray-400" />;
+  return <Server className="h-5 w-5 text-gray-500" />;
 }
 
 export default async function ModelRouterPage() {
@@ -205,12 +205,12 @@ export default async function ModelRouterPage() {
               {p.modelsAvailable.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {p.modelsAvailable.slice(0, 8).map((model) => (
-                    <span key={model} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs font-mono text-ink-muted">
+                    <span key={model} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs font-mono text-gray-700">
                       {model}
                     </span>
                   ))}
                   {p.modelsAvailable.length > 8 && (
-                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs text-ink-muted">
+                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs text-gray-700">
                       +{p.modelsAvailable.length - 8} more
                     </span>
                   )}

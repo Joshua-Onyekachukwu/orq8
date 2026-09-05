@@ -146,13 +146,13 @@ export function AppSidebar({
                           onClick={() => setMobileOpen(false)}
                           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
                             active
-                              ? "bg-orq8-orange/15 text-orq8-orange border border-orq8-orange/20"
+                              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright border border-orq8-orange/20"
                               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
                           }`}
                         >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-orq8-orange" : "text-white/30"
+                              active ? "text-orq8-orange-bright" : "text-white/30"
                             }`}
                           />
                           <span className="flex-1 truncate">{item.label}</span>
@@ -178,22 +178,22 @@ export function AppSidebar({
           href="/settings"
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings")
-              ? "bg-orq8-orange/15 text-orq8-orange"
+              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-orq8-orange" : "text-white/30"}`} />
+          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-orq8-orange-bright" : "text-white/30"}`} />
           Settings
         </Link>
         <Link
           href="/settings/providers"
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings/providers")
-              ? "bg-orq8-orange/15 text-orq8-orange"
+              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-orq8-orange" : "text-white/30"}`} />
+          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-orq8-orange-bright" : "text-white/30"}`} />
           Provider Keys
         </Link>
         <div className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/30">

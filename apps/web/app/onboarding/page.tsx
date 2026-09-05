@@ -291,12 +291,12 @@ export default function OnboardingPage() {
                 onClick={() => startPath("existing")}
                 className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06]"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-orange/10 text-orq8-orange">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-orange-bright/10 text-orq8-orange-bright">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-white">{sourceDescriptions.existing.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-white/50">{sourceDescriptions.existing.subtitle}</p>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-orange">
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-orange-bright">
                   Connect your company <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>
@@ -527,7 +527,7 @@ export default function OnboardingPage() {
               {/* Departments */}
               <section>
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-orq8-orange" />
+                  <Building2 className="h-4 w-4 text-orq8-orange-bright" />
                   <h2 className="text-lg font-semibold text-white">Departments ({plan.departments.length})</h2>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -586,7 +586,7 @@ export default function OnboardingPage() {
               {/* Goals */}
               <section>
                 <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-orq8-orange" />
+                  <Target className="h-4 w-4 text-orq8-orange-bright" />
                   <h2 className="text-lg font-semibold text-white">Goals ({plan.goals.length})</h2>
                 </div>
                 <div className="mt-4 space-y-3">
@@ -595,7 +595,7 @@ export default function OnboardingPage() {
                       <div className="flex items-center justify-between gap-3">
                         <h3 className="font-semibold text-white">{g.title}</h3>
                         <span className={`rounded-full px-2.5 py-0.5 text-3xs uppercase ${
-                          g.priority === "urgent" ? "bg-orq8-orange/20 text-orq8-orange"
+                          g.priority === "urgent" ? "bg-orq8-orange-bright/20 text-orq8-orange-bright"
                           : g.priority === "high" ? "bg-orq8-lime/15 text-orq8-lime"
                           : "bg-white/10 text-white/50"
                         }`}>

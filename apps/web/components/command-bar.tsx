@@ -141,7 +141,7 @@ export function CommandBar({ context }: { context?: CommandContext }) {
 
       {history.length > 1 && (
         <div className="mt-4">
-          <p className="mb-2 text-xs font-medium text-gray-400">Recent Commands</p>
+          <p className="mb-2 text-xs font-medium text-gray-600">Recent Commands</p>
           <div className="space-y-2">
             {history.slice(1, 4).map((item, i) => (
               <button
@@ -151,7 +151,7 @@ export function CommandBar({ context }: { context?: CommandContext }) {
                 className="w-full rounded-lg border border-gray-100 bg-white p-3 text-left transition-colors hover:bg-gray-50"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-900 truncate max-w-[80%]">{item.command}</span>
+                  <span className="text-sm text-ink truncate max-w-[80%]">{item.command}</span>
                   <span className={`text-xs ${
                     item.status === "awaiting_approval" ? "text-amber-600" :
                     item.status === "error" ? "text-red-500" : "text-orq8-green"

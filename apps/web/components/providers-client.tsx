@@ -282,13 +282,13 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
               {/* Model availability */}
               {p.default_models.length > 0 && (
                 <div className="mt-3">
-                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Available models</p>
+                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Available models</p>
                   <div className="flex flex-wrap gap-1.5">
                     {p.default_models.slice(0, 4).map((m) => (
                       <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-600">{m}</span>
                     ))}
                     {p.default_models.length > 4 && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-400">+{p.default_models.length - 4}</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-500">+{p.default_models.length - 4}</span>
                     )}
                   </div>
                 </div>

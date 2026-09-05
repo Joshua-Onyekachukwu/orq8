@@ -100,7 +100,7 @@ const Pricing: React.FC = () => {
       <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         {/* Header */}
         <div className="mb-[50px] md:mb-[60px] lg:mb-[70px] mx-auto text-center md:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[0.2em] text-overline text-orq8-orange mb-[16px]">
+          <span className="block uppercase font-bold tracking-[0.2em] text-overline text-orq8-orange-bright mb-[16px]">
             Pricing
           </span>
           <h2 className="!text-white !mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
@@ -177,7 +177,7 @@ const Pricing: React.FC = () => {
                 {/* Plan name */}
                 <span
                   className={`block mb-[8px] uppercase font-bold tracking-[0.15em] text-overline ${
-                    popular ? "text-orq8-lime" : "text-orq8-orange"
+                    popular ? "text-orq8-lime" : "text-orq8-orange-bright"
                   }`}
                 >
                   {plan.title}
@@ -201,7 +201,7 @@ const Pricing: React.FC = () => {
                 {/* Price */}
                 <div className="mt-[24px] mb-[8px] block leading-none text-white text-[48px] md:text-[56px] font-light -tracking-[2px]">
                   {price}{" "}
-                  <span className="text-md tracking-[0.05em] font-normal text-white/40">
+                  <span className="text-md tracking-[0.05em] font-normal text-white/50">
                     / mo
                   </span>
                 </div>
@@ -252,7 +252,7 @@ const Pricing: React.FC = () => {
         <div className="mt-[24px] border border-white/[0.08] rounded-[16px] bg-white/[0.02] px-[28px] md:px-[36px] py-[28px] md:py-[36px] transition-all hover:border-white/[0.15] hover:bg-white/[0.04]">
           <div className="flex flex-col lg:flex-row lg:items-center gap-[28px] md:gap-[36px] lg:gap-[50px]">
             <div className="lg:max-w-[300px] lg:flex-shrink-0">
-              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-overline text-orq8-orange">
+              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-overline text-orq8-orange-bright">
                 Enterprise
               </span>
               <h3 className="!mb-0 !font-normal !text-[24px] md:!text-[28px] -tracking-[0.5px] !text-white">

@@ -71,7 +71,7 @@ const HowItWorks: React.FC = () => {
                 <h3 className="!font-light !text-xl md:!text-[22px] lg:!text-xl -tracking-[.44px] md:-tracking-[1px] lg:-tracking-[1.44px] !mb-[10px] md:!mb-[15px] lg:!mb-[20px] !text-orq8-green">
                   {step.title}
                 </h3>
-                <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-600 !mb-0">
+                <p className="md:text-md lg:text-md -tracking-[0.16px] text-gray-700 !mb-0">
                   {step.description}
                 </p>
               </div>

@@ -184,7 +184,7 @@ export function DashboardRealtime({
       <div className="mb-4 flex items-center justify-end gap-2">
         <span
           className={`flex items-center gap-1.5 text-3xs font-medium ${
-            connected ? "text-orq8-green" : "text-gray-400"
+            connected ? "text-orq8-green" : "text-gray-600"
           }`}
         >
           <span
@@ -196,7 +196,7 @@ export function DashboardRealtime({
         </span>
         <button
           onClick={refetchData}
-          className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+          className="rounded p-1 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
           title="Refresh data"
         >
           <RefreshCw className="h-3 w-3" />
@@ -222,10 +222,10 @@ export function DashboardRealtime({
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Goals Progress</h3>
-                <ArrowUpRight className="h-4 w-4 text-gray-400" />
+                <ArrowUpRight className="h-4 w-4 text-gray-500" />
               </div>
               <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                   <span>{stats.activeGoals} active goals</span>
                   <span className="font-mono">
                     {stats.totalTasks > 0
@@ -246,8 +246,7 @@ export function DashboardRealtime({
                     }}
                   />
                 </div>
-              </div>
-              <p className="mt-3 text-xs text-gray-400">
+              </div>                <p className="mt-3 text-xs text-gray-500">
                 {stats.completedTasks} of {stats.totalTasks} tasks completed
               </p>
             </Link>
@@ -266,10 +265,10 @@ export function DashboardRealtime({
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Work Credits</h3>
-                <ArrowUpRight className="h-4 w-4 text-gray-400" />
+                <ArrowUpRight className="h-4 w-4 text-gray-500" />
               </div>
               <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                   <span>
                     {stats.credits.used} of {stats.credits.total} used
                   </span>
@@ -287,8 +286,7 @@ export function DashboardRealtime({
                     style={{ width: `${Math.min(stats.credits.utilizationPercent, 100)}%` }}
                   />
                 </div>
-              </div>
-              <p className="mt-3 text-xs text-gray-400">
+              </div>                <p className="mt-3 text-xs text-gray-500">
                 {stats.credits.remaining} credits remaining
                 {stats.credits.daysRemaining != null &&
                   ` · ~${stats.credits.daysRemaining} days left`}
