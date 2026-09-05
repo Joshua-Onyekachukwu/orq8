@@ -69,6 +69,11 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   No custom domain configured.
 - **`supabase/migrations/0003_add_teams.sql` NOT yet applied to production** — teams API
   returns 503 until it is.
+- **Migrations 0004 depends on 0005** — 0004 failed on prod with
+  `relation "integration_providers" does not exist` because the integration/engineering/
+  simulation tables existed only in the drizzle-side artifact (never run against prod).
+  **Run `0005_add_integration_engineering_simulation_tables.sql` FIRST, then re-run 0004**
+  (both idempotent).
 - **`vercel.json` asset fix NOT yet deployed** — `/images/*` still 404 live until the next
   deploy (source fix committed).
 - **Pre-existing (other session)**: untracked route files are now type-clean; nothing else
@@ -204,7 +209,8 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 10. Task 9/10 — Apply migrations (`0003`, `0004`), deploy, smoke test (needs credentials).
 
 **Pushed**: `530ff60` is on `origin/main` (verified — fetch + rev-parse match). Pushing triggers
-a Vercel build of `main`. Remaining untracked (intentionally not committed):
+a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004** (0004 references
+`integration_providers` which 0005 creates). Remaining untracked (intentionally not committed):
 `docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (separate strategy doc) and
 `packages/db/src/migrations/` (drizzle journal is out of sync with prod by design — prod
 migrations live in `supabase/migrations/`). Before/after deploy: apply `supabase/migrations/0003`
