@@ -40,6 +40,8 @@ export interface CommandContext {
   agentName?: string;
   departmentId?: string;
   departmentName?: string;
+  teamId?: string;
+  teamName?: string;
   taskId?: string;
   taskTitle?: string;
 }

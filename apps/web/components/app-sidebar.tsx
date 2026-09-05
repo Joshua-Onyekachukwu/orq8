@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Activity,
   Bell,
@@ -13,7 +13,6 @@ import {
   KeyRound,
   LayoutDashboard,
   LogOut,
-  Menu,
   ScrollText,
   Settings,
   Shield,
@@ -48,8 +47,9 @@ const navGroups: NavGroup[] = [
     title: "Organization",
     items: [
       { label: "AI Employees", href: "/app/agents", icon: Users },
+      { label: "Departments", href: "/app/departments", icon: Building2 },
+      { label: "Teams", href: "/app/teams", icon: GitBranch },
       { label: "Goals & Tasks", href: "/app/goals", icon: Target },
-      { label: "Departments", href: "/app/teams", icon: GitBranch },
       { label: "Org Explorer", href: "/app/org", icon: Building2 },
     ],
   },
@@ -80,6 +80,14 @@ export function AppSidebar({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // Mobile menu toggle is rendered in the sticky TopBar (top of viewport,
+  // reachable without scrolling). The sidebar listens for the toggle event.
+  useEffect(() => {
+    const onToggle = () => setMobileOpen((prev) => !prev);
+    window.addEventListener("orq8:toggle-sidebar", onToggle);
+    return () => window.removeEventListener("orq8:toggle-sidebar", onToggle);
+  }, []);
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/app" && pathname.startsWith(href));
@@ -226,13 +234,6 @@ export function AppSidebar({
         </div>
       )}
 
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orq8-orange text-white shadow-lg lg:hidden"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
     </>
   );
 }

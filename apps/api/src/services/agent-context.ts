@@ -42,6 +42,8 @@ export interface AgentContext {
   authority: Record<string, unknown>;
   /** Agent's department info */
   department: { name: string; description?: string } | null;
+  /** Agent's team info */
+  team: { name: string; department?: string } | null;
   /** Recent activity for this agent */
   recentActivity: Array<{ summary: string; type: string; occurredAt: Date }>;
 }
@@ -126,6 +128,26 @@ export async function buildAgentContext(
   const agentData = agent[0];
   const authority = (agentData?.authority as Record<string, unknown>) ?? {};
 
+  // Resolve team membership so the Executive Agent always sees current org structure
+  let teamInfo: { name: string; department?: string } | null = null;
+  if (agentData?.teamId) {
+    try {
+      const { teams, departments: depts } = await import('@orq8/db');
+      const [teamRow] = await db
+        .select({
+          name: teams.name,
+          department: depts.name,
+        })
+        .from(teams)
+        .leftJoin(depts, eq(depts.id, teams.departmentId))
+        .where(eq(teams.id, agentData.teamId))
+        .limit(1);
+      if (teamRow) teamInfo = { name: teamRow.name, department: teamRow.department ?? undefined };
+    } catch {
+      teamInfo = null;
+    }
+  }
+
   return {
     constitution: constitutionEntries.map(e => e.content).join('\n') || 'No company constitution set.',
     memory: memoryEntries.map(e => ({
@@ -154,6 +176,7 @@ export async function buildAgentContext(
     pendingApprovals: pendingApprovals[0]?.count ?? 0,
     authority,
     department: agentData?.department ? { name: agentData.department } : null,
+    team: teamInfo,
     recentActivity: recentActivity.map(a => ({
       summary: a.summary,
       type: a.type,
@@ -218,6 +241,12 @@ export function buildContextPrompt(
   // Department
   if (ctx.department) {
     parts.push(`## Your Department\n${ctx.department.name}`);
+  }
+
+  // Team
+  if (ctx.team) {
+    const teamLine = ctx.team.department ? `${ctx.team.name} (in ${ctx.team.department})` : ctx.team.name;
+    parts.push(`## Your Team\n${teamLine}`);
   }
 
   // Authority

@@ -9,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from 'drizzle-orm/pg-core';
 
 // docs/34.1 conventions: uuid PKs, created_at/updated_at everywhere,
@@ -306,6 +307,28 @@ export const departments = pgTable(
   ],
 );
 
+export const teams = pgTable(
+  'teams',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    departmentId: uuid('department_id').references(() => departments.id), // optional parent department
+    name: text('name').notNull(),
+    description: text('description'),
+    lead: text('lead'), // name of team lead agent
+    status: text('status').notNull().default('active'), // active | archived
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('teams_org_idx').on(t.orgId),
+    index('teams_dept_idx').on(t.departmentId),
+    uniqueIndex('teams_org_name_idx').on(t.orgId, t.name),
+  ],
+);
+
 export const agents = pgTable(
   'agents',
   {
@@ -317,6 +340,7 @@ export const agents = pgTable(
     role: text('role').notNull(), // e.g. 'market_researcher', 'content_writer', 'software_engineer'
     department: text('department'), // DEPRECATED — kept for backward compat. Use departmentId.
     departmentId: uuid('department_id').references(() => departments.id), // primary department FK
+    teamId: uuid('team_id').references(() => teams.id), // primary team FK
     status: text('status').notNull().default('active'), // active | paused | archived
     weeklyCost: integer('weekly_cost').notNull().default(0), // cost in cents
     tasksCompleted: integer('tasks_completed').notNull().default(0),
@@ -476,6 +500,8 @@ export type WaitlistEmail = typeof waitlistEmails.$inferSelect;
 export type NewWaitlistEmail = typeof waitlistEmails.$inferInsert;
 export type Department = typeof departments.$inferSelect;
 export type NewDepartment = typeof departments.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
 export type Agent = typeof agents.$inferSelect;
 export type NewAgent = typeof agents.$inferInsert;
 export type Goal = typeof goals.$inferSelect;
@@ -588,17 +614,159 @@ export const companyMemory = pgTable(
     agentId: uuid('agent_id').references(() => agents.id),
     taskId: uuid('task_id').references(() => tasks.id),
     importance: integer('importance').notNull().default(5), // 1-10
+    // Semantic embedding — pgvector, dimension matches EMBED_DIM default (768 for
+    // nomic-embed-text, ADR-012). Nullable: entries created before embedding was
+    // available, or when no embedding provider is configured, fall back to keyword
+    // search. Changing EMBED_DIM is a config + re-embed migration (ADR-012).
+    embedding: vector('embedding', { dimensions: 768 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('company_memory_org_idx').on(t.orgId),
     index('company_memory_category_idx').on(t.orgId, t.category),
+    index('company_memory_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
   ],
 );
 
 export type CompanyMemoryEntry = typeof companyMemory.$inferSelect;
 export type NewCompanyMemoryEntry = typeof companyMemory.$inferInsert;
+
+// ---- Webhook events (event ingestion, outbox pattern) ----
+// Providers (GitHub, Linear, ...) POST events to /v1/webhooks/:provider. The
+// receiver verifies the HMAC signature, normalizes, persists a row here, and
+// returns. A process-pending pass (cron hook) evaluates org-scoped event rules
+// and creates notifications/approval-gated tasks. external_event_id enforces
+// idempotency — the same provider event never creates duplicate work.
+export const webhookEvents = pgTable(
+  'webhook_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(), // github | linear | gmail | ...
+    eventType: text('event_type').notNull(), // normalized type, e.g. pr_opened | issue_created
+    title: text('title'), // human-readable event title (from normalization)
+    externalEventId: text('external_event_id'), // provider's event id (idempotency key)
+    payload: jsonb('payload').notNull().default({}), // normalized payload (never the raw blob)
+    headers: jsonb('headers').notNull().default({}), // selected headers only (no secrets)
+    correlationId: text('correlation_id'),
+    status: text('status').notNull().default('pending'), // pending | processed | failed | dead
+    retryCount: integer('retry_count').notNull().default(0),
+    lastError: text('last_error'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('webhook_events_org_status_idx').on(t.orgId, t.status),
+    index('webhook_events_provider_idx').on(t.provider, t.receivedAt),
+    uniqueIndex('webhook_events_org_provider_ext_idx').on(
+      t.orgId,
+      t.provider,
+      t.externalEventId,
+    ),
+  ],
+);
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
+
+// ---- Event rules (Phase 8: event → rule → approval → task) ----
+// Company-scoped declarative rules. When a normalized event matches, the rule
+// decides what happens: notify, create a task (optionally agent-scoped), or
+// ignore. requires_approval keeps high-impact actions behind the approval gate.
+export const eventRules = pgTable(
+  'event_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    eventType: text('event_type').notNull(),
+    action: text('action').notNull(), // notify | create_task | ignore
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }), // optional assignee
+    taskTitleTemplate: text('task_title_template'), // e.g. 'Review PR #{number}'
+    requiresApproval: boolean('requires_approval').notNull().default(false),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('event_rules_org_idx').on(t.orgId),
+    uniqueIndex('event_rules_org_provider_type_idx').on(t.orgId, t.provider, t.eventType),
+  ],
+);
+
+export type EventRule = typeof eventRules.$inferSelect;
+export type NewEventRule = typeof eventRules.$inferInsert;
+
+// ---- Connector outcomes (Phase 5: structured outcome capture) ----
+// Every connector action an agent performs produces a normalized outcome row:
+// what was attempted, what happened, the external resource that changed, and
+// whether approval was involved. These feed company memory and the briefing.
+export const connectorOutcomes = pgTable(
+  'connector_outcomes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    providerId: uuid('provider_id').references(() => integrationProviders.id, { onDelete: 'set null' }),
+    provider: text('provider').notNull(), // github | gmail | linear | ...
+    capability: text('capability').notNull(), // e.g. github.create_pr | gmail.send
+    action: text('action').notNull(), // e.g. create_pr | send_email | add_comment
+    providerResourceId: text('provider_resource_id'), // e.g. PR number as string
+    providerUrl: text('provider_url'),
+    status: text('status').notNull(), // success | failed | pending_approval | denied
+    summary: text('summary'),
+    result: jsonb('result'), // structured result — never the raw provider payload
+    error: text('error'),
+    requiresApproval: boolean('requires_approval').notNull().default(false),
+    approvalId: uuid('approval_id').references(() => approvals.id, { onDelete: 'set null' }),
+    correlationId: text('correlation_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('connector_outcomes_org_idx').on(t.orgId, t.createdAt),
+    index('connector_outcomes_agent_idx').on(t.agentId),
+    index('connector_outcomes_task_idx').on(t.taskId),
+  ],
+);
+
+export type ConnectorOutcome = typeof connectorOutcomes.$inferSelect;
+export type NewConnectorOutcome = typeof connectorOutcomes.$inferInsert;
+
+// ---- Executive briefings (Phase 11/12: daily briefing) ----
+// Deterministic summaries of real system activity, generated on a schedule and
+// delivered in-app (notification) + email. Idempotent: one row per
+// (org, kind, period_start) — a scheduler retry never duplicates a briefing.
+export const briefings = pgTable(
+  'briefings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // daily | weekly
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    content: jsonb('content').notNull().default({}), // structured sections
+    status: text('status').notNull().default('generated'), // generated | delivered | failed
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('briefings_org_created_idx').on(t.orgId, t.createdAt),
+    uniqueIndex('briefings_org_kind_period_idx').on(t.orgId, t.kind, t.periodStart),
+  ],
+);
+
+export type Briefing = typeof briefings.$inferSelect;
+export type NewBriefing = typeof briefings.$inferInsert;
 
 // ─── File Storage ──────────────────────────────────────────────────────────
 
@@ -630,10 +798,7 @@ export const files = pgTable(
 export type FileRecord = typeof files.$inferSelect;
 export type NewFileRecord = typeof files.$inferInsert;
 
-// ─── Login Lockouts ────────────────────────────────────────────────────────
-// Persists brute-force lockout state to the database so it survives restarts.
-// One row per email address. Rows are cleaned up after lockout expires.
-
+// ─── Eng paraphrasing notifications table (restored) ──
 export const notifications = pgTable(
   'notifications',
   {
@@ -656,6 +821,9 @@ export const notifications = pgTable(
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
 
+// ─── Login Lockouts ────────────────────────────────────────────────────────
+// Persists brute-force lockout state to the database so it survives restarts.
+// One row per email address. Rows are cleaned up after lockout expires.
 export const loginLockouts = pgTable(
   'login_lockouts',
   {
@@ -672,3 +840,322 @@ export const loginLockouts = pgTable(
 
 export type LoginLockout = typeof loginLockouts.$inferSelect;
 export type NewLoginLockout = typeof loginLockouts.$inferInsert;
+
+// ─── Engineering Workspace ──────────────────────────────────────────────────
+// Repositories imported via GitHub OAuth. Org-scoped; provider-bound.
+export const repositories = pgTable(
+  'repositories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    fullName: text('full_name').notNull(),
+    owner: text('owner').notNull(),
+    defaultBranch: text('default_branch').notNull(),
+    description: text('description'),
+    private: boolean('private').notNull().default(false),
+    providerId: uuid('provider_id').notNull().references(() => integrationProviders.id, { onDelete: 'cascade' }),
+    providerRefId: text('provider_ref_id'),
+    languages: jsonb('languages').notNull().default([]),
+    frameworkSummary: text('framework_summary'),
+    filesCount: integer('files_count').notNull().default(0),
+    sizeBytes: integer('size_bytes'),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('repositories_org_idx').on(t.orgId),
+    uniqueIndex('repositories_org_provider_ref_idx').on(t.orgId, t.providerId, t.providerRefId),
+  ],
+);
+
+export const repositoryBranches = pgTable(
+  'repository_branches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    isDefault: boolean('is_default').notNull().default(false),
+    ahead: integer('ahead').notNull().default(0),
+    behind: integer('behind').notNull().default(0),
+    lastCommitAt: timestamp('last_commit_at', { withTimezone: true }),
+    lastSyncAt: timestamp('last_sync_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('branches_repository_idx').on(t.repositoryId)],
+);
+
+export const repositoryFiles = pgTable(
+  'repository_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    branch: text('branch').notNull(),
+    sha: text('sha'),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    language: text('language'),
+    isBinary: boolean('is_binary').notNull().default(false),
+    indexedAt: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('repository_files_repository_idx').on(t.repositoryId),
+    uniqueIndex('repository_files_repo_branch_path_idx').on(t.repositoryId, t.branch, t.path),
+  ],
+);
+
+export const repositoryFileContents = pgTable(
+  'repository_file_contents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fileId: uuid('file_id').notNull().references(() => repositoryFiles.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(), // stored as base64 for JSON transport; real bytea in migration
+    storedAt: timestamp('stored_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const repoEvents = pgTable(
+  'repo_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(),
+    actorType: text('actor_type').notNull(),
+    actorId: uuid('actor_id'),
+    summary: text('summary').notNull(),
+    detail: jsonb('detail'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('repo_events_org_idx').on(t.orgId)],
+);
+
+// Sandbox runs: hermetic execution records.
+export const sandboxRuns = pgTable(
+  'sandbox_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    branch: text('branch').notNull(),
+    command: text('command').notNull(),
+    workingDir: text('working_dir').notNull(),
+    runnerEnv: jsonb('runner_env'),
+    state: text('state').notNull().default('queued'), // queued | running | completed | failed | timeout | cancelled
+    allocatedCredits: integer('allocated_credits').notNull().default(0),
+    usedCredits: integer('used_credits').notNull().default(0),
+    timeoutMs: integer('timeout_ms').notNull().default(120000),
+    maxMemoryMb: integer('max_memory_mb').notNull().default(512),
+    stdout: text('stdout'),
+    stderr: text('stderr'),
+    exitCode: integer('exit_code'),
+    resultSummary: text('result_summary'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('sandbox_runs_org_idx').on(t.orgId),
+    index('sandbox_runs_repository_idx').on(t.repositoryId),
+  ],
+);
+
+// Engineering PRs proposed by agents.
+export const repositoryPrs = pgTable(
+  'repository_prs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    providerPrNumber: integer('provider_pr_number'),
+    providerPrUrl: text('provider_pr_url'),
+    title: text('title').notNull(),
+    body: text('body'),
+    headBranch: text('head_branch').notNull(),
+    baseBranch: text('base_branch').notNull(),
+    state: text('state').notNull().default('open'), // open | merged | closed | draft
+    authorId: uuid('author_id').notNull(),
+    authorType: text('author_type').notNull(),
+    riskAssessment: jsonb('risk_assessment'),
+    status: text('status').notNull().default('pending_review'), // pending_review | approved | rejected | changes_requested | merged
+    approvalId: uuid('approval_id'),
+    approvedBy: uuid('approved_by'),
+    mergedAt: timestamp('merged_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('repository_prs_repository_idx').on(t.repositoryId)],
+);
+
+// Engineering task — extends task shape with repository context.
+export const engineeringTasks = pgTable(
+  'engineering_tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+    branch: text('branch').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    acceptanceCriteria: text('acceptance_criteria'),
+    status: text('status').notNull().default('planning'), // planning | implemented | tested | review | completed | failed
+    assigneeId: uuid('assignee_id').notNull(),
+    testsSummary: jsonb('tests_summary'),
+    lintSummary: jsonb('lint_summary'),
+    buildSummary: jsonb('build_summary'),
+    diffSummary: jsonb('diff_summary'),
+    prId: uuid('pr_id').references(() => repositoryPrs.id, { onDelete: 'set null' }),
+    qaResult: jsonb('qa_result'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('engineering_tasks_org_idx').on(t.orgId),
+  ],
+);
+
+// ─── Integrations ───────────────────────────────────────────────────────────
+
+export const integrationProviders = pgTable(
+  'integration_providers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    provider: text('provider').notNull(), // github | gmail | linear | jira | ...
+    status: text('status').notNull().default('disconnected'), // disconnected | connecting | connected | error
+    scopes: jsonb('scopes'),
+    connectedAt: timestamp('connected_at', { withTimezone: true }),
+    lastInteractionAt: timestamp('last_interaction_at', { withTimezone: true }),
+    error: text('error'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('integration_providers_org_name_idx').on(t.orgId, t.name),
+  ],
+);
+
+export const integrationCredentials = pgTable(
+  'integration_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    providerId: uuid('provider_id').notNull().references(() => integrationProviders.id, { onDelete: 'cascade' }),
+    credentialType: text('credential_type').notNull(),
+    encryptedSecret: text('encrypted_secret').notNull(),
+    publicRef: text('public_ref'),
+    tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+    scopes: jsonb('scopes'),
+    refreshTokenHash: text('refresh_token_hash'),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('integration_credentials_provider_idx').on(t.providerId)],
+);
+
+export const integrationCapabilities = pgTable(
+  'integration_capabilities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    providerId: uuid('provider_id').notNull().references(() => integrationProviders.id, { onDelete: 'cascade' }),
+    capability: text('capability').notNull(),
+    allowed: boolean('allowed').notNull().default(true),
+    approvalRequiredFor: jsonb('approval_required_for'), // e.g. ['send_email', 'merge_pr']
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('integration_capabilities_provider_capability_idx').on(t.providerId, t.capability),
+  ],
+);
+
+export const agentIntegrationAccess = pgTable(
+  'agent_integration_access',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    providerId: uuid('provider_id').notNull().references(() => integrationProviders.id, { onDelete: 'cascade' }),
+    capabilities: jsonb('capabilities').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('agent_integration_access_org_agent_idx').on(t.orgId, t.agentId),
+  ],
+);
+
+// ─── Simulation ─────────────────────────────────────────────────────────────
+
+export const simulations = pgTable(
+  'simulations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    objective: text('objective'),
+    changeDescription: text('change_description').notNull(),
+    proposedDepartments: jsonb('proposed_departments'),
+    proposedAgents: jsonb('proposed_agents'),
+    projectedWorkload: jsonb('projected_workload'),
+    projectedCost: jsonb('projected_cost'),
+    projectedRisk: text('projected_risk'), // low | medium | high | critical
+    bottlenecks: jsonb('bottlenecks'),
+    assumptions: text('assumptions').array(),
+    metrics: jsonb('metrics'),
+    recommendation: text('recommendation'),
+    state: text('state').notNull().default('draft'), // draft | proposed | reviewed | applied
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    appliedBy: uuid('applied_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('simulations_org_idx').on(t.orgId)],
+);
+
+// PostHog companion event log — used to assert analytics fired.
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').references(() => organizations.id),
+    userId: uuid('user_id').references(() => users.id),
+    eventName: text('event_name').notNull(),
+    properties: jsonb('properties'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('analytics_events_org_idx').on(t.orgId),
+    index('analytics_events_user_idx').on(t.userId),
+    index('analytics_events_name_idx').on(t.eventName),
+  ],
+);
+
+// ─── Type exports ───────────────────────────────────────────────────────────
+export type Repository = typeof repositories.$inferSelect;
+export type NewRepository = typeof repositories.$inferInsert;
+export type RepositoryBranch = typeof repositoryBranches.$inferSelect;
+export type RepositoryFile = typeof repositoryFiles.$inferSelect;
+export type RepositoryFileContent = typeof repositoryFileContents.$inferSelect;
+export type RepoEvent = typeof repoEvents.$inferSelect;
+export type NewRepoEvent = typeof repoEvents.$inferInsert;
+export type SandboxRun = typeof sandboxRuns.$inferSelect;
+export type NewSandboxRun = typeof sandboxRuns.$inferInsert;
+export type RepositoryPr = typeof repositoryPrs.$inferSelect;
+export type NewRepositoryPr = typeof repositoryPrs.$inferInsert;
+export type EngineeringTask = typeof engineeringTasks.$inferSelect;
+export type NewEngineeringTask = typeof engineeringTasks.$inferInsert;
+export type IntegrationProvider = typeof integrationProviders.$inferSelect;
+export type NewIntegrationProvider = typeof integrationProviders.$inferInsert;
+export type IntegrationCredential = typeof integrationCredentials.$inferSelect;
+export type IntegrationCapability = typeof integrationCapabilities.$inferSelect;
+export type NewIntegrationCapability = typeof integrationCapabilities.$inferInsert;
+export type AgentIntegrationAccess = typeof agentIntegrationAccess.$inferSelect;
+export type Simulation = typeof simulations.$inferSelect;
+export type NewSimulation = typeof simulations.$inferInsert;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

@@ -23,6 +23,7 @@ interface Agent {
   name: string;
   role: string;
   department: string | null;
+  teamName?: string | null;
   status: string;
   weeklyCost: number;
   tasksCompleted: number;
@@ -200,6 +201,7 @@ export default function AgentDetailPage() {
                   <div>
                     <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
                       {agent.department ?? "General"}
+                      {agent.teamName ? ` · ${agent.teamName}` : ""}
                     </p>
                     <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-ink">
                       {agent.name}
@@ -309,6 +311,7 @@ export default function AgentDetailPage() {
                   agentId: agent.id,
                   agentName: agent.name,
                   departmentName: agent.department ?? undefined,
+                  teamName: agent.teamName ?? undefined,
                 }}
               />
             </div>

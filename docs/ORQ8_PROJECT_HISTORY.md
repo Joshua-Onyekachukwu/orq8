@@ -171,6 +171,83 @@ CURRENT_STATE §6).
 
 ---
 
+### 2026-09-05 — Event ingestion, semantic memory, executive briefing & contrast protection
+
+**Original problem**: the roadmap's keystone layers were design-documented but absent — no
+webhook receivers or durable events, no event→rule→approval→task pipeline, no structured
+connector outcomes, no semantic (pgvector) memory retrieval, no consolidation, no daily
+executive briefing, and no automated guard against the class of contrast regression that
+broke the dashboard.
+
+**Architecture chosen**: reuse the existing DB-as-queue + `INTERNAL_TOKEN` cron pattern
+(waitlist drip) for all scheduled work; store webhook secrets encrypted in org settings
+(generated per-org, no env var); org resolution for receivers via repo→org mapping (GitHub)
+and URL-embedded org (Linear); JS-side cosine ranking with the HNSW index available for
+future SQL-side search; deterministic briefing content (no LLM dependency) from real
+operational tables.
+
+**Files changed (this session)**:
+
+- `packages/db/src/schema.ts` — `webhookEvents`, `eventRules`, `connectorOutcomes`,
+  `briefings` tables + `companyMemory.embedding vector(768)` (HNSW index) + type exports.
+- `supabase/migrations/0004_add_events_rules_outcomes_briefings.sql` — idempotent prod
+  migration (pgvector extension, 4 tables, RLS org-member policies, updated_at trigger,
+  embedding column guard + HNSW index).
+- `apps/api/src/services/webhooks.ts` (new) — `verifySignature` (HMAC-SHA256, timing-safe,
+  GitHub prefix), `verifyTimestamp` (replay window, skew-tolerant), `generateWebhookSecret`,
+  `normalizeProviderEvent` (GitHub PR/issue/comment/push, Linear Issue), `ingestWebhookEvent`
+  (idempotent), encrypted per-org secret store/rotate, `processPendingEvents` (rules →
+  notify / approval-gated task / ignore; bounded retries → dead-letter), `upsertRule`,
+  `resolveOrgByRepoFullName`.
+- `apps/api/src/services/embeddings.ts` (new) — OpenAI-compatible embedding client
+  (`EMBEDDING_BASE_URL`/`MODEL`/`API_KEY`) with graceful null fallback, `cosineSimilarity`,
+  `parseVector`, `searchSemantic` (org-scoped, threshold + limit).
+- `apps/api/src/services/memory.ts` — `findByOrg` semantic-first with keyword fallback;
+  `createMemory` best-effort embedding.
+- `apps/api/src/services/consolidate-memory.ts` (new) — exact-duplicate merge (importance
+  folded, audit record, kept row wins), near-duplicate promotion (≥0.95 cosine), per-org
+  isolation, `orgIdsWithMemory`.
+- `apps/api/src/services/briefing.ts` (new) — `dayStart`, `isAging`, `isQuietContent`,
+  `buildBriefingContent` (real stats: tasks, approvals, goals, outcomes, events, paused
+  agents, anomalies), `generateDailyBriefing` (idempotent per org+kind+period; in-app
+  notification + email via existing transport when prefs allow), `runDailyBriefings`.
+- `apps/api/src/services/integrations.ts` — `recordOutcome`/`listOutcomes` (structured
+  connector outcome capture).
+- `apps/api/src/routes/events.ts` (new) — `POST /v1/webhooks/github` (repo-resolved),
+  `POST /v1/webhooks/linear/:orgId` (org-embedded), `POST /v1/integrations/:id/webhook-secret`
+  (owner/admin), `GET /v1/integrations/:id/webhook`, `GET/PUT/DELETE /v1/event-rules`,
+  `GET/POST /v1/connector-outcomes`, and internal hooks `POST /v1/internal/events/process-pending`,
+  `/v1/internal/memory/consolidate`, `/v1/internal/briefings/daily` (INTERNAL_TOKEN).
+- `apps/api/src/app.ts` — registered event routes; **raw-body-capturing JSON parser override**
+  (webhook HMAC needs the exact signed bytes; malformed JSON → 400 envelope).
+- `packages/core/src/config.ts` + `apps/api/.env.example` — `EMBEDDING_BASE_URL`/
+  `EMBEDDING_MODEL`/`EMBEDDING_API_KEY` (optional; unset = keyword fallback).
+- `.github/workflows/orq8-jobs.yml` (new) — events every 5 min, consolidation 06:30 UTC,
+  briefings 07:00 UTC.
+- `apps/web/scripts/contrast-check.mjs` (new) + `test:contrast` script — resolves
+  `--muted-foreground` vs white (WCAG math, 4.74:1) and bans faint text classes
+  (`text-ink-faint`, `text-gray-200/300/400`) in `app/`+`components/` (single documented
+  allowlist entry: the decorative top-bar `·` separator).
+- UI sweep (light-surface fixes): `admin/model-router` (2× `text-ink-faint` →
+  `text-ink-muted`), `admin/execution` (2 icons), `admin/errors` (1 icon),
+  `notifications-bell` (Bell icon gray-400 → 500), `landing/Common/PricingComparison`
+  (information-carrying X mark gray-300 → 500), `top-bar` (LogOut icon gray-400 → 500).
+- `docs/ORQ8_STYLE_GUIDE.md` (new) — semantic tokens, light/dark rules, WCAG AA requirements,
+  prohibited patterns, examples.
+
+**Tests added** (55 new; pure-unit, no DB): `test/events.test.ts` (signatures, replay window,
+normalization, templates), `test/embeddings.test.ts` (cosine, vector parsing, fallback),
+`test/consolidate-memory.test.ts` (normalization, duplicate clusters, thresholds),
+`test/briefing.test.ts` (day boundary, aging, quiet detection), `test/app-boot.test.ts`
+(boot + raw-body parser + receiver 400s without DB).
+
+**Verification**: API typecheck 0 errors; API tests **266 passed / 0 failed** (was 211); web
+typecheck clean; web production build passes; `test:contrast` PASS. **Known gaps**: no live
+provider E2E (no creds); connector ACTION handlers not yet implemented; briefing email needs
+SMTP/Resend configured in prod; migration `0004` must be applied to prod DB before deploy.
+
+---
+
 ## Superseded / corrected decisions
 
 - **Drizzle migrations vs production**: never run `drizzle-kit generate` against prod; the

@@ -1,5 +1,7 @@
 import { eq, and, desc, sql, ilike, or } from 'drizzle-orm';
 import { companyMemory, type CompanyMemoryEntry, type NewCompanyMemoryEntry, type Db } from '@orq8/db';
+import type { AppConfig } from '@orq8/core';
+import { generateEmbedding, searchSemantic } from './embeddings.js';
 
 /**
  * Company Memory Service
@@ -8,6 +10,11 @@ import { companyMemory, type CompanyMemoryEntry, type NewCompanyMemoryEntry, typ
  * Memory is org-scoped and grows over time as the AI employees execute tasks.
  *
  * Design: docs/34 Work Domain, company_memory table
+ *
+ * Semantic retrieval: when an embedding provider is configured, keyword search
+ * is augmented by pgvector cosine similarity (services/embeddings). Writing an
+ * embedding is best-effort — a missing/failed embedding provider degrades to
+ * keyword-only search and never breaks a memory write.
  */
 
 export type MemoryCategory = 'fact' | 'decision' | 'lesson' | 'preference' | 'workflow' | 'context';
@@ -28,12 +35,30 @@ export interface MemoryStats {
   recentActivity: number; // entries in last 7 days
 }
 
-/** Find memory entries for an org with optional filtering. */
+/**
+ * Find memory entries for an org with optional filtering.
+ *
+ * When `query` is provided and an embedding provider is configured, results are
+ * ordered by semantic similarity (cosine) instead of keyword match — falling
+ * back to ilike transparently when no query embedding can be produced.
+ */
 export async function findByOrg(
   db: Db,
   orgId: string,
   opts: MemorySearchParams = {},
+  config?: AppConfig,
 ): Promise<CompanyMemoryEntry[]> {
+  // Semantic path: same filters, similarity-ordered. Falls back on null.
+  if (opts.query && config) {
+    const semantic = await searchSemantic(db, orgId, opts.query, config, {
+      category: opts.category,
+      minImportance: opts.minImportance,
+      agentId: opts.agentId,
+      limit: opts.limit ?? 50,
+    });
+    if (semantic) return semantic;
+  }
+
   const conditions = [eq(companyMemory.orgId, orgId)];
 
   if (opts.category) {
@@ -77,14 +102,34 @@ export async function findById(
   return rows[0];
 }
 
-/** Create a new memory entry. */
+/**
+ * Create a new memory entry. When `config` is provided, the content is embedded
+ * best-effort so the entry participates in semantic retrieval.
+ */
 export async function createMemory(
   db: Db,
   data: NewCompanyMemoryEntry,
+  config?: AppConfig,
 ): Promise<CompanyMemoryEntry> {
   const rows = await db.insert(companyMemory).values(data).returning();
   const row = rows[0];
   if (!row) throw new Error('createMemory returned no row');
+
+  // Best-effort embedding — never fail the write when embeddings are unavailable.
+  if (config) {
+    try {
+      const embedding = await generateEmbedding(data.content ?? '', config);
+      if (embedding) {
+        await db
+          .update(companyMemory)
+          .set({ embedding: embedding as never })
+          .where(eq(companyMemory.id, row.id));
+        return { ...row, embedding: `[${embedding.join(',')}]` as never };
+      }
+    } catch {
+      // ignore — keyword fallback remains
+    }
+  }
   return row;
 }
 

@@ -1,16 +1,19 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { encryptSecret, decryptSecret } from './crypto.js';
 import {
+  connectorOutcomes,
   integrationProviders,
   integrationCredentials,
   integrationCapabilities,
   agentIntegrationAccess,
+  type ConnectorOutcome,
   type Db,
   type IntegrationProvider,
   type NewIntegrationProvider,
   type IntegrationCredential,
   type IntegrationCapability,
   type NewIntegrationCapability,
+  type NewConnectorOutcome,
   type AgentIntegrationAccess,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
@@ -263,6 +266,37 @@ export async function revokeAgentAccess(db: Db, orgId: string, agentId: string, 
     )
     .returning({ id: agentIntegrationAccess.id });
   return rows.length > 0;
+}
+
+// ─── Structured Outcome Capture (Phase 5) ────────────────────────────────────
+
+/**
+ * Record the normalized outcome of a connector action. This is the structured
+ * record agents' tool calls feed into — it answers what was attempted, what
+ * happened, and what external resource changed, and becomes part of company
+ * memory and the executive briefing. Never store raw provider payloads here.
+ */
+export async function recordOutcome(db: Db, data: NewConnectorOutcome): Promise<ConnectorOutcome> {
+  const rows = await db.insert(connectorOutcomes).values(data).returning();
+  const row = rows[0];
+  if (!row) throw new Error('recordOutcome returned no row');
+  return row;
+}
+
+export async function listOutcomes(
+  db: Db,
+  orgId: string,
+  opts: { limit?: number; provider?: string; status?: string } = {},
+): Promise<ConnectorOutcome[]> {
+  const conditions = [eq(connectorOutcomes.orgId, orgId)];
+  if (opts.provider) conditions.push(eq(connectorOutcomes.provider, opts.provider));
+  if (opts.status) conditions.push(eq(connectorOutcomes.status, opts.status));
+  return db
+    .select()
+    .from(connectorOutcomes)
+    .where(and(...conditions))
+    .orderBy(desc(connectorOutcomes.createdAt))
+    .limit(opts.limit ?? 50);
 }
 
 // ─── Capability Enforcement ──────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -14,7 +14,6 @@ import {
   FileWarning,
   LayoutDashboard,
   LogOut,
-  Menu,
   Settings,
   Shield,
   ShieldCheck,
@@ -86,6 +85,14 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // Mobile menu toggle is rendered in the sticky TopBar (top of viewport,
+  // reachable without scrolling). The sidebar listens for the toggle event.
+  useEffect(() => {
+    const onToggle = () => setMobileOpen((prev) => !prev);
+    window.addEventListener("orq8:toggle-sidebar", onToggle);
+    return () => window.removeEventListener("orq8:toggle-sidebar", onToggle);
+  }, []);
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/admin" && pathname.startsWith(href));
@@ -220,13 +227,6 @@ export function AdminSidebar() {
         </div>
       )}
 
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed bottom-4 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orq8-dark text-white shadow-lg lg:hidden"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
     </>
   );
 }

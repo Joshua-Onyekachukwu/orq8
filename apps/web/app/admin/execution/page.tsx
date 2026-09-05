@@ -128,7 +128,7 @@ export default async function ExecutionMonitoringPage() {
 
         {recentActivity.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <Activity className="w-12 h-12 text-ink-faint mx-auto mb-3" />
+            <Activity className="w-12 h-12 text-ink-muted mx-auto mb-3" />
             <p className="text-sm font-medium text-ink">No activity yet</p>
             <p className="text-xs text-ink-muted mt-1">
               Agent execution events will appear here in real-time
@@ -151,7 +151,7 @@ export default async function ExecutionMonitoringPage() {
                       {isDelegated && <Zap className="w-4 h-4 text-amber-500" />}
                       {isFeedback && <AlertTriangle className="w-4 h-4 text-blue-500" />}
                       {!isCompleted && !isFailed && !isDelegated && !isFeedback && (
-                        <Activity className="w-4 h-4 text-ink-faint" />
+                        <Activity className="w-4 h-4 text-ink-muted" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -162,7 +162,7 @@ export default async function ExecutionMonitoringPage() {
                         <p className="text-xs text-ink-muted mt-0.5 truncate">{event.reason}</p>
                       )}
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-3xs text-ink-faint">
+                        <span className="text-3xs text-ink-muted">
                           {event.occurredAt
                             ? new Date(event.occurredAt).toLocaleString()
                             : "Unknown time"}

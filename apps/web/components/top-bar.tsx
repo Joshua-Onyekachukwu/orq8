@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
   LogOut,
+  Menu,
   Search,
   Settings,
   User,
@@ -73,10 +74,19 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm px-4 sm:px-6 lg:px-8">
         {/* Left: breadcrumb */}
         <div className="flex items-center gap-3">
+          {/* Mobile menu toggle — sits in the sticky top bar so it is always
+              reachable without scrolling (previously it was a bottom-pinned FAB). */}
+          <button
+            onClick={() => window.dispatchEvent(new Event("orq8:toggle-sidebar"))}
+            aria-label="Toggle navigation menu"
+            className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <div className="hidden lg:flex items-center gap-2 text-2sm text-gray-500">
             <Building2 className="h-4 w-4" />
             <span>{orgName}</span>
-            <span className="text-gray-200">·</span>
+            <span className="text-gray-300">·</span>
             <span className="capitalize">{plan}</span>
           </div>
         </div>
@@ -139,7 +149,7 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
                       resetAnalytics();
                     }}
                   >
-                    <LogOut className="h-4 w-4 text-gray-400" /> Sign out
+                    <LogOut className="h-4 w-4 text-gray-500" /> Sign out
                   </Link>
                 </div>
               </div>

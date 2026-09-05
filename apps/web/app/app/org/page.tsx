@@ -18,10 +18,16 @@ interface Agent {
   name: string;
   role: string;
   department: string | null;
+  teamName?: string | null;
   status: string;
   weeklyCost: number;
   tasksCompleted: number;
   currentTask: string | null;
+}
+
+interface TeamGroup {
+  name: string;
+  agents: Agent[];
 }
 
 interface Goal {
@@ -34,7 +40,7 @@ interface Goal {
 
 interface OrgData {
   agents: Agent[];
-  departments: Record<string, Agent[]>;
+  departments: Record<string, TeamGroup[]>;
   goals: Goal[];
   stats: {
     totalAgents: number;
@@ -67,12 +73,18 @@ export default function OrgPage() {
       const agents: Agent[] = agentsJson.data ?? [];
       const goals: Goal[] = goalsJson.data ?? [];
 
-      // Group agents by department
-      const departments: Record<string, Agent[]> = {};
+      // Group agents by department, then by team
+      const departments: Record<string, TeamGroup[]> = {};
       for (const agent of agents) {
         const dept = agent.department ?? "Unassigned";
         if (!departments[dept]) departments[dept] = [];
-        departments[dept].push(agent);
+        const teamName = agent.teamName ?? "No team";
+        let teamGroup = departments[dept].find((g) => g.name === teamName);
+        if (!teamGroup) {
+          teamGroup = { name: teamName, agents: [] };
+          departments[dept].push(teamGroup);
+        }
+        teamGroup.agents.push(agent);
       }
 
       setData({
@@ -184,20 +196,36 @@ export default function OrgPage() {
             <div className="ml-6 border-l-2 border-hairline" />
 
             {/* Departments */}
-            {Object.entries(data.departments).map(([dept, agents]) => (
+            {Object.entries(data.departments).map(([dept, teamGroups]) => {
+              const deptAgentCount = teamGroups.reduce((sum, g) => sum + g.agents.length, 0);
+              const singleTeam = teamGroups.length === 1 && teamGroups[0]?.name === "No team";
+              return (
               <div key={dept} className="ml-6 mt-2">
                 <div className="flex items-center gap-2 rounded-lg border border-hairline bg-canvas px-4 py-3">
                   <Building2 className="h-4 w-4 text-muted" />
                   <span className="text-sm font-semibold text-ink">{dept}</span>
                   <span className="font-mono text-3xs text-muted">
-                    {agents.length} agent{agents.length !== 1 ? "s" : ""}
+                    {deptAgentCount} agent{deptAgentCount !== 1 ? "s" : ""}
                   </span>
                   <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted" />
                 </div>
 
-                {/* Agents in department */}
-                <div className="ml-6 mt-1 space-y-1 border-l-2 border-hairline pl-4">
-                  {agents.map((agent) => (
+                {teamGroups.map((group) => (
+                <div key={group.name} className="ml-6 mt-1 border-l-2 border-hairline pl-4">
+                  {!singleTeam && (
+                    <div className="flex items-center gap-2 py-1.5">
+                      <span className="rounded-md bg-orq8-dark/5 px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green">
+                        {group.name}
+                      </span>
+                      <span className="font-mono text-3xs text-muted">
+                        {group.agents.length} agent{group.agents.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+
+                {/* Agents in team */}
+                <div className="space-y-1">
+                  {group.agents.map((agent) => (
                     <button
                       key={agent.id}
                       type="button"
@@ -231,8 +259,11 @@ export default function OrgPage() {
                     </button>
                   ))}
                 </div>
+                </div>
+                ))}
               </div>
-            ))}
+            );
+            })}
 
             {Object.keys(data.departments).length === 0 && (
               <div className="ml-6 mt-2 rounded-lg border border-dashed border-hairline px-4 py-6 text-center">

@@ -83,6 +83,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
         name: body.data.name,
         description: body.data.description ?? undefined,
         budget: body.data.budget ?? undefined,
+        head: body.data.head ?? undefined,
       });
 
       await appendAudit(db, {
@@ -113,6 +114,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       description: z.string().max(500).optional().nullable(),
       head: z.string().max(100).optional().nullable(),
       budget: z.number().int().min(0).optional().nullable(),
+      status: z.enum(['active', 'archived']).optional(),
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
 
@@ -138,13 +140,14 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       description: body.data.description ?? undefined,
       head: body.data.head ?? undefined,
       budget: body.data.budget ?? undefined,
+      status: body.data.status ?? undefined,
     });
 
     await appendAudit(db, {
       orgId: ctx.orgId,
       actorType: 'user',
       actorId: ctx.userId,
-      action: 'department.updated',
+      action: body.data.status === 'archived' ? 'department.archived' : 'department.updated',
       outcome: 'success',
     });
 

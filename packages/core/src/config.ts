@@ -109,6 +109,14 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
+  // Embeddings (ADR-012, Phase 9). EMBEDDING_BASE_URL points at any
+  // OpenAI-compatible /embeddings endpoint (LiteLLM → Ollama nomic-embed-text
+  // locally; a hosted provider in production). Unset = keyword-only memory
+  // search — semantic retrieval degrades gracefully, never breaks writes.
+  EMBEDDING_BASE_URL: z.string().url().optional(),
+  EMBEDDING_MODEL: z.string().default('nomic-embed-text'),
+  EMBEDDING_API_KEY: z.string().optional(),
+
   // Platform-admin bootstrap (docs/34.x): comma-separated emails that may act as
   // platform admins (users.platform_role = 'admin') without a DB write. Intended
   // to promote the first operator account; afterwards promote in the DB.

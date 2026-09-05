@@ -20,6 +20,30 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 - **Security foundation**: AES-256-GCM encryption at rest for integration credentials
   (`services/crypto.ts`); org-scoped queries everywhere in the new code; PR lookup org-scoped;
   SSE org-isolated with auth + per-user caps.
+- **Event ingestion (Phases 5–8)**: webhook receivers for GitHub + Linear (HMAC-SHA256
+  timing-safe verification, replay-window timestamps, repo→org resolution for GitHub,
+  URL-embedded org for Linear, raw-body capture via a JSON parser override); durable
+  `webhook_events` table (idempotent via `external_event_id` unique index); org-scoped
+  `event_rules` (notify / create_task / ignore, optional agent assignment, `requiresApproval`
+  → pending approval row behind the existing gate); bounded retry + dead-letter processing
+  (`POST /v1/internal/events/process-pending`); structured `connector_outcomes` capture
+  (`recordOutcome`/`listOutcomes`); per-org webhook secrets stored encrypted in org settings
+  (generated via `POST /v1/integrations/:id/webhook-secret`, owner/admin only).
+- **Semantic memory (Phase 9–10)**: `company_memory.embedding` pgvector(768) column (HNSW
+  index, ADR-012); OpenAI-compatible embedding client (`services/embeddings.ts`) with graceful
+  fallback (unconfigured/failed provider → keyword search, writes never break); cosine
+  retrieval wired into `findByOrg`/`createMemory`; consolidation job merges exact duplicates
+  (importance folded, provenance audited) and promotes near-duplicates (embedding ≥ 0.95).
+- **Executive briefing (Phase 11–12)**: `briefings` table (idempotent per org+kind+period),
+  deterministic daily briefing from REAL system data (tasks, approvals incl. aging, goals +
+  overdue, connector outcomes, webhook volume, paused agents, anomalies), quiet-orgs skip
+  delivery, delivered via in-app notification + email (Resend/SMTP/dev-log) when prefs allow.
+- **Contrast regression protection (Phase 13–16)**: `apps/web/scripts/contrast-check.mjs`
+  (token-resolution math + banned faint-text class scan, `test:contrast` script); faint-token
+  sweep (`text-ink-faint`, `text-gray-200/300/400` on light surfaces → semantic tokens);
+  `docs/ORQ8_STYLE_GUIDE.md` documents tokens + WCAG AA rules.
+- **Scheduler**: `.github/workflows/orq8-jobs.yml` — events every 5 min, consolidation
+  ‎06:30 UTC, briefings ‎07:00 UTC (same `INTERNAL_TOKEN` pattern as waitlist drip).
 - **Phase 8/9/15 code compiles and is registered**: integrations (providers/capabilities/
   agent-access/enforcement), engineering (repos/branches/files/PRs/tasks), simulation
   (heuristic engine, draft→proposed→reviewed→applied, apply gated), analytics events.
@@ -31,11 +55,12 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 
 | Item | State | Gap |
 |---|---|---|
-| OAuth/integrations | Schema + capability model + encrypted storage real | **OAuth exchange is a stub** — callback validates but doesn't exchange; no authorize URL, no state, no health/refresh/reconnect |
+| GitHub OAuth | Real flow (state/exchange/encrypt/health/disconnect) — Task 1 | Needs live `GITHUB_CLIENT_ID/SECRET` for live E2E |
+| Gmail/Linear connectors | Generic OAuth architecture + Linear webhook receiver | No Gmail/Linear OAuth apps configured; no connector ACTION implementations yet |
 | Engineering | Full data layer, org-scoped CRUD, PR flow | **No command executor** — sandbox runs are records only; no Monaco UI |
 | Simulation | Engine works, apply gated + audited | **Apply does not materialize org changes** (no named proposal spec) |
 | SSE | Real, org-isolated, heartbeats, caps | No event replay after reconnect; no load test |
-| Reporting | Weekly report + admin reporting | No daily/monthly PA layer |
+| Reporting | Weekly report + admin reporting + **daily briefing (new)** | Briefing email respects prefs; no monthly PA layer yet |
 | Workforce optimization | QA/learning pipeline exists | Full evaluate→diagnose→improve→replace loop UI missing |
 
 ## 3. What is broken / risky (verified)
@@ -69,14 +94,17 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   strict timeouts, output caps, exit codes, audit; true container isolation is Future).
 - **P2 — Task 2: Connector health/refresh/reconnect lifecycle** (states: connected/healthy/
   degraded/expired/revoked/disconnected + UI).
-- **P2 — Task 3: Webhook receivers** (HMAC verify, idempotency, event persistence, async
-  processing via existing DB-as-queue/cron).
+- **P2 — Task 3: Webhook receivers** — **DONE (this session)** for GitHub + Linear: HMAC
+  verify, idempotency, durable events, rule-based processing, internal cron endpoint.
 - **P2 — Task 5: Simulation apply** (formal proposal spec; idempotent materialization of
   departments/agents/goals after approval).
 - **P2 — Task 6: Team/department integration test suite** (API + RLS; cross-org rejection).
 - **P2 — Task 7: Executive Agent team awareness** (structured, minimal team context injection;
   cross-org safe). *Partially done* — agent-context resolves team membership; prompt injection
   layer still to add.
+- **P2 — Connector actions (new)**: implement real GitHub/Gmail/Linear ACTION handlers
+  (list repos, create PR, send email …) behind `canAgentUseCapability` + `recordOutcome`;
+  wire into tool-handlers so agents can actually use connectors.
 - **P2 — Task 8: Team-scoped goals/tasks** (`team_id` on goals/tasks, RLS, API, team pages).
 - **P2 — Task 11: Business Import / Voice / Monaco** — only after P1/P2 foundational tasks
   are stable; no speculative infra.
@@ -85,6 +113,26 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   production test, PostHog live receipt, more connectors.
 
 ## 5.1 Task 1 — GitHub OAuth (COMPLETE: code + unit tests; blocked: live creds)
+
+**Note**: §2's stale "OAuth exchange is a stub" row is superseded — Task 1 replaced the stub.
+
+## 5.2 This session — event pipeline, semantic memory, briefing, contrast protection
+
+Built (all verified below): webhook receivers (GitHub repo-resolved + Linear org-embedded)
+with timing-safe HMAC, replay window, raw-body capture; `webhook_events`/`event_rules`/
+`connector_outcomes`/`briefings` tables + pgvector `company_memory.embedding`
+(migration `supabase/migrations/0004_add_events_rules_outcomes_briefings.sql` — idempotent,
+RLS org-member policies on every new table); rules processing (notify / approval-gated task /
+ignore, bounded retries, dead-letter); structured outcome capture; semantic retrieval with
+keyword fallback; consolidation job; daily briefing (real data, idempotent, in-app + email);
+cron workflow `.github/workflows/orq8-jobs.yml`; contrast regression test + faint-token sweep
++ `docs/ORQ8_STYLE_GUIDE.md`. Env additions: `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` /
+`EMBEDDING_API_KEY` (optional; unset → keyword fallback). Webhook secrets are generated
+per-org at runtime — no env var.
+
+**Verification**: API typecheck 0 errors; API tests **266 passed / 0 failed** (55 new); web
+typecheck clean; web production build passes; `test:contrast` PASS. **Not done**: live
+provider E2E (no creds), connector action handlers, briefing email needs SMTP/Resend in prod.
 
 Built: stateless HMAC-SHA256 OAuth state (`signOAuthState`/`verifyOAuthState`, bound to
 org + provider, 10-min TTL, timing-safe compare); authorize URL builder (scope `repo read:user`);
@@ -132,8 +180,9 @@ Status: **PRESENT** (local untracked env), **MISSING**, **PROD-REQUIRED**, **UNU
 | `INTERNAL_TOKEN` | internal endpoints | yes | MISSING | yes (prod) | unset disables endpoints |
 | `PLATFORM_ADMIN_EMAILS` | admin bootstrap | no | MISSING | optional | prefer DB `platform_role` |
 | `ALLOWED_ORIGINS` | CORS | no | default | yes | — |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Task 1 OAuth | yes | **MISSING** | when OAuth enabled | add to config schema + `.env.example` |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Task 1 OAuth | yes | **MISSING** | when OAuth enabled | added to config schema + `.env.example` |
 | `GOOGLE_CLIENT_ID`/`SECRET`, `LINEAR_CLIENT_ID`/`SECRET` | future connectors | yes | MISSING | when added | — |
+| `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` / `EMBEDDING_API_KEY` | semantic memory | yes (key) | MISSING | optional | unset → keyword fallback; model default `nomic-embed-text` (768-dim) |
 
 Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_ENV`, `PORT`,
 `LOG_LEVEL` via core defaults. Secret values are NOT committed anywhere (`.gitignore` protects
@@ -141,14 +190,24 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 
 ## 7. Next tasks (ordered)
 
-1. ~~Task 1 — GitHub OAuth~~ **DONE** (commit `f588380`); remaining: live creds + E2E.
-2. Task 6 — Team/department integration test suite.
-3. Task 7 — Executive Agent team awareness prompt layer.
-4. Task 4 — Sandboxed command executor.
-5. Task 5 — Simulation apply.
-6. Task 9/10 — Apply migration, deploy, smoke test (needs credentials).
-7. Task 2/3 — Connector health + webhooks.
-8. Task 8 — Team-scoped goals/tasks.
+1. ~~Task 1 — GitHub OAuth~~ **DONE** (`f588380`); remaining: live creds + E2E.
+2. ~~Task 3 — Webhook receivers~~ **DONE (this session)**; remaining: live provider
+   configuration + connector ACTION handlers.
+3. **Connector action handlers** — implement GitHub/Gmail/Linear actions behind
+   `canAgentUseCapability`, recording `connectorOutcomes` (unblocks the agent→connector loop).
+4. Task 6 — Team/department integration test suite.
+5. Task 7 — Executive Agent team awareness prompt layer.
+6. Task 4 — Sandboxed command executor.
+7. Task 5 — Simulation apply.
+8. Task 2 — Connector health/refresh/reconnect UI.
+9. Task 8 — Team-scoped goals/tasks.
+10. Task 9/10 — Apply migrations (`0003`, `0004`), deploy, smoke test (needs credentials).
+
+**Pending**: push to origin/main (deferred; triggers Vercel deploy). Uncommitted in the working
+tree (from this + prior sessions): teams/org-management, `vercel.json` asset fix, admin
+contrast fixes, phase files (engineering/simulation/analytics), and this session's event
+pipeline — all typecheck-clean and test-passing, ready for one deliberate consolidation commit
+before push.
 
 **Pending**: push `f588380` to origin/main (deferred — see final report; triggers Vercel
 deploy). Uncommitted in the working tree (not part of this task): teams/org-management work,

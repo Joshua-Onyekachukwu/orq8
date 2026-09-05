@@ -2,7 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && NODE_ENV= pnpm install --frozen-lockfile",
   "buildCommand": "npx next build",
-  "outputDirectory": ".next",
   "regions": ["iad1"],
   "headers": [
     {

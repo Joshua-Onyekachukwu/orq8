@@ -142,9 +142,9 @@ export default async function ModelRouterPage() {
         </div>
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
-            <WifiOff className="h-4 w-4 text-ink-faint" /> Not Configured
+            <WifiOff className="h-4 w-4 text-ink-muted" /> Not Configured
           </div>
-          <p className="mt-2 text-2xl font-bold text-ink-faint tabular-nums">{summary.notConfigured}</p>
+          <p className="mt-2 text-2xl font-bold text-ink-muted tabular-nums">{summary.notConfigured}</p>
           <p className="text-xs text-ink-muted">no keys set</p>
         </div>
       </div>

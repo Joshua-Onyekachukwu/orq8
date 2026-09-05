@@ -247,7 +247,7 @@ export default async function AdminErrorsPage() {
         </div>
         {events.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <Info className="w-12 h-12 text-ink-faint mx-auto mb-3" />
+            <Info className="w-12 h-12 text-ink-muted mx-auto mb-3" />
             <p className="text-sm font-medium text-ink">
               No audit events
             </p>

@@ -19,6 +19,8 @@ interface Agent {
   name: string;
   role: string;
   department: string | null;
+  teamId?: string | null;
+  teamName?: string | null;
   status: string;
   weeklyCost: number;
   tasksCompleted: number;
@@ -57,6 +59,7 @@ export default function AgentsPage() {
   const [hireName, setHireName] = useState("");
   const [hireRole, setHireRole] = useState("");
   const [hireDept, setHireDept] = useState("");
+  const [hireTeam, setHireTeam] = useState("");
   const [hiring, setHiring] = useState(false);
   const [hireError, setHireError] = useState<string | null>(null);
 
@@ -92,6 +95,7 @@ export default function AgentsPage() {
           name: hireName.trim(),
           role: hireRole.trim(),
           department: hireDept.trim() || undefined,
+          team: hireTeam.trim() || undefined,
         }),
       });
       if (!res.ok) {
@@ -104,6 +108,7 @@ export default function AgentsPage() {
       setHireName("");
       setHireRole("");
       setHireDept("");
+      setHireTeam("");
     } catch (err) {
       setHireError(err instanceof Error ? err.message : "Failed to hire agent");
     } finally {
@@ -330,10 +335,14 @@ export default function AgentsPage() {
                 </div>
               )}
 
-              <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
+              <dl className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2">
                   <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Dept</dt>
                   <dd className="mt-0.5 truncate text-xs font-medium text-ink">{a.department ?? "—"}</dd>
+                </div>
+                <div className="bg-white px-3 py-2">
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Team</dt>
+                  <dd className="mt-0.5 truncate text-xs font-medium text-ink">{a.teamName ?? "—"}</dd>
                 </div>
                 <div className="bg-white px-3 py-2">
                   <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Hired</dt>
@@ -402,6 +411,18 @@ export default function AgentsPage() {
                     value={hireDept}
                     onChange={(e) => setHireDept(e.target.value)}
                     placeholder="e.g. Marketing, Engineering"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-ink">
+                    Team (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={hireTeam}
+                    onChange={(e) => setHireTeam(e.target.value)}
+                    placeholder="e.g. Growth, Support"
                     className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
                   />
                 </div>

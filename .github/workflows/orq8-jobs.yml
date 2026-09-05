@@ -1,0 +1,67 @@
+name: ORQ8 scheduled jobs
+
+on:
+  schedule:
+    # Webhook event processing — pick up pending events quickly.
+    - cron: '*/5 * * * *'
+    # Memory consolidation — nightly (06:30 UTC).
+    - cron: '30 6 * * *'
+    # Daily executive briefing — nightly (07:00 UTC, after consolidation).
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  process-events:
+    name: Process pending webhook events
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call events process-pending endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
+            echo "::warning::API_URL/INTERNAL_TOKEN secrets not set — skipping"
+            exit 0
+          fi
+          status=$(curl -s -o /tmp/events.json -w "%{http_code}" -m 60 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/events/process-pending")
+          echo "process-pending HTTP $status"
+          cat /tmp/events.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
+  daily-jobs:
+    name: Memory consolidation + daily briefings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call memory consolidate endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
+            echo "::warning::API_URL/INTERNAL_TOKEN secrets not set — skipping"
+            exit 0
+          fi
+          status=$(curl -s -o /tmp/consolidate.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/memory/consolidate")
+          echo "consolidate HTTP $status"
+          cat /tmp/consolidate.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
+      - name: Call daily briefing endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/briefings.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/briefings/daily")
+          echo "briefings HTTP $status"
+          cat /tmp/briefings.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi

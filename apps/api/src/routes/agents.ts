@@ -8,6 +8,7 @@ import { appendAudit } from '../services/audit.js';
 import * as agents from '../services/agents.js';
 import { getPlanLimits } from '../services/billing.js';
 import * as deptService from '../services/departments.js';
+import * as teamService from '../services/teams.js';
 import type { AppDeps } from '../types.js';
 
 const authoritySchema = z.object({
@@ -26,6 +27,8 @@ const hireBody = z.object({
   role: z.string().trim().min(1).max(100),
   department: z.string().trim().max(100).optional(), // DEPRECATED — use departmentId
   departmentId: z.string().uuid().optional(),
+  team: z.string().trim().max(100).optional(), // DEPRECATED — use teamId
+  teamId: z.string().uuid().optional(),
   authority: authoritySchema,
   capabilities: z.array(z.string()).optional(),
 });
@@ -35,6 +38,8 @@ const patchBody = z.object({
   role: z.string().trim().min(1).max(100).optional(),
   department: z.string().trim().max(100).optional().nullable(), // DEPRECATED
   departmentId: z.string().uuid().optional().nullable(),
+  team: z.string().trim().max(100).optional().nullable(), // DEPRECATED
+  teamId: z.string().uuid().optional().nullable(),
   status: z.enum(['active', 'paused', 'archived']).optional(),
   authority: authoritySchema,
   capabilities: z.array(z.string()).optional(),
@@ -112,6 +117,24 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       departmentId = null;
     }
 
+    // Resolve teamId if provided (by id or name)
+    let teamId: string | null = null;
+    try {
+      if (parsed.data.teamId) {
+        const t = await teamService.findById(db, ctx.orgId, parsed.data.teamId);
+        if (t) teamId = t.id;
+      } else if (parsed.data.team) {
+        let t = await teamService.findByName(db, ctx.orgId, parsed.data.team);
+        if (!t) {
+          t = await teamService.createTeam(db, { orgId: ctx.orgId, name: parsed.data.team });
+        }
+        teamId = t.id;
+      }
+    } catch {
+      // teams table may not exist yet — proceed without teamId
+      teamId = null;
+    }
+
     // Resolve authority defaults
     const defaultAuthority = {
       canCreateTasks: true,
@@ -134,6 +157,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
     // Add new columns only if they might exist (try-catch at DB level)
     if (departmentId) insertData.departmentId = departmentId;
+    if (teamId) insertData.teamId = teamId;
     insertData.authority = { ...defaultAuthority, ...parsed.data.authority };
     insertData.capabilities = parsed.data.capabilities ?? [];
 
@@ -223,6 +247,41 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         }
       }
 
+      // Team reassignment
+      const teamChanged =
+        parsed.data.teamId !== undefined && parsed.data.teamId !== (agent.teamId ?? null);
+
+      if (parsed.data.teamId !== undefined) {
+        if (parsed.data.teamId) {
+          const t = await teamService.findById(db, ctx.orgId, parsed.data.teamId);
+          if (!t) {
+            reply.code(400);
+            return { error: { code: 'bad_request', message: 'Team not found in this organization.' } };
+          }
+          updates.teamId = t.id;
+          // Consistency: an agent assigned to a team that belongs to a department
+          // inherits that department when they have none of their own.
+          if (!agent.departmentId && t.departmentId) {
+            const dept = await deptService.findById(db, ctx.orgId, t.departmentId);
+            updates.departmentId = t.departmentId;
+            updates.department = dept?.name ?? null;
+          }
+        } else {
+          updates.teamId = null;
+        }
+      } else if (parsed.data.team !== undefined) {
+        // Backward compat: text-based team assignment
+        if (parsed.data.team) {
+          let t = await teamService.findByName(db, ctx.orgId, parsed.data.team);
+          if (!t) {
+            t = await teamService.createTeam(db, { orgId: ctx.orgId, name: parsed.data.team });
+          }
+          updates.teamId = t.id;
+        } else {
+          updates.teamId = null;
+        }
+      }
+
       const updated = await db
         .update(agentsTable)
         .set(updates)
@@ -240,6 +299,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         actorId: ctx.userId,
         action: parsed.data.status === 'paused' ? 'agent.paused' :
                 parsed.data.status === 'active' ? 'agent.resumed' :
+                teamChanged ? 'agent.reassigned' :
                 parsed.data.name ? 'agent.renamed' : 'agent.updated',
         outcome: 'success',
       });

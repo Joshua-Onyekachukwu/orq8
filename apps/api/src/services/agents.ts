@@ -37,13 +37,52 @@ async function checkNewColumns(db: Db): Promise<boolean> {
   return newColumnsExist;
 }
 
+/** Check if the teams table + team_id column exist (pre-migration safe). */
+let teamColumnExists: boolean | null = null;
+async function checkTeamColumn(db: Db): Promise<boolean> {
+  if (teamColumnExists !== null) return teamColumnExists;
+  try {
+    const result = await db
+      .select({ hasTeam: sql<boolean>` EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'team_id') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'teams')` })
+      .from(sql`(SELECT 1) AS _check`);
+    teamColumnExists = result[0]?.hasTeam ?? false;
+  } catch {
+    teamColumnExists = false;
+  }
+  return teamColumnExists;
+}
+
 /** Build the full column set depending on which columns exist. */
 async function getColumns(db: Db) {
   const hasNew = await checkNewColumns(db);
+  const hasTeam = await checkTeamColumn(db);
   if (hasNew) {
-    return { ...coreColumns, departmentId: agents.departmentId, authority: agents.authority, capabilities: agents.capabilities };
+    return {
+      ...coreColumns,
+      departmentId: agents.departmentId,
+      authority: agents.authority,
+      capabilities: agents.capabilities,
+      ...(hasTeam ? { teamId: agents.teamId } : {}),
+    };
   }
   return coreColumns;
+}
+
+/** Attach team display names to agent rows (batch lookup, pre-migration safe). */
+async function attachTeamNames(db: Db, rows: AnyRecord[]): Promise<AnyRecord[]> {
+  const teamIds = Array.from(new Set(rows.map((r) => r.teamId).filter(Boolean))) as string[];
+  if (teamIds.length === 0) return rows;
+  try {
+    const { teams } = await import('@orq8/db');
+    const teamRows = await db
+      .select({ id: teams.id, name: teams.name })
+      .from(teams)
+      .where(sql`${teams.id} = ANY(${teamIds})`);
+    const nameById = new Map(teamRows.map((t) => [t.id, t.name]));
+    return rows.map((r) => ({ ...r, teamName: r.teamId ? nameById.get(r.teamId) ?? null : null }));
+  } catch {
+    return rows.map((r) => ({ ...r, teamName: null }));
+  }
 }
 
 /** Find all agents for an org, most recently created first. */
@@ -53,13 +92,14 @@ export async function findByOrg(
   opts: { limit?: number; offset?: number } = {},
 ): Promise<AnyRecord[]> {
   const cols = await getColumns(db);
-  return db
+  const rows = await db
     .select(cols)
     .from(agents)
     .where(eq(agents.orgId, orgId))
     .orderBy(desc(agents.createdAt))
     .limit(opts.limit ?? 50)
     .offset(opts.offset ?? 0);
+  return attachTeamNames(db, rows);
 }
 
 /** Find a single agent by id, scoped to org. */
@@ -74,7 +114,8 @@ export async function findById(
     .from(agents)
     .where(and(eq(agents.id, id), eq(agents.orgId, orgId)))
     .limit(1);
-  return rows[0];
+  const [withTeams] = await attachTeamNames(db, rows);
+  return withTeams;
 }
 
 /** Create a new agent. */

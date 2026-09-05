@@ -35,6 +35,7 @@ import { registerWaitlistRoutes } from './routes/waitlist.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
 import { registerConstitutionRoutes } from './routes/constitution.js';
 import { registerDepartmentRoutes } from './routes/departments.js';
+import { registerTeamRoutes } from './routes/teams.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerToolRoutes } from './routes/tools.js';
@@ -46,6 +47,11 @@ import { registerMigrationRoutes } from './routes/migration.js';
 import { registerQualityRoutes } from './routes/quality.js';
 import { registerCompanyBuilderRoutes } from './routes/company-builder.js';
 import { registerRealtimeEndpoint } from './services/realtime.js';
+import { registerEngineeringRoutes } from './routes/engineering.js';
+import { registerIntegrationRoutes } from './routes/integrations.js';
+import { registerEventRoutes } from './routes/events.js';
+import { registerSimulationRoutes } from './routes/simulation.js';
+import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
 import { csrfPlugin } from './plugins/csrf.js';
@@ -69,6 +75,32 @@ export async function buildApp(
 
   await app.register(cors, { origin: allowedOrigins(deps.config), credentials: true });
   await app.register(cookie);
+
+  // Replace the default JSON parser with one that also captures the raw body
+  // string — webhook receivers must HMAC-verify the exact bytes the provider
+  // signed, not a re-serialization of the parsed object. Behavior is otherwise
+  // identical (malformed JSON → 400 bad_request via the error handler).
+  app.addContentTypeParser(
+    'application/json',
+    // override exists at runtime (replaces Fastify's built-in JSON parser);
+    // Fastify's TS types omit it, so cast past the type boundary.
+    { parseAs: 'string', bodyLimit: 5 * 1024 * 1024, override: true } as unknown as {
+      parseAs: 'string';
+      bodyLimit?: number;
+    },
+    (request, body: string, done) => {
+      try {
+        (request as unknown as { rawBody?: string }).rawBody = body;
+        done(null, body.length > 0 ? JSON.parse(body) : {});
+      } catch (err) {
+        // Surface as a 400 (Fastify's built-in parser throws a typed 400 error;
+        // our JSON.parse throws a bare SyntaxError that would otherwise 500).
+        const e = err as Error & { statusCode?: number };
+        e.statusCode = 400;
+        done(e, undefined);
+      }
+    },
+  );
 
   // CSRF protection for cookie-based session requests
   csrfPlugin(app);
@@ -224,6 +256,7 @@ export async function buildApp(
   registerNotificationRoutes(app, deps);
   registerConstitutionRoutes(app, deps);
   registerDepartmentRoutes(app, deps);
+  registerTeamRoutes(app, deps);
   registerSettingsRoutes(app, deps);
   registerMemberRoutes(app, deps);
   registerToolRoutes(app, deps);
@@ -235,6 +268,11 @@ export async function buildApp(
   registerQualityRoutes(app, deps);
   registerCompanyBuilderRoutes(app, deps);
   registerRealtimeEndpoint(app, deps);
+  registerEngineeringRoutes(app, deps);
+  registerIntegrationRoutes(app, deps);
+  registerEventRoutes(app, deps);
+  registerSimulationRoutes(app, deps);
+  registerAnalyticsRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce
   registerBuiltinTools();

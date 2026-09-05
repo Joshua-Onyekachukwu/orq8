@@ -37,14 +37,19 @@ export function registerMemoryRoutes(app: FastifyInstance, deps: AppDeps): void 
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10), 0);
 
-    const list = await memory.findByOrg(db, ctx.orgId, {
-      query,
-      category: category ?? undefined,
-      minImportance,
-      agentId,
-      limit,
-      offset,
-    });
+    const list = await memory.findByOrg(
+      db,
+      ctx.orgId,
+      {
+        query,
+        category: category ?? undefined,
+        minImportance,
+        agentId,
+        limit,
+        offset,
+      },
+      deps.config,
+    );
 
     return { data: list, meta: { limit, offset, total: list.length } };
   });
@@ -88,15 +93,19 @@ export function registerMemoryRoutes(app: FastifyInstance, deps: AppDeps): void 
     const parsed = createMemoryBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
-    const entry = await memory.createMemory(db, {
-      orgId: ctx.orgId,
-      category: parsed.data.category,
-      content: parsed.data.content,
-      source: parsed.data.source ?? null,
-      agentId: parsed.data.agentId ?? null,
-      taskId: parsed.data.taskId ?? null,
-      importance: parsed.data.importance,
-    });
+    const entry = await memory.createMemory(
+      db,
+      {
+        orgId: ctx.orgId,
+        category: parsed.data.category,
+        content: parsed.data.content,
+        source: parsed.data.source ?? null,
+        agentId: parsed.data.agentId ?? null,
+        taskId: parsed.data.taskId ?? null,
+        importance: parsed.data.importance,
+      },
+      deps.config,
+    );
 
     await appendAudit(db, {
       orgId: ctx.orgId,

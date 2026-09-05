@@ -83,7 +83,7 @@ export async function findById(
 /** Create a new department. */
 export async function createDepartment(
   db: Db,
-  data: { orgId: string; name: string; description?: string; budget?: number },
+  data: { orgId: string; name: string; description?: string; budget?: number; head?: string },
 ): Promise<Department> {
   if (!(await tableExists(db))) {
     throw new Error('Departments feature not available yet — database migration needed');
@@ -95,6 +95,7 @@ export async function createDepartment(
       name: data.name,
       description: data.description ?? null,
       budget: data.budget ?? null,
+      head: data.head ?? null,
       status: 'active',
     })
     .returning();
@@ -108,7 +109,7 @@ export async function updateDepartment(
   db: Db,
   orgId: string,
   id: string,
-  data: { name?: string; description?: string; budget?: number; head?: string },
+  data: { name?: string; description?: string; budget?: number; head?: string; status?: string },
 ): Promise<Department | undefined> {
   if (!(await tableExists(db))) return undefined;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -116,6 +117,7 @@ export async function updateDepartment(
   if (data.description !== undefined) updates.description = data.description;
   if (data.budget !== undefined) updates.budget = data.budget;
   if (data.head !== undefined) updates.head = data.head;
+  if (data.status !== undefined) updates.status = data.status;
 
   const rows = await db
     .update(departments)
