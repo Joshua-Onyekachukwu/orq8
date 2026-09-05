@@ -203,11 +203,12 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 9. Task 8 — Team-scoped goals/tasks.
 10. Task 9/10 — Apply migrations (`0003`, `0004`), deploy, smoke test (needs credentials).
 
-**Pending**: push to origin/main (deferred; triggers Vercel deploy). Uncommitted in the working
-tree (from this + prior sessions): teams/org-management, `vercel.json` asset fix, admin
-contrast fixes, phase files (engineering/simulation/analytics), and this session's event
-pipeline — all typecheck-clean and test-passing, ready for one deliberate consolidation commit
-before push.
+**Pushed**: `530ff60` is on `origin/main` (verified — fetch + rev-parse match). Pushing triggers
+a Vercel build of `main`. Remaining untracked (intentionally not committed):
+`docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (separate strategy doc) and
+`packages/db/src/migrations/` (drizzle journal is out of sync with prod by design — prod
+migrations live in `supabase/migrations/`). Before/after deploy: apply `supabase/migrations/0003`
+and `0004` to the Supabase DB, then smoke-test teams + `/images/*` + webhook endpoints live.
 
 **Pending**: push `f588380` to origin/main (deferred — see final report; triggers Vercel
 deploy). Uncommitted in the working tree (not part of this task): teams/org-management work,
