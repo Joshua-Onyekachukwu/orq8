@@ -84,12 +84,17 @@ export async function createDelegationPlan(
     .from(agents)
     .where(and(eq(agents.orgId, orgId), eq(agents.status, 'active')));
 
-  // Find the Executive Agent (or the most senior agent)
-  const executiveAgent = activeAgents.find(a => a.role === 'executive_agent') ?? activeAgents[0];
+  // Find the Executive Agent (or the most senior agent). Roles are matched
+  // case/separator-insensitively: decomposition roles are canonical snake_case
+  // (e.g. "market_researcher") while hired agents may carry freeform titles
+  // (e.g. "Market Researcher"), so normalize both sides before comparing.
+  const executiveAgent =
+    activeAgents.find(a => normalizeRole(a.role) === 'executiveagent') ?? activeAgents[0];
 
   for (const task of taskDecomposition) {
-    // Find agents matching the suggested role
-    const matchingAgents = activeAgents.filter(a => a.role === task.suggestedAgentRole);
+    const wantedRole = normalizeRole(task.suggestedAgentRole);
+    // Find agents matching the suggested role (normalized)
+    const matchingAgents = activeAgents.filter(a => normalizeRole(a.role) === wantedRole);
 
     if (matchingAgents.length > 0) {
       // Direct assignment — agent with matching role exists
@@ -101,10 +106,12 @@ export async function createDelegationPlan(
         role: agent.role,
       });
     } else if (executiveAgent) {
-      // No matching agent — delegate from Executive Agent to a related agent
-      // Find the closest matching agent by role similarity
-      const relatedAgent = findRelatedAgent(activeAgents, task.suggestedAgentRole);
-      if (relatedAgent) {
+      // No matching agent — find the closest related agent by role similarity.
+      // Never delegate to the Executive Agent itself (self-delegation is
+      // rejected downstream); if only the Executive Agent is suitable, assign
+      // the task to it directly so the work always has an owner.
+      const relatedAgent = findRelatedAgent(activeAgents, task.suggestedAgentRole, executiveAgent.id);
+      if (relatedAgent && relatedAgent.id !== executiveAgent.id) {
         plan.delegations.push({
           parentTaskTitle: task.title,
           subTaskTitle: task.title,
@@ -115,9 +122,12 @@ export async function createDelegationPlan(
           priority: (task.priority as any) ?? 'normal',
         });
       } else {
-        plan.unassigned.push({
+        // Executive Agent handles generalist work directly
+        plan.directAssignments.push({
           taskTitle: task.title,
-          reason: `No agent with role "${task.suggestedAgentRole}" available`,
+          targetAgentId: executiveAgent.id,
+          targetAgentName: executiveAgent.name,
+          role: executiveAgent.role,
         });
       }
     } else {
@@ -352,37 +362,67 @@ export async function handleAgentFeedback(
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
+ * Normalize a role string for comparison: lowercase + strip separators.
+ * "Market Researcher", "market_researcher" and "market-researcher" all
+ * normalize to "marketresearcher".
+ */
+function normalizeRole(role: string): string {
+  return (role ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
  * Find the most related agent for a given role.
  * Uses role similarity to find the best match when no exact match exists.
+ * The delegating (executive) agent is excluded so it never targets itself.
  */
 function findRelatedAgent(
   activeAgents: Array<{ id: string; name: string; role: string }>,
   targetRole: string,
+  excludeAgentId?: string,
 ): { id: string; name: string; role: string } | null {
   if (activeAgents.length === 0) return null;
 
-  // Role similarity mapping
+  const wanted = normalizeRole(targetRole);
+
+  // Role similarity mapping (normalized keys/values)
   const roleSimilarity: Record<string, string[]> = {
-    market_researcher: ['data_analyst', 'financial_analyst'],
-    content_writer: ['communications_agent', 'market_researcher'],
-    communications_agent: ['content_writer', 'operations_manager'],
-    software_engineer: ['data_analyst', 'operations_manager'],
-    data_analyst: ['financial_analyst', 'market_researcher'],
-    operations_manager: ['executive_agent', 'data_analyst'],
-    financial_analyst: ['data_analyst', 'operations_manager'],
-    executive_agent: ['operations_manager', 'data_analyst'],
+    market_researcher: ['dataanalyst', 'financialanalyst', 'growth', 'marketing'],
+    content_writer: ['communicationsagent', 'marketresearcher', 'content'],
+    communications_agent: ['contentwriter', 'operationsmanager', 'marketing'],
+    software_engineer: ['dataanalyst', 'operationsmanager', 'engineer'],
+    data_analyst: ['financialanalyst', 'marketresearcher'],
+    operations_manager: ['executiveagent', 'dataanalyst'],
+    financial_analyst: ['dataanalyst', 'operationsmanager', 'finance'],
+    executive_agent: ['operationsmanager', 'dataanalyst'],
   };
 
-  const similar = roleSimilarity[targetRole] ?? [];
+  const candidates = activeAgents.filter(a => a.id !== excludeAgentId);
+  if (candidates.length === 0) return null;
 
-  // Try similar roles first
+  // 1. Try similar roles first
+  const similar = (roleSimilarity[wanted] ?? roleSimilarity[targetRole] ?? []).map(normalizeRole);
   for (const simRole of similar) {
-    const agent = activeAgents.find(a => a.role === simRole);
+    const agent = candidates.find(a => normalizeRole(a.role) === simRole);
     if (agent) return agent;
   }
 
-  // Fall back to any active agent
-  return activeAgents[0] ?? null;
+  // 2. Capability-keyword fallback — match the requested role against each
+  //    agent's role/capabilities when the similarity table has no entry.
+  const keywordAgents = candidates.map(a => ({
+    agent: a,
+    haystack: normalizeRole(`${a.role} ${(a as { capabilities?: string[] }).capabilities?.join(' ') ?? ''}`),
+  }));
+  const wantedKeywords = wanted
+    .replace(/(research|market|content|engineer|data|analyst|writer|agent)/g, ' $1 ')
+    .split(/\s+/)
+    .filter(k => k.length >= 4);
+  for (const kw of wantedKeywords) {
+    const agent = keywordAgents.find(({ haystack }) => haystack.includes(kw))?.agent;
+    if (agent) return agent;
+  }
+
+  // 3. Fall back to the most senior non-executive agent, or any agent
+  return candidates[0] ?? null;
 }
 
 import { sql } from 'drizzle-orm';
