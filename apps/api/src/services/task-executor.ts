@@ -438,13 +438,18 @@ export async function getTaskStatus(
 
   if (!task) return null;
 
-  // Get the latest activity event for this task (contains the result summary)
-  const [activity] = await db
-    .select({ summary: activityEvents.summary, reason: activityEvents.reason })
-    .from(activityEvents)
-    .where(eq(activityEvents.taskId, taskId))
-    .orderBy(activityEvents.occurredAt)
-    .limit(1);
+  // The task row holds the real execution output. Fall back to the most
+  // recent activity event's summary only when no result was persisted.
+  let activitySummary: string | undefined;
+  if (!task.result) {
+    const [activity] = await db
+      .select({ summary: activityEvents.summary })
+      .from(activityEvents)
+      .where(eq(activityEvents.taskId, taskId))
+      .orderBy(activityEvents.occurredAt)
+      .limit(1);
+    activitySummary = activity?.summary ?? undefined;
+  }
 
   return {
     id: task.id,
@@ -452,7 +457,7 @@ export async function getTaskStatus(
     status: task.status,
     cost: task.cost,
     agentId: task.agentId,
-    result: activity?.reason ?? undefined,
+    result: task.result ?? activitySummary,
   };
 }
 
