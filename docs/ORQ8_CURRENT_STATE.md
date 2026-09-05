@@ -141,7 +141,7 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 
 ## 7. Next tasks (ordered)
 
-1. Task 1 — GitHub OAuth (code + tests, no live creds) → update this file.
+1. ~~Task 1 — GitHub OAuth~~ **DONE** (commit `f588380`); remaining: live creds + E2E.
 2. Task 6 — Team/department integration test suite.
 3. Task 7 — Executive Agent team awareness prompt layer.
 4. Task 4 — Sandboxed command executor.
@@ -149,3 +149,8 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 6. Task 9/10 — Apply migration, deploy, smoke test (needs credentials).
 7. Task 2/3 — Connector health + webhooks.
 8. Task 8 — Team-scoped goals/tasks.
+
+**Pending**: push `f588380` to origin/main (deferred — see final report; triggers Vercel
+deploy). Uncommitted in the working tree (not part of this task): teams/org-management work,
+`vercel.json` asset fix, admin/execution contrast fix, and the untracked engineering/
+simulation/analytics phase files — these should be reviewed and committed deliberately.
