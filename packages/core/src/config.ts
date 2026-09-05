@@ -104,6 +104,11 @@ const envSchema = z.object({
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),
 
+  // GitHub OAuth (docs — Task 1). Server-side credentials for the ORQ8 GitHub
+  // OAuth App. The authorization-code exchange happens here, never client-side.
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+
   // Platform-admin bootstrap (docs/34.x): comma-separated emails that may act as
   // platform admins (users.platform_role = 'admin') without a DB write. Intended
   // to promote the first operator account; afterwards promote in the DB.
