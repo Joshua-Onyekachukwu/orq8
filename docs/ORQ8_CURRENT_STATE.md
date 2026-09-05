@@ -191,8 +191,17 @@ emerald CTA primary-foreground) all ≥ 4.5:1.
 **Verification**: API typecheck 0 errors; API tests **296 passed / 0 failed** (224 DB-gated
 skipped — no local Postgres; run against infra compose / Supabase in CI); web typecheck
 clean; web production build passes; `test:contrast` PASS (all 9 light+dark pairs ≥ 4.5:1).
+**Live probes (2026-09-05)**: web `orq8.vercel.app` HTTP 200; API
+`orq8api-production.up.railway.app` — `/healthz` + `/readyz` 200, `/v1/teams` 401
+(auth live), GitHub + Linear webhook receivers return 400/404 correctly,
+`/v1/sandbox-runs`, `/v1/simulations` (+ proposal/apply), `/v1/engineering-tasks`,
+`/v1/connector-outcomes`, `/v1/event-rules` all registered (401 unauth).
+**Shipped**: commit `0a3faa0` (22 files) — **pushed and verified on `origin/main`**
+(rev-parse matches; Vercel + Railway will build `main`).
 **Not done / blocked**: live DB integration tests (no local Postgres here), connector action
-handlers, live provider E2E (no creds), briefing email needs SMTP/Resend in prod.
+handlers, live provider E2E (no creds), briefing email needs SMTP/Resend in prod,
+`INTERNAL_TOKEN` unset in prod → cron jobs (events/briefings/consolidation) are not
+running in production until the secret is configured (workflow auto-skips with a warning).
 
 ## 6. Environment Audit (presence as of last audit — values never recorded here)
 
