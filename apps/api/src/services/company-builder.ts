@@ -37,6 +37,15 @@ export interface CompanyAnalysis {
   priorities: string[];
   risks: string[];
   existingSystems?: string[];
+  // Structured entities — populated for existing companies (and whenever the
+  // founder's input implies them). Each is kept as short, verifiable facts so
+  // the Company Brain can reason about the org without storing raw text.
+  products?: Array<{ name: string; purpose: string; status: string }>;
+  customers?: Array<{ segment: string; useCase: string }>;
+  team?: Array<{ role: string; department: string }>;
+  technology?: Array<{ name: string; category: string }>;
+  tools?: Array<{ name: string; category: string }>;
+  website?: string;
   sourceType: 'idea' | 'existing';
   rawInput: string;
 }
@@ -96,10 +105,22 @@ Return strict JSON with exactly this shape:
   "solution": "how the company solves it",
   "businessModel": "how it makes money, or 'TBD' if unknown",
   "stage": "idea | pre-seed | launched | growing | established (best guess from the description)",
+  "website": "company/product website URL if mentioned, or ''",
   "priorities": ["2-5 near-term priorities implied or stated"],
   "risks": ["1-4 risks or unknowns implied or stated"],
-  "existingSystems": ["tools/systems mentioned (website, repo, CRM, docs, etc.) or [] if none"]
-}`;
+  "existingSystems": ["tools/systems mentioned (website, repo, CRM, docs, etc.) or [] if none"],
+  "products": [{ "name": "product/service", "purpose": "what it does", "status": "launched | in development | planned" }],
+  "customers": [{ "segment": "customer type/segment", "useCase": "how they use it" }],
+  "team": [{ "role": "person's role", "department": "department or ''" }],
+  "technology": [{ "name": "language/framework/infrastructure", "category": "language | framework | database | infrastructure | api" }],
+  "tools": [{ "name": "business tool", "category": "crm | communication | project_management | analytics | finance | marketing | development | support" }]
+}
+
+Rules:
+- Extract ONLY entities the founder mentioned or that are directly implied. Never invent specifics.
+- Leave arrays empty when nothing was stated.
+- Keep entity names short and factual ("Next.js", "HubSpot", "Stripe").
+- For an idea-stage company, products/customers/team/technology/tools will usually be empty or minimal.`;
 
 /** Analyze a founder's raw input into a structured company understanding. */
 export async function analyzeCompany(
@@ -128,9 +149,31 @@ export async function analyzeCompany(
         solution: String(llmResult.solution ?? '').trim(),
         businessModel: String(llmResult.businessModel ?? 'TBD').trim() || 'TBD',
         stage: String(llmResult.stage ?? 'idea').trim() || 'idea',
+        website: String(llmResult.website ?? '').trim() || undefined,
         priorities: Array.isArray(llmResult.priorities) ? llmResult.priorities.map(String).slice(0, 5) : [],
         risks: Array.isArray(llmResult.risks) ? llmResult.risks.map(String).slice(0, 4) : [],
         existingSystems: Array.isArray(llmResult.existingSystems) ? llmResult.existingSystems.map(String).slice(0, 8) : [],
+        products: sanitizeEntities(llmResult.products, 'name', 6).map((p) => ({
+          name: String(p.name ?? ''),
+          purpose: String(p.purpose ?? '').trim(),
+          status: String(p.status ?? '').trim() || 'launched',
+        })),
+        customers: sanitizeEntities(llmResult.customers, 'segment', 6).map((c) => ({
+          segment: String(c.segment ?? ''),
+          useCase: String(c.useCase ?? '').trim(),
+        })),
+        team: sanitizeEntities(llmResult.team, 'role', 8).map((t) => ({
+          role: String(t.role ?? ''),
+          department: String(t.department ?? '').trim(),
+        })),
+        technology: sanitizeEntities(llmResult.technology, 'name', 8).map((t) => ({
+          name: String(t.name ?? ''),
+          category: String(t.category ?? '').trim() || 'technology',
+        })),
+        tools: sanitizeEntities(llmResult.tools, 'name', 8).map((t) => ({
+          name: String(t.name ?? ''),
+          category: String(t.category ?? '').trim() || 'tool',
+        })),
         sourceType: input.sourceType,
         rawInput: input.description,
       }
@@ -156,9 +199,36 @@ function fallbackAnalysis(description: string, sourceType: 'idea' | 'existing'):
     priorities: ['Define and validate the core value proposition', 'Establish the first working product/operating loop', 'Set measurable company goals'],
     risks: ['Market fit is unproven', 'Limited initial resources', 'Unknown competitive landscape'],
     existingSystems: sourceType === 'existing' ? ['To be confirmed'] : [],
+    products: sourceType === 'existing' ? [{ name: firstSentence.slice(0, 60), purpose: '', status: 'launched' }] : [],
+    customers: [],
+    team: [],
+    technology: [],
+    tools: [],
     sourceType,
     rawInput: description,
   };
+}
+
+/**
+ * Coerce an unknown entity array to a bounded list of objects whose key field
+ * is a non-empty trimmed string. Extra fields are preserved as-is; mappers
+ * coerce what they need.
+ */
+function sanitizeEntities(
+  raw: unknown,
+  keyField: string,
+  max: number,
+): Array<Record<string, unknown>> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<Record<string, unknown>> = [];
+  for (const item of raw.slice(0, max)) {
+    if (typeof item !== 'object' || item === null) continue;
+    const obj = item as Record<string, unknown>;
+    const key = String(obj[keyField] ?? '').trim();
+    if (!key) continue;
+    out.push({ ...obj, [keyField]: key });
+  }
+  return out;
 }
 
 /** Write the analysis into company memory so the Executive Agent can use it. */
@@ -197,6 +267,44 @@ async function seedCompanyBrain(db: Db, orgId: string, analysis: CompanyAnalysis
   }
   for (const s of analysis.existingSystems ?? []) {
     facts.push({ category: 'fact', content: `Existing system/asset: ${s}`, importance: 6 });
+  }
+  if (analysis.website) {
+    facts.push({ category: 'fact', content: `Website: ${analysis.website}`, importance: 5 });
+  }
+  for (const p of analysis.products ?? []) {
+    facts.push({
+      category: 'context',
+      content: `Product: ${p.name} (${p.status || 'launched'}) — ${p.purpose || 'purpose not stated'}`,
+      importance: 7,
+    });
+  }
+  for (const c of analysis.customers ?? []) {
+    facts.push({
+      category: 'fact',
+      content: `Customer segment: ${c.segment}${c.useCase ? ` — use case: ${c.useCase}` : ''}`,
+      importance: 6,
+    });
+  }
+  for (const t of analysis.team ?? []) {
+    facts.push({
+      category: 'fact',
+      content: `Team: ${t.role}${t.department ? ` (${t.department})` : ''}`,
+      importance: 5,
+    });
+  }
+  for (const t of analysis.technology ?? []) {
+    facts.push({
+      category: 'fact',
+      content: `Technology: ${t.name}${t.category && t.category !== 'technology' ? ` (${t.category})` : ''}`,
+      importance: 5,
+    });
+  }
+  for (const t of analysis.tools ?? []) {
+    facts.push({
+      category: 'fact',
+      content: `Business tool: ${t.name}${t.category && t.category !== 'tool' ? ` (${t.category})` : ''}`,
+      importance: 5,
+    });
   }
   facts.push({ category: 'fact', content: `Founding source: started from ${analysis.sourceType === 'idea' ? 'an idea' : 'an existing company'}`, importance: 4 });
 

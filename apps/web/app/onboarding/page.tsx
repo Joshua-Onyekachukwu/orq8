@@ -29,9 +29,15 @@ interface CompanyAnalysis {
   solution: string;
   businessModel: string;
   stage: string;
+  website?: string;
   priorities: string[];
   risks: string[];
   existingSystems?: string[];
+  products?: Array<{ name: string; purpose: string; status: string }>;
+  customers?: Array<{ segment: string; useCase: string }>;
+  team?: Array<{ role: string; department: string }>;
+  technology?: Array<{ name: string; category: string }>;
+  tools?: Array<{ name: string; category: string }>;
   sourceType: SourceType;
   rawInput: string;
 }
@@ -464,6 +470,23 @@ export default function OnboardingPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Structured entities ORQ8 extracted (existing-company discovery) */}
+              {editedAnalysis.sourceType === "existing" &&
+                (editedAnalysis.products?.length ||
+                  editedAnalysis.customers?.length ||
+                  editedAnalysis.team?.length ||
+                  editedAnalysis.technology?.length ||
+                  editedAnalysis.tools?.length) && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-orq8-lime">What ORQ8 learned</p>
+                    <EntityList label="Products" items={(editedAnalysis.products ?? []).map((p) => `${p.name}${p.status && p.status !== "launched" ? ` (${p.status})` : ""}`)} />
+                    <EntityList label="Customers" items={(editedAnalysis.customers ?? []).map((c) => c.segment)} />
+                    <EntityList label="Team" items={(editedAnalysis.team ?? []).map((t) => t.role)} />
+                    <EntityList label="Technology" items={(editedAnalysis.technology ?? []).map((t) => t.name)} />
+                    <EntityList label="Tools" items={(editedAnalysis.tools ?? []).map((t) => t.name)} />
+                  </div>
+                )}
             </div>
 
             {error && <ErrorBanner message={error} />}
@@ -721,6 +744,22 @@ function ErrorBanner({ message }: { message: string }) {
   return (
     <div className="mt-6 rounded-lg border border-red-700/50 bg-red-900/30 px-4 py-3 text-sm text-red-200">
       {message}
+    </div>
+  );
+}
+
+function EntityList({ label, items }: { label: string; items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="mb-2 last:mb-0">
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item, i) => (
+          <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white/80">
+            {item}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
