@@ -136,7 +136,10 @@ export async function analyzeCompany(
     config,
     ANALYSIS_SYSTEM_PROMPT,
     userMessage,
-    { temperature: 0.3, max_tokens: 1200 },
+    // Structured entity arrays (products/customers/team/technology/tools)
+    // need headroom; a truncated response fails JSON parsing and silently
+    // degrades to the rule-based fallback, losing the extraction.
+    { temperature: 0.3, max_tokens: 3000 },
   );
 
   const analysis: CompanyAnalysis = llmResult
