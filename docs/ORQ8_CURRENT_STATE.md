@@ -276,7 +276,9 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 10. Task 9/10 — Apply migrations (`0003`, `0005`, `0004`), deploy, smoke test (needs
     credentials); set `INTERNAL_TOKEN` + `GITHUB_CLIENT_ID/SECRET` in prod.
 
-**Pushed**: `530ff60` is on `origin/main` (verified — fetch + rev-parse match). Pushing triggers
+**Pushed (2026-09-06)**: `f8452f0` is on `origin/main` (verified — fetch + rev-parse match),
+containing `2667392` (connector actions), `be22203` (delegation routes), `ae7da23` (anomaly
+detector), `09b979d` (export/portability), `f8452f0` (docs). Pushing triggers
 a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004** (0004 references
 `integration_providers` which 0005 creates). Remaining untracked (intentionally not committed):
 `docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (separate strategy doc) and
@@ -284,7 +286,8 @@ a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004** (0004
 migrations live in `supabase/migrations/`). Before/after deploy: apply `supabase/migrations/0003`
 and `0004` to the Supabase DB, then smoke-test teams + `/images/*` + webhook endpoints live.
 
-**Pending**: push `f588380` to origin/main (deferred — see final report; triggers Vercel
-deploy). Uncommitted in the working tree (not part of this task): teams/org-management work,
-`vercel.json` asset fix, admin/execution contrast fix, and the untracked engineering/
-simulation/analytics phase files — these should be reviewed and committed deliberately.
+**Live probes (2026-09-06, `orq8api-production.up.railway.app`)**: `/healthz` 200,
+`/readyz` 200; auth-gated 401 (route registered) on POST `/v1/connector-actions`,
+`/v1/delegations/plan`, `/v1/delegations/execute`, `/v1/sandbox-runs`, and on GET
+`/v1/settings/export`, `/v1/analytics/anomalies`, `/v1/connector-actions`,
+`/v1/delegations/plan`. Web `orq8.vercel.app` 200.
