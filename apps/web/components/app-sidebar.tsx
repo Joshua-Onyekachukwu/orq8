@@ -12,6 +12,7 @@ import {
   Globe,
   Code2,
   GitBranch,
+  HeartPulse,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -43,6 +44,7 @@ const navGroups: NavGroup[] = [
     title: "Command",
     items: [
       { label: "Dashboard", href: "/app", icon: LayoutDashboard },
+      { label: "Company Health", href: "/app/health", icon: HeartPulse },
       { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },
       { label: "Weekly Report", href: "/app/report", icon: ScrollText },
       { label: "Performance", href: "/app/performance", icon: Activity },
