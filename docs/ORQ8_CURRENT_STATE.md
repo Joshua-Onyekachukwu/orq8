@@ -277,18 +277,25 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 10. Task 9/10 — Apply migrations (`0003`, `0005`, `0004`), deploy, smoke test (needs
     credentials); set `INTERNAL_TOKEN` + `GITHUB_CLIENT_ID/SECRET` in prod.
 
-**Pushed (2026-09-06)**: `f8452f0` is on `origin/main` (verified — fetch + rev-parse match),
+**Pushed (2026-09-06)**: `b020ed4` is on `origin/main` (verified — fetch + rev-parse match),
 containing `2667392` (connector actions), `be22203` (delegation routes), `ae7da23` (anomaly
-detector), `09b979d` (export/portability), `f8452f0` (docs). Pushing triggers
-a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004** (0004 references
-`integration_providers` which 0005 creates). Remaining untracked (intentionally not committed):
-`docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (separate strategy doc) and
-`packages/db/src/migrations/` (drizzle journal is out of sync with prod by design — prod
-migrations live in `supabase/migrations/`). Before/after deploy: apply `supabase/migrations/0003`
-and `0004` to the Supabase DB, then smoke-test teams + `/images/*` + webhook endpoints live.
+detector), `09b979d` (export/portability), `f8452f0` (docs), `152e73d` (Gmail + Linear
+connector actions, GitHub file reads), `744e6fa` (weekly + monthly briefings with real
+trend/spend data + internal endpoints + crons), `bcfdb29` (semantic memory in executive-agent
+and task-executor context), `8d49c55` (Integrations page + Event Rules UI + webhook E2E
+suite), `e6e3f5f` (Connections page no longer fakes "Planned" statuses), `b020ed4` (docs).
+Pushing triggers a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004**
+(0004 references `integration_providers` which 0005 creates). Remaining untracked
+(intentionally not committed): `docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (separate
+strategy doc) and `packages/db/src/migrations/` (drizzle journal is out of sync with prod by
+design — prod migrations live in `supabase/migrations/`). Before/after deploy: apply
+`supabase/migrations/0003` and `0004` to the Supabase DB, then smoke-test teams +
+`/images/*` + webhook endpoints live.
 
-**Live probes (2026-09-06, `orq8api-production.up.railway.app`)**: `/healthz` 200,
-`/readyz` 200; auth-gated 401 (route registered) on POST `/v1/connector-actions`,
-`/v1/delegations/plan`, `/v1/delegations/execute`, `/v1/sandbox-runs`, and on GET
-`/v1/settings/export`, `/v1/analytics/anomalies`, `/v1/connector-actions`,
-`/v1/delegations/plan`. Web `orq8.vercel.app` 200.
+**Live probes (2026-09-06, `orq8api-production.up.railway.app`)**: `/healthz` 200;
+auth-gated 401 (route registered) on GET `/v1/integrations`, `/v1/event-rules` and POST
+`/v1/connector-actions`; POST `/v1/internal/briefings/daily|weekly|monthly` return the
+handler's structured `unauthorized` error with HTTP 404 **by design** — the guard hides the
+internal surface until `INTERNAL_TOKEN` is set in prod (unset today; ops gap, not a code
+issue). Bogus routes return `not_found` with a `request_id`, confirming the briefing routes
+are registered and live. Web `orq8.vercel.app` 200.
