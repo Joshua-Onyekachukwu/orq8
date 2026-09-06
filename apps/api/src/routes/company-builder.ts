@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as builder from '../services/company-builder.js';
 import * as onboarding from '../services/onboarding.js';
+import * as playbooks from '../services/playbooks.js';
 import type { AppDeps } from '../types.js';
 
 const analyzeBody = z.object({
@@ -138,5 +139,27 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
         activation: organization.activation ?? null,
       },
     };
+  });
+
+  /** List available industry playbooks (metadata only). */
+  app.get('/v1/company-builder/playbooks', async (request) => {
+    await requireAuth(request, deps);
+    return { data: { playbooks: playbooks.listPlaybooks() } };
+  });
+
+  /** Seed an industry playbook into the organization (idempotent). */
+  app.post('/v1/company-builder/playbook', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({ slug: z.string().trim().min(1).max(100) }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    try {
+      const result = await playbooks.seedPlaybook(db, ctx.orgId, ctx.userId, parsed.data.slug);
+      return { data: { result } };
+    } catch (error) {
+      logger.error({ err: error, orgId: ctx.orgId, slug: parsed.data.slug }, 'Playbook seed failed');
+      reply.code(400);
+      return { error: { code: 'playbook.seed_failed', message: error instanceof Error ? error.message : 'Failed to seed playbook' } };
+    }
   });
 }

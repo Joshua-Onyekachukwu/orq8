@@ -14,7 +14,7 @@
  */
 
 import type { Db } from '@orq8/db';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, ilike } from 'drizzle-orm';
 import { tasks, agents, activityEvents, companyMemory } from '@orq8/db';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -52,6 +52,10 @@ export interface ReliabilityProfile {
   // Autonomy
   autonomyLevel: AutonomyLevel;
   autonomyReason: string;
+
+  // Founder-facing recommendation (derived from real metrics)
+  recommendation: 'KEEP' | 'MONITOR' | 'IMPROVE' | 'RETRAIN / ADJUST' | 'REPLACE / ESCALATE';
+  recommendationReason: string;
 }
 
 // ─── Profile Calculation ────────────────────────────────────────────────────
@@ -94,6 +98,19 @@ export async function calculateReliabilityProfile(
   const revisions = events.filter((e) => e.type.includes('revision')).length;
   const escalations = events.filter((e) => e.type.includes('escalat')).length;
 
+  // Real QA scores — parsed from stored learning-memory evidence written by
+  // the quality pipeline ("QA score: N" per evaluated execution).
+  const qaEntries = await db
+    .select({ content: companyMemory.content })
+    .from(companyMemory)
+    .where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.agentId, agentId), ilike(companyMemory.content, '%QA score:%')));
+  const qaScores: number[] = [];
+  for (const e of qaEntries) {
+    const matches = e.content.matchAll(/QA score:\s*(\d+)/g);
+    for (const m of matches) qaScores.push(Number(m[1]));
+  }
+  const averageQAScore = qaScores.length > 0 ? Math.round(qaScores.reduce((a, b) => a + b, 0) / qaScores.length) : 0;
+
   // Calculate rates
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
   const firstPassSuccessRate = total > 0 ? Math.round(((completed - revisions) / total) * 100) : 0;
@@ -123,6 +140,18 @@ export async function calculateReliabilityProfile(
     total,
   );
 
+  const { recommendation, recommendationReason } = recommendFromProfile({
+    total,
+    completionRate,
+    failureRate,
+    revisionRate,
+    escalationRate,
+    averageQAScore,
+    averageCostPerTask,
+    trend,
+    autonomyLevel,
+  });
+
   return {
     agentId,
     agentName: agent.name,
@@ -137,13 +166,15 @@ export async function calculateReliabilityProfile(
     revisionRate,
     failureRate,
     escalationRate,
-    averageQAScore: 0, // Populated by QA system
+    averageQAScore,
     averageCostPerTask,
     totalCreditsUsed: totalCost,
     recentFailureCount: recentFailures,
     trend,
     autonomyLevel,
     autonomyReason,
+    recommendation,
+    recommendationReason,
   };
 }
 
@@ -180,6 +211,58 @@ function determineAutonomy(
   return { level: 'trusted', reason: `Strong completion rate (${completionRate}%) with low failure rate` };
 }
 
+// ─── Recommendation ─────────────────────────────────────────────────────────
+
+export type PerformanceRecommendation = ReliabilityProfile['recommendation'];
+
+/**
+ * Founder-facing recommendation derived from REAL metrics — never hard-coded
+ * per agent. Priority order mirrors the brief: repeated failures dominate,
+ * then quality/revision, then cost, then volume.
+ */
+export function recommendFromProfile(input: {
+  total: number;
+  completionRate: number;
+  failureRate: number;
+  revisionRate: number;
+  escalationRate: number;
+  averageQAScore: number;
+  averageCostPerTask: number;
+  trend: ReliabilityProfile['trend'];
+  autonomyLevel: AutonomyLevel;
+}): { recommendation: ReliabilityProfile['recommendation']; recommendationReason: string } {
+  const { total, completionRate, failureRate, revisionRate, escalationRate, averageQAScore, averageCostPerTask, trend, autonomyLevel } = input;
+
+  if (total < 3) {
+    return { recommendation: 'MONITOR', recommendationReason: 'Insufficient task history (fewer than 3 tasks) — monitoring until there is enough evidence.' };
+  }
+  if (autonomyLevel === 'paused') {
+    return { recommendation: 'REPLACE / ESCALATE', recommendationReason: `${total >= 3 ? 'Repeated recent failures' : 'Escalated failures'} — agent has been paused and needs founder intervention.` };
+  }
+  if (failureRate >= 50) {
+    return { recommendation: 'REPLACE / ESCALATE', recommendationReason: `Failure rate is ${failureRate}% — the agent fails most work and should be replaced or escalated.` };
+  }
+  if (failureRate > 30 || escalationRate > 20) {
+    return { recommendation: 'IMPROVE', recommendationReason: `Failure rate ${failureRate}% / escalation rate ${escalationRate}% — reliability is the blocker; improve context, tools or permissions before scaling work.` };
+  }
+  if (revisionRate >= 30) {
+    return { recommendation: 'IMPROVE', recommendationReason: `Revision rate is ${revisionRate}% — output misses the mark on first pass; tighten requirements and QA criteria.` };
+  }
+  if (averageQAScore > 0 && averageQAScore < 70) {
+    return { recommendation: 'IMPROVE', recommendationReason: `Average QA score is ${averageQAScore}/100 — quality is below the acceptable bar.` };
+  }
+  if (completionRate < 50 && total >= 3) {
+    return { recommendation: 'RETRAIN / ADJUST', recommendationReason: `Completion rate is only ${completionRate}% — reconsider the agent's role, capabilities or configuration.` };
+  }
+  if (averageCostPerTask > 0 && averageCostPerTask > 500 && (completionRate < 80 || averageQAScore < 80)) {
+    return { recommendation: 'RETRAIN / ADJUST', recommendationReason: `High cost per task (${averageCostPerTask} credits) combined with weak output — investigate model/tool choices.` };
+  }
+  if (trend === 'declining') {
+    return { recommendation: 'MONITOR', recommendationReason: 'Performance is trending downward — watch closely before expanding this agent\'s workload.' };
+  }
+  return { recommendation: 'KEEP', recommendationReason: 'Consistently strong completion rate with low failure and revision rates.' };
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function createEmptyProfile(agentId: string, name: string, role: string): ReliabilityProfile {
@@ -204,6 +287,8 @@ function createEmptyProfile(agentId: string, name: string, role: string): Reliab
     trend: 'stable',
     autonomyLevel: 'watch',
     autonomyReason: 'No task history',
+    recommendation: 'MONITOR',
+    recommendationReason: 'No task history yet — monitoring until there is enough evidence.',
   };
 }
 

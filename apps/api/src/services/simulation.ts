@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, gte, sql } from 'drizzle-orm';
 import {
   simulations,
   departments,
   teams,
   agents,
   goals,
+  tasks,
+  creditTransactions,
   analyticsEvents,
   type Db,
   type Simulation,
@@ -48,6 +50,81 @@ interface SimulationResult {
   bottlenecks: string[];
   metrics: Record<string, unknown>;
   recommendation: string;
+  baseline: OrgStateAggregate;
+}
+
+/**
+ * Live organizational aggregate — the simulation's "current state", derived
+ * from real ORQ8 data so founders never re-enter what the system already
+ * knows. Company-isolated by construction (orgId on every query).
+ */
+export interface OrgStateAggregate {
+  departments: number;
+  agents: number;
+  activeAgents: number;
+  goals: number;
+  activeGoals: number;
+  tasks: number;
+  openTasks: number;
+  completedTasks: number;
+  completionRate: number; // 0-100
+  tasksLast7Days: number; // tasks updated in the trailing 7-day window
+  creditsUsedLast7Days: number; // actual usage credits, trailing 7 days
+  avgCreditsPerTask: number; // credits per completed task (7d), 0 when unknown
+  scannedAt: string;
+}
+
+export async function aggregateOrgState(db: Db, orgId: string, now = new Date()): Promise<OrgStateAggregate> {
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [deptRow] = await db.select({ c: sql<number>`count(*)::int` }).from(departments).where(eq(departments.orgId, orgId));
+  const [agentRow] = await db.select({ c: sql<number>`count(*)::int` }).from(agents).where(eq(agents.orgId, orgId));
+  const [activeAgentRow] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(agents)
+    .where(and(eq(agents.orgId, orgId), eq(agents.status, 'active')));
+  const [goalRow] = await db.select({ c: sql<number>`count(*)::int` }).from(goals).where(eq(goals.orgId, orgId));
+  const [activeGoalRow] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(goals)
+    .where(and(eq(goals.orgId, orgId), eq(goals.status, 'active')));
+  const [taskRow] = await db.select({ c: sql<number>`count(*)::int` }).from(tasks).where(eq(tasks.orgId, orgId));
+  const [openTaskRow] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(tasks)
+    .where(and(eq(tasks.orgId, orgId), sql`${tasks.status} IN ('pending', 'in_progress', 'blocked')`));
+  const [completedTaskRow] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(tasks)
+    .where(and(eq(tasks.orgId, orgId), eq(tasks.status, 'completed')));
+  const [recentTaskRow] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(tasks)
+    .where(and(eq(tasks.orgId, orgId), gte(tasks.updatedAt, weekAgo)));
+  const [creditRow] = await db
+    .select({ c: sql<number>`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` })
+    .from(creditTransactions)
+    .where(and(eq(creditTransactions.orgId, orgId), eq(creditTransactions.type, 'usage'), gte(creditTransactions.createdAt, weekAgo)));
+
+  const total = taskRow?.c ?? 0;
+  const completed = completedTaskRow?.c ?? 0;
+  const credits = creditRow?.c ?? 0;
+
+  return {
+    departments: deptRow?.c ?? 0,
+    agents: agentRow?.c ?? 0,
+    activeAgents: activeAgentRow?.c ?? 0,
+    goals: goalRow?.c ?? 0,
+    activeGoals: activeGoalRow?.c ?? 0,
+    tasks: total,
+    openTasks: openTaskRow?.c ?? 0,
+    completedTasks: completed,
+    completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    tasksLast7Days: recentTaskRow?.c ?? 0,
+    creditsUsedLast7Days: credits,
+    avgCreditsPerTask: completed > 0 ? Math.round(credits / completed) : 0,
+    scannedAt: now.toISOString(),
+  };
 }
 
 export async function createSimulation(db: Db, orgId: string, data: NewSimulation): Promise<Simulation> {
@@ -97,11 +174,16 @@ export async function runSimulation(db: Db, orgId: string, simId: string, input:
   const sim = await getSimulation(db, orgId, simId);
   if (!sim) throw new Error('Simulation not found');
 
-  const currentAgents = input.currentAgents ?? 0;
+  // V2 — the baseline is the LIVE organizational state. Founders only supply
+  // the change they want to model; anything they omit is derived from real
+  // data (trailing-7-day windows), so the baseline stays honest and current.
+  const baseline = await aggregateOrgState(db, orgId);
+
+  const currentAgents = input.currentAgents ?? baseline.activeAgents;
   const proposedAgents = input.proposedAgents ?? currentAgents;
-  const currentTasks = input.currentTasksPerWeek ?? 0;
+  const currentTasks = input.currentTasksPerWeek ?? baseline.tasksLast7Days;
   const proposedTasks = input.proposedTasksPerWeek ?? currentTasks;
-  const avgCost = input.avgCreditsPerTask ?? 50; // cents default
+  const avgCost = input.avgCreditsPerTask ?? (baseline.avgCreditsPerTask > 0 ? baseline.avgCreditsPerTask : 50); // cents
 
   const increasePercent = currentTasks > 0 ? Math.round(((proposedTasks - currentTasks) / currentTasks) * 100) : 0;
   const currentWeekly = currentTasks * avgCost;
@@ -161,8 +243,14 @@ export async function runSimulation(db: Db, orgId: string, simId: string, input:
       projectedUtilization: proposedAgents > 0
         ? Math.round((proposedTasks / proposedAgents) * 10) / 10
         : 0,
+      baselineFromLiveData: {
+        agents: input.currentAgents === undefined,
+        tasksPerWeek: input.currentTasksPerWeek === undefined,
+        avgCreditsPerTask: input.avgCreditsPerTask === undefined,
+      },
     },
     recommendation,
+    baseline,
   };
 
   // Persist results into the simulation record

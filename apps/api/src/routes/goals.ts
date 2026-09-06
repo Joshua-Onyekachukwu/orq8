@@ -4,6 +4,7 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
+import { getGoalDrillDown } from '../services/goal-intelligence.js';
 import type { AppDeps } from '../types.js';
 import { goals, tasks, teams, type Db } from '@orq8/db';
 
@@ -111,6 +112,17 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { error: { code: 'not_found', message: 'Goal not found' } };
     }
     return { data: result[0] };
+  });
+
+  /** Goal intelligence drill-down: tasks, blockers, anomalies, recovery proposal. */
+  app.get<{ Params: { id: string } }>('/v1/goals/:id/drilldown', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const drilldown = await getGoalDrillDown(db, ctx.orgId, request.params.id);
+    if (!drilldown) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Goal not found' } };
+    }
+    return { data: drilldown };
   });
 
   /** Create a new goal. */

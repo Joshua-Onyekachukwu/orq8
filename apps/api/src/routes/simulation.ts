@@ -7,7 +7,7 @@ import {
 } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
-import { createSimulation, listSimulations, getSimulation, updateSimulation, runSimulation, applySimulation, saveProposal, logAnalyticsEvent } from '../services/simulation.js';
+import { createSimulation, listSimulations, getSimulation, updateSimulation, runSimulation, applySimulation, saveProposal, logAnalyticsEvent, aggregateOrgState } from '../services/simulation.js';
 import type { AppDeps } from '../types.js';
 
 const createSimBody = z.object({
@@ -76,6 +76,13 @@ export function registerSimulationRoutes(app: FastifyInstance, deps: AppDeps): v
     const ctx = await requireAuth(request, deps);
     const simulations = await listSimulations(db, ctx.orgId);
     return { data: simulations };
+  });
+
+  /** Live organizational aggregate — the simulation baseline (V2). */
+  app.get('/v1/simulations/current-state', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const baseline = await aggregateOrgState(db, ctx.orgId);
+    return { data: baseline };
   });
 
   app.get<{ Params: { id: string } }>('/v1/simulations/:id', async (request, reply) => {
