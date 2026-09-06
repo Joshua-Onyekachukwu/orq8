@@ -26,7 +26,7 @@ import type { AppDeps } from '../types.js';
  * never from the client.
  */
 
-export type NotificationType = 'approval' | 'task' | 'credit' | 'agent' | 'system';
+export type NotificationType = 'approval' | 'task' | 'credit' | 'agent' | 'report' | 'system';
 
 /** Per-org cap on retained notifications (matches the old in-memory store). */
 const MAX_PER_ORG = 100;

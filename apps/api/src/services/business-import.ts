@@ -24,9 +24,11 @@ import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { businessImports, knowledgeEntities, agents, departments, type Db, type BusinessImport, type NewBusinessImport } from '@orq8/db';
+import type { AppConfig } from '@orq8/core';
 import * as memoryService from './memory.js';
 import { appendAudit } from './audit.js';
 import { seedPlaybook, getPlaybook } from './playbooks.js';
+import { enrichBusinessFacts, enrichmentEnabled, type EnrichedFact } from './business-import-enrichment.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -604,7 +606,7 @@ export async function analyzeBusinessImport(
   orgId: string,
   userId: string,
   input: AnalyzeImportInput,
-  opts: { fetcher?: typeof fetch; resolveHosts?: (host: string) => Promise<string[]> } = {},
+  opts: { fetcher?: typeof fetch; resolveHosts?: (host: string) => Promise<string[]>; config?: AppConfig; enrich?: boolean } = {},
 ): Promise<BusinessImport> {
   const description = input.description?.trim() || null;
   const rawWebsite = input.websiteUrl?.trim() || null;
@@ -680,6 +682,42 @@ export async function analyzeBusinessImport(
   }
 
   facts = extractBusinessFacts({ description, websiteText: summary, websiteUrl });
+
+  // Optional LLM enrichment (founder-gated + config-gated). Best-effort: any
+  // failure falls back to the trusted extracted facts untouched. Enriched facts
+  // keep their provenance and are tagged origin source/llm_refined/llm_suggested.
+  let enrichmentNote = '';
+  if (opts.config && opts.enrich !== false && enrichmentEnabled(opts.config)) {
+    try {
+      const enriched = await enrichBusinessFacts(opts.config, {
+        description,
+        websiteText: summary,
+        facts,
+      });
+      const refined = enriched.facts.filter((f) => f.origin !== 'source').length;
+      const goals = enriched.suggestedGoals;
+      if (enriched.ran && (refined > 0 || goals.length > 0)) {
+        const merged: EnrichedFact[] = [...enriched.facts];
+        for (const g of goals) {
+          merged.push({
+            field: 'suggested_goal',
+            label: 'Suggested goal',
+            value: g.title,
+            source: 'inferred',
+            sourceType: 'website',
+            confidence: g.confidence,
+            snippet: g.evidence,
+            origin: 'llm_suggested',
+            enrichment: { method: 'llm', model: enriched.model ?? 'unknown', timestamp: new Date().toISOString() },
+          });
+        }
+        facts = merged as unknown as BusinessImportFact[];
+        enrichmentNote = `; llm enrichment: ${refined} refined, ${goals.length} suggested goals (${enriched.model ?? 'model'})`;
+      }
+    } catch {
+      // Enrichment is optional — the core import continues with source facts.
+    }
+  }
   row.websiteTitle = title;
   row.websiteSummary = summary;
   row.websiteError = websiteError;
@@ -692,7 +730,7 @@ export async function analyzeBusinessImport(
     actorId: userId,
     action: 'business_import.analyzed',
     outcome: 'success',
-    resultRef: `${created.id} — ${facts.length} facts extracted${websiteError ? `; website error: ${websiteError}` : ''}`,
+    resultRef: `${created.id} — ${facts.length} facts extracted${enrichmentNote}${websiteError ? `; website error: ${websiteError}` : ''}`,
   });
   return created;
 }

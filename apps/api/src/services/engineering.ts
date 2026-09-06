@@ -8,6 +8,7 @@ import {
   sandboxRuns,
   repositoryPrs,
   engineeringTasks,
+  approvals as approvalsTable,
   type Db,
   type Repository,
   type NewRepository,
@@ -24,6 +25,9 @@ import {
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
 import { createMemory } from './memory.js';
+import { createApproval, findById as findApprovalById } from './approvals.js';
+import { createNotification } from '../routes/notifications.js';
+import type { Approval } from '@orq8/db';
 
 // ─── Repositories ────────────────────────────────────────────────────────────
 
@@ -359,6 +363,116 @@ export async function updatePrStatus(
   if (status === 'merged') updates.mergedAt = new Date();
   const rows = await db.update(repositoryPrs).set(updates).where(eq(repositoryPrs.id, id)).returning();
   return rows[0];
+}
+
+// ─── PR merge approvals (central approvals table) ───────────────────────────
+
+/**
+ * Request founder approval to merge a PR. Creates a real record in the central
+ * `approvals` table (surface in Command Center) and links it to the PR via the
+ * existing repository_prs.approval_id column. Idempotent: re-requesting returns
+ * the existing pending/resolved approval for the same PR instead of creating a
+ * duplicate. The merge itself stays server-side gated on this record.
+ */
+export async function requestPrMergeApproval(
+  db: Db,
+  orgId: string,
+  userId: string,
+  prId: string,
+): Promise<{ pr: RepositoryPr; approval: Approval; created: boolean } | { error: { code: string; message: string; status: number } }> {
+  const pr = await getPr(db, orgId, prId);
+  if (!pr) return { error: { code: 'not_found', message: 'PR not found', status: 404 } };
+  if (pr.status === 'merged') return { error: { code: 'already_merged', message: 'This PR is already merged', status: 409 } };
+
+  // Idempotency: the PR already carries a linked approval (or an earlier
+  // request left a pending/resolved approval mentioning this PR).
+  if (pr.approvalId) {
+    const existing = await findApprovalById(db, orgId, pr.approvalId);
+    if (existing) return { pr, approval: existing, created: false };
+  }
+  const pendingForPr = await findMergeApprovalForPr(db, orgId, prId);
+  if (pendingForPr) {
+    await updatePrStatus(db, prId, pr.status, pendingForPr.id);
+    return { pr: { ...pr, approvalId: pendingForPr.id }, approval: pendingForPr, created: false };
+  }
+
+  // Linked engineering task supplies the requesting agent + review evidence.
+  const [linkedTask] = await db
+    .select()
+    .from(engineeringTasks)
+    .where(eq(engineeringTasks.prId, pr.id))
+    .limit(1);
+  const tests = (linkedTask?.testsSummary as { passed?: number; failed?: number; total?: number } | null | undefined);
+  const diff = (linkedTask?.diffSummary as { filesChanged?: number; additions?: number; deletions?: number; majorAreas?: string[] } | null | undefined);
+  // Risk heuristic: failing tests or a large diff surface → high; else medium.
+  const riskLevel = (tests && (tests.failed ?? 0) > 0) || (diff && (diff.filesChanged ?? 0) > 30) ? 'high' : 'medium';
+
+  const description = [
+    `prId:${pr.id}`,
+    `PR "${pr.title}" (${pr.headBranch} → ${pr.baseBranch})${pr.providerPrNumber ? ` · #${pr.providerPrNumber}` : ''}.`,
+    linkedTask ? `Engineering task: ${linkedTask.title}.` : undefined,
+    tests && tests.total !== undefined ? `Tests: ${tests.passed ?? 0}/${tests.total} passed${tests.failed ? ` (${tests.failed} failed)` : ''}.` : undefined,
+    diff && diff.filesChanged !== undefined ? `Diff: ${diff.filesChanged} files, +${diff.additions ?? 0}/-${diff.deletions ?? 0} lines.` : undefined,
+    'Merge executes only after explicit founder approval in Command Center.',
+  ].filter(Boolean).join('\n');
+
+  const approval = await createApproval(db, {
+    orgId,
+    agentId: linkedTask?.assigneeId ?? null,
+    action: `Merge PR: ${pr.title}`,
+    description,
+    cost: 0,
+    riskLevel,
+    status: 'pending',
+  });
+  await updatePrStatus(db, prId, pr.status, approval.id);
+
+  await appendAudit(db, {
+    orgId,
+    actorType: 'user',
+    actorId: userId,
+    action: 'pr.approval_requested',
+    outcome: 'success',
+    resultRef: `${pr.id} → approval:${approval.id}`,
+  });
+  try {
+    await createNotification(db, orgId, 'approval', 'Merge approval required', `PR "${pr.title}" needs your decision before merging.`);
+  } catch {
+    // Non-fatal — the approval record itself is the source of truth.
+  }
+
+  return { pr, approval, created: true };
+}
+
+/** Find a pending/resolved merge approval that references the given PR. */
+async function findMergeApprovalForPr(db: Db, orgId: string, prId: string): Promise<Approval | undefined> {
+  const rows = await db
+    .select()
+    .from(approvalsTable)
+    .where(and(eq(approvalsTable.orgId, orgId), eq(approvalsTable.status, 'pending')))
+    .limit(100);
+  return rows.find((a) => a.action.startsWith('Merge PR:') && a.description?.includes(`prId:${prId}`));
+}
+
+/**
+ * Merge gate: verify the PR carries an approved approval record. The founder
+ * approves in Command Center (decide()), which also flips the PR to 'approved';
+ * this check is the final server-side gate before 'merged'.
+ */
+export async function requireApprovedPrMerge(db: Db, orgId: string, prId: string): Promise<{ ok: true } | { ok: false; reason: string; status: number }> {
+  const pr = await getPr(db, orgId, prId);
+  if (!pr) return { ok: false, reason: 'PR not found', status: 404 };
+  const approval = pr.approvalId ? await findApprovalById(db, orgId, pr.approvalId) : undefined;
+  if (!approval) {
+    return { ok: false, reason: 'No merge approval has been requested for this PR — request one first', status: 409 };
+  }
+  if (approval.status === 'pending') {
+    return { ok: false, reason: 'The merge approval is awaiting your decision in Command Center', status: 409 };
+  }
+  if (approval.status !== 'approved') {
+    return { ok: false, reason: `The merge approval was ${approval.status} — it cannot be merged`, status: 409 };
+  }
+  return { ok: true };
 }
 
 // ─── Engineering Tasks ───────────────────────────────────────────────────────

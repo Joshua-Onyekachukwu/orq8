@@ -172,6 +172,7 @@ function EngineeringDashboard() {
   const [emPlanning, setEmPlanning] = useState(false);
   const [emResult, setEmResult] = useState<EmPlan | null>(null);
   const [emError, setEmError] = useState<string | null>(null);
+  const [emInfo, setEmInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -237,6 +238,30 @@ function EngineeringDashboard() {
         return;
       }
       setEmError(null);
+      setReviewPr(null);
+      await load();
+    } catch {
+      setEmError("Backend unavailable");
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
+  async function requestMergeApproval(pr: OrgPr) {
+    setReviewBusy(true);
+    try {
+      const res = await fetch(`/api/prs/${pr.id}`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEmError(json?.error?.message ?? "Request rejected by the server");
+        return;
+      }
+      setEmError(null);
+      setEmInfo(
+        json?.data?.approval?.status === "approved"
+          ? "This PR is already approved — you can merge it now."
+          : "Merge approval requested — decide it in Command Center, then merge here.",
+      );
       setReviewPr(null);
       await load();
     } catch {
@@ -576,7 +601,7 @@ function EngineeringDashboard() {
             <h2 className="text-lg font-semibold">Pull request reviews</h2>
           </div>
           <p className="mb-3 text-xs text-muted">
-            Merging is server-side approval-gated: approve a PR first, then merge. Approvals and merges are audited.
+            Merging is server-side approval-gated: request merge approval, decide it in Command Center, then merge. Every approval and merge is audited.
           </p>
           {prs.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted">
@@ -635,6 +660,7 @@ function EngineeringDashboard() {
             Turn a request into an organized plan: capability-registry search, team assembly and tasks with acceptance criteria.
           </p>
           {emError && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{emError}</div>}
+          {emInfo && <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{emInfo}</div>}
           <div className="rounded-xl border bg-white p-4 shadow-sm">
             <label className="mb-1.5 block text-sm font-medium">Engineering request</label>
             <textarea
@@ -761,11 +787,11 @@ function EngineeringDashboard() {
               </span>
               {reviewPr.status !== "merged" && reviewPr.status !== "approved" && (
                 <button
-                  onClick={() => decidePr(reviewPr, "approved")}
+                  onClick={() => requestMergeApproval(reviewPr)}
                   disabled={reviewBusy}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Request merge approval
                 </button>
               )}
               {reviewPr.status !== "merged" && reviewPr.status !== "approved" && (

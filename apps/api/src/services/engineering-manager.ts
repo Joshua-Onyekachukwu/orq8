@@ -18,6 +18,7 @@ import { searchCapabilities } from './capability-registry.js';
 import type { CapabilityEntry } from '@orq8/db';
 import { createMemory } from './memory.js';
 import { appendAudit } from './audit.js';
+import { createNotification } from '../routes/notifications.js';
 
 /** Engineering positions the Company Builder seeds (Startup full + lean teams). */
 export const ENGINEERING_ROLE_HINTS = [
@@ -312,6 +313,23 @@ export async function planEngineeringRequest(
     });
   } catch {
     // Non-fatal.
+  }
+
+  // Event-driven delivery: the completed report is pushed through the existing
+  // notification infrastructure (in-app + briefing-visible) instead of relying
+  // on the Executive Agent polling the plans endpoint. The full report also
+  // lives in the plan marker above; this notification is the delivery signal.
+  try {
+    const firstLine = report.split('\n')[0] ?? 'Engineering plan ready';
+    await createNotification(
+      db,
+      orgId,
+      'report',
+      'Engineering plan ready',
+      `${firstLine} — ${plannedTasks.length} task(s) created, ${team.length} role(s) assembled, ${registryMatches.length} capability/ies reused.`, 
+    );
+  } catch {
+    // Non-fatal — the plan is persisted and returned to the caller regardless.
   }
 
   return plan;

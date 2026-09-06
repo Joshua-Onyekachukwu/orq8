@@ -104,6 +104,13 @@ const envSchema = z.object({
   // in production; unset disables them (local dev uses the inline timer).
   INTERNAL_TOKEN: z.string().optional(),
 
+  // Optional LLM enrichment for Business Import (Phase 10). When 'true' and an
+  // LLM provider key is present, the import pipeline may refine extracted facts
+  // (never invent them) with the configured model, always preserving source
+  // provenance. Core extraction works without it; enrichment is a best-effort
+  // refinement stage that fails closed to the trusted extracted facts.
+  BUSINESS_IMPORT_ENRICHMENT: z.string().optional(),
+
   // GitHub OAuth (docs — Task 1). Server-side credentials for the ORQ8 GitHub
   // OAuth App. The authorization-code exchange happens here, never client-side.
   GITHUB_CLIENT_ID: z.string().optional(),

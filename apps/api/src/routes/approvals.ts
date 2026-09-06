@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { approvals as approvalsTable } from '@orq8/db';
+import { approvals as approvalsTable, repositoryPrs as repositoryPrsTable } from '@orq8/db';
 import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -125,6 +125,33 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         action: `approval.${parsed.data.status}`,
         outcome: 'success',
       });
+
+      // Engineering merge approvals: an approved decision advances the linked PR
+      // to 'approved' (the merge itself stays gated on this approval record and
+      // is performed by a separate, audited PATCH). Sync is best-effort.
+      if (parsed.data.status === 'approved' && decided.action.startsWith('Merge PR:')) {
+        try {
+          const { updatePrStatus } = await import('../services/engineering.js');
+          const [prRow] = await db
+            .select({ id: repositoryPrsTable.id })
+            .from(repositoryPrsTable)
+            .where(eq(repositoryPrsTable.approvalId, decided.id))
+            .limit(1);
+          if (prRow) {
+            await updatePrStatus(db, prRow.id, 'approved', decided.id, ctx.userId);
+            await appendAudit(db, {
+              orgId: ctx.orgId,
+              actorType: 'user',
+              actorId: ctx.userId,
+              action: 'pr.approved_via_approval',
+              outcome: 'success',
+              resultRef: `${prRow.id} → approval:${decided.id}`,
+            });
+          }
+        } catch {
+          // Non-fatal — the approval decision itself is already persisted.
+        }
+      }
 
       // Broadcast approval decision
       broadcastToOrg(ctx.orgId, { type: 'approval.decided', approvalId: request.params.id, status: parsed.data.status });

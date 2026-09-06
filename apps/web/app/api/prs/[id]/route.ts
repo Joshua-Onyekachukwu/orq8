@@ -5,6 +5,23 @@ function getToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
+// POST /api/prs/:id — request founder approval to merge (creates an approvals record)
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const token = getToken(request);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  try {
+    const res = await fetch(`${API_URL}/v1/prs/${id}/request-approval`, {
+      method: "POST",
+      headers: proxyAuthHeaders(token),
+      cache: "no-store",
+    });
+    return NextResponse.json(await res.json(), { status: res.status });
+  } catch {
+    return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
+  }
+}
+
 // PATCH /api/prs/:id — approve | reject | request changes | merge
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = getToken(request);

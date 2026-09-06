@@ -46,7 +46,7 @@ export function registerBusinessImportRoutes(app: FastifyInstance, deps: AppDeps
     const parsed = analyzeBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
     try {
-      const imp = await analyzeBusinessImport(db, ctx.orgId, ctx.userId, parsed.data);
+      const imp = await analyzeBusinessImport(db, ctx.orgId, ctx.userId, parsed.data, { config: deps.config });
       reply.code(201);
       return { data: imp };
     } catch (err) {

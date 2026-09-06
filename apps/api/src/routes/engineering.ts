@@ -37,6 +37,8 @@ import {
   getPr,
   createPr,
   updatePrStatus,
+  requestPrMergeApproval,
+  requireApprovedPrMerge,
   listEngineeringTasks,
   getEngineeringTask,
   createEngineeringTask,
@@ -464,6 +466,25 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
         return { error: { code: 'invalid_pr_transition', message: gate.reason } };
       }
 
+      // Central-approval gate: 'approved' must be granted by a real approvals
+      // record (created via request-approval, decided in Command Center);
+      // 'merged' requires that record to be approved. Direct status flips
+      // without an approval record are rejected — no frontend-only approval.
+      if (next === 'approved' && pr.status !== 'approved') {
+        const approveGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
+        if (!approveGate.ok) {
+          reply.code(approveGate.status);
+          return { error: { code: 'pr_approval_blocked', message: `${approveGate.reason} — request approval via POST /v1/prs/:id/request-approval, then decide it in Command Center.` } };
+        }
+      }
+      if (next === 'merged') {
+        const mergeGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
+        if (!mergeGate.ok) {
+          reply.code(mergeGate.status);
+          return { error: { code: 'pr_merge_blocked', message: mergeGate.reason } };
+        }
+      }
+
       const updated = await updatePrStatus(db, request.params.id, next, undefined, ctx.userId);
 
       await appendAudit(db, {
@@ -521,6 +542,18 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
       return { data: updated };
     },
   );
+
+  /** Request founder approval to merge a PR (creates a central approvals row). */
+  app.post<{ Params: { id: string } }>('/v1/prs/:id/request-approval', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const result = await requestPrMergeApproval(db, ctx.orgId, ctx.userId, request.params.id);
+    if ('error' in result) {
+      reply.code(result.error.status);
+      return { error: { code: result.error.code, message: result.error.message } };
+    }
+    reply.code(result.created ? 201 : 200);
+    return { data: { pr: result.pr, approval: result.approval, created: result.created } };
+  });
 
   // ─── Engineering Tasks ─────────────────────────────────────────────────────
 
