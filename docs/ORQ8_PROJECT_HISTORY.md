@@ -450,3 +450,23 @@ typecheck + production build clean.
 - Pre-existing CI failures (fail on old commits too): Security audit = pnpm audit
   19 high + 1 critical (fast-uri via Fastify); Tests = runner-specific, passes
   locally with/without env (410 pass).
+
+## Session: Simulation reviews onboarding completion (f52e7e7)
+
+Audit result: playbooks, goal intelligence, Simulation V2, reliability + their
+pages and tests were ALREADY implemented and committed (6a90c7a, 682ae53) — the
+brief's premise of uncommitted work was stale. Closed the three genuine gaps:
+
+1. Performance history windows (7/30/90d) in agent-reliability via pure
+   buildHistoryWindows() + unit tests; Performance page shows window selector
+   and says "no data" instead of inventing scores (noData flag).
+2. Playbook seeding now enforces AI-employee entitlement (route passes
+   enforceAgentLimit: true; fitPlanToAgentLimit keeps every dept lead, fills to
+   cap); onboarding UI surfaces the plan trim via agentLimitApplied notice.
+3. Simulation page: full Current vs Projected comparison table with explicit
+   "simulated, never actual" labeling; quality outcomes noted as not modeled.
+
+Verified: API typecheck, web typecheck, web production build, 413 API tests
+(3 new history tests). Security: reliability routes org-scoped via requireAuth +
+orgId on every query; playbook route auth'd; simulation apply approval-gated
+server-side. Committed f52e7e7 and pushed; Vercel auto-deploy READY.
