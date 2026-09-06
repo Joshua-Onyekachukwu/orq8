@@ -119,6 +119,7 @@ async function main(): Promise<void> {
     { id: '0010', name: 'squads tables', check: tableExistsCheck('squads') },
     { id: '0011', name: 'tasks.squad_id', check: async (d) => ((await columnExists(d, 'tasks', 'squad_id')) ? 'ok' : null) },
     { id: '0012', name: 'mcp + capability registry tables', check: async (d) => ((await tableExistsCheck('mcp_servers')) && (await tableExistsCheck('capability_registry'))) ? 'ok' : null },
+    { id: '0013', name: 'business imports (Phase 10)', check: tableExistsCheck('business_imports') },
   ];
 
   for (const probe of migrationProbes) {
@@ -136,7 +137,7 @@ async function main(): Promise<void> {
     if (r.rows[0]?.t) {
       const names = await db.query(`select name from supabase_migrations.schema_migrations order by name`);
       const applied = (names.rows as Row[]).map((x) => String(x.name));
-      const wanted = ['0003', '0004', '0005', '0006', '0007', '0008', '0009', '0010', '0011', '0012'];
+      const wanted = ['0003', '0004', '0005', '0006', '0007', '0008', '0009', '0010', '0011', '0012', '0013'];
       const missing = wanted.filter((w) => !applied.some((a) => a.includes(w)));
       note('SUPABASE MIGRATION TRACKER', missing.length === 0 ? `all ${wanted.length} migrations present in tracker` : `tracker missing: ${missing.join(', ')} (see table probes above)`);
     } else {

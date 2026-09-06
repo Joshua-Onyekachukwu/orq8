@@ -7,8 +7,8 @@
  * completions register new reusable capabilities (source: engineering) so the
  * registry compounds as the company operates.
  */
-import { eq, and, or, ilike } from 'drizzle-orm';
-import { capabilityRegistry, type Db, type CapabilityEntry, type NewCapabilityEntry } from '@orq8/db';
+import { eq, and, or, ilike, desc } from 'drizzle-orm';
+import { capabilityRegistry, agents, companyMemory, type Db, type CapabilityEntry, type NewCapabilityEntry } from '@orq8/db';
 import { appendAudit } from './audit.js';
 
 /** Words that carry no capability meaning — stripped from derived slugs. */
@@ -170,4 +170,190 @@ export async function searchCapabilities(db: Db, orgId: string, query: string, c
     .where(and(...conditions))
     .orderBy(capabilityRegistry.name)
     .limit(50);
+}
+
+// ─── Reuse-vs-build resolution (Phase 11: build-vs-buy → Executive Agent) ────
+
+const RESOLVE_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'with', 'our', 'your', 'their', 'that', 'this', 'can', 'could', 'would',
+  'should', 'have', 'has', 'had', 'are', 'was', 'were', 'been', 'being', 'will', 'shall', 'what',
+  'which', 'who', 'how', 'where', 'when', 'why', 'from', 'into', 'onto', 'about', 'them', 'they',
+  'we', 'you', 'us', 'do', 'does', 'did', 'not', 'no', 'yes', 'if', 'then', 'else', 'also', 'just',
+  'like', 'get', 'got', 'make', 'need', 'wants', 'want', 'help', 'helping', 'please', 'some', 'more',
+]);
+
+/** Meaningful lowercase tokens from free text (3+ chars, stop words removed). */
+export function capabilityTokens(text: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const raw of (text ?? '').toLowerCase().split(/[^a-z0-9]+/)) {
+    if (raw.length >= 3 && !RESOLVE_STOP_WORDS.has(raw)) tokens.add(raw);
+  }
+  return tokens;
+}
+
+export interface CapabilityResolveMatch {
+  id: string;
+  name: string;
+  description: string | null;
+  kind: 'agent' | 'tool' | 'workflow' | 'service' | 'code' | 'knowledge';
+  category: string;
+  location: string | null;
+  status: string;
+  score: number; // 0..1 token-overlap confidence
+}
+
+export interface CapabilityResolveResult {
+  request: string;
+  decision: 'reuse' | 'extend' | 'build';
+  reason: string;
+  matches: CapabilityResolveMatch[];
+  matchedAt: string;
+}
+
+function scoreTokenOverlap(query: Set<string>, textTokens: string[]): number {
+  if (query.size === 0 || textTokens.length === 0) return 0;
+  const hay = new Set(textTokens);
+  let matched = 0;
+  for (const t of query) if (hay.has(t)) matched += 1;
+  return matched / query.size;
+}
+
+/**
+ * Build-vs-buy resolution: given a founder/agent request, search what the
+ * company ALREADY has (registered capabilities, AI employee roles, company
+ * knowledge) and recommend reuse, extend or build. Bounded and company-scoped:
+ * org A can never see org B's capabilities, agents or memory. Records an audit
+ * event (request truncated — never a full prompt dump).
+ */
+export async function resolveCapabilityRequest(
+  db: Db,
+  orgId: string,
+  request: string,
+  opts: { limit?: number; actorId?: string } = {},
+): Promise<CapabilityResolveResult> {
+  const limit = opts.limit ?? 5;
+  const query = capabilityTokens(request);
+  const matches: CapabilityResolveMatch[] = [];
+
+  // 1. Registered capabilities (agents/tools/workflows/services that exist as
+  //    first-class registry entries).
+  try {
+    const registry = await db
+      .select()
+      .from(capabilityRegistry)
+      .where(and(eq(capabilityRegistry.orgId, orgId), eq(capabilityRegistry.status, 'available')))
+      .orderBy(desc(capabilityRegistry.updatedAt))
+      .limit(200);
+    for (const c of registry) {
+      const nameTokens = capabilityTokens(c.name.replace(/[-_.]/g, ' '));
+      const descTokens = capabilityTokens(c.description ?? '');
+      const nameScore = scoreTokenOverlap(query, [...nameTokens]);
+      const descScore = scoreTokenOverlap(query, [...descTokens]);
+      const score = Math.max(nameScore, descScore * 0.75);
+      if (score > 0) {
+        const kind = (c.category === 'agent' ? 'agent' : c.category === 'workflow' ? 'workflow' : c.category === 'connector' || c.category === 'tool' ? 'tool' : c.category === 'code' ? 'code' : 'service') as CapabilityResolveMatch['kind'];
+        matches.push({ id: c.id, name: c.name, description: c.description, kind, category: c.category, location: c.location, status: c.status, score });
+      }
+    }
+  } catch {
+    // Registry table missing (migrations pending) — resolution degrades to the
+    // remaining sources instead of failing the request.
+  }
+
+  // 2. AI employees the company already has (name/role/capabilities).
+  try {
+    const orgAgents = await db
+      .select({ id: agents.id, name: agents.name, role: agents.role, capabilities: agents.capabilities })
+      .from(agents)
+      .where(and(eq(agents.orgId, orgId), eq(agents.status, 'active')))
+      .limit(200);
+    for (const a of orgAgents) {
+      const roleTokens = capabilityTokens(`${a.name} ${a.role}`);
+      const caps = Array.isArray(a.capabilities) ? (a.capabilities as string[]).join(' ') : '';
+      const allTokens = capabilityTokens(caps);
+      for (const t of allTokens) roleTokens.add(t);
+      const score = scoreTokenOverlap(query, [...roleTokens]);
+      if (score >= 0.25) {
+        matches.push({
+          id: a.id,
+          name: a.name,
+          description: `${a.role} — AI employee already in the organization.`,
+          kind: 'agent',
+          category: 'agent',
+          location: null,
+          status: 'active',
+          score,
+        });
+      }
+    }
+  } catch {
+    // Agents table always exists; best-effort anyway.
+  }
+
+  // 3. Company knowledge — recent memory entries (workflows/lessons/facts) with
+  //    token overlap. Bounded: only the most recent entries are scanned.
+  try {
+    const recent = await db
+      .select({ id: companyMemory.id, category: companyMemory.category, content: companyMemory.content })
+      .from(companyMemory)
+      .where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.category, 'workflow')))
+      .orderBy(desc(companyMemory.createdAt))
+      .limit(40);
+    for (const m of recent) {
+      const score = scoreTokenOverlap(query, [...capabilityTokens(m.content)]);
+      if (score >= 0.4) {
+        matches.push({
+          id: m.id,
+          name: m.content.slice(0, 80),
+          description: m.content.slice(0, 400),
+          kind: 'knowledge',
+          category: 'workflow',
+          location: null,
+          status: 'available',
+          score,
+        });
+      }
+    }
+  } catch {
+    // Best-effort.
+  }
+
+  // Dedupe by name (agent may appear both via registry and via employees scan).
+  const seen = new Set<string>();
+  const unique = matches
+    .filter((m) => {
+      const key = `${m.kind}:${m.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  const best = unique[0];
+  let decision: CapabilityResolveResult['decision'] = 'build';
+  let reason = 'No existing capability matches this request closely enough — a new capability is justified.';
+  if (best && best.score >= 0.55) {
+    decision = 'reuse';
+    reason = `The company already has a strong match: “${best.name}” (${best.kind}, ${Math.round(best.score * 100)}% confidence). Reuse it before building anything new.`;
+  } else if (best && best.score >= 0.3) {
+    decision = 'extend';
+    reason = `A partial match exists (“${best.name}”, ${Math.round(best.score * 100)}% confidence) — prefer extending the existing capability over building a parallel one.`;
+  }
+
+  const requestTruncated = request.trim().slice(0, 200);
+  try {
+    await appendAudit(db, {
+      orgId,
+      actorType: opts.actorId ? 'user' : 'agent',
+      actorId: opts.actorId,
+      action: 'capability.resolve',
+      outcome: 'success',
+      resultRef: JSON.stringify({ request: requestTruncated, decision, topMatch: best?.name ?? null }),
+    });
+  } catch {
+    // Observability is best-effort — never fail a resolution on audit failure.
+  }
+
+  return { request: requestTruncated, decision, reason, matches: unique, matchedAt: new Date().toISOString() };
 }

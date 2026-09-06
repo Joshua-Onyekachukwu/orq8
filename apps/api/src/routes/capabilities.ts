@@ -7,9 +7,15 @@ import {
   listCapabilities,
   registerCapability,
   searchCapabilities,
+  resolveCapabilityRequest,
 } from '../services/capability-registry.js';
 import { appendAudit } from '../services/audit.js';
 import type { AppDeps } from '../types.js';
+
+const resolveBody = z.object({
+  request: z.string().trim().min(3).max(1000),
+  limit: z.number().int().min(1).max(10).optional(),
+});
 
 const registerBody = z.object({
   name: z.string().trim().min(1).max(200),
@@ -42,6 +48,23 @@ export function registerCapabilityRoutes(app: FastifyInstance, deps: AppDeps): v
     if (!q.query?.trim()) return { data: [] };
     await ensureBuiltInCapabilities(db, ctx.orgId);
     const result = await searchCapabilities(db, ctx.orgId, q.query, q.category);
+    return { data: result };
+  });
+
+  /**
+   * Reuse-vs-build resolution (Phase 11). Given a request, decide whether the
+   * company can already do it (reuse), partially can (extend), or must build.
+   * Searches registered capabilities + AI employees + company knowledge.
+   */
+  app.post('/v1/capabilities/resolve', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = resolveBody.safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    await ensureBuiltInCapabilities(db, ctx.orgId);
+    const result = await resolveCapabilityRequest(db, ctx.orgId, parsed.data.request, {
+      limit: parsed.data.limit,
+      actorId: ctx.userId,
+    });
     return { data: result };
   });
 

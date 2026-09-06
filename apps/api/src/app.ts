@@ -57,6 +57,7 @@ import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerMcpRoutes } from './routes/mcp.js';
 import { registerCapabilityRoutes } from './routes/capabilities.js';
 import { registerEngineeringManagerRoutes } from './routes/engineering-manager.js';
+import { registerBusinessImportRoutes } from './routes/business-import.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
@@ -284,6 +285,7 @@ export async function buildApp(
   registerMcpRoutes(app, deps);
   registerCapabilityRoutes(app, deps);
   registerEngineeringManagerRoutes(app, deps);
+  registerBusinessImportRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce

@@ -9,6 +9,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  Globe,
   Code2,
   GitBranch,
   KeyRound,
@@ -58,6 +59,7 @@ const navGroups: NavGroup[] = [
       { label: "Teams", href: "/app/teams", icon: GitBranch },
       { label: "Goals & Tasks", href: "/app/goals", icon: Target },
       { label: "Org Explorer", href: "/app/org", icon: Building2 },
+      { label: "Business Import", href: "/app/business-import", icon: Globe },
     ],
   },
   {

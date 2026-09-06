@@ -8,6 +8,7 @@ import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
 import { broadcastToOrg } from './realtime.js';
 import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
+import { listCapabilities, resolveCapabilityRequest } from './capability-registry.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -51,6 +52,10 @@ export interface ExecutiveContext {
   activeTasks: Array<{ id: string; title: string; status: string; agentId: string | null }>;
   pendingApprovals: number;
   recentMemory: Array<{ content: string; category: string }>;
+  // Build-vs-buy (Phase 11): what the company already knows how to do.
+  // `decision` is present when the founder's query was resolved against the
+  // registry (reuse | extend | build); otherwise just the reusable catalog.
+  capabilities?: Array<{ name: string; category: string; decision?: 'reuse' | 'extend' | 'build' }>;
 }
 
 export interface IntentAnalysis {
@@ -401,6 +406,29 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     buildOrgStructure(db, orgId, orgAgents),
   ]);
 
+  // Build-vs-buy: resolve the founder's request against what the company
+  // already has. Bounded + org-scoped; a missing registry table (migrations
+  // pending) degrades to an empty catalog rather than failing the command.
+  let capabilities: ExecutiveContext['capabilities'] = [];
+  try {
+    if (opts.query?.trim()) {
+      const resolved = await resolveCapabilityRequest(db, orgId, opts.query.trim(), { limit: 5 });
+      capabilities = resolved.matches.slice(0, 5).map((m) => ({
+        name: m.name,
+        category: m.category,
+        decision: resolved.decision,
+      }));
+    } else {
+      const registry = await listCapabilities(db, orgId);
+      capabilities = registry
+        .filter((c) => c.status === 'available')
+        .slice(0, 8)
+        .map((c) => ({ name: c.name, category: c.category }));
+    }
+  } catch {
+    capabilities = [];
+  }
+
   return {
     orgId,
     userId: '',
@@ -424,6 +452,7 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
       content: m.content,
       category: m.category,
     })),
+    capabilities,
   };
 }
 
@@ -449,30 +478,42 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
 
   const structureBlock = formatOrgStructure(ctx.orgStructure);
 
-  return `## ORGANIZATION CONTEXT
+  // Build-vs-buy guidance: reuse-before-building catalog + resolution when the
+  // founder's query was matched against the registry. Built with concatenation
+  // (no nested templates) to keep the parser simple.
+  let capabilityBlock = '';
+  if (ctx.capabilities && ctx.capabilities.length > 0) {
+    const parts: string[] = ['\n### Reusable Company Capabilities'];
+    for (const c of ctx.capabilities) parts.push('- ' + c.name + ' [' + c.category + ']');
+    const first = ctx.capabilities[0];
+    if (first?.decision) {
+      const d = first.decision;
+      let line: string;
+      if (d === 'reuse') line = 'an existing capability matches; recommend reuse before building.';
+      else if (d === 'extend') line = 'a partial match exists; prefer extending it over building in parallel.';
+      else line = 'no adequate existing match; if the work is genuinely needed, propose a new capability.';
+      parts.push('Resolution for the founder\'s request: ' + d.toUpperCase() + ' — ' + line);
+    } else {
+      parts.push('Before proposing new agents, tools or workflows, check this list and reuse what already exists.');
+    }
+    capabilityBlock = parts.join('\n');
+  }
 
-### AI Employees
-${agentList}
-
-${structureBlock}
-
-### Active Goals
-${goalList}
-
-### Active Tasks
-${taskList}
-
-### Pending Approvals: ${ctx.pendingApprovals}
-
-### Company Memory
-${memoryList}
-
-### Instructions
-You have full awareness of the organization's current state, including its departments, teams, team owners, members and where work is blocked or overdue.
-Use this context to make informed decisions about task decomposition and agent selection.
-When the founder asks who owns work or who is responsible, answer from the organization structure above.
-If no suitable agent exists, recommend hiring one.
-Always be specific about which agent should handle each task.`;
+  return '## ORGANIZATION CONTEXT\n\n' +
+    '### AI Employees\n' + agentList + '\n\n' +
+    structureBlock + '\n\n' +
+    '### Active Goals\n' + goalList + '\n\n' +
+    '### Active Tasks\n' + taskList + '\n\n' +
+    '### Pending Approvals: ' + ctx.pendingApprovals + '\n\n' +
+    '### Company Memory\n' + memoryList +
+    capabilityBlock + '\n\n' +
+    '### Instructions\n' +
+    'You have full awareness of the organization\'s current state, including its departments, teams, team owners, members and where work is blocked or overdue.\n' +
+    'Use this context to make informed decisions about task decomposition and agent selection.\n' +
+    'When the founder asks who owns work or who is responsible, answer from the organization structure above.\n' +
+    'If no suitable agent exists, recommend hiring one.\n' +
+    'Always be specific about which agent should handle each task.\n' +
+    'Before proposing to build anything new (a new agent, tool, workflow or capability), first search the Reusable Company Capabilities above — if the company can already do the work, recommend reusing the existing capability instead of building a parallel one.';
 }
 
 // ─── Intent Analysis ────────────────────────────────────────────────────────

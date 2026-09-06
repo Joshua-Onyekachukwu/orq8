@@ -1376,6 +1376,46 @@ export type NewMcpTool = typeof mcpTools.$inferInsert;
 export type CapabilityEntry = typeof capabilityRegistry.$inferSelect;
 export type NewCapabilityEntry = typeof capabilityRegistry.$inferInsert;
 
+// ─── Business Import (Phase 10) ─────────────────────────────────────────────
+// Founder supplies a company description + website URL; ORQ8 fetches the site
+// (SSRF-guarded, bounded), extracts structured facts with provenance into
+// `facts`, and proposes an organization (`proposal`). Status lifecycle:
+// analysis → pending_approval → applied | rejected. The proposal is applied
+// only after explicit founder approval, through the existing playbook/company
+// builder path — nothing is auto-applied. source_fingerprint makes re-analysis
+// of the same input idempotent.
+export const businessImports = pgTable(
+  'business_imports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    sourceFingerprint: text('source_fingerprint').notNull(),
+    description: text('description'),
+    websiteUrl: text('website_url'),
+    websiteTitle: text('website_title'),
+    websiteSummary: text('website_summary'),
+    websiteError: text('website_error'),
+    facts: jsonb('facts').notNull().default([]),
+    proposal: jsonb('proposal'),
+    status: text('status').notNull().default('analysis'), // analysis | pending_approval | approved | applied | rejected | failed
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('business_imports_org_idx').on(t.orgId),
+    index('business_imports_org_status_idx').on(t.orgId, t.status),
+    uniqueIndex('business_imports_org_fingerprint_idx').on(t.orgId, t.sourceFingerprint),
+  ],
+);
+
+export type BusinessImport = typeof businessImports.$inferSelect;
+export type NewBusinessImport = typeof businessImports.$inferInsert;
+
 // ─── Type exports ───────────────────────────────────────────────────────────
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;
