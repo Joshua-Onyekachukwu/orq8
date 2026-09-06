@@ -25,6 +25,7 @@ import {
   Wallet,
   X,
   Zap,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +74,7 @@ const navGroups: NavGroup[] = [
       { label: "Company Memory", href: "/app/memory", icon: ScrollText },
       { label: "Audit Trail", href: "/app/audit", icon: Shield },
       { label: "Budgets", href: "/app/budgets", icon: Wallet },
+      { label: "Usage & Limits", href: "/app/usage", icon: Gauge },
       { label: "Files", href: "/app/files", icon: FileText },
       { label: "Constitution", href: "/app/constitution", icon: ScrollText },
       { label: "Quality & Learning", href: "/app/quality", icon: Shield },

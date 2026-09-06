@@ -414,3 +414,18 @@ Required/production: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - **Entitlement engine** (`services/entitlements.ts`): plan resolution honoring stored `subscriptions.max_agents` overrides (legacy rows keep grants), live usage counts (archived agents/departments/teams don't consume quota), and `enforceResourceLimit()` throwing a clear used/limit/upgrade 403. Server-side enforcement wired into agent hiring, department creation, team creation, connector registration and custom-MCP registration. `GET /v1/entitlements` + web proxy return the full used/limit matrix (`agents|departments|teams|connectors|mcp`) for the UI.
 - **Plan-aware organization sizing**: `fitPlanToAgentLimit()` keeps every department lead and fills to the plan's agent cap (with rationale); `seedPlaybook(..., { enforceAgentLimit: true })` applies it, and Business Import's apply path now seeds within the org's entitlements and reports plan-limiting in memory/audit. Existing flows (default seeding, onboarding) unchanged.
 - **Verification**: API typecheck 0 errors, **410 tests passing** (new entitlements: canonical config, resolveCaps overrides, trial/enterprise fallbacks, fit behavior, DB-gated trial & founder enforcement + archived-exclusion + entitlements matrix), web typecheck clean, web production build passing.
+
+## 2026-09-06 — Packages & Usage dashboard (master ecosystem §79, §49–50)
+
+The entitlement engine (e7c2a7b) was fully enforced server-side but had no
+founder-facing surface. Added `/app/usage` — Packages & Usage dashboard that
+consumes `GET /v1/entitlements` + `/api/credits/balance` and shows:
+
+- Plan name / trial state / max agents, autonomy level (labeled per the
+  observe→autonomous scale), and Work Credits used/total
+- Used/limit progress bars for agents, departments, teams, connectors, and
+  custom MCP servers, with "Full" badges and a reached-limits banner (amber)
+- Upgrade path ("View plans") consistent with the Budgets page
+
+Sidebar: Governance → Usage & Limits. Verified: API 410 tests pass, web
+typecheck + production build clean.
