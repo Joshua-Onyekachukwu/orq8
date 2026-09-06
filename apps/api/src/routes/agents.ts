@@ -7,7 +7,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import * as agents from '../services/agents.js';
 import { AUTONOMY_LEVELS, normalizeAutonomyLevel } from '../services/autonomy.js';
-import { getPlanLimits } from '../services/billing.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import * as deptService from '../services/departments.js';
 import * as teamService from '../services/teams.js';
 import type { AppDeps } from '../types.js';
@@ -88,12 +88,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const parsed = hireBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
-    // Plan enforcement: check agent limit
-    const currentAgents = await agents.findByOrg(db, ctx.orgId, { limit: 1000 });
-    const planLimits = await getPlanLimits(db, ctx.orgId);
-    if (planLimits.maxAgents > 0 && currentAgents.length >= planLimits.maxAgents) {
-      throw forbidden(`Your plan allows ${planLimits.maxAgents} agents. Upgrade to hire more.`);
-    }
+    // Plan enforcement: central entitlement engine (agent cap, archived excluded)
+    await enforceResourceLimit(db, ctx.orgId, 'agents');
 
     // Resolve departmentId if name-based department is provided (backward compat)
     let departmentId: string | null = null;

@@ -9,7 +9,7 @@ export const PLANS = {
     monthlyPrice: 3900, // cents
     annualPrice: 39000, // cents per year ($32.50/mo)
     includedCredits: 1000,
-    maxAgents: 3,
+    maxAgents: 10,
     features: {
       executiveAgent: true,
       companyMemory: true,
@@ -32,7 +32,7 @@ export const PLANS = {
     monthlyPrice: 9900, // cents
     annualPrice: 94800, // cents per year ($79/mo)
     includedCredits: 4000,
-    maxAgents: 10,
+    maxAgents: 25,
     features: {
       executiveAgent: true,
       companyMemory: true,
@@ -55,7 +55,7 @@ export const PLANS = {
     monthlyPrice: 24900, // cents
     annualPrice: 238800, // cents per year ($199/mo)
     includedCredits: 12000,
-    maxAgents: 25,
+    maxAgents: 50,
     features: {
       executiveAgent: true,
       companyMemory: true,

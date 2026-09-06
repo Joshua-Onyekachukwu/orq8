@@ -11,6 +11,7 @@ import {
 } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import { appendAudit } from '../services/audit.js';
 import {
   listProviders,
@@ -113,6 +114,9 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     if (existing) {
       return { data: existing, message: 'Integration already exists. Use the reconnect flow.' };
     }
+
+    // Plan enforcement — central entitlement engine (connector slots)
+    await enforceResourceLimit(db, ctx.orgId, 'connectors');
 
     const provider = await createProvider(db, {
       orgId: ctx.orgId,

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import {
   listMcpServers,
   getMcpServer,
@@ -66,6 +67,10 @@ export function registerMcpRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(400);
       return { error: { code: 'custom_server_requires_description', message: 'Custom MCP servers must include a description; only connector-backed providers (github | gmail | linear) are executable.' } };
     }
+
+    // Custom MCP servers consume the plan's MCP entitlement (connector-backed
+    // catalogs are bounded by the connectors cap instead).
+    if (!isConnector) await enforceResourceLimit(db, ctx.orgId, 'mcp');
 
     const server = await registerMcpServer(db, {
       orgId: ctx.orgId,

@@ -3,6 +3,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import { appendAudit } from '../services/audit.js';
 import { agents } from '@orq8/db';
 import * as deptService from '../services/departments.js';
@@ -76,6 +77,9 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
         error: { code: 'conflict', message: `Department "${body.data.name}" already exists.` },
       });
     }
+
+    // Plan enforcement — central entitlement engine
+    await enforceResourceLimit(db, ctx.orgId, 'departments');
 
     try {
       const dept = await deptService.createDepartment(db, {

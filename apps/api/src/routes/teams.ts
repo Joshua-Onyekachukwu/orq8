@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import { appendAudit } from '../services/audit.js';
 import * as teamService from '../services/teams.js';
 import * as deptService from '../services/departments.js';
@@ -53,6 +54,9 @@ export function registerTeamRoutes(app: FastifyInstance, deps: AppDeps): void {
         error: { code: 'conflict', message: `Team "${body.data.name}" already exists.` },
       });
     }
+
+    // Plan enforcement — central entitlement engine
+    await enforceResourceLimit(db, ctx.orgId, 'teams');
 
     // Validate department belongs to this org when provided
     if (body.data.departmentId) {

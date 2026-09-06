@@ -778,8 +778,13 @@ export async function approveBusinessImport(db: Db, orgId: string, userId: strin
     let seeded = '';
     if (!hadStructure && proposal.recommendedPlaybook) {
       try {
-        const result = await seedPlaybook(tx, orgId, userId, proposal.recommendedPlaybook);
-        seeded = result.alreadySeeded ? 'already-seeded' : `seeded (${result.activation?.departments.length ?? 0} departments, ${result.activation?.agents.length ?? 0} agents)`;
+        // Plan-aware: the recommended workforce is capped by the org's
+        // entitlements (every department keeps its lead; roles fill to the
+        // agent limit).
+        const result = await seedPlaybook(tx, orgId, userId, proposal.recommendedPlaybook, { enforceAgentLimit: true });
+        seeded = result.alreadySeeded
+          ? 'already-seeded'
+          : `seeded (${result.activation?.departments.length ?? 0} departments, ${result.activation?.agents.length ?? 0} agents${result.agentLimitApplied ? `, plan-limited ${result.agentLimitApplied.from}→${result.agentLimitApplied.to}` : ''})`;
       } catch (err) {
         // Org builder failure must not silently vanish — surface it but keep the
         // import record so the founder can retry apply.

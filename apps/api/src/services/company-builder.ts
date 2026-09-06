@@ -89,6 +89,37 @@ export interface ActivationResult {
   memoryCount: number;
 }
 
+/**
+ * Fit a proposed organization to a plan's agent capacity without losing any
+ * department: keep the lead agent of every department, then fill remaining
+ * slots from the extras in original order. Tasks whose role was cut remain in
+ * the plan and are simply unassigned until capacity allows a hire. Returns the
+ * plan unchanged when it already fits.
+ */
+export function fitPlanToAgentLimit(plan: CompanyPlan, maxAgents: number): { plan: CompanyPlan; limitedFrom: number; limitedTo: number } {
+  if (plan.agents.length <= maxAgents) {
+    return { plan, limitedFrom: plan.agents.length, limitedTo: plan.agents.length };
+  }
+  const byDepartment = new Map<string, ProposedAgent[]>();
+  for (const a of plan.agents) {
+    const key = a.department ?? 'General';
+    if (!byDepartment.has(key)) byDepartment.set(key, []);
+    byDepartment.get(key)!.push(a);
+  }
+  const leads: ProposedAgent[] = [];
+  for (const group of byDepartment.values()) {
+    const lead = group[0];
+    if (lead) leads.push(lead);
+  }
+  const extras = plan.agents.filter((a) => !leads.includes(a));
+  const kept = [...leads, ...extras].slice(0, maxAgents);
+  return {
+    plan: { ...plan, agents: kept, rationale: `${plan.rationale} Workforce was sized to the plan's ${maxAgents}-AI-employee limit: every department keeps its lead and specialist roles will be added as the plan is upgraded.` },
+    limitedFrom: plan.agents.length,
+    limitedTo: kept.length,
+  };
+}
+
 // ─── Step 1: Company Analysis ───────────────────────────────────────────────
 
 const ANALYSIS_SYSTEM_PROMPT = `You are the ORQ8 Executive Agent performing company discovery for a new founder.

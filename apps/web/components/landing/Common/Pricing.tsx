@@ -19,11 +19,11 @@ const pricingPlans: PricingPlan[] = [
     title: "Founder",
     tagline: "Run your company with AI.",
     description:
-      "The entry point. 3 AI employees, enough credits to see real work happen.",
+      "The entry point. 10 AI employees, enough credits to see real work happen.",
     monthlyPrice: "$39",
     annualPrice: "$32",
     features: [
-      { text: "3 AI employees", included: true },
+      { text: "10 AI employees", included: true },
       { text: "1,000 included Work Credits", included: true },
       { text: "Executive Agent", included: true },
       { text: "Company Memory", included: true },
@@ -40,11 +40,11 @@ const pricingPlans: PricingPlan[] = [
     title: "Team",
     tagline: "Build your AI workforce.",
     description:
-      "The primary plan. 10 AI employees with advanced capabilities and team collaboration.",
+      "The primary plan. 25 AI employees with advanced capabilities and team collaboration.",
     monthlyPrice: "$99",
     annualPrice: "$79",
     features: [
-      { text: "10 AI employees", included: true },
+      { text: "25 AI employees", included: true },
       { text: "4,000 included Work Credits", included: true },
       { text: "Everything in Founder", included: true },
       { text: "Advanced integrations", included: true },
@@ -64,11 +64,11 @@ const pricingPlans: PricingPlan[] = [
     title: "Company",
     tagline: "Operate your company through AI.",
     description:
-      "Full-scale operations. 25 AI employees with advanced governance and controls.",
+      "Full-scale operations. 50 AI employees with advanced governance and controls.",
     monthlyPrice: "$249",
     annualPrice: "$199",
     features: [
-      { text: "25 AI employees", included: true },
+      { text: "50 AI employees", included: true },
       { text: "12,000 included Work Credits", included: true },
       { text: "Everything in Team", included: true },
       { text: "All integrations", included: true },

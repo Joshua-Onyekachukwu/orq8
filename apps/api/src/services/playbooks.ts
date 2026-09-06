@@ -19,7 +19,7 @@ import { eq, and, ilike } from 'drizzle-orm';
 import type { Db } from '@orq8/db';
 import { organizations, companyMemory } from '@orq8/db';
 import type { CompanyPlan, ActivationResult } from './company-builder.js';
-import { activateCompany } from './company-builder.js';
+import { activateCompany, fitPlanToAgentLimit } from './company-builder.js';
 import * as memoryService from './memory.js';
 import { appendAudit } from './audit.js';
 import { ensureBuiltInCapabilities } from './capability-registry.js';
@@ -57,6 +57,8 @@ export interface PlaybookSeedResult {
   slug: string;
   alreadySeeded: boolean;
   activation: ActivationResult | null;
+  /** Present when the org plan capped the workforce below the playbook size. */
+  agentLimitApplied?: { from: number; to: number };
 }
 
 // ─── Templates ──────────────────────────────────────────────────────────────
@@ -398,7 +400,13 @@ export function getPlaybook(slug: string): Playbook | undefined {
  * company-memory marker; safe to retry after partial failure because the
  * marker is only written after a successful full activation.
  */
-export async function seedPlaybook(db: Db, orgId: string, userId: string, slug: string): Promise<PlaybookSeedResult> {
+export async function seedPlaybook(
+  db: Db,
+  orgId: string,
+  userId: string,
+  slug: string,
+  opts?: { enforceAgentLimit?: boolean },
+): Promise<PlaybookSeedResult> {
   const playbook = getPlaybook(slug);
   if (!playbook) {
     throw new Error(`Unknown playbook: ${slug}`);
@@ -418,9 +426,30 @@ export async function seedPlaybook(db: Db, orgId: string, userId: string, slug: 
   // Constitution — merge into organizations.settings.constitution.
   await upsertConstitution(db, orgId, playbook.constitution);
 
+  // Plan-aware sizing: when the founder explicitly opts in (e.g. Business
+  // Import), the org's entitlement caps the seeded workforce — every
+  // department keeps its lead, and roles fill up to the agent limit.
+  let planToActivate = playbook.plan;
+  let agentLimitApplied: { from: number; to: number } | undefined;
+  if (opts?.enforceAgentLimit) {
+    try {
+      const { getCaps } = await import('./entitlements.js');
+      const caps = await getCaps(db, orgId);
+      const fitted = fitPlanToAgentLimit(playbook.plan, caps.maxAgents);
+      if (fitted.limitedTo < fitted.limitedFrom) {
+        planToActivate = fitted.plan;
+        agentLimitApplied = { from: fitted.limitedFrom, to: fitted.limitedTo };
+      }
+    } catch {
+      // Entitlement resolution failure must never block activation — seed the
+      // full plan (previous behavior) rather than silently shrinking it.
+      agentLimitApplied = undefined;
+    }
+  }
+
   // Departments, AI employees, goals and starter tasks — through the real
   // company-builder activation path.
-  const activation = await activateCompany(db, orgId, userId, playbook.plan);
+  const activation = await activateCompany(db, orgId, userId, planToActivate);
 
   // Reusable capability surface: seed the capability registry (build-vs-buy)
   // and the connector-backed MCP tool catalogs the org can discover.
@@ -443,7 +472,7 @@ export async function seedPlaybook(db: Db, orgId: string, userId: string, slug: 
     await memoryService.createMemory(db, {
       orgId,
       category: 'workflow',
-      content: `Playbook seeded: ${slug} (${playbook.name}) — ${activation.departments.length} departments, ${activation.agents.length} AI employees, ${activation.goals.length} goals, ${activation.tasks.length} starter tasks.`,
+      content: `Playbook seeded: ${slug} (${playbook.name}) — ${activation.departments.length} departments, ${activation.agents.length} AI employees, ${activation.goals.length} goals, ${activation.tasks.length} starter tasks${agentLimitApplied ? ` (workforce plan-limited from ${agentLimitApplied.from} to ${agentLimitApplied.to} AI employees by this plan — upgrade to unlock the full team)` : ''}.`,
       importance: 8,
       source: 'playbooks:seed',
     });
@@ -464,7 +493,7 @@ export async function seedPlaybook(db: Db, orgId: string, userId: string, slug: 
     // Non-fatal
   }
 
-  return { slug, alreadySeeded: false, activation };
+  return { slug, alreadySeeded: false, activation, agentLimitApplied };
 }
 
 /** Merge a playbook constitution into the org settings without clobbering other settings. */

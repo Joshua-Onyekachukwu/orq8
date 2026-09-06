@@ -32,6 +32,15 @@ export interface PlanConfig {
   annualPrice: number; // cents
   credits: number;
   maxAgents: number;
+  // Structured resource caps (the single entitlement source — docs + routes +
+  // the entitlements service all read from here). 0 = unlimited.
+  departments: number;
+  teams: number;
+  connectors: number;
+  mcpServers: number;
+  // Highest autonomy level a plan may grant an agent
+  // (observe | recommend | draft | execute_with_approval | autonomous).
+  autonomy: string;
   features: string[];
 }
 
@@ -42,7 +51,12 @@ export const PLANS: Record<string, PlanConfig> = {
     annualPrice: 3200, // $32/mo (billed annually)
     credits: 1_000,
     maxAgents: 10,
-    features: ['3 AI employees', '1,000 Work Credits', 'Executive Agent', 'Company Memory', 'Basic approvals'],
+    departments: 4,
+    teams: 10,
+    connectors: 3,
+    mcpServers: 1,
+    autonomy: 'execute_with_approval',
+    features: ['10 AI employees', '1,000 Work Credits', 'Executive Agent', 'Company Memory', 'Basic approvals'],
   },
   team: {
     name: 'Team',
@@ -50,7 +64,12 @@ export const PLANS: Record<string, PlanConfig> = {
     annualPrice: 7900, // $79/mo (billed annually)
     credits: 4_000,
     maxAgents: 25,
-    features: ['10 AI employees', '4,000 Work Credits', 'Advanced approvals', 'API access', 'Priority support'],
+    departments: 10,
+    teams: 24,
+    connectors: 6,
+    mcpServers: 6,
+    autonomy: 'autonomous',
+    features: ['25 AI employees', '4,000 Work Credits', 'Advanced approvals', 'API access', 'Priority support'],
   },
   company: {
     name: 'Company',
@@ -58,9 +77,24 @@ export const PLANS: Record<string, PlanConfig> = {
     annualPrice: 19900, // $199/mo (billed annually)
     credits: 12_000,
     maxAgents: 50,
-    features: ['25 AI employees', '12,000 Work Credits', 'Advanced controls', 'Custom AI employees', 'Priority execution'],
+    departments: 20,
+    teams: 48,
+    connectors: 10,
+    mcpServers: 12,
+    autonomy: 'autonomous',
+    features: ['50 AI employees', '12,000 Work Credits', 'Advanced controls', 'Custom AI employees', 'Priority execution'],
   },
 };
+
+/** Default caps when an org has no subscription row (trial). */
+export const TRIAL_CAPS = {
+  maxAgents: 3,
+  departments: 2,
+  teams: 4,
+  connectors: 1,
+  mcpServers: 0,
+  autonomy: 'execute_with_approval',
+} as const;
 
 // ─── Plan Limits ─────────────────────────────────────────────────────────
 
