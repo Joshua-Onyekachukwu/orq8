@@ -389,3 +389,17 @@ Required/production: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 `OLLAMA_BASE_URL`. Optional: `REDIS_URL`, `SMTP_*`/`RESEND_API_KEY`, `S3_*`, `STRIPE_*`,
 `INTERNAL_TOKEN`, `PLATFORM_ADMIN_EMAILS`. Connectors (not yet configured):
 `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (see CURRENT_STATE, Task 1).
+### 2026-09-06 — Connector actions (Gmail/Linear/file reads), weekly+monthly briefings, semantic memory in context, Event Rules UI
+
+**Task:** full connector action framework, event-rules management UI, weekly/monthly briefings with real data, and semantic memory in both agent context builders (per the "connectors/briefings/memory" brief).
+
+**Implemented & committed on `main`:**
+- `152e73d` — **connector actions across all three providers**: GitHub `read_file` (path-traversal-safe via the contents API; never local FS) joins the existing repo/issue/PR actions; **Gmail** `create_draft` (draft-by-default, MIME built server-side), `search`, and `send_draft` — which requires the capability AND no approval gate, otherwise it creates a pending founder approval and transmits nothing; **Linear** issue create/get/update/archive/list over the GraphQL API with team ids resolved from the connected account (teamName→id), never hard-coded. All flows run canAgentUseCapability → decrypted-in-memory token → provider API → connector_outcomes + audit, and are registered as agent tools + exposed on `POST /v1/connector-actions` (provider-discriminated body).
+- `744e6fa` — **weekly + monthly briefings**: `briefing.ts` now has pure shared period resolution (weekStart Monday UTC, monthStart, periodFor for daily/weekly/monthly), a generalized `generateBriefing(kind)` (idempotent per org+kind+periodStart via the DB unique index) and a real **Trends & Spend** section comparing the current window to the equal-length prior window (tasks completed/failed, AI employee actions, connector actions, actual credit usage `type='usage'`). New internal endpoints `POST /v1/internal/briefings/weekly|monthly` + GitHub Actions crons (Mon 07:10 / 1st 07:15 UTC).
+- `bcfdb29` — **semantic memory in context**: shared `retrieveSemanticForContext` (pgvector → keyword → importance, org-scoped, bounded); Executive Agent searches memory with the founder command; Task Executor searches with the task title+description. DB-gated tests prove org A/B isolation in both directions.
+- `8d49c55` — **Event Rules management UI**: real `/app/integrations` page (connected providers + full rule CRUD: create/edit/enable/disable/delete with provider/event/action/assignee/approval), proxies `/api/integrations` + `/api/event-rules` (+DELETE), sidebar entry. DB-gated **webhook E2E suite** (`webhook-e2e.test.ts`): ingest → rule → assigned task, approval-required rule → pending approval, disabled rule skips, duplicate external_event_id not double-ingested.
+- `e6e3f5f` — **no-fake fix**: settings Connections page no longer hard-codes GitHub/Gmail/Linear as "Planned · Phase 2"; reads `/v1/integrations` live server-side.
+
+**Verification:** API typecheck 0 errors; **311 API tests passed / 0 failed** (238 DB-gated skipped — no local Postgres; run in CI/Supabase); web typecheck clean; web production build passes; contrast-check PASS. Connector gmail/linear validation + briefing period/trend pure helpers unit-tested.
+
+**Remaining:** live E2E needs OAuth app credentials (`GITHUB_CLIENT_ID/SECRET`, Google OAuth, Linear OAuth) + `INTERNAL_TOKEN` in prod for the briefing/consolidation crons; 238 DB-gated tests need a reachable Postgres.

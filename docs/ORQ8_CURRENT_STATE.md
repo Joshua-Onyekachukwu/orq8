@@ -61,7 +61,8 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 | Gmail/Linear connectors | Generic OAuth architecture + Linear webhook receiver | No Gmail/Linear OAuth apps configured; GitHub action handlers live, Gmail/Linear actions not yet |
 | Engineering | Full data layer, org-scoped CRUD, PR flow, **sandboxed executor (Task 4)** | No Monaco UI; container/gVisor isolation is the production boundary |
 | Simulation | Engine works, apply gated + audited | **Apply now materializes org changes** (named proposal + approval); what-if inputs still hand-entered |
-| Connector actions (GitHub) | **DONE (2026-09-06)** — 5 capability-gated action tools + founder route + outcomes/audit | Live E2E needs GitHub OAuth creds; Gmail/Linear actions not implemented |
+| Connector actions | **DONE (2026-09-06)** — GitHub (repos/issues/PRs + file reads), Gmail (draft-by-default + approval-gated send), Linear (issue CRUD) as capability-gated agent tools + founder route + outcomes/audit | Live E2E needs GitHub/Gmail/Linear OAuth app creds; no real send until approved |
+| Briefings | **Daily + weekly + monthly (2026-09-06)** — shared period engine + real Trends & Spend section | Cron needs `INTERNAL_TOKEN` in prod |
 | Delegation orchestrator | **DONE (2026-09-06)** — plan/execute/monitor/feedback routes now expose the multi-agent substrate | No founder-facing squad UI yet |
 | Proactive intelligence | **DONE (2026-09-06)** — anomaly detector (goals/tasks/failure/spend) feeds briefing + `GET /v1/analytics/anomalies` | Scheduled runs need `INTERNAL_TOKEN` in prod |
 | Portability | **DONE (2026-09-06)** — owner export endpoint + Settings → download | No re-import path yet |
