@@ -429,3 +429,24 @@ consumes `GET /v1/entitlements` + `/api/credits/balance` and shows:
 
 Sidebar: Governance → Usage & Limits. Verified: API 410 tests pass, web
 typecheck + production build clean.
+
+## Session: Production deploy unblocked + key vault
+
+- Root cause of "build error": Vercel project had `rootDirectory=apps/web` but
+  `outputDirectory=apps/web/.next` (double-pathed). Builds succeeded locally and on
+  Vercel but the output lookup failed. Fixed via API: outputDirectory -> `.next`,
+  buildCommand -> `npx next build`. Verified: fresh push deploys now READY + aliased
+  to orq8.vercel.app (commits 1674cf8 and 3dcb116).
+- GitHub repo secrets now set: VERCEL_WEB_PROJECT_ID, API_URL, INTERNAL_TOKEN
+  (plus pre-existing VERCEL_TOKEN). Deploy workflow's `VERCEL_WEB_PROJECT_ID secret
+  not set` blocker eliminated; deploys trigger on every main push.
+- Created gitignored `secrets.env` vault at repo root holding all recoverable keys:
+  GitHub PAT, Vercel token, Supabase URL/anon+service JWT/secret+publishable keys,
+  NVIDIA + OpenRouter keys, generated SESSION_SECRET/ENCRYPTION_KEY/INTERNAL_TOKEN.
+- Verified production Supabase (gttkaxbcdtpsusmconxm) exposes all 61 tables incl.
+  business_imports -> migration 0013 already applied live.
+- NOT traceable (user must provide): Railway token (only placeholders in chat), real
+  Supabase pooled DATABASE_URL password (template only), OAuth client secrets.
+- Pre-existing CI failures (fail on old commits too): Security audit = pnpm audit
+  19 high + 1 critical (fast-uri via Fastify); Tests = runner-specific, passes
+  locally with/without env (410 pass).
