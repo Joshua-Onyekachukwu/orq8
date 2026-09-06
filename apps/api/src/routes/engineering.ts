@@ -32,6 +32,7 @@ import {
   createSandboxRun,
   getSandboxRun,
   updateSandboxRun,
+  listSandboxRuns,
   listPrs,
   getPr,
   createPr,
@@ -40,6 +41,7 @@ import {
   getEngineeringTask,
   createEngineeringTask,
   updateEngineeringTask,
+  recordEngineeringLesson,
 } from '../services/engineering.js';
 import type { AppDeps } from '../types.js';
 
@@ -381,6 +383,13 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
     return { data: updated };
   });
 
+  app.get('/v1/sandbox-runs', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const q = request.query as { limit?: string };
+    const runs = await listSandboxRuns(db, ctx.orgId, Math.min(Number(q.limit) || 50, 200));
+    return { data: runs };
+  });
+
   app.get<{ Params: { id: string } }>('/v1/sandbox-runs/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     const run = await getSandboxRun(db, ctx.orgId, request.params.id);
@@ -537,6 +546,26 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
     if (body.branch) updates.branch = body.branch as string;
 
     const updated = await updateEngineeringTask(db, request.params.id, updates);
+
+    // Learning loop: completed/failed engineering work writes a lesson into
+    // company memory (semantic, org-scoped) for future engineering tasks.
+    if (updated && (updates.status === 'completed' || updates.status === 'failed')) {
+      try {
+        const body = updates.status === 'completed'
+          ? 'Task completed. Tests, lint and build results were captured in the task record for future reference.'
+          : 'Task failed. Review the task record for tests/lint/build failures before retrying or reassigning.';
+        await recordEngineeringLesson(db, ctx.orgId, {
+          title: `${task.title} — ${updates.status}`,
+          body,
+          agentId: task.assigneeId ?? undefined,
+          taskId: task.id,
+          importance: updates.status === 'failed' ? 7 : 5,
+        });
+      } catch {
+        // Non-fatal — the status update itself succeeded.
+      }
+    }
+
     return { data: updated };
   });
 }

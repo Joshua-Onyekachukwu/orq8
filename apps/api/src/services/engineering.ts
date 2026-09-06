@@ -23,6 +23,7 @@ import {
   type NewEngineeringTask,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { createMemory } from './memory.js';
 
 // ─── Repositories ────────────────────────────────────────────────────────────
 
@@ -195,6 +196,15 @@ export async function logRepoEvent(
 
 // ─── Sandbox Runs ────────────────────────────────────────────────────────────
 
+export async function listSandboxRuns(db: Db, orgId: string, limit = 50): Promise<SandboxRun[]> {
+  return db
+    .select()
+    .from(sandboxRuns)
+    .where(eq(sandboxRuns.orgId, orgId))
+    .orderBy(desc(sandboxRuns.createdAt))
+    .limit(limit);
+}
+
 export async function createSandboxRun(db: Db, data: NewSandboxRun): Promise<SandboxRun> {
   const rows = await db.insert(sandboxRuns).values(data).returning();
   return rows[0]!;
@@ -325,4 +335,24 @@ export async function updateEngineeringTask(
     .where(eq(engineeringTasks.id, id))
     .returning();
   return rows[0];
+}
+
+/**
+ * Record an engineering lesson into company memory so future engineering
+ * tasks and the Executive Agent benefit from what was learned. Reuses the
+ * semantic memory pipeline — no separate knowledge store.
+ */
+export async function recordEngineeringLesson(
+  db: Db,
+  orgId: string,
+  data: { title: string; body: string; agentId?: string; taskId?: string; importance?: number },
+): Promise<void> {
+  await createMemory(db, {
+    orgId,
+    category: 'lesson',
+    content: `Engineering lesson — ${data.title}: ${data.body}`,
+    importance: data.importance ?? 6,
+    source: data.taskId ? `engineering:${data.taskId}` : 'engineering',
+    agentId: data.agentId,
+  });
 }

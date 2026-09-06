@@ -1282,6 +1282,100 @@ export type Squad = typeof squads.$inferSelect;
 export type NewSquad = typeof squads.$inferInsert;
 export type SquadAgent = typeof squadAgents.$inferSelect;
 
+// ─── MCP Server Registry ────────────────────────────────────────────────────
+// Model Context Protocol layer. Servers are registered per-company; tools are
+// cataloged per server; execution dispatches to the existing connector-action
+// chain for known providers (github | gmail | linear) so capability checks,
+// approvals, outcomes and audit are reused — never a parallel permission model.
+export const mcpServers = pgTable(
+  'mcp_servers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    provider: text('provider').notNull(), // github | gmail | linear | custom
+    transport: text('transport').notNull().default('connector'), // connector | streamable_http (custom only)
+    endpoint: text('endpoint'), // for custom servers; never required for connector transport
+    authType: text('auth_type').notNull().default('connector_oauth'),
+    credentialRef: text('credential_ref'), // reference only — never a secret value
+    status: text('status').notNull().default('unconfigured'), // unconfigured | connected | degraded | error
+    riskLevel: text('risk_level').notNull().default('medium'), // low | medium | high | critical
+    allowedAgents: jsonb('allowed_agents').notNull().default([]), // agent ids; empty = any agent in org
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('mcp_servers_org_idx').on(t.orgId)],
+);
+
+export const mcpTools = pgTable(
+  'mcp_tools',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    serverId: uuid('server_id')
+      .notNull()
+      .references(() => mcpServers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // e.g. create_issue
+    description: text('description'),
+    inputSchema: jsonb('input_schema').notNull().default({}),
+    riskLevel: text('risk_level').notNull().default('medium'),
+    requiredCapability: text('required_capability'), // e.g. github.create_issues — enforced server-side
+    requiresApproval: boolean('requires_approval').notNull().default(false),
+    supportsDryRun: boolean('supports_dry_run').notNull().default(false),
+    idempotent: boolean('idempotent').notNull().default(false),
+    auditRequired: boolean('audit_required').notNull().default(true),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('mcp_tools_org_idx').on(t.orgId),
+    index('mcp_tools_server_idx').on(t.serverId),
+    uniqueIndex('mcp_tools_server_name_unique').on(t.serverId, t.name),
+  ],
+);
+
+// ─── Capability Registry (build-vs-buy) ────────────────────────────────────
+// Answers "do we already have something that can do this?" for the Executive
+// Agent and Engineering Manager before any new build is planned.
+export const capabilityRegistry = pgTable(
+  'capability_registry',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    category: text('category').notNull(), // connector | agent | workflow | code | service | tool
+    provider: text('provider'), // e.g. github | gmail | linear | internal
+    capability: text('capability'), // capability string when backed by the capability model
+    location: text('location'), // route / service / tool id / playbook slug
+    ownerAgentId: uuid('owner_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    reusable: boolean('reusable').notNull().default(true),
+    status: text('status').notNull().default('available'), // available | in_development | deprecated
+    source: text('source').notNull().default('builtin'), // builtin | connector | engineering | manual
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('capability_registry_org_idx').on(t.orgId),
+    uniqueIndex('capability_registry_org_name_unique').on(t.orgId, t.name),
+  ],
+);
+
+export type McpServer = typeof mcpServers.$inferSelect;
+export type NewMcpServer = typeof mcpServers.$inferInsert;
+export type McpTool = typeof mcpTools.$inferSelect;
+export type NewMcpTool = typeof mcpTools.$inferInsert;
+export type CapabilityEntry = typeof capabilityRegistry.$inferSelect;
+export type NewCapabilityEntry = typeof capabilityRegistry.$inferInsert;
+
 // ─── Type exports ───────────────────────────────────────────────────────────
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;

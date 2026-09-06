@@ -54,6 +54,8 @@ import { registerSimulationRoutes } from './routes/simulation.js';
 import { registerKnowledgeRoutes } from './routes/knowledge.js';
 import { registerSquadRoutes } from './routes/squads.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
+import { registerMcpRoutes } from './routes/mcp.js';
+import { registerCapabilityRoutes } from './routes/capabilities.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
@@ -278,6 +280,8 @@ export async function buildApp(
   registerKnowledgeRoutes(app, deps);
   registerSquadRoutes(app, deps);
   registerAnalyticsRoutes(app, deps);
+  registerMcpRoutes(app, deps);
+  registerCapabilityRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce

@@ -299,3 +299,46 @@ handler's structured `unauthorized` error with HTTP 404 **by design** — the gu
 internal surface until `INTERNAL_TOKEN` is set in prod (unset today; ops gap, not a code
 issue). Bogus routes return `not_found` with a `request_id`, confirming the briefing routes
 are registered and live. Web `orq8.vercel.app` 200.
+---
+
+## 8. Session record — 2026-09-06 (Engineering Department + MCP + Capability Registry)
+
+**Committed** `a8a3a0f`: knowledge graph + decision memory (F6), per-agent autonomy levels
+(F12, server-side in task executor + connector actions), squads (F13) with web page, Gmail
+OAuth mirroring GitHub (stateless, encrypted credentials), migrations `0008`–`0011`.
+
+**Engineering Department / Software Factory (this session)**:
+
+- **Engineering org model**: all three playbooks now seed a real Engineering department with
+  positions — Startup: Engineering Manager, Software Architect, Backend Engineer, Frontend
+  Engineer, QA Engineer, DevOps/Security; E-commerce + Agency: Engineering Manager,
+  Full-Stack Engineer, QA Engineer. Positions carry real capability strings (incl. connector
+  capabilities `github.*`) + tool lists so they participate in the capability model, not just
+  personas. Seeding is idempotent via the existing playbook marker; new orgs only.
+- **MCP layer** (`services/mcp.ts`, `routes/mcp.ts`, migration `0012`): per-org MCP server
+  registry + tool catalog. Connector-backed providers (github/gmail/linear) are seeded with
+  real tool catalogs and **execute through the existing connector-action chain** (capability
+  check → approval gate → provider call → connector_outcome → audit). Custom servers are
+  discoverable but return a structured `transport_unsupported` error — no fake MCP protocol.
+  Endpoints: `GET/POST /v1/mcp/servers`, `GET /v1/mcp/discover`, `GET /v1/mcp/permissions/:id`,
+  `POST /v1/mcp/execute`.
+- **Capability registry (build-vs-buy)** (`services/capability-registry.ts`, migration `0012`):
+  per-org registry seeded idempotently with 15 built-ins (connectors, agents, services,
+  engineering workspace); engineering completions can register reusable capabilities
+  (`source: engineering`). Endpoints: `GET/POST /v1/capabilities`, `GET /v1/capabilities/search`.
+- **Engineering memory**: completed/failed engineering tasks write a semantic `lesson` into
+  company memory via `recordEngineeringLesson`.
+- **Agent context**: agents now receive bounded MCP tool discovery + reusable capability list
+  in their prompt (discover before building, search before building).
+- **Sandbox runs list**: `GET /v1/sandbox-runs` added (was detail-only).
+- **Web**: `/app/engineering` (agents, tasks, repos, sandbox runs, capability registry search,
+  MCP summary — all real API data) and `/app/mcp` (register servers, per-agent tool discovery,
+  read-tool execution, approval/risk visibility). Sidebar entries added.
+- **Tests**: `test/mcp-capability.test.ts` — catalog gating, permission filtering, execution
+  rejection paths, capability idempotency + org isolation (DB-gated). Full API suite: **367
+  passing**. Web typecheck + production build clean.
+
+**Remaining (unchanged ops gap)**: apply migrations `0003→0005→0004→0008→0012` to prod,
+set `INTERNAL_TOKEN` + OAuth/embedding/email config, then live E2E connector tests and
+scheduled-job verification. Live probes of the engineering/MCP routes are blocked by the same
+prod-credential gap (routes are auth-gated and register cleanly).

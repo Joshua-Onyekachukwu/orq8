@@ -27,6 +27,8 @@ import {
 import type { AppConfig } from '@orq8/core';
 import { retrieveSemanticForContext } from './memory.js';
 import { retrieveKnowledgeContext, formatKnowledgeContext } from './knowledge-graph.js';
+import { discoverMcpTools } from './mcp.js';
+import { listCapabilities } from './capability-registry.js';
 
 export interface AgentContext {
   /** Company constitution / values */
@@ -51,6 +53,10 @@ export interface AgentContext {
   team: { name: string; department?: string } | null;
   /** Recent activity for this agent */
   recentActivity: Array<{ summary: string; type: string; occurredAt: Date }>;
+  /** MCP tools the agent may invoke (server-side filtered, bounded) */
+  mcpTools: Array<{ name: string; serverName: string; provider: string; requiresApproval: boolean; riskLevel: string }>;
+  /** Reusable company capabilities — search before building (bounded) */
+  capabilities: Array<{ name: string; category: string; status: string }>;
 }
 
 /**
@@ -139,6 +145,35 @@ export async function buildAgentContext(
   const agentData = agent[0];
   const authority = (agentData?.authority as Record<string, unknown>) ?? {};
 
+  // 9. MCP tool discovery + capability registry — the agent's external tool
+  //    surface and the build-vs-buy catalog. Both bounded and org-scoped.
+  const agentCapabilities = Array.isArray(agentData?.capabilities) ? (agentData.capabilities as string[]) : [];
+  let mcpTools: AgentContext['mcpTools'] = [];
+  let capabilities: AgentContext['capabilities'] = [];
+  if (agentData) {
+    try {
+      const discovered = await discoverMcpTools(db, orgId, agentId, agentCapabilities);
+      mcpTools = discovered.slice(0, 12).map((t) => ({
+        name: t.name,
+        serverName: t.serverName,
+        provider: t.provider,
+        requiresApproval: t.requiresApproval,
+        riskLevel: t.riskLevel,
+      }));
+    } catch {
+      mcpTools = [];
+    }
+    try {
+      const registry = await listCapabilities(db, orgId);
+      capabilities = registry
+        .filter((c) => c.status === 'available')
+        .slice(0, 10)
+        .map((c) => ({ name: c.name, category: c.category, status: c.status }));
+    } catch {
+      capabilities = [];
+    }
+  }
+
   // Resolve team membership so the Executive Agent always sees current org structure
   let teamInfo: { name: string; department?: string } | null = null;
   if (agentData?.teamId) {
@@ -196,6 +231,8 @@ export async function buildAgentContext(
       type: a.type,
       occurredAt: a.occurredAt,
     })),
+    mcpTools,
+    capabilities,
   };
 }
 
@@ -255,6 +292,22 @@ export function buildContextPrompt(
   // Pending approvals
   if (ctx.pendingApprovals > 0) {
     parts.push(`## Pending Approvals: ${ctx.pendingApprovals}\nSome actions are waiting for founder approval.`);
+  }
+
+  // MCP tools the agent may invoke — discover, don't guess
+  if (ctx.mcpTools.length > 0) {
+    const toolList = ctx.mcpTools
+      .map(t => `- ${t.name} (${t.provider} via ${t.serverName}, ${t.riskLevel} risk${t.requiresApproval ? ', approval required' : ''})`)
+      .join('\n');
+    parts.push(`## Available MCP Tools\n${toolList}\n\n(Tools are permission-checked server-side. If a task needs an external action, prefer these tools over inventing one. External writes require approval.)`);
+  }
+
+  // Reusable capabilities — search before building
+  if (ctx.capabilities.length > 0) {
+    const capList = ctx.capabilities
+      .map(c => `- ${c.name} [${c.category}]`)
+      .join('\n');
+    parts.push(`## Reusable Company Capabilities\n${capList}\n\n(Check this list before planning new work — reuse an existing capability instead of building a new one when possible.)`);
   }
 
   // Department
