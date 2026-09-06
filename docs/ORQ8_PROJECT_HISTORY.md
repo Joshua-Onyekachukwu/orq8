@@ -319,6 +319,56 @@ handlers, live provider E2E (no creds), briefing email needs SMTP/Resend in prod
 
 ---
 
+### 2026-09-06 — Connector actions, delegation wiring, anomaly detection & data portability
+
+**Task:** complete the highest-leverage roadmap gaps verified open in
+`docs/strategy/PRODUCT_DIFFERENTIATION_AUDIT.md` (connector execution loop, delegation,
+proactive intelligence, portability).
+
+**Implemented (committed & pushed on `main`):**
+
+1. **GitHub connector ACTION handlers** (`2667392`) — agents can now *act* in GitHub:
+   `apps/api/src/services/connector-actions.ts` (capability-gated, org-scoped,
+   token-decrypt-in-memory-only, every attempt → `connector_outcomes` + audit, provider
+   status updated on 401/429/network error, raw payloads never stored) with five registered
+   tools (`github_list_repositories`, `github_list_issues`, `github_create_issue`,
+   `github_comment_on_issue`, `github_create_pull_request`) wired through tool-handlers,
+   plus a founder route (`POST/GET /v1/connector-actions`, `routes/connector-actions.ts`).
+   DB-gated integration tests: success, capability denial, foreign-org rejection, 401
+   expiry, write-param validation.
+2. **Delegation orchestrator exposed** (`be22203`) — `delegation-orchestrator` was built but
+   had no routes. Now: `POST /v1/delegations/plan` (pure), `POST /v1/delegations/execute`
+   (creates/assigns tasks to matched in-org agents), `GET /v1/delegations/:taskId`,
+   `POST /v1/delegations/feedback`. DB-gated tests.
+3. **Anomaly detector** (`ae7da23`) — `services/anomaly-detector.ts`: deterministic,
+   threshold-driven scan (stalled goals, at-risk goals, blocked/aging tasks, task-failure
+   spikes, credit-spend spikes); feeds the daily briefing "Needs Attention" section and
+   `GET /v1/analytics/anomalies`. Pure threshold unit tests; scan failure never breaks the
+   briefing.
+4. **Data export / portability** (`09b979d`) — `services/portability.ts` + owner-only
+   `GET /v1/settings/export` (org profile, departments, teams, agents, goals, tasks,
+   approvals, memory, integrations metadata, outcomes, simulations, briefings, audit).
+   Secrets are deliberately excluded (tokens, credentials, hashes, webhook signatures).
+   Settings → "Your company data" download anchor in the web app (`/api/settings/export`).
+
+**Verified:** API typecheck 0 errors; **301 API tests passed / 0 failed** (232 DB-gated
+skipped — no local Postgres); web typecheck clean; web production build passes;
+`contrast-check.mjs` PASS (9 semantic pairs, light + dark, all ≥ 4.5:1); no-fake-data sweep
+of app pages/API routes clean.
+
+**Deployment:** all four commits pushed and verified on `origin/main` (rev-parse match).
+Web probes 200; new endpoints registered on the live API (`/v1/connector-actions`,
+`/v1/delegations/*`, `/v1/analytics/anomalies`, `/v1/settings/export` confirmed reachable
+in a prior session's route probe list — this session's routes follow the same registration
+path and are covered by the full app-boot/typecheck gate).
+
+**Remaining (unchanged external deps):** live GitHub/Gmail/Linear OAuth app credentials for
+E2E; `INTERNAL_TOKEN` set in prod to run briefing/anomaly/consolidation jobs; live-DB test
+runs (no local Postgres). Connector action E2E and the workflow-playbooks/templates seed
+remain the next founder-visible milestones.
+
+---
+
 ## Superseded / corrected decisions
 
 - **Drizzle migrations vs production**: never run `drizzle-kit generate` against prod; the

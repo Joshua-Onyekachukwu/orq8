@@ -49,16 +49,22 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   (heuristic engine, draft→proposed→reviewed→applied, apply gated), analytics events.
 - **AI runtime**: NVIDIA multi-key pool + failover, OpenRouter, Ollama, model fallbacks,
   timeout budgets; quality pipeline / QA / learning system (prior sessions).
-- **Tests**: 192 API unit tests passing (25 files); web typecheck + production build pass.
+- **Tests**: 301 API tests passing / 0 failing (35 files; 232 DB-gated skips — no local
+  Postgres); web typecheck + production build pass; `test:contrast` PASS (9 semantic pairs,
+  light + dark).
 
 ## 2. What is partially complete
 
 | Item | State | Gap |
 |---|---|---|
 | GitHub OAuth | Real flow (state/exchange/encrypt/health/disconnect) — Task 1 | Needs live `GITHUB_CLIENT_ID/SECRET` for live E2E |
-| Gmail/Linear connectors | Generic OAuth architecture + Linear webhook receiver | No Gmail/Linear OAuth apps configured; no connector ACTION implementations yet |
-| Engineering | Full data layer, org-scoped CRUD, PR flow | **No command executor** — sandbox runs are records only; no Monaco UI |
-| Simulation | Engine works, apply gated + audited | **Apply does not materialize org changes** (no named proposal spec) |
+| Gmail/Linear connectors | Generic OAuth architecture + Linear webhook receiver | No Gmail/Linear OAuth apps configured; GitHub action handlers live, Gmail/Linear actions not yet |
+| Engineering | Full data layer, org-scoped CRUD, PR flow, **sandboxed executor (Task 4)** | No Monaco UI; container/gVisor isolation is the production boundary |
+| Simulation | Engine works, apply gated + audited | **Apply now materializes org changes** (named proposal + approval); what-if inputs still hand-entered |
+| Connector actions (GitHub) | **DONE (2026-09-06)** — 5 capability-gated action tools + founder route + outcomes/audit | Live E2E needs GitHub OAuth creds; Gmail/Linear actions not implemented |
+| Delegation orchestrator | **DONE (2026-09-06)** — plan/execute/monitor/feedback routes now expose the multi-agent substrate | No founder-facing squad UI yet |
+| Proactive intelligence | **DONE (2026-09-06)** — anomaly detector (goals/tasks/failure/spend) feeds briefing + `GET /v1/analytics/anomalies` | Scheduled runs need `INTERNAL_TOKEN` in prod |
+| Portability | **DONE (2026-09-06)** — owner export endpoint + Settings → download | No re-import path yet |
 | SSE | Real, org-isolated, heartbeats, caps | No event replay after reconnect; no load test |
 | Reporting | Weekly report + admin reporting + **daily briefing (new)** | Briefing email respects prefs; no monthly PA layer yet |
 | Workforce optimization | QA/learning pipeline exists | Full evaluate→diagnose→improve→replace loop UI missing |
@@ -115,9 +121,20 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   `OrgStructure` block (departments/teams/owners/members/blocked+overdue work) built
   org-scoped and injected into the exec-agent prompt; pure formatter tests + DB-gated
   isolation tests.
-- **P2 — Connector actions (new)**: implement real GitHub/Gmail/Linear ACTION handlers
-  (list repos, create PR, send email …) behind `canAgentUseCapability` + `recordOutcome`;
-  wire into tool-handlers so agents can actually use connectors.
+- **P1 — Connector action handlers — GitHub DONE (2026-09-06, `2667392`)**: five
+  capability-gated action tools (`github_list_repositories/issues`, `github_create_issue`,
+  `github_comment_on_issue`, `github_create_pull_request`) behind
+  `canAgentUseCapability`, decrypt-token-in-memory-only, every attempt → `connector_outcomes`
+  + audit, provider status on 401/429/network errors; founder route `POST/GET
+  /v1/connector-actions`; DB-gated tests. Gmail/Linear actions remain (no OAuth apps).
+- **P1 — Delegation orchestrator wired (2026-09-06, `be22203`)**: `POST /v1/delegations/plan`,
+  `POST /v1/delegations/execute`, `GET /v1/delegations/:taskId`, `POST /v1/delegations/feedback`
+  — the built-but-unreachable multi-agent substrate now has doors.
+- **P1 — Proactive intelligence (2026-09-06, `ae7da23`)**: anomaly detector (stalled/at-risk
+  goals, blocked tasks, failure + spend spikes) → briefing "Needs Attention" +
+  `GET /v1/analytics/anomalies`.
+- **P2 — Portability (2026-09-06, `09b979d`)**: owner-only `GET /v1/settings/export` JSON
+  (secrets excluded) + Settings → "Your company data" download.
 - **P2 — Task 8: Team-scoped goals/tasks** — **DONE** (§5.3): `team_id` on goals + tasks
   (migration `0006`), in-org team validation on create/update, `team_id` list filters
   (web proxies now forward params), team cards show goals + tasks.
@@ -244,17 +261,20 @@ Also present locally: `NEXT_PUBLIC_POSTHOG_KEY` in web/.env.production; `NODE_EN
 ## 7. Next tasks (ordered)
 
 1. ~~Task 1 — GitHub OAuth~~ **DONE** (`f588380`); remaining: live creds + E2E.
-2. ~~Task 3 — Webhook receivers~~ **DONE (this session)**; remaining: live provider
-   configuration + connector ACTION handlers.
-3. **Connector action handlers** — implement GitHub/Gmail/Linear actions behind
-   `canAgentUseCapability`, recording `connectorOutcomes` (unblocks the agent→connector loop).
-4. Task 6 — Team/department integration test suite.
-5. Task 7 — Executive Agent team awareness prompt layer.
-6. Task 4 — Sandboxed command executor.
-7. Task 5 — Simulation apply.
-8. Task 2 — Connector health/refresh/reconnect UI.
-9. Task 8 — Team-scoped goals/tasks.
-10. Task 9/10 — Apply migrations (`0003`, `0004`), deploy, smoke test (needs credentials).
+2. ~~Task 3 — Webhook receivers~~ **DONE**; remaining: live provider configuration.
+3. ~~Connector action handlers (GitHub)~~ **DONE** (`2667392`); remaining: Gmail/Linear
+   OAuth apps + action handlers, live E2E with real creds.
+4. ~~Task 6 — Team/department integration test suite~~ **DONE**.
+5. ~~Task 7 — Executive Agent team awareness~~ **DONE**.
+6. ~~Task 4 — Sandboxed command executor~~ **DONE**; production container/gVisor isolation
+   documented as the remaining boundary.
+7. ~~Task 5 — Simulation apply~~ **DONE** (approval-gated materialization); simulation v2
+   (live org aggregates as inputs) remains.
+8. ~~Delegation wiring / anomaly detector / portability~~ **DONE (2026-09-06)**.
+9. **Task 2 — Connector health/refresh/reconnect UI** — health + disconnect routes exist;
+   full lifecycle UI to build.
+10. Task 9/10 — Apply migrations (`0003`, `0005`, `0004`), deploy, smoke test (needs
+    credentials); set `INTERNAL_TOKEN` + `GITHUB_CLIENT_ID/SECRET` in prod.
 
 **Pushed**: `530ff60` is on `origin/main` (verified — fetch + rev-parse match). Pushing triggers
 a Vercel build of `main`. **Prod migration order: 0003 → 0005 → 0004** (0004 references
