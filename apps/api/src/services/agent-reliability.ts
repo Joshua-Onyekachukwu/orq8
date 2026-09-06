@@ -21,6 +21,21 @@ import { tasks, agents, activityEvents, companyMemory } from '@orq8/db';
 
 export type AutonomyLevel = 'trusted' | 'watch' | 'restricted' | 'paused';
 
+export interface PerformanceHistoryWindow {
+  /** Trailing window in days (7, 30 or 90). */
+  windowDays: 7 | 30 | 90;
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  revisionTasks: number;
+  completionRate: number;
+  failureRate: number;
+  revisionRate: number;
+  averageCostPerTask: number;
+  /** True when this window has no activity — UI should say so, never guess. */
+  noData: boolean;
+}
+
 export interface ReliabilityProfile {
   agentId: string;
   agentName: string;
@@ -48,6 +63,9 @@ export interface ReliabilityProfile {
   // Trend
   recentFailureCount: number; // last 10 tasks
   trend: 'improving' | 'stable' | 'declining';
+
+  // Time-window history (7/30/90 days) for performance-over-time views
+  history: PerformanceHistoryWindow[];
 
   // Autonomy
   autonomyLevel: AutonomyLevel;
@@ -95,11 +113,10 @@ export async function calculateReliabilityProfile(
     .where(and(eq(activityEvents.agentId, agentId), eq(activityEvents.orgId, orgId)))
     .orderBy(desc(activityEvents.occurredAt));
 
+  const history = buildHistoryWindows(agentTasks, events, Date.now());
+
   const revisions = events.filter((e) => e.type.includes('revision')).length;
   const escalations = events.filter((e) => e.type.includes('escalat')).length;
-
-  // Real QA scores — parsed from stored learning-memory evidence written by
-  // the quality pipeline ("QA score: N" per evaluated execution).
   const qaEntries = await db
     .select({ content: companyMemory.content })
     .from(companyMemory)
@@ -171,11 +188,50 @@ export async function calculateReliabilityProfile(
     totalCreditsUsed: totalCost,
     recentFailureCount: recentFailures,
     trend,
+    history,
     autonomyLevel,
     autonomyReason,
     recommendation,
     recommendationReason,
   };
+}
+
+// ─── Time-window history (pure, testable) ───────────────────────────────────
+
+/**
+ * Bucket tasks + revision events into trailing 7/30/90-day windows. Pure
+ * function over already-loaded rows so the window math is unit-testable
+ * without a database. A window with zero tasks AND zero events is marked
+ * `noData` — callers must say "no data" rather than presenting a zero as a
+ * real score.
+ */
+export function buildHistoryWindows(
+  agentTasks: Array<{ createdAt: Date; status: string; cost: number | null }>,
+  events: Array<{ occurredAt: Date; type: string }>,
+  now = Date.now(),
+): PerformanceHistoryWindow[] {
+  return [7, 30, 90].map((days) => {
+    const start = new Date(now - days * 24 * 60 * 60 * 1000);
+    const windowTasks = agentTasks.filter((t) => t.createdAt.getTime() >= start.getTime());
+    const wCompleted = windowTasks.filter((t) => t.status === 'completed').length;
+    const wFailed = windowTasks.filter((t) => t.status === 'failed').length;
+    const wCost = windowTasks.reduce((sum, t) => sum + (t.cost || 0), 0);
+    const wEvents = events.filter((e) => e.occurredAt.getTime() >= start.getTime());
+    const wRevisions = wEvents.filter((e) => e.type.includes('revision')).length;
+    const wTotal = windowTasks.length;
+    return {
+      windowDays: days as PerformanceHistoryWindow['windowDays'],
+      totalTasks: wTotal,
+      completedTasks: wCompleted,
+      failedTasks: wFailed,
+      revisionTasks: wRevisions,
+      completionRate: wTotal > 0 ? Math.round((wCompleted / wTotal) * 100) : 0,
+      failureRate: wTotal > 0 ? Math.round((wFailed / wTotal) * 100) : 0,
+      revisionRate: wTotal > 0 ? Math.round((wRevisions / wTotal) * 100) : 0,
+      averageCostPerTask: wTotal > 0 ? Math.round(wCost / wTotal) : 0,
+      noData: wTotal === 0 && wEvents.length === 0,
+    };
+  });
 }
 
 // ─── Autonomy Determination ─────────────────────────────────────────────────
@@ -285,6 +341,18 @@ function createEmptyProfile(agentId: string, name: string, role: string): Reliab
     totalCreditsUsed: 0,
     recentFailureCount: 0,
     trend: 'stable',
+    history: [7, 30, 90].map((days) => ({
+      windowDays: days as PerformanceHistoryWindow['windowDays'],
+      totalTasks: 0,
+      completedTasks: 0,
+      failedTasks: 0,
+      revisionTasks: 0,
+      completionRate: 0,
+      failureRate: 0,
+      revisionRate: 0,
+      averageCostPerTask: 0,
+      noData: true,
+    })),
     autonomyLevel: 'watch',
     autonomyReason: 'No task history',
     recommendation: 'MONITOR',

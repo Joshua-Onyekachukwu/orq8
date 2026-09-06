@@ -45,10 +45,24 @@ interface ReliabilityProfile {
   totalCreditsUsed: number;
   recentFailureCount: number;
   trend: "improving" | "stable" | "declining";
+  history: PerformanceHistoryWindow[];
   autonomyLevel: "trusted" | "watch" | "restricted" | "paused";
   autonomyReason: string;
   recommendation: "KEEP" | "MONITOR" | "IMPROVE" | "RETRAIN / ADJUST" | "REPLACE / ESCALATE";
   recommendationReason: string;
+}
+
+interface PerformanceHistoryWindow {
+  windowDays: 7 | 30 | 90;
+  totalTasks: number;
+  completedTasks: number;
+  failedTasks: number;
+  revisionTasks: number;
+  completionRate: number;
+  failureRate: number;
+  revisionRate: number;
+  averageCostPerTask: number;
+  noData: boolean;
 }
 
 /* ── Helpers ── */
@@ -97,6 +111,7 @@ export default function PerformancePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "attention">("all");
+  const [historyWindow, setHistoryWindow] = useState<7 | 30 | 90>(30);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -303,6 +318,56 @@ export default function PerformancePage() {
                     <p className="text-3xs font-semibold uppercase tracking-wide text-orq8-green">Recommendation</p>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-ink">{selected.recommendationReason}</p>
+                </div>
+
+                {/* Performance history */}
+                <div className="mt-5 rounded-lg border border-hairline bg-white p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
+                      <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Performance over time</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {([7, 30, 90] as const).map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setHistoryWindow(d)}
+                          className={`rounded-full px-2.5 py-1 text-3xs font-medium transition-colors ${historyWindow === d ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
+                        >
+                          {d}d
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {(() => {
+                    const win = selected.history?.find(h => h.windowDays === historyWindow);
+                    if (!win) return <p className="mt-2 text-xs text-muted">History is not available yet — it builds from real task and revision data over time.</p>;
+                    if (win.noData) {
+                      return (
+                        <p className="mt-2 text-xs text-muted">
+                          No recorded activity in the last {historyWindow} days — the window is empty rather than estimated.
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                        {[
+                          { label: "Tasks", value: String(win.totalTasks), hint: "in window" },
+                          { label: "Completion", value: pct(win.completionRate), hint: `${win.completedTasks} completed` },
+                          { label: "Failures", value: pct(win.failureRate), hint: `${win.failedTasks} failed` },
+                          { label: "Revised", value: pct(win.revisionRate), hint: `${win.revisionTasks} revised` },
+                          { label: "Cost / task", value: formatCredits(win.averageCostPerTask), hint: "credit usage" },
+                        ].map(m => (
+                          <div key={m.label} className="rounded-lg border border-hairline bg-canvas/50 p-2.5">
+                            <p className="text-3xs font-medium uppercase tracking-wide text-muted">{m.label}</p>
+                            <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">{m.value}</p>
+                            <p className="text-3xs text-muted">{m.hint}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Metrics */}

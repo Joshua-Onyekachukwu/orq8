@@ -112,6 +112,7 @@ export default function OnboardingPage() {
   const [activation, setActivation] = useState<ActivationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [progressLabel, setProgressLabel] = useState("");
   const [isLoadingState, setIsLoadingState] = useState(true);
   const [editedAnalysis, setEditedAnalysis] = useState<CompanyAnalysis | null>(null);
@@ -188,6 +189,13 @@ export default function OnboardingPage() {
       if (result?.activation) {
         setActivation(result.activation);
         setPhase("done");
+        // If the plan capped the seeded workforce below the playbook size,
+        // tell the founder rather than silently shipping a smaller team.
+        if (result.agentLimitApplied) {
+          setNotice(
+            `Your current plan allows ${result.agentLimitApplied.to} AI employees, so the ${result.agentLimitApplied.from}-employee playbook was trimmed to fit — upgrade later to unlock the full team.`,
+          );
+        }
         analytics.onboardingCompleted(
           result.activation.departments?.length ?? 0,
           result.activation.agents?.length ?? 0,
@@ -797,6 +805,11 @@ export default function OnboardingPage() {
             <p className="mt-3 max-w-md text-white/60">
               ORQ8 has built your AI workforce and is preparing your command center.
             </p>
+            {notice && (
+              <div className="mt-5 max-w-md rounded-xl border border-orq8-lime/40 bg-orq8-lime/10 px-4 py-3 text-sm text-orq8-lime">
+                {notice}
+              </div>
+            )}
             <div className="mt-10 grid w-full max-w-lg grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Departments" value={activation.departments.length} />
               <Stat label="AI Employees" value={activation.agents.length} />

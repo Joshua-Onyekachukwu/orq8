@@ -533,6 +533,72 @@ export default function SimulationPage() {
                         </div>
                       </div>
 
+                      {/* Full comparison table — Current (live) vs Projected (simulated) */}
+                      <div className="mt-5 overflow-x-auto">
+                        <table className="w-full min-w-[520px] border-collapse text-xs">
+                          <thead>
+                            <tr className="border-b border-hairline text-left text-3xs font-semibold uppercase tracking-wide text-muted">
+                              <th className="py-2 pr-4">Metric</th>
+                              <th className="py-2 pr-4">Current</th>
+                              <th className="py-2 pr-4">Projected</th>
+                              <th className="py-2">Change</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-hairline">
+                            {[
+                              {
+                                label: "AI employees",
+                                current: result.metrics.currentAgents,
+                                projected: result.metrics.proposedAgents,
+                                fmt: (v: number) => String(v),
+                              },
+                              {
+                                label: "Tasks / week",
+                                current: result.metrics.currentTasksPerWeek,
+                                projected: result.metrics.proposedTasksPerWeek,
+                                fmt: (v: number) => String(v),
+                              },
+                              {
+                                label: "Utilization (tasks/agent)",
+                                current: result.metrics.agentUtilization,
+                                projected: result.metrics.projectedUtilization,
+                                fmt: (v: number) => String(v),
+                              },
+                              {
+                                label: "Weekly cost",
+                                current: result.projectedCost.currentWeeklyCredits,
+                                projected: result.projectedCost.projectedWeeklyCredits,
+                                fmt: (v: number) => formatCredits(v),
+                              },
+                              {
+                                label: "Completion rate",
+                                current: result.baseline.completionRate,
+                                projected: result.baseline.completionRate,
+                                fmt: (v: number) => `${v}%`,
+                                unchanged: true,
+                              },
+                            ].map(row => {
+                              const change = row.unchanged
+                                ? "—"
+                                : row.current === 0
+                                  ? (row.projected === 0 ? "0%" : "—")
+                                  : `${row.projected > row.current ? "+" : ""}${Math.round(((row.projected - row.current) / row.current) * 100)}%`;
+                              return (
+                                <tr key={row.label}>
+                                  <td className="py-2 pr-4 font-medium text-ink">{row.label}</td>
+                                  <td className="py-2 pr-4 font-mono tabular-nums text-muted">{row.fmt(row.current)}</td>
+                                  <td className="py-2 pr-4 font-mono tabular-nums text-ink">{row.fmt(row.projected)}</td>
+                                  <td className="py-2 font-mono tabular-nums text-muted">{change}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <p className="mt-2 text-3xs text-muted">
+                          Completion rate is carried from your live baseline — this engine models workload, workforce and cost, not quality outcomes. Metrics under <span className="font-medium">Projected</span> are simulated, never actual results.
+                        </p>
+                      </div>
+
                       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted">
                         <span>Monthly projection: <span className="font-medium text-ink">{formatCredits(result.projectedCost.monthlyProjectionCents)}</span></span>
                         <span>Utilization: <span className="font-medium text-ink">{result.metrics.agentUtilization} → {result.metrics.projectedUtilization} tasks/agent</span></span>

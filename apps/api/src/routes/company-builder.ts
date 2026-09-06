@@ -154,7 +154,10 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
     if (!parsed.success) throw validation(parsed.error.flatten());
 
     try {
-      const result = await playbooks.seedPlaybook(db, ctx.orgId, ctx.userId, parsed.data.slug);
+      // Plan-aware: never exceed the org's AI-employee capacity (§5.4). The
+      // playbook seeds its most important roles and reports the trim so the
+      // founder can see exactly why the team is smaller than the template.
+      const result = await playbooks.seedPlaybook(db, ctx.orgId, ctx.userId, parsed.data.slug, { enforceAgentLimit: true });
       return { data: { result } };
     } catch (error) {
       logger.error({ err: error, orgId: ctx.orgId, slug: parsed.data.slug }, 'Playbook seed failed');
