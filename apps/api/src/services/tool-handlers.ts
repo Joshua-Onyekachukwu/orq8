@@ -23,6 +23,8 @@ import {
   ConnectorActionError,
   type GithubActionName,
 } from './connector-actions.js';
+import { dispatchGmailAction } from './connector-gmail.js';
+import { dispatchLinearAction } from './connector-linear.js';
 import { chat, chatJson } from './llm.js';
 import { appendAudit } from './audit.js';
 import { broadcastToOrg } from './realtime.js';
@@ -67,6 +69,8 @@ export function registerBuiltinToolHandlers(): void {
   // GitHub connector actions (real execution against the org's GitHub connection)
   registerToolHandler('github_list_repositories', (params, ctx, _config, db) =>
     handleGithubConnectorAction('list_repositories', params, ctx, db));
+  registerToolHandler('github_read_file', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('read_file', params, ctx, db));
   registerToolHandler('github_list_issues', (params, ctx, _config, db) =>
     handleGithubConnectorAction('list_issues', params, ctx, db));
   registerToolHandler('github_create_issue', (params, ctx, _config, db) =>
@@ -75,6 +79,26 @@ export function registerBuiltinToolHandlers(): void {
     handleGithubConnectorAction('comment_on_issue', params, ctx, db));
   registerToolHandler('github_create_pull_request', (params, ctx, _config, db) =>
     handleGithubConnectorAction('create_pull_request', params, ctx, db));
+
+  // Gmail connector actions — draft-by-default, send approval-gated
+  registerToolHandler('gmail_create_draft', (params, ctx, _config, db) =>
+    handleGmailConnectorAction('create_draft', params, ctx, db));
+  registerToolHandler('gmail_send_draft', (params, ctx, _config, db) =>
+    handleGmailConnectorAction('send_draft', params, ctx, db));
+  registerToolHandler('gmail_search', (params, ctx, _config, db) =>
+    handleGmailConnectorAction('search', params, ctx, db));
+
+  // Linear connector actions
+  registerToolHandler('linear_list_issues', (params, ctx, _config, db) =>
+    handleLinearConnectorAction('list_issues', params, ctx, db));
+  registerToolHandler('linear_create_issue', (params, ctx, _config, db) =>
+    handleLinearConnectorAction('create_issue', params, ctx, db));
+  registerToolHandler('linear_get_issue', (params, ctx, _config, db) =>
+    handleLinearConnectorAction('get_issue', params, ctx, db));
+  registerToolHandler('linear_update_issue', (params, ctx, _config, db) =>
+    handleLinearConnectorAction('update_issue', params, ctx, db));
+  registerToolHandler('linear_archive_issue', (params, ctx, _config, db) =>
+    handleLinearConnectorAction('archive_issue', params, ctx, db));
 }
 
 // ─── Research Tool Handlers ─────────────────────────────────────────────────
@@ -821,6 +845,46 @@ async function handleGithubConnectorAction(
   } catch (error) {
     if (error instanceof ConnectorActionError) {
       // Normalize: the agent should see a clear, safe reason — never a raw token/provider payload.
+      return { ok: false, error: error.message, code: error.code };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Execute a Gmail connector action. Drafts are the default; send is
+ * approval-gated inside connector-gmail.ts. Failures are normalized to safe
+ * structured results.
+ */
+async function handleGmailConnectorAction(
+  action: 'create_draft' | 'send_draft' | 'search',
+  params: Record<string, unknown>,
+  ctx: ToolExecutionContext,
+  db: Db,
+): Promise<unknown> {
+  try {
+    const result = await dispatchGmailAction(db, { orgId: ctx.orgId, agentId: ctx.agentId, userId: ctx.userId, taskId: ctx.taskId }, action, params);
+    return { ok: true, action: result.action, providerResourceId: result.providerResourceId, result: result.result };
+  } catch (error) {
+    if (error instanceof ConnectorActionError) {
+      return { ok: false, error: error.message, code: error.code };
+    }
+    throw error;
+  }
+}
+
+/** Execute a Linear connector action with the same normalization. */
+async function handleLinearConnectorAction(
+  action: 'create_issue' | 'get_issue' | 'update_issue' | 'archive_issue' | 'list_issues',
+  params: Record<string, unknown>,
+  ctx: ToolExecutionContext,
+  db: Db,
+): Promise<unknown> {
+  try {
+    const result = await dispatchLinearAction(db, { orgId: ctx.orgId, agentId: ctx.agentId, userId: ctx.userId, taskId: ctx.taskId }, action, params);
+    return { ok: true, action: result.action, providerResourceId: result.providerResourceId, providerUrl: result.providerUrl, result: result.result };
+  } catch (error) {
+    if (error instanceof ConnectorActionError) {
       return { ok: false, error: error.message, code: error.code };
     }
     throw error;

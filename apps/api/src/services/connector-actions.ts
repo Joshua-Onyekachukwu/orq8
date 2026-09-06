@@ -35,6 +35,7 @@ export const GITHUB_CAPABILITIES = {
   readRepositories: 'read_repositories',
   readIssues: 'read_issues',
   readPullRequests: 'read_pull_requests',
+  readFiles: 'read_files',
   createIssues: 'create_issues',
   commentOnIssues: 'comment_on_issues',
   createPullRequests: 'create_pull_requests',
@@ -359,6 +360,53 @@ export async function githubCommentOnIssue(
   };
 }
 
+/**
+ * Read a file's content + metadata from a repository via the GitHub API.
+ *
+ * Security: the file path is validated — absolute paths, backslashes, and
+ * `..` traversal segments are rejected before any request is made. The file is
+ * fetched from GitHub (contents API); there is no local filesystem access, so
+ * path traversal cannot reach anything outside the repository.
+ */
+export async function githubReadFile(
+  db: Db,
+  ctx: ConnectorActionContext,
+  params: { owner: string; repo: string; path: string; ref?: string },
+): Promise<ConnectorActionResult<unknown>> {
+  const { owner, repo, path } = params;
+  if (!owner || !repo || !path?.trim()) {
+    throw new ConnectorActionError('owner, repo and path are required', 'invalid_params');
+  }
+  if (path.startsWith('/') || path.includes('\\') || path.split('/').includes('..')) {
+    throw new ConnectorActionError('Invalid file path — traversal is not allowed', 'invalid_params');
+  }
+  const ref = params.ref?.trim() ? `?ref=${encodeURIComponent(params.ref.trim())}` : '';
+  const { data } = await githubFetch<{ name: string; path: string; sha: string; size: number; type: string; content?: string; download_url: string | null; html_url: string }>(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.readFiles,
+    'GET',
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}${ref}`,
+  );
+  return {
+    capability: GITHUB_CAPABILITIES.readFiles,
+    action: 'read_file',
+    providerResourceId: data.sha,
+    providerUrl: data.html_url,
+    status: 'success',
+    // Return metadata always; content only when the API returned it (text files).
+    result: {
+      name: data.name,
+      path: data.path,
+      sha: data.sha,
+      size: data.size,
+      type: data.type,
+      downloadUrl: data.download_url,
+      content: data.content ?? null,
+    },
+  };
+}
+
 export async function githubCreatePullRequest(
   db: Db,
   ctx: ConnectorActionContext,
@@ -387,7 +435,7 @@ export async function githubCreatePullRequest(
 
 // ─── Dispatch (used by the API route) ───────────────────────────────────────
 
-export type GithubActionName = 'list_repositories' | 'list_issues' | 'create_issue' | 'comment_on_issue' | 'create_pull_request';
+export type GithubActionName = 'list_repositories' | 'list_issues' | 'read_file' | 'create_issue' | 'comment_on_issue' | 'create_pull_request';
 
 export async function dispatchGithubAction(
   db: Db,
@@ -404,6 +452,13 @@ export async function dispatchGithubAction(
         owner: String(params.owner ?? ''),
         repo: String(params.repo ?? ''),
         state: (params.state as 'open' | 'closed' | 'all' | undefined) ?? 'open',
+      });
+    case 'read_file':
+      return githubReadFile(db, ctx, {
+        owner: String(params.owner ?? ''),
+        repo: String(params.repo ?? ''),
+        path: String(params.path ?? ''),
+        ref: params.ref ? String(params.ref) : undefined,
       });
     case 'create_issue':
       return githubCreateIssue(db, ctx, {
