@@ -251,6 +251,54 @@ export async function listEntities(
     .limit(limit);
 }
 
+/** List org-scoped decisions (decision memory), newest first. */
+export async function listDecisions(
+  db: Db,
+  orgId: string,
+  limit = 100,
+): Promise<CompanyDecision[]> {
+  return db
+    .select()
+    .from(companyDecisions)
+    .where(eq(companyDecisions.orgId, orgId))
+    .orderBy(desc(companyDecisions.createdAt))
+    .limit(limit);
+}
+
+/** List org-scoped relations (graph edges) with both entity names resolved. */
+export async function listRelations(
+  db: Db,
+  orgId: string,
+  limit = 200,
+): Promise<Array<KnowledgeRelation & { fromName: string; toName: string }>> {
+  const rows = await db
+    .select({
+      id: knowledgeRelations.id,
+      orgId: knowledgeRelations.orgId,
+      fromEntityId: knowledgeRelations.fromEntityId,
+      toEntityId: knowledgeRelations.toEntityId,
+      relationType: knowledgeRelations.relationType,
+      source: knowledgeRelations.source,
+      createdAt: knowledgeRelations.createdAt,
+      fromName: knowledgeEntities.name,
+    })
+    .from(knowledgeRelations)
+    .innerJoin(knowledgeEntities, eq(knowledgeEntities.id, knowledgeRelations.fromEntityId))
+    .where(eq(knowledgeRelations.orgId, orgId))
+    .orderBy(desc(knowledgeRelations.createdAt))
+    .limit(limit);
+
+  const toIds = [...new Set(rows.map((r) => r.toEntityId))];
+  const toRows = toIds.length
+    ? await db
+        .select({ id: knowledgeEntities.id, name: knowledgeEntities.name })
+        .from(knowledgeEntities)
+        .where(and(eq(knowledgeEntities.orgId, orgId), sql`${knowledgeEntities.id} = ANY(${toIds})`))
+    : [];
+  const nameById = new Map(toRows.map((r) => [r.id, r.name]));
+  return rows.map((r) => ({ ...r, toName: nameById.get(r.toEntityId) ?? r.toEntityId }));
+}
+
 /**
  * Org-scoped search across entities, relations and decisions. Keyword-based
  * (name/summary/title/context/rationale) — deterministic and dependency-free;

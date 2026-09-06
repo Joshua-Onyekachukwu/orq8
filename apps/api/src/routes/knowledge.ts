@@ -8,6 +8,8 @@ import {
   linkEntitiesByName,
   recordDecision,
   listEntities,
+  listDecisions,
+  listRelations,
   searchKnowledge,
   retrieveKnowledgeContext,
   validateKnowledgeInput,
@@ -55,6 +57,22 @@ export function registerKnowledgeRoutes(app: FastifyInstance, deps: AppDeps): vo
     const q = request.query as { type?: string; limit?: string };
     const entities = await listEntities(db, ctx.orgId, q.type, Math.min(Number(q.limit) || 100, 200));
     return { data: entities };
+  });
+
+  /** List relations (graph edges) with entity names resolved. */
+  app.get('/v1/knowledge/relations', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const q = request.query as { limit?: string };
+    const relations = await listRelations(db, ctx.orgId, Math.min(Number(q.limit) || 200, 300));
+    return { data: relations };
+  });
+
+  /** List recorded decisions (decision memory), newest first. */
+  app.get('/v1/knowledge/decisions', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const q = request.query as { limit?: string };
+    const decisions = await listDecisions(db, ctx.orgId, Math.min(Number(q.limit) || 100, 200));
+    return { data: decisions };
   });
 
   /** Create (or dedupe-return) an entity. */

@@ -12,6 +12,9 @@ import {
   upsertEntity,
   recordDecision,
   searchKnowledge,
+  listDecisions,
+  listRelations,
+  linkEntitiesByName,
 } from '../src/services/knowledge-graph.js';
 
 // ─── Pure unit tests ───────────────────────────────────────────────────────
@@ -148,5 +151,40 @@ run('knowledge graph org isolation', () => {
     const first = await upsertEntity(db, orgA, { type: 'customer', name: 'Acme Corp', source: 'test' });
     const second = await upsertEntity(db, orgA, { type: 'customer', name: 'acme corp', source: 'test' });
     expect(second.id).toBe(first.id);
+  });
+
+  it('listDecisions is org-scoped and newest-first', async () => {
+    const a = await listDecisions(db, orgA, 50);
+    expect(a.some(d => d.title === 'Prefer Postgres')).toBe(true);
+    const b = await listDecisions(db, orgB, 50);
+    expect(b.some(d => d.title === 'Prefer Postgres')).toBe(false);
+    // Newest-first: a decision recorded after the first must come before it.
+    await recordDecision(db, orgA, {
+      title: 'Later decision',
+      outcome: 'approved',
+      source: 'test',
+    });
+    const ordered = await listDecisions(db, orgA, 50);
+    expect(ordered.findIndex(d => d.title === 'Later decision')).toBeLessThan(ordered.findIndex(d => d.title === 'Prefer Postgres'));
+  });
+
+  it('listRelations resolves entity names and is org-scoped', async () => {
+    const from = await upsertEntity(db, orgA, { type: 'product', name: 'Orq8 Platform', source: 'test' });
+    const to = await upsertEntity(db, orgA, { type: 'goal', name: 'Grow to 100 companies', source: 'test' });
+    await linkEntitiesByName(db, orgA, {
+      from: { type: 'product', name: 'Orq8 Platform', source: 'test' },
+      to: { type: 'goal', name: 'Grow to 100 companies', source: 'test' },
+      relationType: 'affects',
+      source: 'test',
+    });
+
+    const aRelations = await listRelations(db, orgA, 200);
+    const match = aRelations.find(r => r.fromEntityId === from.id && r.toEntityId === to.id);
+    expect(match).toBeDefined();
+    expect(match?.fromName).toBe('Orq8 Platform');
+    expect(match?.toName).toBe('Grow to 100 companies');
+
+    const bRelations = await listRelations(db, orgB, 200);
+    expect(bRelations.some(r => r.fromEntityId === from.id || r.toEntityId === to.id)).toBe(false);
   });
 });

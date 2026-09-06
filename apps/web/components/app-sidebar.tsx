@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import {
   Activity,
   Bell,
+  Brain,
   Building2,
   ChevronDown,
   FileText,
@@ -74,6 +75,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Notifications", href: "/app/notifications", icon: Bell },
       { label: "Company Memory", href: "/app/memory", icon: ScrollText },
+      { label: "Knowledge Graph", href: "/app/knowledge", icon: Brain },
       { label: "Audit Trail", href: "/app/audit", icon: Shield },
       { label: "Budgets", href: "/app/budgets", icon: Wallet },
       { label: "Usage & Limits", href: "/app/usage", icon: Gauge },
