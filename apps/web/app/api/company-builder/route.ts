@@ -15,10 +15,10 @@ export async function POST(request: NextRequest) {
   }
 
   const url = new URL(request.url);
-  const action = url.searchParams.get("action"); // analyze | plan | activate
+  const action = url.searchParams.get("action"); // analyze | plan | activate | playbook
 
-  if (!action || !["analyze", "plan", "activate"].includes(action)) {
-    return NextResponse.json({ error: "action must be analyze, plan, or activate" }, { status: 400 });
+  if (!action || !["analyze", "plan", "activate", "playbook"].includes(action)) {
+    return NextResponse.json({ error: "action must be analyze, plan, activate, or playbook" }, { status: 400 });
   }
 
   const body = await request.json().catch(() => null);
@@ -49,8 +49,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  const url = new URL(request.url);
+  const action = url.searchParams.get("action");
+
   try {
-    const res = await fetch(`${API_URL}/v1/company-builder/state`, {
+    const path =
+      action === "playbooks"
+        ? `${API_URL}/v1/company-builder/playbooks`
+        : `${API_URL}/v1/company-builder/state`;
+    const res = await fetch(path, {
       headers: proxyAuthHeaders(token),
       next: { revalidate: 15 },
     });

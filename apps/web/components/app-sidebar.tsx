@@ -42,6 +42,8 @@ const navGroups: NavGroup[] = [
       { label: "Dashboard", href: "/app", icon: LayoutDashboard },
       { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },
       { label: "Weekly Report", href: "/app/report", icon: ScrollText },
+      { label: "Performance", href: "/app/performance", icon: Activity },
+      { label: "Simulation", href: "/app/simulation", icon: Zap },
     ],
   },
   {

@@ -67,7 +67,14 @@ interface ActivationResult {
   memoryCount: number;
 }
 
-type Phase = "path" | "describe" | "analyzing" | "analysis" | "planning" | "plan" | "activating" | "done";
+type Phase = "path" | "playbook" | "describe" | "analyzing" | "analysis" | "planning" | "plan" | "activating" | "done";
+
+interface PlaybookMeta {
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+}
 
 const suggestionPrompts: Record<SourceType, string[]> = {
   idea: [
@@ -142,7 +149,61 @@ export default function OnboardingPage() {
   const startPath = (type: SourceType) => {
     setSourceType(type);
     analytics.onboardingStarted(type);
-    setPhase("describe");
+    setPhase("playbook");
+  };
+
+  // Industry playbooks — offer a ready-made operating model before the
+  // describe/analyze flow, so time-to-first-win stays under 10 minutes.
+  const [playbooksList, setPlaybooksList] = useState<PlaybookMeta[]>([]);
+  const [seedingPlaybook, setSeedingPlaybook] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (phase !== "playbook") return;
+    fetch("/api/company-builder?action=playbooks")
+      .then(res => res.json())
+      .then(json => {
+        const list = json?.data?.playbooks;
+        if (Array.isArray(list)) setPlaybooksList(list);
+      })
+      .catch(() => {
+        // Fall back to the describe flow if playbooks are unavailable.
+        setPlaybooksList([]);
+      });
+  }, [phase]);
+
+  const seedPlaybook = async (slug: string) => {
+    setSeedingPlaybook(slug);
+    setPhase("activating");
+    setError(null);
+    setProgressLabel("Applying your industry operating model...");
+    try {
+      const res = await fetch("/api/company-builder?action=playbook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      const json = await res.json();
+      if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Playbook failed");
+      const result = json?.data?.result;
+      if (result?.activation) {
+        setActivation(result.activation);
+        setPhase("done");
+        analytics.onboardingCompleted(
+          result.activation.departments?.length ?? 0,
+          result.activation.agents?.length ?? 0,
+          result.activation.goals?.length ?? 0,
+        );
+        setTimeout(() => router.push("/app"), 2200);
+      } else {
+        // Already seeded — straight to the dashboard.
+        router.push("/app");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to seed playbook");
+      setPhase("playbook");
+    } finally {
+      setSeedingPlaybook(null);
+    }
   };
 
   const runAnalyze = useCallback(async () => {
@@ -299,6 +360,55 @@ export default function OnboardingPage() {
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-orange-bright">
                   Connect your company <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── PLAYBOOK — ready-made operating model ── */}
+        {phase === "playbook" && (
+          <div className="animate-fade-up">
+            <button onClick={() => setPhase("path")} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              Start with an operating model
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-white">Choose an industry playbook</h1>
+            <p className="mt-3 max-w-xl text-white/60">
+              A playbook seeds your constitution, departments, AI employees, initial goals and starter tasks —
+              so your company is already organized and working when you arrive. You can also skip and describe
+              your company from scratch.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {playbooksList.map(p => (
+                <button
+                  key={p.slug}
+                  onClick={() => seedPlaybook(p.slug)}
+                  disabled={seedingPlaybook !== null}
+                  className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06] disabled:opacity-50"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orq8-lime/10 text-orq8-lime">
+                    {seedingPlaybook === p.slug ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Layers className="h-5 w-5" />
+                    )}
+                  </div>
+                  <h2 className="mt-4 text-base font-semibold text-white">{p.name}</h2>
+                  <p className="mt-1 text-3xs font-medium uppercase tracking-wide text-orq8-lime">{p.tagline}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-white/50">{p.description}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <button
+                onClick={() => setPhase("describe")}
+                className="text-sm font-medium text-white/60 transition-colors hover:text-white"
+              >
+                Skip — describe my company instead
               </button>
             </div>
           </div>
