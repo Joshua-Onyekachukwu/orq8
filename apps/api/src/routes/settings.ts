@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
+import { exportOrg } from '../services/portability.js';
 import { organizations } from '@orq8/db';
 import type { AppDeps } from '../types.js';
 
@@ -26,6 +27,30 @@ const updateSettingsBody = z.object({
 
 export function registerSettingsRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
+
+  /**
+   * GET /v1/settings/export — full org data export (owner/admin only).
+   * Never includes credentials, tokens, hashes, or webhook signatures.
+   */
+  app.get('/v1/settings/export', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden();
+
+    const data = await exportOrg(db, ctx.orgId);
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'org.exported',
+      outcome: 'success',
+    });
+
+    const payload = JSON.stringify({ data }, null, 2);
+    reply.header('content-type', 'application/json');
+    reply.header('content-disposition', `attachment; filename="orq8-export-${ctx.orgId}.json"`);
+    reply.header('x-content-type-options', 'nosniff');
+    return reply.send(payload);
+  });
 
   /** Get settings. */
   app.get('/v1/settings', async (request, reply) => {

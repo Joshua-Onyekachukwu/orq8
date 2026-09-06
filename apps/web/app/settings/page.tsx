@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SettingsShell } from "../../components/settings-shell";
-import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell } from "lucide-react";
+import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell, Download } from "lucide-react";
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-orq8-green";
@@ -348,6 +348,27 @@ export default function SettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* Data & portability */}
+      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+        <div className="flex items-center gap-2">
+          <Download className="h-5 w-5 text-muted" />
+          <h2 className="text-lg font-semibold text-ink">Your company data</h2>
+        </div>
+        <p className="mt-1 text-sm text-muted">
+          You own your company data. Export everything ORQ8 knows about your organization
+          (goals, tasks, AI employees, memory, decisions, audit trail) as a JSON file.
+          Credentials and secrets are never included.
+        </p>
+        <div className="mt-5 flex items-center gap-3">
+          <a
+            href="/api/settings/export"
+            className="inline-flex items-center gap-2 rounded-full border border-hairline px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink/30"
+          >
+            <Download className="h-4 w-4" /> Export company data
+          </a>
+        </div>
+      </div>
 
       {/* Notification Preferences */}
       <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
