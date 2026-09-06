@@ -33,7 +33,7 @@ import {
   verifyTimestamp,
 } from '../services/webhooks.js';
 import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-memory.js';
-import { generateDailyBriefing, runDailyBriefings } from '../services/briefing.js';
+import { runBriefings, runDailyBriefings } from '../services/briefing.js';
 import type { AppDeps } from '../types.js';
 
 const ruleBody = z.object({
@@ -368,6 +368,26 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
     }
     const now = new Date();
     const results = await runDailyBriefings(db, deps.config, deps.logger, now);
+    return { data: { generated: results.filter((r) => !r.skipped).length, results } };
+  });
+
+  /** Generate + deliver weekly briefings (cron: Monday 07:10 UTC). */
+  app.post('/v1/internal/briefings/weekly', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const results = await runBriefings(db, deps.config, deps.logger, 'weekly');
+    return { data: { generated: results.filter((r) => !r.skipped).length, results } };
+  });
+
+  /** Generate + deliver monthly briefings (cron: 1st of month 07:15 UTC). */
+  app.post('/v1/internal/briefings/monthly', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const results = await runBriefings(db, deps.config, deps.logger, 'monthly');
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
   });
 }

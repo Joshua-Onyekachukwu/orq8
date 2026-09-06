@@ -8,6 +8,10 @@ on:
     - cron: '30 6 * * *'
     # Daily executive briefing — nightly (07:00 UTC, after consolidation).
     - cron: '0 7 * * *'
+    # Weekly executive briefing — Monday 07:10 UTC.
+    - cron: '10 7 * * 1'
+    # Monthly executive briefing — 1st of month 07:15 UTC.
+    - cron: '15 7 1 * *'
   workflow_dispatch:
 
 jobs:
@@ -64,4 +68,37 @@ jobs:
             "$API_URL/v1/internal/briefings/daily")
           echo "briefings HTTP $status"
           cat /tmp/briefings.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+  weekly-briefing:
+    name: Weekly executive briefing (Mondays)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call weekly briefing endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/weekly.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/briefings/weekly")
+          echo "weekly HTTP $status"
+          cat /tmp/weekly.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
+  monthly-briefing:
+    name: Monthly executive briefing (1st of month)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call monthly briefing endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/monthly.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/briefings/monthly")
+          echo "monthly HTTP $status"
+          cat /tmp/monthly.json; echo
           if [ "$status" != "200" ]; then exit 1; fi

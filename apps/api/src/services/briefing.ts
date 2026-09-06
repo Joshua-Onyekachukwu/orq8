@@ -20,6 +20,7 @@ import {
   approvals,
   briefings,
   connectorOutcomes,
+  creditTransactions,
   goals,
   memberships,
   organizations,
@@ -60,11 +61,58 @@ export interface BriefingContent {
   };
 }
 
+export type BriefingKind = 'daily' | 'weekly' | 'monthly';
+
 /** UTC-midnight start of the day containing `now`. */
 export function dayStart(now: Date): Date {
   const d = new Date(now);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+}
+
+/** UTC start of the week (Monday 00:00) containing `now`. */
+export function weekStart(now: Date): Date {
+  const d = new Date(now);
+  const day = d.getUTCDay(); // 0 = Sunday
+  const daysSinceMonday = (day + 6) % 7;
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - daysSinceMonday);
+  return d;
+}
+
+/** UTC start of the calendar month containing `now`. */
+export function monthStart(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+/** Resolve a briefing's deterministic period for a kind. Pure + shareable. */
+export function periodFor(kind: BriefingKind, now: Date): { periodStart: Date; periodEnd: Date; label: string } {
+  switch (kind) {
+    case 'weekly': {
+      const start = weekStart(now);
+      return { periodStart: start, periodEnd: new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000), label: 'Weekly' };
+    }
+    case 'monthly': {
+      const start = monthStart(now);
+      return { periodStart: start, periodEnd: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)), label: 'Monthly' };
+    }
+    case 'daily':
+    default: {
+      const start = dayStart(now);
+      return { periodStart: start, periodEnd: new Date(start.getTime() + 24 * 60 * 60 * 1000), label: 'Daily' };
+    }
+  }
+}
+
+/**
+ * Pure: how many whole periods fit between two dates (guards division by zero).
+ */
+export function periodDeltaLabel(current: number, previous: number): string | null {
+  if (previous <= 0 && current <= 0) return null;
+  if (previous <= 0) return `${current} (new — no prior activity)`;
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (pct === 0) return `${current} (no change)`;
+  return `${current} (${pct > 0 ? '+' : ''}${pct}% vs previous)`;
 }
 
 /** Determine whether a pending approval is aging (older than 24h). */
@@ -226,6 +274,92 @@ export async function buildBriefingContent(
   };
 }
 
+/**
+ * Build the real "Trends & Spend" section for a period, comparing the current
+ * window against the equal-length window immediately before it. Every figure
+ * is computed from the operational tables — task completions/failures, agent
+ * activity, connector outcomes, and actual credit usage (type = usage).
+ * Returns null when the org had no measurable activity in either window.
+ */
+export async function buildTrendSection(
+  db: Db,
+  orgId: string,
+  since: Date,
+  until: Date,
+  now = new Date(),
+): Promise<BriefingSection | null> {
+  const windowMs = until.getTime() - since.getTime();
+  const prevUntil = new Date(since.getTime());
+  const prevSince = new Date(since.getTime() - windowMs);
+
+  const countWindow = async (from: Date, to: Date, status: string) => {
+    const [row] = await db
+      .select({ n: count() })
+      .from(tasks)
+      .where(and(eq(tasks.orgId, orgId), eq(tasks.status, status), gte(tasks.updatedAt, from), lt(tasks.updatedAt, to)));
+    return row?.n ?? 0;
+  };
+
+  const activityWindow = async (from: Date, to: Date) => {
+    const [row] = await db
+      .select({ n: count() })
+      .from(activityEvents)
+      .where(and(eq(activityEvents.orgId, orgId), gte(activityEvents.occurredAt, from), lt(activityEvents.occurredAt, to)));
+    return row?.n ?? 0;
+  };
+
+  const outcomesWindow = async (from: Date, to: Date) => {
+    const [row] = await db
+      .select({ n: count() })
+      .from(connectorOutcomes)
+      .where(and(eq(connectorOutcomes.orgId, orgId), gte(connectorOutcomes.createdAt, from), lt(connectorOutcomes.createdAt, to)));
+    return row?.n ?? 0;
+  };
+
+  const usageWindow = async (from: Date, to: Date) => {
+    const [row] = await db
+      .select({ total: sql<number>`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` })
+      .from(creditTransactions)
+      .where(and(
+        eq(creditTransactions.orgId, orgId),
+        eq(creditTransactions.type, 'usage'),
+        gte(creditTransactions.createdAt, from),
+        lt(creditTransactions.createdAt, to),
+      ));
+    return row?.total ?? 0;
+  };
+
+  const [completed, completedPrev, failed, failedPrev, activity, activityPrev, outcomes, outcomesPrev, spend, spendPrev] = await Promise.all([
+    countWindow(since, until, 'completed'),
+    countWindow(prevSince, prevUntil, 'completed'),
+    countWindow(since, until, 'failed'),
+    countWindow(prevSince, prevUntil, 'failed'),
+    activityWindow(since, until),
+    activityWindow(prevSince, prevUntil),
+    outcomesWindow(since, until),
+    outcomesWindow(prevSince, prevUntil),
+    usageWindow(since, until),
+    usageWindow(prevSince, prevUntil),
+  ]);
+
+  const items: string[] = [];
+  const push = (heading: string, current: number, previous: number) => {
+    const delta = periodDeltaLabel(current, previous);
+    if (delta) items.push(`${heading}: ${delta}.`);
+  };
+
+  push('Tasks completed', completed, completedPrev);
+  push('Tasks failed', failed, failedPrev);
+  push('AI employee actions', activity, activityPrev);
+  push('Connector actions', outcomes, outcomesPrev);
+  if (spend > 0 || spendPrev > 0) {
+    items.push(`Work credits used: ${spend}${spendPrev > 0 ? ` (${Math.round(((spend - spendPrev) / spendPrev) * 100) > 0 ? '+' : ''}${Math.round(((spend - spendPrev) / spendPrev) * 100)}% vs previous)` : ' (new)'}.`);
+  }
+
+  if (items.length === 0) return null;
+  return { heading: 'Trends & Spend', items };
+}
+
 /** Pure: whether the org had meaningful activity worth a briefing. */
 export function isQuietContent(stats: BriefingContent['stats']): boolean {
   return (
@@ -238,7 +372,7 @@ export function isQuietContent(stats: BriefingContent['stats']): boolean {
   );
 }
 
-function briefingEmailHtml(orgName: string, content: BriefingContent): string {
+function briefingEmailHtml(orgName: string, label: string, content: BriefingContent): string {
   const parts = content.sections
     .map(
       (s) => `<h3 style="margin:18px 0 6px;font-size:13px;color:#0a1024;">${s.heading}</h3>
@@ -251,10 +385,10 @@ function briefingEmailHtml(orgName: string, content: BriefingContent): string {
 <body style="margin:0;background:#f7f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
   <div style="background:#0a1024;padding:20px 28px;border-radius:12px 12px 0 0;">
-    <span style="color:#b6e63d;font-weight:700;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;">daily briefing · ${orgName}</span>
+    <span style="color:#b6e63d;font-weight:700;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;">${label.toLowerCase()} briefing · ${orgName}</span>
   </div>
   <div style="background:#ffffff;padding:28px;border:1px solid #e4e7ef;border-top:none;border-radius:0 0 12px 12px;">
-    ${content.quiet ? '<p style="color:#5b6478;">No significant activity since the last briefing.</p>' : parts}
+    ${content.quiet ? '<p style="color:#5b6478;">No significant activity in this period.</p>' : parts}
   </div>
 </div></body></html>`;
 }
@@ -278,19 +412,19 @@ async function orgNameAndOwnerEmail(
 }
 
 /**
- * Generate + deliver the daily briefing for one org. Idempotent: returns the
- * existing row when this org+period already has one. Never throws on delivery
- * failures (the briefing row is still recorded).
+ * Generate + deliver a briefing for one org for one deterministic period.
+ * Idempotent (per org + kind + periodStart, enforced by the DB unique index);
+ * never throws on delivery failures. Used for daily, weekly and monthly runs.
  */
-export async function generateDailyBriefing(
+export async function generateBriefing(
   db: Db,
   config: AppConfig,
   logger: Logger,
   orgId: string,
+  kind: BriefingKind,
   now = new Date(),
 ): Promise<Briefing | null> {
-  const periodStart = dayStart(now);
-  const periodEnd = new Date(periodStart.getTime() + 24 * 60 * 60 * 1000);
+  const { periodStart, periodEnd, label } = periodFor(kind, now);
 
   const [existing] = await db
     .select()
@@ -298,7 +432,7 @@ export async function generateDailyBriefing(
     .where(
       and(
         eq(briefings.orgId, orgId),
-        eq(briefings.kind, 'daily'),
+        eq(briefings.kind, kind),
         eq(briefings.periodStart, periodStart),
       ),
     )
@@ -306,12 +440,14 @@ export async function generateDailyBriefing(
   if (existing) return existing;
 
   const content = await buildBriefingContent(db, orgId, periodStart, periodEnd, now);
+  const trend = await buildTrendSection(db, orgId, periodStart, periodEnd, now);
+  if (trend) content.sections.push(trend);
 
   const rows = await db
     .insert(briefings)
     .values({
       orgId,
-      kind: 'daily',
+      kind,
       periodStart,
       periodEnd,
       content: content as never,
@@ -336,10 +472,10 @@ export async function generateDailyBriefing(
     db,
     orgId,
     'system',
-    'Daily Briefing',
+    `${label} Briefing`,
     content.sections.length > 0
       ? `${content.sections[0]!.heading}: ${content.sections[0]!.items.slice(0, 2).join(' · ')}`
-      : 'No significant activity since the last briefing.',
+      : 'No significant activity in this period.',
   );
 
   try {
@@ -349,15 +485,15 @@ export async function generateDailyBriefing(
       const transport = createEmailTransport(config, logger);
       await transport.send({
         to: ownerEmail,
-        subject: `[ORQ8] Daily Briefing — ${orgName}`,
+        subject: `[ORQ8] ${label} Briefing — ${orgName}`,
         text: content.sections
           .map((s) => `${s.heading}\n${s.items.map((i) => ` · ${i}`).join('\n')}`)
           .join('\n\n'),
-        html: briefingEmailHtml(orgName, content),
+        html: briefingEmailHtml(orgName, label, content),
       });
     }
   } catch (err) {
-    logger.warn({ err, orgId }, 'briefing delivery (email) failed — in-app notification already created');
+    logger.warn({ err, orgId }, `briefing delivery (email) failed for ${kind} — in-app notification already created`);
   }
 
   await db
@@ -365,6 +501,39 @@ export async function generateDailyBriefing(
     .set({ status: 'delivered', deliveredAt: new Date() })
     .where(eq(briefings.id, briefing.id));
   return { ...briefing, status: 'delivered' as const };
+}
+
+/** Daily convenience wrapper (kept for existing callers/tests). */
+export async function generateDailyBriefing(
+  db: Db,
+  config: AppConfig,
+  logger: Logger,
+  orgId: string,
+  now = new Date(),
+): Promise<Briefing | null> {
+  return generateBriefing(db, config, logger, orgId, 'daily', now);
+}
+
+/** Weekly briefing for one org (Monday → Sunday, UTC). */
+export async function generateWeeklyBriefing(
+  db: Db,
+  config: AppConfig,
+  logger: Logger,
+  orgId: string,
+  now = new Date(),
+): Promise<Briefing | null> {
+  return generateBriefing(db, config, logger, orgId, 'weekly', now);
+}
+
+/** Monthly briefing for one org (calendar month, UTC). */
+export async function generateMonthlyBriefing(
+  db: Db,
+  config: AppConfig,
+  logger: Logger,
+  orgId: string,
+  now = new Date(),
+): Promise<Briefing | null> {
+  return generateBriefing(db, config, logger, orgId, 'monthly', now);
 }
 
 /** Distinct orgs with any activity in the period (bounded). */
@@ -398,28 +567,39 @@ export async function orgIdsWithActivity(
   ];
 }
 
-/** Run the daily briefing for every org with activity since the period start. */
-export async function runDailyBriefings(
+/** Run briefings of one kind for every org with activity in its period. */
+export async function runBriefings(
   db: Db,
   config: AppConfig,
   logger: Logger,
+  kind: BriefingKind,
   now = new Date(),
 ): Promise<Array<{ orgId: string; briefingId?: string; skipped: boolean }>> {
-  const since = dayStart(now);
-  const orgIds = await orgIdsWithActivity(db, since);
+  const { periodStart } = periodFor(kind, now);
+  const orgIds = await orgIdsWithActivity(db, periodStart);
   const out: Array<{ orgId: string; briefingId?: string; skipped: boolean }> = [];
   for (const orgId of orgIds) {
     try {
-      const briefing = await generateDailyBriefing(db, config, logger, orgId, now);
+      const briefing = await generateBriefing(db, config, logger, orgId, kind, now);
       if (!briefing) {
         out.push({ orgId, skipped: true });
       } else {
         out.push({ orgId, briefingId: briefing.id, skipped: false });
       }
     } catch (err) {
-      logger.warn({ err, orgId }, 'daily briefing failed for org');
+      logger.warn({ err, orgId }, `${kind} briefing failed for org`);
       out.push({ orgId, skipped: true });
     }
   }
   return out;
+}
+
+/** Daily convenience wrapper for existing internal callers. */
+export async function runDailyBriefings(
+  db: Db,
+  config: AppConfig,
+  logger: Logger,
+  now = new Date(),
+): Promise<Array<{ orgId: string; briefingId?: string; skipped: boolean }>> {
+  return runBriefings(db, config, logger, 'daily', now);
 }
