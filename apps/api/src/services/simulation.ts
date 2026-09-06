@@ -16,6 +16,7 @@ import {
   type NewAnalyticsEvent,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { aggregateHistoricalPerformance, modelQualityProjection, type QualityMetricProjection } from './simulation-quality.js';
 import { findByOrg as findApprovalsByOrg, createApproval } from './approvals.js';
 
 // ─── Simulation Engine ───────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ interface SimulationResult {
   metrics: Record<string, unknown>;
   recommendation: string;
   baseline: OrgStateAggregate;
+  quality: QualityMetricProjection[]; // modeled, distinct from live baseline
 }
 
 /**
@@ -189,6 +191,15 @@ export async function runSimulation(db: Db, orgId: string, simId: string, input:
   const currentWeekly = currentTasks * avgCost;
   const projectedWeekly = proposedTasks * avgCost;
 
+  // Modeled quality projections from real historical performance — always
+  // distinct from the live baseline and clearly labeled as estimates.
+  const historical = await aggregateHistoricalPerformance(db, orgId);
+  const quality = modelQualityProjection(historical, {
+    currentAgents,
+    proposedAgents,
+    workloadChangePercent: increasePercent,
+  });
+
   // Risk assessment heuristic
   let risk: 'low' | 'medium' | 'high' | 'critical' = 'low';
   const bottlenecks: string[] = [];
@@ -251,9 +262,12 @@ export async function runSimulation(db: Db, orgId: string, simId: string, input:
     },
     recommendation,
     baseline,
+    quality,
   };
 
-  // Persist results into the simulation record
+  // Persist results into the simulation record (quality rides inside the
+  // existing jsonb metrics column — no migration required).
+  const persistedMetrics = { ...result.metrics, quality };
   await updateSimulation(db, simId, {
     proposedDepartments: input.proposedDepartments ? [{ count: input.proposedDepartments }] : undefined,
     proposedAgents: input.proposedAgents ? [{ count: input.proposedAgents }] : undefined,
@@ -261,7 +275,7 @@ export async function runSimulation(db: Db, orgId: string, simId: string, input:
     projectedCost: result.projectedCost,
     projectedRisk: result.projectedRisk,
     bottlenecks: result.bottlenecks,
-    metrics: result.metrics,
+    metrics: persistedMetrics,
     recommendation: result.recommendation,
     state: 'proposed',
   });

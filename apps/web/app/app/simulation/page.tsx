@@ -71,6 +71,20 @@ interface SimulationResult {
   };
   recommendation: string;
   baseline: OrgState;
+  quality?: QualityMetricProjection[];
+}
+
+interface QualityMetricProjection {
+  metric: "completion_rate" | "approval_rate" | "revision_rate" | "reliability_rate";
+  label: string;
+  liveRate: number | null;
+  sampleSize: number;
+  projectedRate: number | null;
+  lower: number | null;
+  upper: number | null;
+  confidenceLevel: 0.9;
+  method: "wilson" | null;
+  available: boolean;
 }
 
 interface Simulation {
@@ -572,10 +586,10 @@ export default function SimulationPage() {
                               },
                               {
                                 label: "Completion rate",
-                                current: result.baseline.completionRate,
-                                projected: result.baseline.completionRate,
-                                fmt: (v: number) => `${v}%`,
-                                unchanged: true,
+                                current: result.quality?.find(q => q.metric === "completion_rate")?.liveRate ?? result.baseline.completionRate,
+                                projected: result.quality?.find(q => q.metric === "completion_rate")?.projectedRate ?? result.baseline.completionRate,
+                                fmt: (v: number) => (v === null || v === undefined ? "—" : `${v}%`),
+                                unchanged: !(result.quality?.find(q => q.metric === "completion_rate")?.available ?? false),
                               },
                             ].map(row => {
                               const change = row.unchanged
@@ -595,8 +609,56 @@ export default function SimulationPage() {
                           </tbody>
                         </table>
                         <p className="mt-2 text-3xs text-muted">
-                          Completion rate is carried from your live baseline — this engine models workload, workforce and cost, not quality outcomes. Metrics under <span className="font-medium">Projected</span> are simulated, never actual results.
+                          Metrics under <span className="font-medium">Projected</span> are modeled estimates, never actual results. Quality rates are projected from your real historical performance (see the modeled projection table below).
                         </p>
+                      </div>
+
+                      {/* Modeled quality projection with confidence ranges */}
+                      <div className="mt-5 rounded-xl border border-hairline bg-muted/5 p-4">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-ink">Modeled quality projection</h3>
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-amber-700">Modeled — not actual</span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted">
+                          Based on your real historical performance. Confidence ranges are 90% Wilson score intervals — the wider the range, the less certain the estimate. No range is shown when there is too little historical data.
+                        </p>
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full min-w-[560px] border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-hairline text-left text-3xs font-semibold uppercase tracking-wide text-muted">
+                                <th className="py-2 pr-4">Metric</th>
+                                <th className="py-2 pr-4">Live baseline</th>
+                                <th className="py-2 pr-4">Modeled projection</th>
+                                <th className="py-2 pr-4">Confidence range (90%)</th>
+                                <th className="py-2">Sample</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-hairline">
+                              {(result.quality ?? []).map(q => (
+                                <tr key={q.metric}>
+                                  <td className="py-2 pr-4 font-medium text-ink">{q.label}</td>
+                                  <td className="py-2 pr-4 font-mono tabular-nums text-muted">{q.liveRate === null ? "—" : `${q.liveRate}%`}</td>
+                                  <td className="py-2 pr-4 font-mono tabular-nums text-ink">
+                                    {!q.available ? (
+                                      <span className="text-muted">Insufficient historical data</span>
+                                    ) : (
+                                      `${q.projectedRate}%`
+                                    )}
+                                  </td>
+                                  <td className="py-2 pr-4 font-mono tabular-nums text-muted">
+                                    {!q.available || q.lower === null || q.upper === null
+                                      ? "—"
+                                      : `${q.lower}% – ${q.upper}%`}
+                                  </td>
+                                  <td className="py-2 font-mono tabular-nums text-muted">{q.sampleSize}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {!result.quality && (
+                          <p className="mt-2 text-3xs text-muted">Quality projections require historical task and approval data.</p>
+                        )}
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted">

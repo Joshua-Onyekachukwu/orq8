@@ -112,6 +112,10 @@ export default function PerformancePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "attention">("all");
   const [historyWindow, setHistoryWindow] = useState<7 | 30 | 90>(30);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [actionAutonomy, setActionAutonomy] = useState("");
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -131,6 +135,44 @@ export default function PerformancePage() {
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
+
+  const runAction = useCallback(async (agentId: string, action: string) => {
+    setActionBusy(true);
+    setActionMessage(null);
+    setError(null);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/performance-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          reason: actionReason.trim() || undefined,
+          autonomyLevel: actionAutonomy || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(json?.error?.message ?? "Action rejected by the server");
+        return;
+      }
+      setActionMessage(
+        action === "replace"
+          ? "AI employee archived. Historical performance is preserved."
+          : action === "improve"
+            ? "Improvement action applied. Re-run the review later to see the effect."
+            : action === "set_autonomy"
+              ? "Autonomy level updated."
+              : "KEEP confirmed for this AI employee.",
+      );
+      setActionReason("");
+      setActionAutonomy("");
+      await fetchProfiles();
+    } catch {
+      setError("Backend unavailable");
+    } finally {
+      setActionBusy(false);
+    }
+  }, [actionReason, actionAutonomy, fetchProfiles]);
 
   const needsAttention = profiles.filter(p => p.recommendation !== "KEEP" && p.recommendation !== "MONITOR");
   const visible = filter === "attention" ? needsAttention : profiles;
@@ -398,6 +440,67 @@ export default function PerformancePage() {
                     <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Autonomy</p>
                   </div>
                   <p className="mt-1 text-xs text-ink">{selected.autonomyReason}</p>
+                </div>
+
+                {/* Founder actions (audited) */}
+                <div className="mt-4 rounded-lg border border-hairline bg-white p-3">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
+                    <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Founder actions</p>
+                    <span className="text-3xs text-muted">· every action is audited server-side</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    Recommendation: <span className="font-medium text-ink">{selected.recommendation}</span>. Act on it below — replacing archives the employee but never deletes historical performance.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => runAction(selected.agentId, "confirm_keep")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Keep
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => runAction(selected.agentId, "improve")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      <TrendingUp className="h-3.5 w-3.5" /> Improve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionBusy}
+                      onClick={() => runAction(selected.agentId, "replace")}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5" /> Replace (archive)
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <input
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      placeholder="Reason (recorded in the audit trail)"
+                      className="rounded-lg border border-hairline bg-white px-3 py-2 text-xs outline-none focus:border-orq8-green"
+                    />
+                    <select
+                      value={actionAutonomy}
+                      onChange={(e) => setActionAutonomy(e.target.value)}
+                      className="rounded-lg border border-hairline bg-white px-2 py-2 text-xs outline-none focus:border-orq8-green"
+                    >
+                      <option value="">Autonomy unchanged</option>
+                      <option value="observe">L0 Observe</option>
+                      <option value="recommend">L1 Recommend</option>
+                      <option value="draft">L2 Draft</option>
+                      <option value="execute_with_approval">L3 Execute with approval</option>
+                      <option value="autonomous">L4 Autonomous</option>
+                    </select>
+                  </div>
+                  {actionMessage && <p className="mt-2 text-xs text-emerald-700">{actionMessage}</p>}
                 </div>
               </div>
             )}

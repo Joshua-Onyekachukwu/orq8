@@ -22,3 +22,16 @@ export async function PATCH(
     body,
   });
 }
+
+// POST /api/agents/:id/performance-action — audited KEEP/IMPROVE/REPLACE actions
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const body = await request.json().catch(() => null);
+  return proxyApiJson(request, `/v1/agents/${id}/performance-action`, {
+    method: "POST",
+    body,
+  });
+}

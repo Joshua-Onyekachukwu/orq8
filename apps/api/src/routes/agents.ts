@@ -49,6 +49,14 @@ const patchBody = z.object({
   currentTask: z.string().max(500).optional().nullable(),
 }).strict();
 
+const performanceActionBody = z.object({
+  action: z.enum(['confirm_keep', 'improve', 'replace', 'set_autonomy']),
+  reason: z.string().trim().max(1000).optional(),
+  role: z.string().trim().min(1).max(120).optional(),
+  capabilities: z.array(z.string()).optional(),
+  autonomyLevel: z.enum(AUTONOMY_LEVELS).optional(),
+}).strict();
+
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db, logger } = deps;
 
@@ -308,6 +316,78 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { data: updated[0] };
     },
   );
+
+  // ─── Performance actions (KEEP / IMPROVE / REPLACE) ──────────────────────
+
+  /**
+   * POST /v1/agents/:id/performance-action — founder actions on AI employees
+   * from the Performance page. Every action is audited with the previous and
+   * new state, the recommendation context and the founder's reason. Replacing
+   * archives the employee (status 'archived') — historical execution data is
+   * never deleted. Server-side authorization: org-scoped + requireAuth.
+   */
+  app.post<{ Params: { id: string } }>('/v1/agents/:id/performance-action', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = performanceActionBody.safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const agent = await agents.findById(db, ctx.orgId, request.params.id);
+    if (!agent) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found' } };
+    }
+
+    const previous = {
+      role: agent.role,
+      status: agent.status,
+      autonomyLevel: agent.autonomyLevel,
+      capabilities: agent.capabilities,
+    };
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (parsed.data.role !== undefined) updates.role = parsed.data.role;
+    if (parsed.data.capabilities !== undefined) updates.capabilities = parsed.data.capabilities;
+    if (parsed.data.autonomyLevel !== undefined) updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
+
+    switch (parsed.data.action) {
+      case 'replace':
+        updates.status = 'archived'; // preserve history, deactivate for new work
+        break;
+      case 'confirm_keep':
+      case 'improve':
+        updates.status = 'active';
+        break;
+      case 'set_autonomy':
+        break; // autonomy-only
+    }
+
+    const [updated] = await db
+      .update(agentsTable)
+      .set(updates)
+      .where(and(eq(agentsTable.id, request.params.id), eq(agentsTable.orgId, ctx.orgId)))
+      .returning();
+    if (!updated) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found' } };
+    }
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: `agent.performance.${parsed.data.action}`,
+      outcome: 'success',
+      resultRef: JSON.stringify({
+        agentId: updated.id,
+        recommendation: parsed.data.action,
+        reason: parsed.data.reason ?? null,
+        previous: { role: previous.role, status: previous.status, autonomyLevel: previous.autonomyLevel },
+        next: { role: updated.role, status: updated.status, autonomyLevel: updated.autonomyLevel },
+      }),
+    });
+
+    return { data: updated };
+  });
 
   // ─── Emergency Stop ──────────────────────────────────────────────────────
 
