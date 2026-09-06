@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ChevronRight,
   Wallet,
+  GitBranch,
 } from "lucide-react";
 
 interface Agent {
@@ -30,6 +31,17 @@ interface TeamGroup {
   agents: Agent[];
 }
 
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  department: string | null;
+  lead: string | null;
+  agentCount: number;
+  activeCount: number;
+  status: string;
+}
+
 interface Goal {
   id: string;
   title: string;
@@ -40,6 +52,7 @@ interface Goal {
 
 interface OrgData {
   agents: Agent[];
+  teams: Team[];
   departments: Record<string, TeamGroup[]>;
   goals: Goal[];
   stats: {
@@ -62,13 +75,15 @@ export default function OrgPage() {
     setLoading(true);
     setError(null);
     try {
-      const [agentsRes, goalsRes] = await Promise.all([
+      const [agentsRes, goalsRes, teamsRes] = await Promise.all([
         fetch("/api/agents"),
         fetch("/api/goals"),
+        fetch("/api/teams"),
       ]);
 
       const agentsJson = agentsRes.ok ? await agentsRes.json() : { data: [] };
       const goalsJson = goalsRes.ok ? await goalsRes.json() : { data: [] };
+      const teamsJson = teamsRes.ok ? await teamsRes.json() : { data: [] };
 
       const agents: Agent[] = agentsJson.data ?? [];
       const goals: Goal[] = goalsJson.data ?? [];
@@ -89,6 +104,7 @@ export default function OrgPage() {
 
       setData({
         agents,
+        teams: teamsJson.data ?? [],
         departments,
         goals,
         stats: {
@@ -273,6 +289,54 @@ export default function OrgPage() {
                 <a href="/app/agents" className="mt-2 inline-block text-xs font-medium text-orq8-green hover:underline">
                   Hire agents →
                 </a>
+              </div>
+            )}
+          </div>
+
+          {/* Teams */}
+          <div className="mt-4 rounded-xl border border-hairline bg-white p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-ink">Teams</h3>
+              <a
+                href="/app/teams"
+                className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+              >
+                Manage teams <ChevronRight className="h-3 w-3" />
+              </a>
+            </div>
+            {data.teams.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-hairline px-4 py-5 text-center">
+                <GitBranch className="mx-auto h-6 w-6 text-muted/40" />
+                <p className="mt-2 text-sm text-muted">
+                  No teams yet — create teams to group AI employees around a mission.
+                </p>
+                <a href="/app/teams" className="mt-2 inline-block text-xs font-medium text-orq8-green hover:underline">
+                  Create your first team →
+                </a>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {data.teams.map((team) => (
+                  <a
+                    key={team.id}
+                    href="/app/teams"
+                    className="group rounded-lg border border-hairline bg-canvas/50 p-3.5 transition-colors hover:border-orq8-green/40"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-orq8-green">
+                        <GitBranch className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">{team.name}</p>
+                        <p className="truncate text-xs text-muted">{team.department ?? "No department"}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2.5 text-xs text-muted">
+                      {team.agentCount} member{team.agentCount !== 1 ? "s" : ""}
+                      {team.lead ? ` · lead: ${team.lead}` : ""}
+                    </p>
+                  </a>
+                ))}
               </div>
             )}
           </div>
