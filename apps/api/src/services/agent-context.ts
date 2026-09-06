@@ -24,6 +24,8 @@ import {
   approvals,
   type Db,
 } from '@orq8/db';
+import type { AppConfig } from '@orq8/core';
+import { retrieveSemanticForContext } from './memory.js';
 
 export interface AgentContext {
   /** Company constitution / values */
@@ -61,6 +63,7 @@ export async function buildAgentContext(
   orgId: string,
   agentId: string,
   taskId?: string,
+  opts: { query?: string; config?: AppConfig } = {},
 ): Promise<AgentContext> {
   // 8. Get agent-specific memory (lessons, patterns, preferences)
   const agentMemoryEntries = await db
@@ -112,11 +115,9 @@ export async function buildAgentContext(
     db.select({ count: sql<number>`count(*)::int` }).from(approvals)
       .where(and(eq(approvals.orgId, orgId), eq(approvals.status, 'pending'))),
 
-    // 6. Get relevant memory (high importance, recent)
-    db.select().from(companyMemory)
-      .where(eq(companyMemory.orgId, orgId))
-      .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
-      .limit(15),
+    // 6. Get relevant memory — semantic when a task/query is available,
+    //    otherwise high-importance, recent. Always org-scoped and bounded.
+    retrieveSemanticForContext(db, orgId, { query: opts.query, maxEntries: 15 }, opts.config),
 
     // 7. Get constitution entries (company rules/values)
     db.select().from(companyMemory)

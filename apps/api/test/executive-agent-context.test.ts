@@ -1,5 +1,5 @@
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, departments, teams, agents, goals, tasks } from '@orq8/db';
+import { createDb, organizations, departments, teams, agents, goals, tasks, companyMemory } from '@orq8/db';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
@@ -117,6 +117,7 @@ async function cleanupOrg(id: string): Promise<void> {
   await deps.db.delete(teams).where(eq(teams.orgId, id));
   await deps.db.delete(departments).where(eq(departments.orgId, id));
   await deps.db.delete(goals).where(eq(goals.orgId, id));
+  await deps.db.delete(companyMemory).where(eq(companyMemory.orgId, id));
   await deps.db.delete(organizations).where(eq(organizations.id, id));
 }
 
@@ -191,6 +192,30 @@ run('executive agent org-structure context', () => {
     // A decoy team in the OTHER org with an identically-named agent.
     await deps.db.insert(teams).values({ orgId: orgB, name: 'Platform', status: 'active' });
     await deps.db.insert(agents).values({ orgId: orgB, name: 'Engineer Alpha', role: 'software_engineer', status: 'active' });
+
+    // Org-scoped memory fixtures: identical content in both orgs so leakage
+    // would surface immediately, plus org A-only distinguishing facts.
+    await deps.db.insert(companyMemory).values({
+      orgId: orgA,
+      category: 'preference',
+      importance: 9,
+      content: 'Company A prefers the acme/website repository.',
+      source: 'founder',
+    });
+    await deps.db.insert(companyMemory).values({
+      orgId: orgB,
+      category: 'preference',
+      importance: 9,
+      content: 'Company B prefers the evilcorp-secret repository.',
+      source: 'founder',
+    });
+    await deps.db.insert(companyMemory).values({
+      orgId: orgA,
+      category: 'fact',
+      importance: 5,
+      content: 'Company A ships on Fridays.',
+      source: 'founder',
+    });
   });
 
   afterAll(async () => {
@@ -228,5 +253,22 @@ run('executive agent org-structure context', () => {
     expect(ctxB.orgStructure.teams[0]!.members).toHaveLength(1);
     expect(ctxB.orgStructure.teams[0]!.members[0]!.name).toBe('Engineer Alpha');
     expect(ctxB.orgStructure.teams[0]!.work.activeTasks).toBe(0);
+  });
+
+  it('memory retrieval is company-isolated — org A never sees org B memories', async () => {
+    // Query matches a distinctive substring so the assertion holds whether the
+    // retrieval path is semantic (embedding provider configured) or keyword.
+    const ctxA = await buildContext(deps.db, orgA!, { query: 'acme/website' });
+    const memoryA = ctxA.recentMemory.map((m) => m.content).join('\n');
+    expect(memoryA).toContain('acme/website');
+    expect(memoryA).not.toContain('evilcorp-secret');
+  });
+
+  it('memory retrieval is company-isolated — org B never sees org A memories', async () => {
+    const ctxB = await buildContext(deps.db, orgB!, { query: 'evilcorp' });
+    const memoryB = ctxB.recentMemory.map((m) => m.content).join('\n');
+    expect(memoryB).toContain('evilcorp-secret');
+    expect(memoryB).not.toContain('acme/website');
+    expect(memoryB).not.toContain('ships on Fridays');
   });
 });

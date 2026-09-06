@@ -164,8 +164,14 @@ export async function executeTask(
 
   // 4. Build the prompt with rich context from the context pipeline
   const { buildAgentContext, buildContextPrompt } = await import('./agent-context.js');
+  // Semantic memory retrieval: the task itself is the query, so relevant
+  // company memory is surfaced in the agent context (org-scoped, bounded,
+  // embedding provider optional — graceful keyword fallback inside).
   const agentContext = task.agentId
-    ? await buildAgentContext(db, orgId, task.agentId, task.id)
+    ? await buildAgentContext(db, orgId, task.agentId, task.id, {
+        query: `${task.title} ${task.description ?? ''}`.slice(0, 500),
+        config,
+      })
     : null;
 
   const basePrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;

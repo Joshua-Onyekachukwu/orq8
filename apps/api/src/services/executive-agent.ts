@@ -2,6 +2,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
 import { appendAudit } from './audit.js';
+import { retrieveSemanticForContext } from './memory.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
@@ -386,7 +387,7 @@ export function formatOrgStructure(structure: OrgStructure): string {
   return lines.join('\n');
 }
 
-export async function buildContext(db: Db, orgId: string): Promise<ExecutiveContext> {
+export async function buildContext(db: Db, orgId: string, opts: { query?: string; config?: AppConfig } = {}): Promise<ExecutiveContext> {
   const orgAgents = await db.select().from(agents).where(eq(agents.orgId, orgId));
   const [orgGoals, orgTasks, orgApprovals, orgMemory, orgStructure] = await Promise.all([
     db.select().from(goals).where(eq(goals.orgId, orgId)).orderBy(desc(goals.createdAt)).limit(10),
@@ -394,7 +395,9 @@ export async function buildContext(db: Db, orgId: string): Promise<ExecutiveCont
     db.select({ id: approvals.id }).from(approvals).where(
       and(eq(approvals.orgId, orgId), eq(approvals.status, 'pending')),
     ),
-    db.select().from(companyMemory).where(eq(companyMemory.orgId, orgId)).orderBy(desc(companyMemory.createdAt)).limit(10),
+    // Semantic retrieval when a query is present (the founder's command);
+    // falls back to importance+recency. Always org-scoped. Never a full dump.
+    retrieveSemanticForContext(db, orgId, { query: opts.query, maxEntries: 10 }, opts.config),
     buildOrgStructure(db, orgId, orgAgents),
   ]);
 
@@ -787,7 +790,7 @@ export async function executeCommand(
   const ctxStep = startStep(trace, 'context_building');
   let ctx: ExecutiveContext;
   try {
-    ctx = await buildContext(db, orgId);
+    ctx = await buildContext(db, orgId, { query: command, config });
     ctx.userId = userId;
 
     const ctxError = validateContext(ctx);

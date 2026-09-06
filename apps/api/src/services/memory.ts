@@ -237,6 +237,48 @@ export async function retrieveForContext(
 }
 
 /**
+ * Semantic memory retrieval for agent context builders (Executive Agent and
+ * Task Executor). Company-isolated by construction (orgId on every query).
+ *
+ * Order of preference:
+ *   1. Semantic (pgvector cosine) when a query + embedding provider exist —
+ *      falls back inside `findByOrg` when an embedding cannot be produced.
+ *   2. Keyword (ilike) when no embedding provider is configured.
+ *   3. Importance + recency when there is no query at all.
+ *
+ * Results are bounded so a memory dump can never overflow the prompt, and a
+ * missing/failed embedding provider never breaks context building.
+ */
+export async function retrieveSemanticForContext(
+  db: Db,
+  orgId: string,
+  opts: { query?: string; category?: MemoryCategory; minImportance?: number; maxEntries?: number } = {},
+  config?: AppConfig,
+): Promise<CompanyMemoryEntry[]> {
+  const maxEntries = Math.min(opts.maxEntries ?? 12, 30);
+  if (opts.query?.trim()) {
+    // findByOrg does semantic search when an embedding is available and
+    // transparently degrades to ilike keyword matching otherwise.
+    return findByOrg(db, orgId, {
+      query: opts.query.trim().slice(0, 500),
+      category: opts.category,
+      minImportance: opts.minImportance,
+      limit: maxEntries,
+    }, config);
+  }
+  // No query → deterministic importance-first ordering (still category-aware).
+  const conditions = [eq(companyMemory.orgId, orgId)];
+  if (opts.category) conditions.push(eq(companyMemory.category, opts.category));
+  if (opts.minImportance) conditions.push(sql`${companyMemory.importance} >= ${opts.minImportance}`);
+  return db
+    .select()
+    .from(companyMemory)
+    .where(and(...conditions))
+    .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
+    .limit(maxEntries);
+}
+
+/**
  * Bulk create memory entries (used by Executive Agent after command execution).
  */
 export async function bulkCreate(
