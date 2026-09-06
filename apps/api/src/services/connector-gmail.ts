@@ -104,7 +104,19 @@ async function gmailFetch(
   }
 
   const credential = await getCredentials(db, provider.id);
-  const token = decryptCredentialSecret(credential);
+  const decrypted = decryptCredentialSecret(credential);
+  // Google OAuth stores { accessToken, refreshToken } as JSON in the encrypted
+  // blob; a plain token is the legacy form. Either way only the access token
+  // leaves the decrypted scope — the refresh token never enters a request.
+  let token: string | null = null;
+  if (decrypted) {
+    try {
+      const parsed = JSON.parse(decrypted) as { accessToken?: string };
+      token = parsed.accessToken ?? null;
+    } catch {
+      token = decrypted;
+    }
+  }
   if (!token) {
     await updateProviderStatus(db, provider.id, 'expired', 'Missing credentials');
     await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: 'failed', error: 'no_token', summary: 'Failed: no usable Gmail token' });

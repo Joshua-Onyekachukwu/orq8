@@ -342,6 +342,11 @@ export const agents = pgTable(
     departmentId: uuid('department_id').references(() => departments.id), // primary department FK
     teamId: uuid('team_id').references(() => teams.id), // primary team FK
     status: text('status').notNull().default('active'), // active | paused | archived
+    // Per-agent autonomy level (F12) — configurable by the founder, enforced
+    // SERVER-SIDE alongside the authority profile. observe | recommend | draft
+    // | execute_with_approval | autonomous. A frontend toggle alone can never
+    // authorize an action — enforcement reads this column in the execution path.
+    autonomyLevel: text('autonomy_level').notNull().default('execute_with_approval'),
     weeklyCost: integer('weekly_cost').notNull().default(0), // cost in cents
     tasksCompleted: integer('tasks_completed').notNull().default(0),
     tasksFailed: integer('tasks_failed').notNull().default(0),
@@ -402,6 +407,7 @@ export const tasks = pgTable(
     orgId: uuid('org_id')
       .notNull()
       .references(() => organizations.id),
+    squadId: uuid('squad_id').references(() => squads.id), // cross-agent squad tag (F13)
     goalId: uuid('goal_id').references(() => goals.id),
     agentId: uuid('agent_id').references(() => agents.id),
     title: text('title').notNull(),
@@ -1141,6 +1147,140 @@ export const analyticsEvents = pgTable(
     index('analytics_events_name_idx').on(t.eventName),
   ],
 );
+
+// ---- Knowledge graph (F6 — company knowledge graph + decision memory) ----
+// Entity graph: things the company knows about (customers, products, projects,
+// goals, departments, agents, decisions, initiatives, experiments,
+// integrations). Relations connect entities. companyDecisions records the
+// decision itself with context/rationale/alternatives/outcome — institutional
+// precedent. All tables are org-scoped; RLS mirrors the org-member policy.
+export const knowledgeEntities = pgTable(
+  'knowledge_entities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // customer | product | project | goal | department | agent | decision | initiative | experiment | integration | custom
+    name: text('name').notNull(),
+    summary: text('summary'),
+    metadata: jsonb('metadata').notNull().default({}), // source-specific attributes (no secrets)
+    source: text('source'), // where this entity came from (provenance)
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('knowledge_entities_org_type_idx').on(t.orgId, t.type),
+    index('knowledge_entities_org_name_idx').on(t.orgId, t.name),
+  ],
+);
+
+export const knowledgeRelations = pgTable(
+  'knowledge_relations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    fromEntityId: uuid('from_entity_id')
+      .notNull()
+      .references(() => knowledgeEntities.id, { onDelete: 'cascade' }),
+    toEntityId: uuid('to_entity_id')
+      .notNull()
+      .references(() => knowledgeEntities.id, { onDelete: 'cascade' }),
+    relationType: text('relation_type').notNull(), // affects | related_to | owned_by | executed | associated_with | produced | resulted_in
+    source: text('source'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('knowledge_relations_org_from_idx').on(t.orgId, t.fromEntityId),
+    index('knowledge_relations_org_to_idx').on(t.orgId, t.toEntityId),
+  ],
+);
+
+export const companyDecisions = pgTable(
+  'company_decisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    summary: text('summary'),
+    context: text('context'), // what was happening when the decision was made
+    rationale: text('rationale'), // why — never fabricated after the fact
+    alternatives: jsonb('alternatives').notNull().default([]), // considered options
+    outcome: text('outcome'), // approved | rejected | modified | pending
+    source: text('source'), // approval:<id> | user | agent:<id>
+    actorType: text('actor_type'), // user | agent
+    actorId: uuid('actor_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('company_decisions_org_idx').on(t.orgId),
+    index('company_decisions_org_created_idx').on(t.orgId, t.createdAt),
+  ],
+);
+
+export type KnowledgeEntity = typeof knowledgeEntities.$inferSelect;
+export type NewKnowledgeEntity = typeof knowledgeEntities.$inferInsert;
+export type KnowledgeRelation = typeof knowledgeRelations.$inferSelect;
+export type NewKnowledgeRelation = typeof knowledgeRelations.$inferInsert;
+export type CompanyDecision = typeof companyDecisions.$inferSelect;
+export type NewCompanyDecision = typeof companyDecisions.$inferInsert;
+
+// ---- Cross-agent squads (F13 — founder-visible delegation groups) ----
+// A squad is a named group of AI employees working a shared objective. The
+// orchestration substrate is the delegation orchestrator; squads persist the
+// group definition + created-task linkage so founders can create, monitor and
+// archive squads. Org-scoped with RLS.
+export const squads = pgTable(
+  'squads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    purpose: text('purpose'),
+    objective: text('objective').notNull(),
+    status: text('status').notNull().default('active'), // active | completed | archived
+    parentTaskId: uuid('parent_task_id'), // delegation parent ref (plain uuid — no FK cycle)
+    createdBy: uuid('created_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('squads_org_idx').on(t.orgId),
+    index('squads_status_idx').on(t.orgId, t.status),
+  ],
+);
+
+export const squadAgents = pgTable(
+  'squad_agents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    squadId: uuid('squad_id')
+      .notNull()
+      .references(() => squads.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('squad_agents_org_squad_idx').on(t.orgId, t.squadId),
+    uniqueIndex('squad_agents_squad_agent_unique').on(t.squadId, t.agentId),
+  ],
+);
+
+export type Squad = typeof squads.$inferSelect;
+export type NewSquad = typeof squads.$inferInsert;
+export type SquadAgent = typeof squadAgents.$inferSelect;
 
 // ─── Type exports ───────────────────────────────────────────────────────────
 export type Repository = typeof repositories.$inferSelect;

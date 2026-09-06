@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
       { label: "Weekly Report", href: "/app/report", icon: ScrollText },
       { label: "Performance", href: "/app/performance", icon: Activity },
       { label: "Simulation", href: "/app/simulation", icon: Zap },
+      { label: "Squads", href: "/app/squads", icon: Users },
     ],
   },
   {

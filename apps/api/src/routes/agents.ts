@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import * as agents from '../services/agents.js';
+import { AUTONOMY_LEVELS, normalizeAutonomyLevel } from '../services/autonomy.js';
 import { getPlanLimits } from '../services/billing.js';
 import * as deptService from '../services/departments.js';
 import * as teamService from '../services/teams.js';
@@ -30,6 +31,7 @@ const hireBody = z.object({
   team: z.string().trim().max(100).optional(), // DEPRECATED — use teamId
   teamId: z.string().uuid().optional(),
   authority: authoritySchema,
+  autonomyLevel: z.enum(AUTONOMY_LEVELS).optional(),
   capabilities: z.array(z.string()).optional(),
 });
 
@@ -42,6 +44,7 @@ const patchBody = z.object({
   teamId: z.string().uuid().optional().nullable(),
   status: z.enum(['active', 'paused', 'archived']).optional(),
   authority: authoritySchema,
+  autonomyLevel: z.enum(AUTONOMY_LEVELS).optional(),
   capabilities: z.array(z.string()).optional(),
   currentTask: z.string().max(500).optional().nullable(),
 }).strict();
@@ -160,6 +163,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (teamId) insertData.teamId = teamId;
     insertData.authority = { ...defaultAuthority, ...parsed.data.authority };
     insertData.capabilities = parsed.data.capabilities ?? [];
+    insertData.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
 
     const agent = await agents.createAgent(db, insertData as NewAgent);
 
@@ -217,6 +221,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       if (parsed.data.status !== undefined) updates.status = parsed.data.status;
       if (parsed.data.currentTask !== undefined) updates.currentTask = parsed.data.currentTask;
       if (parsed.data.capabilities !== undefined) updates.capabilities = parsed.data.capabilities;
+      if (parsed.data.autonomyLevel !== undefined) updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
       if (parsed.data.authority !== undefined) {
         updates.authority = { ...(agent.authority as Record<string, unknown>), ...parsed.data.authority };
       }

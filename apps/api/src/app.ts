@@ -51,6 +51,8 @@ import { registerEngineeringRoutes } from './routes/engineering.js';
 import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerSimulationRoutes } from './routes/simulation.js';
+import { registerKnowledgeRoutes } from './routes/knowledge.js';
+import { registerSquadRoutes } from './routes/squads.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
@@ -273,6 +275,8 @@ export async function buildApp(
   registerIntegrationRoutes(app, deps);
   registerEventRoutes(app, deps);
   registerSimulationRoutes(app, deps);
+  registerKnowledgeRoutes(app, deps);
+  registerSquadRoutes(app, deps);
   registerAnalyticsRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
 

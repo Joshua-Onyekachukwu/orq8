@@ -182,3 +182,117 @@ export async function githubHealthCheck(accessToken: string): Promise<GitHubHeal
     return { healthy: false, status: 0, error: err instanceof Error ? err.message : 'Network error' };
   }
 }
+// ─── Google (Gmail) OAuth — same stateless pattern as GitHub ───────────────
+
+const GOOGLE_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GMAIL_API_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/profile';
+
+/**
+ * Build the Google (Gmail) authorize URL. Scopes: gmail.modify (drafts,
+ * search, read) + gmail.send (send after approval) — draft-by-default remains
+ * the product rule; sending is capability + approval gated.
+ */
+export function buildGoogleAuthorizeUrl(
+  config: AppConfig,
+  providerId: string,
+  orgId: string,
+  redirectUri: string,
+): string {
+  if (!config.GOOGLE_CLIENT_ID) {
+    throw new Error('Google OAuth is not configured — set GOOGLE_CLIENT_ID.');
+  }
+  const state = signOAuthState(config, {
+    providerId,
+    orgId,
+    exp: Date.now() + STATE_TTL_MS,
+  });
+  const params = new URLSearchParams({
+    client_id: config.GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send openid',
+    state,
+    access_type: 'offline',
+    prompt: 'consent',
+  });
+  return `${GOOGLE_AUTHORIZE_URL}?${params.toString()}`;
+}
+
+export interface GoogleTokenResult {
+  accessToken: string;
+  refreshToken: string | null;
+  scope: string;
+  expiresAt: Date | null;
+}
+
+/** Exchange the Google authorization code for tokens (server-side). */
+export async function exchangeGoogleCode(
+  config: AppConfig,
+  code: string,
+  redirectUri: string,
+): Promise<GoogleTokenResult> {
+  if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
+    throw new Error('Google OAuth is not configured — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+  }
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.GOOGLE_CLIENT_ID,
+      client_secret: config.GOOGLE_CLIENT_SECRET,
+      code,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const detail = typeof data.error_description === 'string' ? data.error_description : typeof data.error === 'string' ? data.error : `HTTP ${res.status}`;
+    throw new Error(`Google token exchange failed: ${detail}`);
+  }
+  if (data.error) {
+    throw new Error(`Google OAuth error: ${String(data.error)}`);
+  }
+  if (typeof data.access_token !== 'string' || !data.access_token) {
+    throw new Error('Google returned no access token');
+  }
+  return {
+    accessToken: data.access_token,
+    refreshToken: typeof data.refresh_token === 'string' ? data.refresh_token : null,
+    scope: typeof data.scope === 'string' ? data.scope : '',
+    expiresAt: typeof data.expires_in === 'number' ? new Date(Date.now() + data.expires_in * 1000) : null,
+  };
+}
+
+export interface GoogleHealthResult {
+  healthy: boolean;
+  status: number;
+  email?: string;
+  error?: string;
+}
+
+/** Verify the stored token against the Gmail API. Returns no secrets. */
+export async function googleHealthCheck(accessToken: string): Promise<GoogleHealthResult> {
+  try {
+    const res = await fetch(GMAIL_API_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.status === 401 || res.status === 403) {
+      return { healthy: false, status: res.status, error: 'Token invalid or revoked — reconnect required' };
+    }
+    if (!res.ok) {
+      return { healthy: false, status: res.status, error: `Gmail API error: HTTP ${res.status}` };
+    }
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    return {
+      healthy: true,
+      status: res.status,
+      email: typeof data.emailAddress === 'string' ? data.emailAddress : undefined,
+    };
+  } catch (err) {
+    return { healthy: false, status: 0, error: err instanceof Error ? err.message : 'Network error' };
+  }
+}

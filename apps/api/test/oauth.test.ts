@@ -16,6 +16,9 @@ import {
   exchangeGitHubCode,
   githubHealthCheck,
   signOAuthState,
+  buildGoogleAuthorizeUrl,
+  exchangeGoogleCode,
+  googleHealthCheck,
   type OAuthStatePayload,
 } from '../src/services/oauth.js';
 
@@ -216,5 +219,72 @@ describe('Health check', () => {
     stubFetch(() => ({ status: 200, json: { login: 'octocat' } }));
     const health = await githubHealthCheck('gho_super_secret');
     expect(JSON.stringify(health)).not.toContain('gho_super_secret');
+  });
+});
+
+describe('Google (Gmail) OAuth', () => {
+  const googleConfig = makeConfig({ GOOGLE_CLIENT_ID: 'google-client', GOOGLE_CLIENT_SECRET: 'google-secret' });
+  const GOOGLE_REDIRECT = 'https://orq8.vercel.app/api/integrations/callback/google';
+
+  it('builds the authorize URL with state, offline access and gmail scopes', () => {
+    const url = new URL(buildGoogleAuthorizeUrl(googleConfig, PROVIDER_ID, ORG_ID, GOOGLE_REDIRECT));
+    expect(url.searchParams.get('client_id')).toBe('google-client');
+    expect(url.searchParams.get('redirect_uri')).toBe(GOOGLE_REDIRECT);
+    expect(url.searchParams.get('access_type')).toBe('offline');
+    expect(url.searchParams.get('prompt')).toBe('consent');
+    expect(url.searchParams.get('scope')).toContain('gmail.modify');
+    expect(url.searchParams.get('scope')).toContain('gmail.send');
+    const state = url.searchParams.get('state');
+    expect(state).toBeTruthy();
+    // State round-trips through the same verifier
+    const payload = verifyOAuthState(googleConfig, state ?? '');
+    expect(payload).not.toBeNull();
+    expect(payload?.orgId).toBe(ORG_ID);
+  });
+
+  it('throws when Google OAuth is not configured', () => {
+    const bare = makeConfig();
+    expect(() => buildGoogleAuthorizeUrl(bare, PROVIDER_ID, ORG_ID, GOOGLE_REDIRECT)).toThrow(/not configured/);
+  });
+
+  it('exchanges the code for an access + refresh token', async () => {
+    stubFetch(() => ({
+      status: 200,
+      json: {
+        access_token: 'ya29.google-token',
+        refresh_token: '1//refresh',
+        scope: 'https://www.googleapis.com/auth/gmail.modify',
+        expires_in: 3599,
+      },
+    }));
+    const result = await exchangeGoogleCode(googleConfig, 'code-abc', GOOGLE_REDIRECT);
+    expect(result.accessToken).toBe('ya29.google-token');
+    expect(result.refreshToken).toBe('1//refresh');
+    expect(result.expiresAt).not.toBeNull();
+  });
+
+  it('rejects provider errors', async () => {
+    stubFetch(() => ({ status: 400, json: { error: 'invalid_grant' } }));
+    await expect(exchangeGoogleCode(googleConfig, 'bad-code', GOOGLE_REDIRECT)).rejects.toThrow(/invalid_grant/);
+  });
+
+  it('health check verifies the token and returns the mailbox email', async () => {
+    stubFetch(() => ({ status: 200, json: { emailAddress: 'founder@example.com' } }));
+    const health = await googleHealthCheck('ya29.token');
+    expect(health.healthy).toBe(true);
+    expect(health.email).toBe('founder@example.com');
+  });
+
+  it('health check flags revoked tokens', async () => {
+    stubFetch(() => ({ status: 401 }));
+    const health = await googleHealthCheck('ya29.revoked');
+    expect(health.healthy).toBe(false);
+    expect(health.error).toMatch(/reconnect/);
+  });
+
+  it('never leaks the token in results', async () => {
+    stubFetch(() => ({ status: 200, json: { emailAddress: 'a@b.com' } }));
+    const health = await googleHealthCheck('ya29.super-secret');
+    expect(JSON.stringify(health)).not.toContain('ya29.super-secret');
   });
 });

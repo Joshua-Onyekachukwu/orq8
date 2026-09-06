@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
+import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { broadcastToOrg } from './realtime.js';
 import { startTrace, endTrace, persistTrace, getTraceById } from './llm-tracer.js';
 import type { AppConfig } from '@orq8/core';
@@ -87,7 +88,7 @@ export async function executeTask(
   // 2. Enforce pause: if assigned agent is paused, reject execution
   if (task.agentId) {
     const [agent] = await db
-      .select({ status: agents.status, authority: agents.authority })
+      .select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
@@ -110,6 +111,22 @@ export async function executeTask(
           taskId,
           status: 'failed',
           result: `Execution blocked: agent does not have permission to execute tasks.`,
+          cost: 0,
+          tokensUsed: 0,
+          llmUsed: false,
+        };
+      }
+    }
+
+    // 2c. Enforce autonomy level (F12) — server-side, read from the DB row.
+    if (agent) {
+      const level = normalizeAutonomyLevel(agent.autonomyLevel);
+      const decision = enforceAutonomy(level, 'task_execute');
+      if (!decision.allowed) {
+        return {
+          taskId,
+          status: 'failed',
+          result: `Execution blocked by autonomy level: ${decision.reason}`,
           cost: 0,
           tokensUsed: 0,
           llmUsed: false,

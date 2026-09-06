@@ -1,5 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { approvals, type Approval, type NewApproval, type Db } from '@orq8/db';
+import { captureDecisionFromApproval } from './knowledge-graph.js';
 
 /** Find approvals for an org, optionally filtered by status. */
 export async function findByOrg(
@@ -60,7 +61,27 @@ export async function decide(
     })
     .where(and(eq(approvals.id, id), eq(approvals.orgId, orgId), eq(approvals.status, 'pending')))
     .returning();
-  return rows[0];
+  const row = rows[0];
+
+  // Decision memory — every resolved approval becomes institutional precedent.
+  // Best-effort: a decision-memory failure must never fail the approval itself.
+  if (row) {
+    try {
+      await captureDecisionFromApproval(db, orgId, {
+        id: row.id,
+        action: row.action,
+        description: row.description,
+        riskLevel: row.riskLevel,
+        status: row.status,
+        decisionNote: row.decisionNote,
+        decidedAt: row.decidedAt,
+      });
+    } catch {
+      // Non-fatal — the approval outcome is already persisted.
+    }
+  }
+
+  return row;
 }
 
 /** Count pending approvals for an org. */

@@ -109,6 +109,11 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
+  // Google (Gmail) OAuth — same server-side pattern as GitHub. Scopes request
+  // gmail.modify (drafts/search/read) + gmail.send (approval-gated send).
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+
   // Embeddings (ADR-012, Phase 9). EMBEDDING_BASE_URL points at any
   // OpenAI-compatible /embeddings endpoint (LiteLLM → Ollama nomic-embed-text
   // locally; a hosted provider in production). Unset = keyword-only memory

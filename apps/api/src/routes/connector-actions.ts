@@ -9,6 +9,9 @@ import {
 import { dispatchGmailAction } from '../services/connector-gmail.js';
 import { dispatchLinearAction } from '../services/connector-linear.js';
 import { listOutcomes } from '../services/integrations.js';
+import { enforceAutonomy, normalizeAutonomyLevel, type AutonomyLevel, type ActionClass } from '../services/autonomy.js';
+import { eq } from 'drizzle-orm';
+import { agents } from '@orq8/db';
 import type { AppDeps } from '../types.js';
 
 /**
@@ -60,6 +63,42 @@ export function registerConnectorActionRoutes(app: FastifyInstance, deps: AppDep
     }
     const { provider, action, agentId, taskId, params } = parsed.data;
     const actor = { orgId: ctx.orgId, agentId, userId: ctx.userId, taskId };
+
+    // F12 — autonomy gate: read the agent's DB row server-side and map the
+    // action to an action class before anything dispatches. A frontend toggle
+    // can never authorize a connector action.
+    const [agentRow] = await db
+      .select({ autonomyLevel: agents.autonomyLevel, orgId: agents.orgId, status: agents.status })
+      .from(agents)
+      .where(eq(agents.id, agentId))
+      .limit(1);
+    if (!agentRow || agentRow.orgId !== ctx.orgId) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found in this organization' } };
+    }
+    if (agentRow.status === 'paused') {
+      reply.code(403);
+      return { error: { code: 'agent_paused', message: 'Agent is paused — resume it before executing connector actions.' } };
+    }
+
+    // Map (provider, action) → action class: reads are observation, drafts stay
+    // drafts, writes/publishes need execute-with-approval or higher.
+    const readActions = new Set(['list_repositories', 'list_issues', 'read_file', 'search', 'get_issue']);
+    const draftActions = new Set(['create_draft']);
+    const actionClass: ActionClass = readActions.has(action)
+      ? 'connector_read'
+      : draftActions.has(action)
+        ? 'draft_external'
+        : provider === 'gmail' && action === 'send_draft'
+          ? 'external_communicate'
+          : 'connector_action';
+
+    const level: AutonomyLevel = normalizeAutonomyLevel(agentRow.autonomyLevel);
+    const autonomy = enforceAutonomy(level, actionClass);
+    if (!autonomy.allowed) {
+      reply.code(403);
+      return { error: { code: 'autonomy_denied', message: autonomy.reason } };
+    }
 
     try {
       const result =

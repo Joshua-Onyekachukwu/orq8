@@ -38,6 +38,9 @@ import {
   isValidRedirectUri,
   exchangeGitHubCode,
   githubHealthCheck,
+  buildGoogleAuthorizeUrl,
+  exchangeGoogleCode,
+  googleHealthCheck,
 } from '../services/oauth.js';
 import type { AppDeps } from '../types.js';
 
@@ -176,7 +179,10 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     }
 
     try {
-      const authorizeUrl = buildGitHubAuthorizeUrl(deps.config, provider.id, ctx.orgId, redirectUri);
+      const authorizeUrl =
+        provider.provider === 'gmail'
+          ? buildGoogleAuthorizeUrl(deps.config, provider.id, ctx.orgId, redirectUri)
+          : buildGitHubAuthorizeUrl(deps.config, provider.id, ctx.orgId, redirectUri);
       await updateProviderStatus(db, provider.id, 'connecting');
       return { data: { url: authorizeUrl, providerId: provider.id } };
     } catch (err) {
@@ -184,7 +190,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
       return {
         error: {
           code: 'not_configured',
-          message: err instanceof Error ? err.message : 'GitHub OAuth is not configured',
+          message: err instanceof Error ? err.message : 'OAuth is not configured',
         },
       };
     }
@@ -217,18 +223,34 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     }
 
     try {
-      const token = await exchangeGitHubCode(deps.config, parsed.data.code, redirectUri);
+      const isGoogle = provider.provider === 'gmail';
+      const token = isGoogle
+        ? await exchangeGoogleCode(deps.config, parsed.data.code, redirectUri)
+        : await exchangeGitHubCode(deps.config, parsed.data.code, redirectUri);
 
-      // Store encrypted at rest (services/integrations.setCredentials → crypto.ts)
+      // Store encrypted at rest (services/integrations.setCredentials → crypto.ts).
+      // For Google, the refresh token (when present) is stored alongside the
+      // access token in the encrypted payload — never logged, never returned.
+      const encryptedSecret = isGoogle && 'refreshToken' in token && token.refreshToken
+        ? JSON.stringify({ accessToken: token.accessToken, refreshToken: token.refreshToken })
+        : token.accessToken;
       await setCredentials(db, provider.id, {
         credentialType: 'oauth',
-        encryptedSecret: token.accessToken,
+        encryptedSecret,
         publicRef: provider.name,
         tokenExpiresAt: token.expiresAt,
-        scopes: token.scope ? token.scope.split(',').map((s) => s.trim()) : [],
+        scopes: token.scope ? token.scope.split(' ').map((s) => s.trim()).filter(Boolean) : [],
       });
 
-      const health = await githubHealthCheck(token.accessToken);
+      // Normalize both providers to the same shape — login = GitHub login,
+      // Gmail email. Never a token or secret.
+      let health: Awaited<ReturnType<typeof githubHealthCheck>>;
+      if (isGoogle) {
+        const google = await googleHealthCheck(token.accessToken);
+        health = { healthy: google.healthy, status: google.status, login: google.email, scopes: undefined, error: google.error };
+      } else {
+        health = await githubHealthCheck(token.accessToken);
+      }
       await updateProviderStatus(db, provider.id, health.healthy ? 'connected' : 'error', health.error);
 
       await appendAudit(db, {
@@ -265,13 +287,30 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     }
 
     const credential = await getCredentials(db, provider.id);
-    const accessToken = decryptCredentialSecret(credential);
-    if (!accessToken) {
+    const decrypted = decryptCredentialSecret(credential);
+    if (!decrypted) {
       await updateProviderStatus(db, provider.id, 'disconnected');
       return { data: { status: 'disconnected', providerId: provider.id } };
     }
 
-    const health = await githubHealthCheck(accessToken);
+    const isGoogle = provider.provider === 'gmail';
+    // Google stores { accessToken, refreshToken } as JSON in the encrypted blob.
+    let accessToken = decrypted;
+    if (isGoogle) {
+      try {
+        const parsed = JSON.parse(decrypted) as { accessToken?: string };
+        if (parsed.accessToken) accessToken = parsed.accessToken;
+      } catch {
+        // Legacy plain-token storage — fall through with the raw value.
+      }
+    }
+    let health: Awaited<ReturnType<typeof githubHealthCheck>>;
+    if (isGoogle) {
+      const google = await googleHealthCheck(accessToken);
+      health = { healthy: google.healthy, status: google.status, login: google.email, scopes: undefined, error: google.error };
+    } else {
+      health = await githubHealthCheck(accessToken);
+    }
     await updateProviderStatus(db, provider.id, health.healthy ? 'connected' : 'error', health.error);
     return {
       data: {
