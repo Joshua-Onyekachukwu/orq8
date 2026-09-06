@@ -15,6 +15,7 @@ import {
   LogOut,
   ScrollText,
   Settings,
+  Plug,
   Shield,
   ShieldCheck,
   Target,
@@ -52,6 +53,10 @@ const navGroups: NavGroup[] = [
       { label: "Goals & Tasks", href: "/app/goals", icon: Target },
       { label: "Org Explorer", href: "/app/org", icon: Building2 },
     ],
+  },
+  {
+    title: "Systems",
+    items: [{ label: "Integrations", href: "/app/integrations", icon: Plug }],
   },
   {
     title: "Governance",
