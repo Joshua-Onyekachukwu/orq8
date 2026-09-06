@@ -18,6 +18,11 @@ import {
   type Db as DbType,
 } from '@orq8/db';
 import { registerToolHandler, type ToolExecutionContext } from './tool-registry.js';
+import {
+  dispatchGithubAction,
+  ConnectorActionError,
+  type GithubActionName,
+} from './connector-actions.js';
 import { chat, chatJson } from './llm.js';
 import { appendAudit } from './audit.js';
 import { broadcastToOrg } from './realtime.js';
@@ -58,6 +63,18 @@ export function registerBuiltinToolHandlers(): void {
   // System tools
   registerToolHandler('get_org_status', handleGetOrgStatus);
   registerToolHandler('notify_founder', handleNotifyFounder);
+
+  // GitHub connector actions (real execution against the org's GitHub connection)
+  registerToolHandler('github_list_repositories', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('list_repositories', params, ctx, db));
+  registerToolHandler('github_list_issues', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('list_issues', params, ctx, db));
+  registerToolHandler('github_create_issue', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('create_issue', params, ctx, db));
+  registerToolHandler('github_comment_on_issue', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('comment_on_issue', params, ctx, db));
+  registerToolHandler('github_create_pull_request', (params, ctx, _config, db) =>
+    handleGithubConnectorAction('create_pull_request', params, ctx, db));
 }
 
 // ─── Research Tool Handlers ─────────────────────────────────────────────────
@@ -778,4 +795,34 @@ async function handleNotifyFounder(
     title,
     timestamp: new Date().toISOString(),
   };
+}
+
+/**
+ * Execute a GitHub connector action on behalf of the calling agent.
+ * All capability/ownership checks happen server-side in connector-actions.ts;
+ * the tool layer maps validated params → action and normalizes failures so the
+ * agent receives a structured result (never a raw provider payload).
+ */
+async function handleGithubConnectorAction(
+  action: GithubActionName,
+  params: Record<string, unknown>,
+  ctx: ToolExecutionContext,
+  db: Db,
+): Promise<unknown> {
+  try {
+    const result = await dispatchGithubAction(db, { orgId: ctx.orgId, agentId: ctx.agentId, userId: ctx.userId, taskId: ctx.taskId }, action, params);
+    return {
+      ok: true,
+      action: result.action,
+      providerResourceId: result.providerResourceId,
+      providerUrl: result.providerUrl,
+      result: result.result,
+    };
+  } catch (error) {
+    if (error instanceof ConnectorActionError) {
+      // Normalize: the agent should see a clear, safe reason — never a raw token/provider payload.
+      return { ok: false, error: error.message, code: error.code };
+    }
+    throw error;
+  }
 }

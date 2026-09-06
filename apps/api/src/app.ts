@@ -52,6 +52,7 @@ import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerSimulationRoutes } from './routes/simulation.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
+import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
 import { csrfPlugin } from './plugins/csrf.js';
@@ -273,6 +274,7 @@ export async function buildApp(
   registerEventRoutes(app, deps);
   registerSimulationRoutes(app, deps);
   registerAnalyticsRoutes(app, deps);
+  registerConnectorActionRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce
   registerBuiltinTools();

@@ -829,6 +829,129 @@ export function registerBuiltinTools(): void {
     maxRetries: 0,
   });
 
+  // ── GitHub Connector Actions (Phase 4/5) ──
+  // Real, capability-gated actions against the org's GitHub connection.
+  // The connector-action layer enforces org ownership + per-agent capability
+  // grants server-side before any request reaches GitHub (see connector-actions.ts).
+  registerTool({
+    id: 'github_list_repositories',
+    name: 'GitHub: List Repositories',
+    description: 'List repositories the connected GitHub account can access.',
+    category: 'engineering',
+    parameters: [
+      { name: 'visibility', type: 'string', description: 'Filter by visibility', required: false, defaultValue: 'all', enum: ['all', 'public', 'private'] },
+    ],
+    outputDescription: 'List of repositories with owner, name, url and description',
+    riskLevel: 'safe',
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2000,
+    timeoutMs: 25000,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1,
+  });
+
+  registerTool({
+    id: 'github_list_issues',
+    name: 'GitHub: List Issues',
+    description: 'List open issues in a repository.',
+    category: 'engineering',
+    parameters: [
+      { name: 'owner', type: 'string', description: 'Repository owner (org or user)', required: true },
+      { name: 'repo', type: 'string', description: 'Repository name', required: true },
+      { name: 'state', type: 'string', description: 'Issue state filter', required: false, defaultValue: 'open', enum: ['open', 'closed', 'all'] },
+    ],
+    outputDescription: 'List of issues with number, title, state and url',
+    riskLevel: 'safe',
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2000,
+    timeoutMs: 25000,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1,
+  });
+
+  registerTool({
+    id: 'github_create_issue',
+    name: 'GitHub: Create Issue',
+    description: 'Create an issue in a repository on behalf of the organization.',
+    category: 'engineering',
+    parameters: [
+      { name: 'owner', type: 'string', description: 'Repository owner (org or user)', required: true },
+      { name: 'repo', type: 'string', description: 'Repository name', required: true },
+      { name: 'title', type: 'string', description: 'Issue title', required: true },
+      { name: 'body', type: 'string', description: 'Issue body', required: false },
+      { name: 'labels', type: 'array', description: 'Labels to apply', required: false },
+    ],
+    outputDescription: 'Created issue with number and url',
+    riskLevel: 'medium',
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3000,
+    timeoutMs: 25000,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0,
+  });
+
+  registerTool({
+    id: 'github_comment_on_issue',
+    name: 'GitHub: Comment on Issue',
+    description: 'Post a comment on an existing issue.',
+    category: 'engineering',
+    parameters: [
+      { name: 'owner', type: 'string', description: 'Repository owner (org or user)', required: true },
+      { name: 'repo', type: 'string', description: 'Repository name', required: true },
+      { name: 'issueNumber', type: 'number', description: 'Issue number', required: true },
+      { name: 'body', type: 'string', description: 'Comment body', required: true },
+    ],
+    outputDescription: 'Created comment with id and url',
+    riskLevel: 'medium',
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3000,
+    timeoutMs: 25000,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0,
+  });
+
+  registerTool({
+    id: 'github_create_pull_request',
+    name: 'GitHub: Create Pull Request',
+    description: 'Open a pull request in a repository.',
+    category: 'engineering',
+    parameters: [
+      { name: 'owner', type: 'string', description: 'Repository owner (org or user)', required: true },
+      { name: 'repo', type: 'string', description: 'Repository name', required: true },
+      { name: 'title', type: 'string', description: 'Pull request title', required: true },
+      { name: 'head', type: 'string', description: 'Head branch', required: true },
+      { name: 'base', type: 'string', description: 'Base branch', required: true },
+      { name: 'body', type: 'string', description: 'Pull request body', required: false },
+    ],
+    outputDescription: 'Created pull request with number and url',
+    riskLevel: 'high',
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 3000,
+    timeoutMs: 25000,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0,
+  });
+
   // ── System Tools ──
   registerTool({
     id: 'get_org_status',
