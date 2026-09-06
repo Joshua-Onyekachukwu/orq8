@@ -31,6 +31,7 @@ import {
 } from '@orq8/db';
 import type { AppConfig } from '@orq8/core';
 import type { Logger } from 'pino';
+import { scanOrgAnomalies } from './anomaly-detector.js';
 import { createEmailTransport } from '../email/transport.js';
 import { createNotification } from '../routes/notifications.js';
 import { getNotificationPrefs } from './notification-preferences.js';
@@ -193,13 +194,24 @@ export async function buildBriefingContent(
   for (const g of overdueGoals) goalItems.push(`Overdue: "${g.title}"`);
   if (goalItems.length > 0) sections.push({ heading: 'Goals', items: goalItems });
 
-  // Anomalies
+  // Anomalies — period signals plus a live scan of goal/task/failure/spend
+  // thresholds (anomaly-detector.ts). The scan is deterministic and bounded,
+  // and gives the founder proactive warnings about stalls, at-risk goals,
+  // blocked tasks, failure spikes and spend spikes.
   const anomalies: string[] = [];
   if (stats.tasksFailed >= 2) anomalies.push(`${stats.tasksFailed} task failures this period — review agent reliability.`);
   if (aging.length > 0) anomalies.push(`${aging.length} approval(s) waiting over 24h.`);
   if (stats.goalsOverdue > 0) anomalies.push(`${stats.goalsOverdue} overdue goal(s).`);
   if (stats.agentsPaused > 0) anomalies.push(`${stats.agentsPaused} AI employee(s) paused.`);
   if (stats.connectorOutcomes > 20) anomalies.push(`Unusually high connector activity (${stats.connectorOutcomes} outcomes).`);
+  try {
+    const scan = await scanOrgAnomalies(db, orgId, now);
+    for (const a of scan.anomalies) {
+      anomalies.push(`${a.severity === 'critical' ? '[CRITICAL] ' : a.severity === 'warning' ? '[WARNING] ' : ''}${a.message}`);
+    }
+  } catch {
+    // The scan must never take down the briefing — fall back to period signals only.
+  }
   if (anomalies.length > 0) sections.push({ heading: 'Needs Attention', items: anomalies });
 
   const quiet =

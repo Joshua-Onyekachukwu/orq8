@@ -3,6 +3,7 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { logAnalyticsEvent, listAnalyticsEvents } from '../services/simulation.js';
+import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import type { AppDeps } from '../types.js';
 
 const logBody = z.object({
@@ -35,5 +36,16 @@ export function registerAnalyticsRoutes(app: FastifyInstance, deps: AppDeps): vo
     const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 200);
     const events = await listAnalyticsEvents(db, ctx.orgId, limit);
     return { data: events };
+  });
+
+  /**
+   * GET /v1/analytics/anomalies — deterministic scan of the org's current
+   * operational signals (stalled goals, at-risk goals, blocked tasks, failure
+   * spikes, spend spikes). Powers the proactive "Needs Attention" surface.
+   */
+  app.get('/v1/analytics/anomalies', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const scan = await scanOrgAnomalies(db, ctx.orgId);
+    return { data: scan };
   });
 }
