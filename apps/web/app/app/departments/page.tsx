@@ -27,8 +27,18 @@ interface Department {
   activeCount: number;
 }
 
+interface Team {
+  id: string;
+  name: string;
+  department: string | null;
+  agentCount: number;
+  activeCount: number;
+  lead: string | null;
+}
+
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,10 +66,14 @@ export default function DepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/departments");
+      const [res, teamsRes] = await Promise.all([fetch("/api/departments"), fetch("/api/teams")]);
       if (!res.ok) throw new Error("Failed to fetch departments");
       const json = await res.json();
       setDepartments((json.data ?? []).filter((d: Department) => d.id !== null));
+      if (teamsRes.ok) {
+        const teamsJson = await teamsRes.json();
+        setTeams(teamsJson.data ?? []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load departments");
     } finally {
@@ -204,6 +218,29 @@ export default function DepartmentsPage() {
         </div>
       )}
 
+      {/* Teams access — Organization → Department → Teams → AI employees */}
+      {!loading && (
+        <a
+          href="/app/teams"
+          className="mt-6 flex items-center gap-4 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-orq8-green/40"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-orq8-green">
+            <GitBranch className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink">Teams</p>
+            <p className="text-xs text-muted">
+              {teams.length === 0
+                ? "No teams yet — teams group AI employees inside departments for focused work."
+                : `${teams.length} team${teams.length !== 1 ? "s" : ""} · ${teams.reduce((sum, t) => sum + t.agentCount, 0)} member${teams.reduce((sum, t) => sum + t.agentCount, 0) !== 1 ? "s" : ""} across ${new Set(teams.map((t) => t.department ?? "")).size} department${new Set(teams.map((t) => t.department ?? "")).size !== 1 ? "s" : ""}`}
+            </p>
+          </div>
+          <span className="text-xs font-medium text-orq8-green">
+            {teams.length === 0 ? "Create a team →" : "Manage teams →"}
+          </span>
+        </a>
+      )}
+
       {loading && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -248,6 +285,15 @@ export default function DepartmentsPage() {
                       {dept.agentCount} agent{dept.agentCount !== 1 ? "s" : ""}
                       {" · "}
                       {dept.activeCount} active
+                      {" · "}
+                      <a
+                        href="/app/teams"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-0.5 text-orq8-green hover:underline"
+                      >
+                        {teams.filter((t) => t.department === dept.name).length} team
+                        {teams.filter((t) => t.department === dept.name).length !== 1 ? "s" : ""}
+                      </a>
                     </p>
                   </div>
                 </div>

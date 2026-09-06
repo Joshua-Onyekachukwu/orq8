@@ -42,7 +42,10 @@ import {
   createEngineeringTask,
   updateEngineeringTask,
   recordEngineeringLesson,
+  canTransitionPrStatus,
+  listOrgPrs,
 } from '../services/engineering.js';
+import { registerCapabilityForMergedPr } from '../services/capability-registry.js';
 import type { AppDeps } from '../types.js';
 
 const createRepoBody = z.object({
@@ -402,6 +405,13 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
 
   // ─── PRs ──────────────────────────────────────────────────────────────────
 
+  /** Org-wide PR list with repository + linked engineering task (review surface). */
+  app.get('/v1/prs', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const prs = await listOrgPrs(db, ctx.orgId);
+    return { data: prs };
+  });
+
   app.get<{ Params: { repoId: string } }>('/v1/repositories/:repoId/prs', async (request) => {
     const ctx = await requireAuth(request, deps);
     const repo = await getRepository(db, ctx.orgId, request.params.repoId);
@@ -424,7 +434,7 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
       return { error: { code: 'not_found', message: 'Repository not found' } };
     }
 
-    const pr = await createPr(db, {
+    const pr = await createPr(db, ctx.orgId, {
       ...parsed.data,
     } as NewRepositoryPr);
 
@@ -445,22 +455,68 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
         return { error: { code: 'not_found', message: 'PR not found' } };
       }
 
-      const statusMap: Record<string, string> = {
-        approved: 'approved',
-        rejected: 'rejected',
-        changes_requested: 'changes_requested',
-        merged: 'merged',
-      };
+      const next = parsed.data.status;
 
-      const updated = await updatePrStatus(db, request.params.id, statusMap[parsed.data.status]!, undefined, ctx.userId);
+      // Server-side approval gate: merging requires an explicit prior approval.
+      const gate = canTransitionPrStatus(pr.status, next);
+      if (!gate.ok) {
+        reply.code(409);
+        return { error: { code: 'invalid_pr_transition', message: gate.reason } };
+      }
+
+      const updated = await updatePrStatus(db, request.params.id, next, undefined, ctx.userId);
 
       await appendAudit(db, {
         orgId: ctx.orgId,
         actorType: 'user',
         actorId: ctx.userId,
-        action: `pr.${parsed.data.status}`,
+        action: `pr.${next}`,
         outcome: 'success',
+        resultRef: pr.id,
       });
+
+      // Success gate: a merged PR registers a reusable capability automatically
+      // (idempotent per PR). Only successful, approved-and-merged work qualifies.
+      if (next === 'merged' && updated) {
+        try {
+          const [linkedTask] = await db
+            .select()
+            .from(engineeringTasks)
+            .where(eq(engineeringTasks.prId, pr.id))
+            .limit(1);
+          if (linkedTask) {
+            const entry = await registerCapabilityForMergedPr(db, ctx.orgId, {
+              pr: {
+                id: pr.id,
+                title: pr.title,
+                headBranch: pr.headBranch,
+                baseBranch: pr.baseBranch,
+                providerPrUrl: pr.providerPrUrl,
+                providerPrNumber: pr.providerPrNumber,
+              },
+              task: {
+                id: linkedTask.id,
+                title: linkedTask.title,
+                description: linkedTask.description,
+                branch: linkedTask.branch,
+                assigneeId: linkedTask.assigneeId,
+              },
+              testsSummary: linkedTask.testsSummary as { passed?: number; failed?: number; total?: number } | null | undefined,
+              diffSummary: linkedTask.diffSummary as { filesChanged?: number; additions?: number; deletions?: number; majorAreas?: string[] } | null | undefined,
+            });
+            await appendAudit(db, {
+              orgId: ctx.orgId,
+              actorType: 'agent',
+              actorId: linkedTask.assigneeId,
+              action: 'capability.auto_registered',
+              outcome: 'success',
+              resultRef: entry.name,
+            });
+          }
+        } catch {
+          // Non-fatal — the merge itself succeeded; capability registration is best-effort.
+        }
+      }
 
       return { data: updated };
     },

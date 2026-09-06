@@ -11,6 +11,15 @@ import { eq, and, or, ilike } from 'drizzle-orm';
 import { capabilityRegistry, type Db, type CapabilityEntry, type NewCapabilityEntry } from '@orq8/db';
 import { appendAudit } from './audit.js';
 
+/** Words that carry no capability meaning — stripped from derived slugs. */
+const SLUG_STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'for', 'with', 'from', 'into', 'onto', 'our', 'your', 'their',
+  'add', 'adding', 'support', 'supports', 'to', 'of', 'on', 'at', 'in', 'by', 'new', 'update',
+  'updated', 'updating', 'fix', 'fixes', 'fixed', 'bug', 'change', 'changes', 'changed',
+  'implement', 'implementing', 'create', 'created', 'creating', 'build', 'building', 'make', 'making',
+  'feature', 'component', 'file', 'files', 'improve', 'improving', 'make', 'work', 'working', 'be', 'is', 'are',
+]);
+
 /** Built-in capabilities every org starts with (connector-backed + core agents). */
 export const BUILTIN_CAPABILITIES: Array<Omit<NewCapabilityEntry, 'orgId'>> = [
   { name: 'github.read_repositories', description: 'List GitHub repositories the account can access.', category: 'connector', provider: 'github', capability: 'read_repositories', location: 'connector-actions', reusable: true, status: 'available', source: 'builtin' },
@@ -80,6 +89,71 @@ export async function registerCapability(db: Db, orgId: string, data: Omit<NewCa
     resultRef: JSON.stringify({ name: data.name, category: data.category }),
   });
   return row;
+}
+
+/**
+ * Derive a reusable, searchable capability name from an engineering task
+ * title. Strips filler words so "Add Supabase RLS verification for
+ * organization-scoped agent data" → "supabase-rls-verification-organization".
+ * Never returns empty: falls back to a sanitized full slug.
+ */
+export function deriveCapabilitySlug(title: string): string {
+  const cleaned = (title ?? '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ');
+  const words = cleaned.split(/[\s-]+/).filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w));
+  let slug = words.slice(0, 5).join('-');
+  if (slug.length < 4) {
+    slug = cleaned.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  if (!slug) slug = 'engineering-capability';
+  return slug.slice(0, 64);
+}
+
+/**
+ * Auto-register a reusable capability when an engineering PR passes its gate
+ * and merges. Idempotent per PR: the capability name embeds a short PR id, and
+ * registerCapability dedupes on (orgId, name), so reprocessing the same merge
+ * event can never create duplicates.
+ */
+export async function registerCapabilityForMergedPr(
+  db: Db,
+  orgId: string,
+  input: {
+    pr: { id: string; title: string; headBranch: string; baseBranch: string; providerPrUrl?: string | null; providerPrNumber?: number | null };
+    task: { id: string; title: string; description?: string | null; branch?: string | null; assigneeId?: string | null };
+    testsSummary?: { passed?: number; failed?: number; total?: number } | null;
+    diffSummary?: { filesChanged?: number; additions?: number; deletions?: number; majorAreas?: string[] } | null;
+  },
+): Promise<CapabilityEntry> {
+  const base = deriveCapabilitySlug(input.task.title);
+  const prHash = input.pr.id.replace(/-/g, '').slice(0, 8);
+  const name = `${base}-${prHash}`;
+
+  const diff = input.diffSummary ?? {};
+  const tests = input.testsSummary ?? {};
+  const description = [
+    `Engineering capability: ${input.task.title}`,
+    input.task.description?.trim() ? input.task.description.trim().slice(0, 400) : undefined,
+    `Merged via PR "${input.pr.title}" (${input.pr.headBranch} → ${input.pr.baseBranch})${input.pr.providerPrNumber ? ` · #${input.pr.providerPrNumber}` : ''}${input.pr.providerPrUrl ? ` · ${input.pr.providerPrUrl}` : ''}.`,
+    diff.filesChanged ? `Files changed: ${diff.filesChanged}; +${diff.additions ?? 0}/-${diff.deletions ?? 0} lines.` : undefined,
+    diff.majorAreas && diff.majorAreas.length > 0 ? `Areas: ${diff.majorAreas.slice(0, 5).join(', ')}.` : undefined,
+    tests.total !== undefined ? `Tests: ${tests.passed ?? 0}/${tests.total} passed${tests.failed ? ` (${tests.failed} failed)` : ''}.` : undefined,
+    'Reusable by future engineering work — search the capability registry before building.',
+  ].filter(Boolean).join(' ');
+
+  const existing = await getCapabilityByName(db, orgId, name);
+  if (existing) return existing;
+
+  return registerCapability(db, orgId, {
+    name,
+    description,
+    category: 'code',
+    provider: 'internal',
+    location: input.pr.providerPrUrl ?? `pr:${input.pr.id}`,
+    ownerAgentId: input.task.assigneeId ?? null,
+    reusable: true,
+    status: 'available',
+    source: 'engineering',
+  });
 }
 
 /** Search capabilities by name/description — the build-vs-buy query. */

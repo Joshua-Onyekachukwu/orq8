@@ -10,7 +10,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { forbidden, validation } from '@orq8/core';
-import { agents } from '@orq8/db';
+import { agents, organizations } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
@@ -33,6 +33,7 @@ import {
   verifyTimestamp,
 } from '../services/webhooks.js';
 import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-memory.js';
+import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
 import type { AppDeps } from '../types.js';
 
@@ -347,6 +348,33 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
     }
     const result = await processPendingEvents(db, { limit: 100 });
     return { data: result };
+  });
+
+  /** Run the anomaly scan across orgs (cron: daily). Records per-org evidence. */
+  app.post('/v1/internal/anomalies/scan', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const orgs = await db.select({ id: organizations.id }).from(organizations);
+    const results: Array<{ orgId: string; anomalies: number; error?: string }> = [];
+    for (const org of orgs) {
+      try {
+        const scan = await scanOrgAnomalies(db, org.id);
+        const count = Array.isArray(scan.anomalies) ? scan.anomalies.length : 0;
+        await appendAudit(db, {
+          orgId: org.id,
+          actorType: 'system',
+          action: 'anomaly.scan_completed',
+          outcome: 'success',
+          resultRef: `anomalies:${count}`,
+        });
+        results.push({ orgId: org.id, anomalies: count });
+      } catch (err) {
+        results.push({ orgId: org.id, anomalies: 0, error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' });
+      }
+    }
+    return { data: { orgs: results.length, results } };
   });
 
   /** Consolidate company memory across orgs (cron: daily). */

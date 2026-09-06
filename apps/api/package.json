@@ -14,7 +14,8 @@
     "build:bundle": "node scripts/build-serverless.mjs",
     "build:packages": "pnpm -r --filter @orq8/core --filter @orq8/db --filter @orq8/domain --filter @orq8/auth build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ops:check": "tsx scripts/production-check.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

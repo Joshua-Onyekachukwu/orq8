@@ -10,6 +10,7 @@ import {
   Code2,
   Database,
   GitBranch,
+  GitMerge,
   GitPullRequest,
   Layers,
   Loader2,
@@ -22,6 +23,7 @@ import {
   TerminalSquare,
   Users,
   Wrench,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -85,6 +87,39 @@ interface McpServer {
   tools: Array<{ id: string; name: string; requiresApproval: boolean; riskLevel: string }>;
 }
 
+interface OrgPr {
+  id: string;
+  title: string;
+  status: string;
+  headBranch: string;
+  baseBranch: string;
+  providerPrUrl: string | null;
+  repositoryName: string | null;
+  authorId: string;
+  riskAssessment: Record<string, unknown> | null;
+  approvedBy: string | null;
+  mergedAt: string | null;
+  createdAt: string;
+  task: {
+    id: string;
+    title: string;
+    acceptanceCriteria: string | null;
+    testsSummary: Record<string, unknown> | null;
+    diffSummary: Record<string, unknown> | null;
+  } | null;
+}
+
+interface EmPlan {
+  requestId: string;
+  objective: string;
+  alreadyPlanned: boolean;
+  capabilitiesReused: Array<{ name: string; description: string | null; category: string }>;
+  capabilityGaps: string[];
+  team: Array<{ agentId: string; name: string; role: string }>;
+  tasks: Array<{ title: string; assignedRole: string; agentName: string | null; priority: string }>;
+  report: string;
+}
+
 /* ── Helpers ── */
 
 function statusBadge(status: string) {
@@ -130,6 +165,13 @@ function EngineeringDashboard() {
   const [runs, setRuns] = useState<SandboxRun[]>([]);
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [prs, setPrs] = useState<OrgPr[]>([]);
+  const [reviewPr, setReviewPr] = useState<OrgPr | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [emObjective, setEmObjective] = useState("");
+  const [emPlanning, setEmPlanning] = useState(false);
+  const [emResult, setEmResult] = useState<EmPlan | null>(null);
+  const [emError, setEmError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -138,16 +180,17 @@ function EngineeringDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [agentsRes, tasksRes, reposRes, runsRes, capsRes, mcpRes] = await Promise.all([
+      const [agentsRes, tasksRes, reposRes, runsRes, capsRes, mcpRes, prsRes] = await Promise.all([
         fetch("/api/agents", { next: { revalidate: 15 } }),
         fetch("/api/engineering/tasks", { next: { revalidate: 15 } }),
         fetch("/api/engineering/repositories", { next: { revalidate: 15 } }),
         fetch("/api/engineering/sandbox-runs", { next: { revalidate: 15 } }),
         fetch("/api/capabilities", { next: { revalidate: 15 } }),
         fetch("/api/mcp/servers", { next: { revalidate: 15 } }),
+        fetch("/api/prs", { next: { revalidate: 10 } }),
       ]);
-      const [agentsJson, tasksJson, reposJson, runsJson, capsJson, mcpJson] = await Promise.all([
-        agentsRes.json(), tasksRes.json(), reposRes.json(), runsRes.json(), capsRes.json(), mcpRes.json(),
+      const [agentsJson, tasksJson, reposJson, runsJson, capsJson, mcpJson, prsJson] = await Promise.all([
+        agentsRes.json(), tasksRes.json(), reposRes.json(), runsRes.json(), capsRes.json(), mcpRes.json(), prsRes.json(),
       ]);
       setAgents(agentsJson.data ?? []);
       setTasks(tasksJson.data ?? []);
@@ -155,6 +198,7 @@ function EngineeringDashboard() {
       setRuns(runsJson.data ?? []);
       setCapabilities(capsJson.data ?? []);
       setMcpServers(mcpJson.data ?? []);
+      setPrs(prsJson.data ?? []);
     } catch {
       setError("Could not load engineering data. Is the backend reachable?");
     } finally {
@@ -174,6 +218,67 @@ function EngineeringDashboard() {
   const failed = tasks.filter((t) => t.status === "failed").length;
   const activeRuns = runs.filter((r) => r.state === "running" || r.state === "queued").length;
   const mcpConnected = mcpServers.filter((s) => s.status === "connected").length;
+
+  const openForReview = prs.filter((p) => p.status === "pending_review" || p.status === "changes_requested");
+  const approvedPrs = prs.filter((p) => p.status === "approved");
+  const mergedPrs = prs.filter((p) => p.status === "merged").length;
+
+  async function decidePr(pr: OrgPr, status: string) {
+    setReviewBusy(true);
+    try {
+      const res = await fetch(`/api/prs/${pr.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setEmError(json?.error?.message ?? "Action rejected by the server");
+        return;
+      }
+      setEmError(null);
+      setReviewPr(null);
+      await load();
+    } catch {
+      setEmError("Backend unavailable");
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
+  async function runEngineeringManager() {
+    if (emObjective.trim().length < 8) {
+      setEmError("Describe the engineering objective (at least 8 characters).");
+      return;
+    }
+    setEmPlanning(true);
+    setEmError(null);
+    try {
+      const res = await fetch("/api/engineering-manager/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objective: emObjective.trim(), priority: "high" }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEmError(json?.error?.message ?? "Planning failed");
+        return;
+      }
+      setEmResult(json.data ?? null);
+      setEmObjective("");
+      await load();
+    } catch {
+      setEmError("Backend unavailable");
+    } finally {
+      setEmPlanning(false);
+    }
+  }
+
+  function riskLevel(pr: OrgPr): string | null {
+    const r = pr.riskAssessment as Record<string, unknown> | null;
+    if (r && typeof r.riskLevel === "string") return r.riskLevel;
+    return null;
+  }
 
   const categoryCounts = capabilities.reduce<Record<string, number>>((acc, c) => {
     acc[c.category] = (acc[c.category] ?? 0) + 1;
@@ -453,7 +558,7 @@ function EngineeringDashboard() {
                           {tool.name}
                           {tool.requiresApproval && <span className="text-amber-600">· approval</span>}
                         </span>
-                      ))}
+                      )                      )}
                     </div>
                   </div>
                 );
@@ -462,6 +567,238 @@ function EngineeringDashboard() {
           )}
         </section>
       </div>
+
+      <div className="grid gap-6 mt-8 lg:grid-cols-2">
+        {/* PR review — approval-gated merge */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <GitPullRequest className="h-4 w-4 text-muted" />
+            <h2 className="text-lg font-semibold">Pull request reviews</h2>
+          </div>
+          <p className="mb-3 text-xs text-muted">
+            Merging is server-side approval-gated: approve a PR first, then merge. Approvals and merges are audited.
+          </p>
+          {prs.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted">
+              No pull requests yet. PRs opened from engineering tasks appear here for founder review.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {prs.slice(0, 8).map((pr) => {
+                const badge = statusBadge(pr.status);
+                const risk = riskLevel(pr);
+                return (
+                  <div key={pr.id} className="rounded-xl border bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{pr.title}</p>
+                        <p className="text-xs text-muted">
+                          {pr.repositoryName ?? "repo"} · {pr.headBranch} → {pr.baseBranch}
+                          {pr.task ? ` · ${pr.task.title}` : ""}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{pr.status}</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      {risk && (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${riskBadge(risk).cls}`}>{risk} risk</span>
+                      )}
+                      <button
+                        onClick={() => { setReviewPr(pr); setEmError(null); }}
+                        className="rounded-lg border border-input px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                      >
+                        Review
+                      </button>
+                      {pr.providerPrUrl && (
+                        <a href={pr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Open ↗</a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {approvedPrs.length > 0 && (
+                <p className="text-xs text-muted">
+                  {approvedPrs.length} approved PR{approvedPrs.length !== 1 ? "s" : ""} ready to merge · {mergedPrs} merged
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Engineering Manager loop */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Bot className="h-4 w-4 text-muted" />
+            <h2 className="text-lg font-semibold">Engineering Manager</h2>
+          </div>
+          <p className="mb-3 text-xs text-muted">
+            Turn a request into an organized plan: capability-registry search, team assembly and tasks with acceptance criteria.
+          </p>
+          {emError && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{emError}</div>}
+          <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <label className="mb-1.5 block text-sm font-medium">Engineering request</label>
+            <textarea
+              value={emObjective}
+              onChange={(e) => setEmObjective(e.target.value)}
+              rows={2}
+              placeholder="e.g. Add a customer dashboard that shows order history and lets support draft replies"
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button
+              onClick={runEngineeringManager}
+              disabled={emPlanning}
+              className="mt-2 inline-flex items-center gap-2 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
+            >
+              {emPlanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+              {emPlanning ? "Planning…" : "Plan with Engineering Manager"}
+            </button>
+          </div>
+
+          {emResult && (
+            <div className="mt-3 rounded-xl border bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Plan {emResult.alreadyPlanned ? "(already planned — idempotent)" : "created"}</p>
+                <span className="text-[11px] text-muted font-mono">{emResult.requestId.slice(0, 12)}</span>
+              </div>
+              <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed">{emResult.report}</pre>
+              {emResult.team.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {emResult.team.map((m) => (
+                    <span key={m.agentId} className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                      {m.name} — {m.role}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {emResult.tasks.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {emResult.tasks.map((t, i) => (
+                    <li key={i} className="text-xs text-muted">• {t.title} <span className="text-foreground">({t.assignedRole})</span></li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* PR review modal */}
+      {reviewPr && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-base font-semibold">Review pull request</h3>
+                <p className="truncate text-sm text-muted">
+                  {reviewPr.repositoryName ?? "Repository"} · {reviewPr.headBranch} → {reviewPr.baseBranch}
+                </p>
+              </div>
+              <button onClick={() => setReviewPr(null)} className="rounded-lg p-1.5 text-muted hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+              <div>
+                <p className="text-sm font-semibold">{reviewPr.title}</p>
+                {reviewPr.task && (
+                  <p className="mt-0.5 text-xs text-muted">Linked task: {reviewPr.task.title}</p>
+                )}
+                {reviewPr.providerPrUrl && (
+                  <a href={reviewPr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Open on provider ↗</a>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Risk assessment</p>
+                {reviewPr.riskAssessment && Object.keys(reviewPr.riskAssessment).length > 0 ? (
+                  <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
+                    {Object.entries(reviewPr.riskAssessment).map(([k, v]) => (
+                      <p key={k} className="flex gap-2">
+                        <span className="font-medium capitalize w-32 shrink-0 text-muted-foreground">{k.replace(/_/g, " ")}</span>
+                        <span className="text-foreground">{typeof v === "object" ? JSON.stringify(v) : String(v)}</span>
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-xs text-muted">No structured risk assessment recorded for this PR.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Tests & checks</p>
+                {reviewPr.task?.testsSummary ? (
+                  <div className="rounded-lg border bg-muted/30 p-3 text-xs font-mono whitespace-pre-wrap">
+                    {JSON.stringify(reviewPr.task.testsSummary, null, 2)}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-xs text-muted">No test summary recorded.</p>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Diff summary</p>
+                {reviewPr.task?.diffSummary ? (
+                  <div className="rounded-lg border bg-muted/30 p-3 text-xs font-mono whitespace-pre-wrap">
+                    {JSON.stringify(reviewPr.task.diffSummary, null, 2)}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-xs text-muted">No diff summary recorded.</p>
+                )}
+              </div>
+
+              {reviewPr.task?.acceptanceCriteria && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Acceptance criteria</p>
+                  <p className="rounded-lg border bg-muted/30 p-3 text-xs">{reviewPr.task.acceptanceCriteria}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t px-6 py-4">
+              <span className="mr-auto text-xs text-muted">
+                Status: <span className="font-medium text-foreground">{reviewPr.status}</span>
+              </span>
+              {reviewPr.status !== "merged" && reviewPr.status !== "approved" && (
+                <button
+                  onClick={() => decidePr(reviewPr, "approved")}
+                  disabled={reviewBusy}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                </button>
+              )}
+              {reviewPr.status !== "merged" && reviewPr.status !== "approved" && (
+                <button
+                  onClick={() => decidePr(reviewPr, "changes_requested")}
+                  disabled={reviewBusy}
+                  className="rounded-lg border border-input px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  Request changes
+                </button>
+              )}
+              {reviewPr.status !== "merged" && reviewPr.status !== "approved" && (
+                <button
+                  onClick={() => decidePr(reviewPr, "rejected")}
+                  disabled={reviewBusy}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <XCircle className="h-3.5 w-3.5" /> Reject
+                </button>
+              )}
+              {reviewPr.status === "approved" && (
+                <button
+                  onClick={() => decidePr(reviewPr, "merged")}
+                  disabled={reviewBusy}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
+                >
+                  <GitMerge className="h-3.5 w-3.5" /> Merge
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

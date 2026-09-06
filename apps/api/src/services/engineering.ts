@@ -1,4 +1,4 @@
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import {
   repositories,
   repositoryBranches,
@@ -262,18 +262,88 @@ export async function getPr(db: Db, orgId: string, id: string): Promise<Reposito
   return pr;
 }
 
-export async function createPr(db: Db, data: NewRepositoryPr): Promise<RepositoryPr> {
+export async function createPr(db: Db, orgId: string, data: NewRepositoryPr): Promise<RepositoryPr> {
   const rows = await db.insert(repositoryPrs).values(data).returning();
   const row = rows[0];
   if (!row) throw new Error('createPr returned no row');
   await appendAudit(db, {
-    orgId: data.repositoryId,
+    orgId,
     actorType: 'agent',
     actorId: data.authorId,
     action: 'pr.created',
     outcome: 'success',
   });
   return row;
+}
+
+/**
+ * PR status state machine — merging is server-side approval-gated. A PR can
+ * only be merged after it has been explicitly approved by a reviewer; a merged
+ * PR is terminal. Idempotent (same status → ok).
+ */
+export function canTransitionPrStatus(current: string, next: string): { ok: boolean; reason?: string } {
+  if (current === next) return { ok: true };
+  if (next === 'merged') {
+    return current === 'approved'
+      ? { ok: true }
+      : { ok: false, reason: 'PR must be approved before it can be merged' };
+  }
+  if (current === 'merged') {
+    return { ok: false, reason: 'A merged PR cannot be reopened or changed' };
+  }
+  return { ok: true };
+}
+
+export interface OrgPrDetails extends RepositoryPr {
+  repositoryName: string | null;
+  task: {
+    id: string;
+    title: string;
+    acceptanceCriteria: string | null;
+    testsSummary: unknown | null;
+    diffSummary: unknown | null;
+  } | null;
+}
+
+/** List PRs org-wide (join repository + linked engineering task) — for review surfaces. */
+export async function listOrgPrs(db: Db, orgId: string): Promise<OrgPrDetails[]> {
+  const rows = await db
+    .select({
+      pr: repositoryPrs,
+      repositoryName: repositories.name,
+    })
+    .from(repositoryPrs)
+    .innerJoin(repositories, eq(repositoryPrs.repositoryId, repositories.id))
+    .where(eq(repositories.orgId, orgId))
+    .orderBy(desc(repositoryPrs.createdAt))
+    .limit(200);
+
+  const prIds = rows.map((r) => r.pr.id);
+  let tasksByPr = new Map<string, EngineeringTask>();
+  if (prIds.length > 0) {
+    const linked = await db
+      .select()
+      .from(engineeringTasks)
+      .where(inArray(engineeringTasks.prId, prIds));
+    tasksByPr = new Map(linked.map((t) => [t.prId!, t]));
+  }
+
+  return rows.map(({ pr, repositoryName }) => {
+    const task = tasksByPr.get(pr.id);
+    return {
+      ...pr,
+      repositoryName,
+      task: task
+        ? {
+            id: task.id,
+            title: task.title,
+            acceptanceCriteria: task.acceptanceCriteria,
+            testsSummary: task.testsSummary,
+            diffSummary: task.diffSummary,
+          }
+        : null,
+    };
+  });
 }
 
 export async function updatePrStatus(

@@ -342,3 +342,37 @@ OAuth mirroring GitHub (stateless, encrypted credentials), migrations `0008`–`
 set `INTERNAL_TOKEN` + OAuth/embedding/email config, then live E2E connector tests and
 scheduled-job verification. Live probes of the engineering/MCP routes are blocked by the same
 prod-credential gap (routes are auth-gated and register cleanly).
+
+---
+
+## 9. Session record — 2026-09-06 (Teams access, capability automation, PR review, EM loop, ops check)
+
+- **Departments → Teams**: Teams strip on the Departments page (count, members, manage link,
+  empty state) + per-department team count linking to `/app/teams`.
+- **Capability automation**: merged PRs with a linked engineering task auto-register a
+  reusable capability (`registerCapabilityForMergedPr`, `deriveCapabilitySlug`) — name
+  embeds a short PR id so reprocessing a merge is idempotent; only approved-and-merged work
+  qualifies (registration runs on the server-side `merged` transition).
+- **PR review gate**: `canTransitionPrStatus` enforces server-side that a PR must be
+  `approved` before `merged`; merged is terminal; audit recorded per decision
+  (`pr.approved|rejected|changes_requested|merged`). New org-wide `GET /v1/prs` returns PRs
+  with repository + linked task (risk/tests/diff/acceptance). Also fixed `createPr` audit
+  which wrongly recorded `repositoryId` as `orgId`.
+- **PR review UI**: Engineering page now lists PRs with a review modal showing risk
+  assessment, tests summary, diff summary and acceptance criteria, plus Approve / Request
+  changes / Reject / Merge actions (Merge only surfaces after approval; server re-checks).
+- **Engineering Manager loop**: `POST /v1/engineering-manager/plan` — validates request,
+  searches the capability registry (build-vs-buy), assembles a team from seeded engineering
+  positions, creates executable tasks with acceptance criteria, and reports back. Idempotent
+  via a content/requestId fingerprint stored in company memory. `GET
+  /v1/engineering-manager/plans` lists recent plans. Founder panel on the Engineering page.
+- **Internal anomaly scan**: `POST /v1/internal/anomalies/scan` (INTERNAL_TOKEN-gated)
+  records per-org `anomaly.scan_completed` audit evidence.
+- **Ops verification**: `apps/api/scripts/production-check.ts` (`pnpm ops:check`) —
+  INTERNAL_TOKEN presence, migration 0003–0012 DB probes (tables/columns, plus optional
+  Supabase tracker read), GitHub/Gmail OAuth presence, email/embedding warnings, and job
+  execution evidence (briefings rows; `anomaly.scan_completed` / `memory.consolidated`
+  audit). Prints PASS/FAIL, exits non-zero on failure. Never prints secrets.
+- **Tests**: `test/engineering-manager.test.ts` (14 tests: slug derivation, PR gate, team
+  assembly, task drafts, idempotency, gaps). Full API suite **381 passing**; web typecheck +
+  production build clean. No lint script is configured in this repo — typecheck is the gate.
