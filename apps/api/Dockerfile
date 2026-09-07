@@ -21,6 +21,8 @@ COPY packages/auth packages/auth
 COPY packages/core packages/core
 COPY packages/db packages/db
 COPY packages/domain packages/domain
+# Schema lineage used by migrate:supabase (packages/db/src/migrate-supabase.ts)
+COPY supabase/migrations supabase/migrations
 
 # ── Production (skip devDependencies for smaller image) ──
 ENV NODE_ENV=production
