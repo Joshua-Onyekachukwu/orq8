@@ -419,6 +419,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       orgId: ctx.orgId,
       actorType: 'user',
       actorId: ctx.userId,
+      agentId: updated.id,
       action: `agent.performance.${parsed.data.action}`,
       outcome: 'success',
       resultRef: JSON.stringify({

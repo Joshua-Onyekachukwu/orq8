@@ -6,7 +6,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { getGoalDrillDown } from '../services/goal-intelligence.js';
 import type { AppDeps } from '../types.js';
-import { goals, tasks, teams, type Db } from '@orq8/db';
+import { goals, tasks, teams, agents, type Db } from '@orq8/db';
 
 const createGoalBody = z.object({
   title: z.string().trim().min(1).max(200),
@@ -277,6 +277,24 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     const ctx = await requireAuth(request, deps);
     const parsed = createTaskBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
+
+    // Assignee must exist in this org and must not be archived — archived
+    // employees no longer receive new work (performance-action 'replace').
+    if (parsed.data.agentId) {
+      const [assignee] = await db
+        .select({ id: agents.id, status: agents.status, orgId: agents.orgId })
+        .from(agents)
+        .where(eq(agents.id, parsed.data.agentId))
+        .limit(1);
+      if (!assignee || assignee.orgId !== ctx.orgId) {
+        reply.code(404);
+        return { error: { code: 'not_found', message: 'Assigned AI employee not found in this organization' } };
+      }
+      if (assignee.status === 'archived') {
+        reply.code(422);
+        return { error: { code: 'agent_archived', message: 'Archived AI employees cannot be assigned new work. Hire or reactivate an employee instead.' } };
+      }
+    }
 
     const teamId = await resolveTeamInOrg(db, ctx.orgId, parsed.data.teamId);
     const [task] = await db

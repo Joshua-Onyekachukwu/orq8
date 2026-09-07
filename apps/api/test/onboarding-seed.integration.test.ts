@@ -10,6 +10,7 @@ import {
   goals,
   tasks,
   auditEvents,
+  companyMemory,
 } from '@orq8/db';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -21,7 +22,13 @@ import { createSession } from '../src/services/sessions.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({
+  NODE_ENV: 'test',
+  LOG_LEVEL: 'silent',
+  // CI sets DATABASE_URL to its Postgres service; locally we honor the env so
+  // the suite can run against a real test database (default matches CI).
+  DATABASE_URL: process.env.DATABASE_URL ?? 'postgres://orq8:orq8_dev_only_change_me@localhost:5432/orq8',
+} as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -140,5 +147,35 @@ run('onboarding playbook seeding — entitlements, idempotency and first task', 
     const after = await countAll();
     expect(after).toEqual(before);
     expect(after.agents).toBeLessThanOrEqual(3);
+  });
+
+  it('persists the selected industry playbook in company memory', async () => {
+    const markers = await deps.db
+      .select({ content: companyMemory.content })
+      .from(companyMemory)
+      .where(eq(companyMemory.orgId, orgId));
+    const seeded = markers.some((m) => m.content.includes('[playbook-seeded:startup-launch]'));
+    expect(seeded).toBe(true);
+    // The marker references the actual seeded shape (departments/agents/goals/tasks).
+    const withShape = markers.find((m) => m.content.includes('departments') && m.content.includes('AI employees'));
+    expect(withShape).toBeTruthy();
+  });
+
+  it('first task can enter the execution workflow', async () => {
+    const [firstTask] = await deps.db
+      .select({ id: tasks.id, status: tasks.status })
+      .from(tasks)
+      .where(eq(tasks.orgId, orgId))
+      .orderBy(tasks.createdAt)
+      .limit(1);
+    expect(firstTask).toBeTruthy();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/v1/tasks/${firstTask!.id}`,
+      headers: { ...auth(), 'content-type': 'application/json' },
+      payload: { status: 'in_progress' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json().data as { status?: string }).status).toBe('in_progress');
   });
 });

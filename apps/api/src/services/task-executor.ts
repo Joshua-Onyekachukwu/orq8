@@ -92,11 +92,12 @@ export async function executeTask(
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
-    if (agent && agent.status === 'paused') {
+    if (agent && (agent.status === 'paused' || agent.status === 'archived')) {
+      const verb = agent.status === 'archived' ? 'archived' : 'paused';
       return {
         taskId,
         status: 'failed',
-        result: `Execution blocked: agent is paused. Resume the agent to continue task execution.`,
+        result: `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
         cost: 0,
         tokensUsed: 0,
         llmUsed: false,

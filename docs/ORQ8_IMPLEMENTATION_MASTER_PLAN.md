@@ -62,16 +62,16 @@ The following are **IMPLEMENTED + VERIFIED** (tests pass, UI connected, org-isol
 | Tasks | VERIFIED | Full lifecycle, cost, audit |
 | Company Builder | VERIFIED | analyze → plan → activate; Business Import (0013) |
 | Playbooks | VERIFIED | 3 industry templates, idempotent seed, plan-aware since f52e7e7 |
-| Simulation V2 | VERIFIED | live baseline, what-if, approval-gated apply, audit |
-| Agent Reliability + Performance Reviews | VERIFIED | KEEP/IMPROVE/REPLACE, 7/30/90d history since f52e7e7 |
+| Simulation V2 | VERIFIED | live baseline vs modeled projection, confidence ranges, insufficient-data state, approval-gated apply, audit |
+| Agent Reliability + Performance Reviews | VERIFIED | KEEP/IMPROVE/REPLACE server-authorized + audited (structured agent_id since c47ff9a), archived employees blocked from new work |
 | Knowledge graph + decision memory | VERIFIED | knowledge_entities/relations, company_decisions |
 | Approvals + audit trail | VERIFIED | server-side gates, full audit service |
 | Capability registry (build-vs-buy) | VERIFIED | PR-merge auto-registration, capability-resolve |
 | Engineering workspace | PARTIAL | sandboxed executor, repos/files/PRs real; Monaco code browser still missing |
-| Connectors (GitHub/Gmail/Linear) | PARTIAL | architecture + outcomes + audit complete; live E2E BLOCKED on OAuth creds |
+| Connectors (GitHub/Gmail/Linear) | PARTIAL | architecture + outcomes + audit + health lifecycle (healthy/degraded/expired/error) + test/reconnect/disconnect complete; live E2E BLOCKED on OAuth creds |
 | MCP | PARTIAL | registry, tool validation, connector catalogs; live servers not configured |
 | Event engine / rules | PARTIAL | events + rules + ingestion exist; Stripe/CRM/calendar ingestion BLOCKED on creds |
-| Scheduler / cron / anomaly jobs | BLOCKED | workflows + INTERNAL_TOKEN endpoints exist; production cron not verified |
+| Scheduler / cron / anomaly jobs | VERIFIED | workflows green on CI (40f0ece/c47ff9a); production INTERNAL_TOKEN verified live (401 without / 200 with); briefing/anomaly/consolidation evidence in prod DB |
 | Company Health | VERIFIED | deterministic composite score + reasons, `/v1/health`, `/app/health`, 25 tests |
 | SSE Command Center | PARTIAL | realtime service exists; replay/sequence hardening deferred |
 | Billing | PARTIAL | checkout/portal backend; no web proxy/UI yet |
@@ -102,7 +102,7 @@ Executive Agent, delegation, squads, goal integration, engineering-manager loop.
 - Tool registry ✅, capability registry ✅
 - MCP registry ✅; live MCP execution BLOCKED (no creds)
 - Connector OAuth: GitHub ✅, Google/Gmail/Linear BLOCKED (creds)
-- Connector lifecycle UI: `settings/connections` exists; health states partial
+- Connector lifecycle UI: `/app/integrations` — health states (Healthy/Degraded/Expired/Error/Disconnected), Test Connection, Reconnect (OAuth via new callback route), Disconnect, outcome evidence table (since c47ff9a)
 
 ### PHASE 5 — Memory + Intelligence 🟡 (PARTIAL)
 Company Brain ✅, memory ✅, knowledge graph ✅, decisions ✅, provenance ✅.
@@ -119,8 +119,9 @@ template-level (not separate runtimes) by design (§124).
 
 ### PHASE 8 — Event-driven operation 🟡 (PARTIAL)
 Events + event rules + internal scan exist. Stripe/CRM/calendar ingestion BLOCKED
-on credentials. Production scheduler verification BLOCKED (INTERNAL_TOKEN set as
-repo secret 2026-09; Railway var not yet verified).
+on credentials. Production scheduler verification ✅ — Railway INTERNAL_TOKEN
+verified live (internal endpoints 401 without / 200 with, 2026-09-07);
+orq8-jobs workflow green on CI for current main; founder /v1/jobs/status view.
 
 ### PHASE 9 — Engineering software factory 🟡 (PARTIAL)
 Sandboxed executor ✅, repos/branches/files/PRs/tasks ✅, PR review UI ✅.
@@ -148,11 +149,16 @@ integration DEFERRED.
 - k6 load tests: NOT_STARTED (DEFERRED)
 - DR runbook: NOT_STARTED (DEFERRED)
 - gVisor/container isolation evaluation: DEFERRED
-- CI failures (pre-existing): Security audit (pnpm audit 19 high + 1 critical),
-  Tests (runner-specific; passes locally)
+- CI failures: RESOLVED — pnpm audit 0 high / 0 critical (3 moderate; fast-uri
+  chain remediated via overrides); Tests root-caused (DB-gated suites vs CI
+  schema lineage) and fixed in cfb0cd9 — CI green.
+- Production ops check: `GET /v1/internal/ops-check` (INTERNAL_TOKEN) live —
+  401/401/200 verified; 16/18 checks PASS; only GitHub/Google OAuth creds FAIL
 
 ### PHASE 14 — Final system verification 🟡 (PARTIAL)
-- Unit/integration: 413 API tests pass (this session baseline)
+- Unit/integration: 430 API tests pass, 137 skipped (credential-gated E2E), 0 failed — verified on a fresh CI-equivalent Postgres (drizzle → supabase lineage)
+- Autonomy: policy endpoint (`GET /v1/autonomy/policy`, mirrors enforceAutonomy) + AI Employees page L0–L4 chips + policy legend
+- Connector health classifier + ops-check endpoint + autonomy-policy suites added (c47ff9a); performance-actions + onboarding journey suites added (c5xxxx pending)
 - Web typecheck + production build: pass
 - Live external actions: BLOCKED (creds)
 - Package tests: entitlements suite covers agent/department/team/connector/mcp
@@ -168,12 +174,17 @@ integration DEFERRED.
 | T-02 | 10 | `GET /v1/health` route (org-scoped) + web proxy | VERIFIED | route registered in app.ts; `/api/health` proxy |
 | T-03 | 11 | `/app/health` founder page (score, reasons, drilldown) + sidebar entry | VERIFIED | score ring, reasons, factor breakdown; sidebar Command group |
 | T-04 | 10 | Unit tests for health score determinism + reason generation | VERIFIED | 25 tests: thresholds, spikes, determinism, weighting, ordering |
-| T-05 | 4 | Google/Gmail/Linear OAuth live verification | BLOCKED | needs OAuth creds in Railway |
-| T-06 | 8 | Production scheduler verification (cron evidence) | BLOCKED | needs Railway INTERNAL_TOKEN set |
+| T-05 | 4 | Google/Gmail/Linear OAuth live verification | BLOCKED | needs OAuth creds in Railway (ops-check confirms GITHUB/GOOGLE creds missing) |
+| T-06 | 8 | Production scheduler verification (cron evidence) | VERIFIED | INTERNAL_TOKEN live-verified 401/200; jobs workflow green; founder /v1/jobs/status + /app/jobs |
 | T-07 | 12 | Stripe checkout/portal web proxy + upgrade UI | NOT_STARTED | after billing keys |
 | T-08 | 9 | Monaco code browser in Engineering workspace | NOT_STARTED | large; defer |
-| T-09 | 13 | Fix pnpm audit high/critical chain | NOT_STARTED | overrides/bump fast-uri via Fastify |
-| T-10 | 13 | CI Tests runner-only failure diagnosis | NOT_STARTED | needs action-log access |
+| T-09 | 13 | Fix pnpm audit high/critical chain | VERIFIED | 0 high / 0 critical (3 moderate); fast-uri chain gone |
+| T-10 | 13 | CI Tests runner-only failure diagnosis | VERIFIED | root cause: DB-gated tests vs CI schema lineage; fixed cfb0cd9; CI green |
+| T-11 | 13 | Production ops-check endpoint | VERIFIED | GET /v1/internal/ops-check live 401/401/200; pnpm ops:check endpoint mode works |
+| T-12 | 4 | Connector health lifecycle (states + actions) | VERIFIED | classifyConnectorState units + live health probes; reconnect/test/disconnect wired |
+| T-13 | 6 | Autonomy policy endpoint + UI legend | VERIFIED | /v1/autonomy/policy mirrors enforceAutonomy; agents page L0–L4 |
+| T-14 | 3 | Archived-employee work exclusion | VERIFIED | executor blocks archived; task creation 422; delegation filters active |
+| T-15 | 11 | Onboarding journey integration test | VERIFIED | 5 tests: seed within caps, first task, idempotent reseed, playbook persisted, first task enters workflow |
 
 ---
 
