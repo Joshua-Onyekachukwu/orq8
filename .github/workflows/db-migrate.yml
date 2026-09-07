@@ -34,8 +34,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # The drizzle lineage (migrate) targets the legacy schema and fails on
+      # the Supabase database. The supabase lineage runner is idempotent and
+      # safe on real Supabase (it skips the auth shim when auth.uid() already
+      # exists), so new migrations land the same way they do in CI.
       - name: Migrate
-        run: pnpm --filter @orq8/db migrate
+        run: pnpm --filter @orq8/db migrate:supabase
 
       - name: Seed (idempotent — provider catalog only)
         run: pnpm --filter @orq8/db seed

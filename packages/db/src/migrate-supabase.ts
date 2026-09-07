@@ -48,7 +48,13 @@ create table if not exists auth.users (
 create or replace function auth.uid() returns uuid
 language sql stable
 as $$ select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid $$;
--- Supabase built-in roles referenced by RLS grant statements.
+`;
+
+// Supabase built-in roles referenced by RLS grant statements. Always run:
+// on plain Postgres they must be created, on real Supabase they already
+// exist (the duplicate_object exception is caught). The DO blocks make this
+// idempotent on both.
+const ROLE_SHIM = `
 do $$ begin
   create role anon nologin;
   exception when duplicate_object then null;
@@ -91,8 +97,24 @@ async function main() {
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle(pool);
 
-  console.log('[db] creating auth shim');
-  await db.execute(AUTH_SHIM);
+  // Install the auth shim ONLY when the target is plain Postgres. On a real
+  // Supabase database the auth schema already exists with Supabase's own
+  // auth.uid() — clobbering it with our shim would be dangerous even though
+  // the semantics match. Gate on the function's existence so the same runner
+  // is safe in CI/local (shim installed) and against production Supabase
+  // (shim skipped, real auth.uid() untouched).
+  const shimCheck = await pool.query(
+    `select exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'auth' and p.proname = 'uid') as present`,
+  );
+  // Roles first — always (idempotent, needed for grant statements either way).
+  await db.execute(ROLE_SHIM);
+  if (shimCheck.rows[0]?.present === true) {
+    console.log('[db] real Supabase auth detected — skipping auth shim');
+  } else {
+    console.log('[db] creating auth shim');
+    await db.execute(AUTH_SHIM);
+  }
 
   const files = (await readdir(MIGRATIONS_DIR))
     .filter((f) => f.endsWith('.sql'))
