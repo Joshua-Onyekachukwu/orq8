@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { auditEvents, type Db } from '@orq8/db';
 
 // docs/34.4 — append-only, tamper-evident audit with a per-org hash chain:
@@ -78,6 +78,27 @@ export function computeAuditHash(input: {
 
 export async function appendAudit(db: Db, input: AuditInput): Promise<void> {
   const occurredAt = input.occurredAt ?? new Date();
+  try {
+    // Prefer the database-side atomic append (advisory lock per org) when
+    // available (migration 0016+). Falls back to the in-process path below
+    // on older databases that lack the function.
+    await db.execute(
+      sql`select * from append_audit_event(
+        ${input.orgId}, ${input.actorType}, ${input.actorId ?? null},
+        ${input.departmentId ?? null}, ${input.agentId ?? null}, ${input.taskId ?? null},
+        ${input.action}, ${input.tool ?? null}, ${input.inputRef ?? null},
+        ${input.resultRef ?? null}, ${input.authorization ?? null}, ${input.approvalId ?? null},
+        ${input.policyRef ?? null}, ${input.cost ?? null}, ${input.outcome},
+        ${occurredAt}
+      )`,
+    );
+    return;
+  } catch {
+    // Function does not exist yet — fall through to in-process append.
+  }
+
+  // Legacy in-process path (TOCTOU-unsafe under concurrency — kept only for
+  // databases that have not yet applied migration 0016).
   const [last] = await db
     .select({ id: auditEvents.id, hash: auditEvents.hash })
     .from(auditEvents)

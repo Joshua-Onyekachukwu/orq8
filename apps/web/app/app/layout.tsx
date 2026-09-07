@@ -5,6 +5,7 @@ import { AppErrorBoundary } from "../../components/app-error-boundary";
 import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 import { IdentifyUser } from "../../components/identify-user";
+import { ExecutiveAgentShell } from "../../components/executive-agent-shell";
 
 
 
@@ -131,6 +132,9 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+
+      {/* Executive Agent — persistent assistant, available on every page */}
+      <ExecutiveAgentShell />
     </div>
   );
 }
