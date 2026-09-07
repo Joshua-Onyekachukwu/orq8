@@ -154,6 +154,7 @@ run('MCP + capability registry integration', () => {
     const createIssue = engineerTools.find((t) => t.name === 'create_issue');
     expect(createIssue?.requiresApproval).toBe(true);
     createIssueToolId = createIssue?.id ?? null;
+    listReposToolId = engineerTools.find((t) => t.name === 'list_repositories')?.id ?? null;
 
     // Agent without the required capability sees a subset (reads only)
     const blockedTools = await discoverMcpTools(db, orgA, blockedAgentId, BLOCKED_CAPABILITIES);
@@ -172,15 +173,30 @@ run('MCP + capability registry integration', () => {
   });
 
   it('execution rejects unconnected providers and unknown tools without calling the provider', async () => {
-    // No provider row exists for org A, so the capability model blocks execution.
+    // A low-risk read tool passes the capability gate (the engineer holds
+    // github.read_repositories) but no provider row exists for org A, so the
+    // authoritative connector chain denies execution — and the provider is
+    // never called (there is no token to call it with).
+    expect(listReposToolId).not.toBeNull();
     const denied = await executeMcpTool(
+      db,
+      { orgId: orgA, agentId: engineerId, userId: userA },
+      listReposToolId!,
+      {},
+      ENGINEER_CAPABILITIES,
+    );
+    expect(denied).toMatchObject({ status: 'error', code: 'capability_denied' });
+
+    // An approval-gated write tool stops at the approval gate (no approval
+    // flow exists for this org), again without any provider call.
+    const gated = await executeMcpTool(
       db,
       { orgId: orgA, agentId: engineerId, userId: userA },
       createIssueToolId!,
       { owner: 'o', repo: 'r', title: 't' },
       ENGINEER_CAPABILITIES,
     );
-    expect(denied).toMatchObject({ status: 'error', code: 'capability_denied' });
+    expect(gated).toMatchObject({ status: 'error', code: 'approval_required' });
 
     const unknown = await executeMcpTool(
       db,

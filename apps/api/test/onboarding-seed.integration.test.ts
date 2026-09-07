@@ -18,6 +18,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -55,14 +56,7 @@ async function countAll(): Promise<{ departments: number; agents: number; goals:
 }
 
 async function cleanupAll(): Promise<void> {
-  await deps.db.delete(sessions).where(eq(sessions.orgId, orgId));
-  await deps.db.delete(agents).where(eq(agents.orgId, orgId));
-  await deps.db.delete(tasks).where(eq(tasks.orgId, orgId));
-  await deps.db.delete(goals).where(eq(goals.orgId, orgId));
-  await deps.db.delete(departments).where(eq(departments.orgId, orgId));
-  await deps.db.delete(memberships).where(eq(memberships.orgId, orgId));
-  await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, orgId));
-  await deps.db.delete(organizations).where(eq(organizations.id, orgId));
+  await deleteOrg(deps.pool, orgId);
 }
 
 beforeAll(async () => {

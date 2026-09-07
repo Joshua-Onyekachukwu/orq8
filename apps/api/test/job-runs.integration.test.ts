@@ -131,6 +131,9 @@ describeIfDB('scheduled job run log (GET /v1/jobs/status)', () => {
   });
 
   it('records an anomaly_scan run', async () => {
+    // The scan iterates every org in the shared DB and appends per-org audit
+    // rows, so runtime scales with the data other suites left behind. Give it
+    // a generous explicit timeout — it is a real bounded scan, not a hang.
     const res = await app.inject({
       method: 'POST',
       url: '/v1/internal/anomalies/scan',
@@ -149,5 +152,5 @@ describeIfDB('scheduled job run log (GET /v1/jobs/status)', () => {
     expect(run).toBeTruthy();
     expect(run.status).toBe('success');
     expect(run.orgsProcessed).toBeGreaterThanOrEqual(1);
-  });
+  }, 30_000);
 });

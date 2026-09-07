@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, memberships } from '@orq8/db';
+import { createDb, organizations, memberships, users } from '@orq8/db';
 import { listPlaybooks, getPlaybook, seedPlaybook, type Playbook } from '../src/services/playbooks.js';
 
 // ─── Pure template validation (always runs) ─────────────────────────────────
@@ -85,8 +85,9 @@ run('playbooks — seeding', () => {
     const orgId = randomUUID();
     const userId = randomUUID();
 
-    // Minimal org + membership (sufficient for activation queries)
+    // Minimal org + user + membership (sufficient for activation queries)
     await db.insert(organizations).values({ id: orgId, name: 'Seed Test Co', slug: `seed-${orgId.slice(0, 8)}` }).onConflictDoNothing();
+    await db.insert(users).values({ id: userId, email: `seed-${userId.slice(0, 8)}@test.orq8`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active' }).onConflictDoNothing();
     await db.insert(memberships).values({ userId, orgId, role: 'owner' }).onConflictDoNothing();
 
     const first = await seedPlaybook(db, orgId, userId, 'startup-launch');

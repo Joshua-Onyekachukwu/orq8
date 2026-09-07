@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -58,15 +59,7 @@ const authB = () => ({ authorization: `Bearer ${tokenB}` });
 
 async function cleanupAll(): Promise<void> {
   for (const id of [orgA, orgB].filter(Boolean)) {
-    await deps.db.delete(sessions).where(eq(sessions.orgId, id));
-    await deps.db.delete(agents).where(eq(agents.orgId, id));
-    await deps.db.delete(tasks).where(eq(tasks.orgId, id));
-    await deps.db.delete(goals).where(eq(goals.orgId, id));
-    await deps.db.delete(teams).where(eq(teams.orgId, id));
-    await deps.db.delete(departments).where(eq(departments.orgId, id));
-    await deps.db.delete(memberships).where(eq(memberships.orgId, id));
-    await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, id));
-    await deps.db.delete(organizations).where(eq(organizations.id, id));
+    await deleteOrg(deps.pool, id);
   }
   for (const id of [userA, userB].filter(Boolean)) {
     await deps.db.delete(users).where(eq(users.id, id));
@@ -317,40 +310,89 @@ run('org structure — API + RLS integration', () => {
 });
 
 runRls('RLS — direct database access is org-scoped', () => {
-  it('a non-member user cannot read or insert another org\u2019s rows via SQL', async () => {
+  // The API connects as the table-owning superuser, which Postgres exempts
+  // from RLS, so these assertions switch to a dedicated restricted role and
+  // exercise the REAL policies the schema defines. RLS is enabled on
+  // organizations/memberships/sessions (the tables with FORCE ROW LEVEL
+  // SECURITY and membership policies) — teams/agents/departments are guarded
+  // by app-layer authorization instead (covered by the API tests above).
+  //
+  // SET ROLE / request.jwt.claims are SESSION-scoped, so every assertion runs
+  // on ONE dedicated client — pooling would silently leak role/claims state
+  // across the per-query connections and make the tests flaky.
+  let rls: import('pg').PoolClient | null = null;
+
+  beforeAll(async () => {
     if (!pool) throw new Error('pool unavailable');
-
-    // Emulate the Supabase authenticated role for user B.
-    await pool.query(`select set_config('request.jwt.claims', $1::text, true)`, [
-      JSON.stringify({ sub: userB, role: 'authenticated' }),
-    ]);
-
-    const read = await pool.query('select id from public.teams where org_id = $1', [orgA]);
-    expect(read.rowCount).toBe(0);
-
-    const insert = await pool.query(
-      'insert into public.teams (org_id, name) values ($1, $2) returning id',
-      [orgA, `rls-evil-${randomUUID()}`],
-    );
-    expect(insert.rowCount).toBe(0);
-
-    const update = await pool.query('update public.agents set status = $1 where org_id = $2', ['paused', orgA]);
-    expect(update.rowCount).toBe(0);
+    rls = await pool.connect();
+    await rls.query(`do $$ begin create role rls_authenticated_test nologin; exception when duplicate_object then null; end $$;`);
+    await rls.query('grant usage on schema public to rls_authenticated_test');
+    // Policies call auth.uid() — the role needs USAGE on the auth schema (and
+    // SELECT on auth.users, in case a policy reads it) for policy evaluation.
+    await rls.query('grant usage on schema auth to rls_authenticated_test');
+    await rls.query('grant select on auth.users to rls_authenticated_test');
+    // The schema's policies are scoped `to authenticated` (Supabase's built-in
+    // role), so our test role must be a member of `authenticated` for them to
+    // apply — otherwise RLS defaults to deny for every row.
+    await rls.query('grant authenticated to rls_authenticated_test');
+    await rls.query('grant select, insert, update, delete on public.organizations, public.memberships, public.sessions to rls_authenticated_test');
   });
 
-  it('an org member can read and mutate their own org via SQL', async () => {
-    if (!pool) throw new Error('pool unavailable');
-
-    await pool.query(`select set_config('request.jwt.claims', $1::text, true)`, [
-      JSON.stringify({ sub: userA, role: 'authenticated' }),
-    ]);
-
-    const read = await pool.query('select id from public.departments where org_id = $1', [orgA]);
-    expect((read.rowCount ?? 0)).toBeGreaterThan(0);
+  afterAll(async () => {
+    await rls?.query('reset role').catch(() => undefined);
+    rls?.release();
+    rls = null;
   });
 
-  it('resets the JWT context so later queries are not polluted', async () => {
-    if (!pool) throw new Error('pool unavailable');
-    await pool.query(`select set_config('request.jwt.claims', '{}', true)`);
+  const asUser = async (userId: string, fn: (c: import('pg').PoolClient) => Promise<void>) => {
+    if (!rls) throw new Error('pool unavailable');
+    await rls.query('set role rls_authenticated_test');
+    await rls.query(`select set_config('request.jwt.claims', $1::text, false)`, [
+      JSON.stringify({ sub: userId, role: 'authenticated' }),
+    ]);
+    try {
+      await fn(rls);
+    } finally {
+      await rls.query('reset role').catch(() => undefined);
+      await rls.query(`select set_config('request.jwt.claims', '{}', false)`).catch(() => undefined);
+    }
+  };
+
+  it('a non-member cannot read or update another org via SQL', async () => {
+    // userB is not a member of orgA → organizations_select_member hides it.
+    await asUser(userB, async (c) => {
+      const read = await c.query('select id from public.organizations where id = $1', [orgA]);
+      expect(read.rowCount).toBe(0);
+
+      const update = await c.query(
+        "update public.organizations set name = 'rls-evil' where id = $1",
+        [orgA],
+      );
+      expect(update.rowCount).toBe(0);
+
+      const membership = await c.query('select org_id from public.memberships where org_id = $1', [orgA]);
+      expect(membership.rowCount).toBe(0);
+    });
+  });
+
+  it('a non-member cannot insert rows into a protected org-owned table', async () => {
+    await asUser(userB, async (c) => {
+      // organizations has no INSERT policy → the insert is rejected by RLS.
+      await expect(
+        c.query(
+          `insert into public.organizations (name, slug) values ('rls-evil', 'rls-evil-${randomUUID()}')`,
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  it('an org member can read and update their own org via SQL', async () => {
+    await asUser(userA, async (c) => {
+      const read = await c.query('select id from public.organizations where id = $1', [orgA]);
+      expect(read.rowCount).toBe(1);
+
+      const ownMembership = await c.query('select org_id from public.memberships where user_id = $1', [userA]);
+      expect(ownMembership.rowCount).toBe(1);
+    });
   });
 });

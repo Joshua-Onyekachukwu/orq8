@@ -412,8 +412,11 @@ export async function seedPlaybook(
     throw new Error(`Unknown playbook: ${slug}`);
   }
 
-  // Idempotency guard — re-running the same playbook is a no-op.
-  const marker = `playbook_seeded:${slug}`;
+  // Idempotency guard — re-running the same playbook is a no-op. The marker
+  // is a literal tag embedded in the memory content below, so the ILIKE probe
+  // here and the written record always agree (underscore would be interpreted
+  // as a LIKE wildcard, so the tag uses hyphens).
+  const marker = `playbook-seeded:${slug}`;
   const existingMarker = await db
     .select({ id: companyMemory.id })
     .from(companyMemory)
@@ -472,7 +475,7 @@ export async function seedPlaybook(
     await memoryService.createMemory(db, {
       orgId,
       category: 'workflow',
-      content: `Playbook seeded: ${slug} (${playbook.name}) — ${activation.departments.length} departments, ${activation.agents.length} AI employees, ${activation.goals.length} goals, ${activation.tasks.length} starter tasks${agentLimitApplied ? ` (workforce plan-limited from ${agentLimitApplied.from} to ${agentLimitApplied.to} AI employees by this plan — upgrade to unlock the full team)` : ''}.`,
+      content: `[${marker}] Playbook seeded: ${slug} (${playbook.name}) — ${activation.departments.length} departments, ${activation.agents.length} AI employees, ${activation.goals.length} goals, ${activation.tasks.length} starter tasks${agentLimitApplied ? ` (workforce plan-limited from ${agentLimitApplied.from} to ${agentLimitApplied.to} AI employees by this plan — upgrade to unlock the full team)` : ''}.`,
       importance: 8,
       source: 'playbooks:seed',
     });

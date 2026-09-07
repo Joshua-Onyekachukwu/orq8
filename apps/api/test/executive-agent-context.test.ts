@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildContext, formatOrgStructure, type OrgStructure, type OrgStructureTeam } from '../src/services/executive-agent.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 // ─── Pure formatter tests (no DB) ───────────────────────────────────────────
@@ -112,13 +113,7 @@ let teamPlatform: string | undefined;
 let agentAlpha: string | undefined;
 
 async function cleanupOrg(id: string): Promise<void> {
-  await deps.db.delete(tasks).where(eq(tasks.orgId, id));
-  await deps.db.delete(agents).where(eq(agents.orgId, id));
-  await deps.db.delete(teams).where(eq(teams.orgId, id));
-  await deps.db.delete(departments).where(eq(departments.orgId, id));
-  await deps.db.delete(goals).where(eq(goals.orgId, id));
-  await deps.db.delete(companyMemory).where(eq(companyMemory.orgId, id));
-  await deps.db.delete(organizations).where(eq(organizations.id, id));
+  await deleteOrg(deps.pool, id);
 }
 
 run('executive agent org-structure context', () => {
@@ -189,9 +184,13 @@ run('executive agent org-structure context', () => {
       status: 'completed',
     });
 
-    // A decoy team in the OTHER org with an identically-named agent.
-    await deps.db.insert(teams).values({ orgId: orgB, name: 'Platform', status: 'active' });
-    await deps.db.insert(agents).values({ orgId: orgB, name: 'Engineer Alpha', role: 'software_engineer', status: 'active' });
+    // A decoy team in the OTHER org with an identically-named agent, linked
+    // to that team so the isolation assertion is meaningful (a linked member).
+    const [teamB] = await deps.db
+      .insert(teams)
+      .values({ orgId: orgB, name: 'Platform', status: 'active' })
+      .returning();
+    await deps.db.insert(agents).values({ orgId: orgB, name: 'Engineer Alpha', role: 'software_engineer', teamId: teamB!.id, status: 'active' });
 
     // Org-scoped memory fixtures: identical content in both orgs so leakage
     // would surface immediately, plus org A-only distinguishing facts.

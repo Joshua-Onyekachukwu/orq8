@@ -316,11 +316,15 @@ export async function canAgentUseCapability(
   const access = await getAgentAccess(db, orgId, agentId, provider.id);
   if (!access) return { allowed: false, requiresApproval: false, provider };
 
-  // Check capability is in agent's allowed capabilities
+  // Check capability is in agent's allowed capabilities. Accept either the
+  // bare form (read_repositories) or the canonical provider-prefixed registry
+  // name (github.read_repositories) — both have been written historically.
   const allowedCapabilities = Array.isArray(access.capabilities)
     ? (access.capabilities as string[])
     : [];
-  if (!allowedCapabilities.includes(capability)) {
+  const granted = (cap: string) =>
+    allowedCapabilities.includes(cap) || allowedCapabilities.includes(`${providerName}.${cap}`);
+  if (!granted(capability)) {
     return { allowed: false, requiresApproval: false, provider };
   }
 

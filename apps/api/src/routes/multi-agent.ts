@@ -12,6 +12,11 @@ import {
 import type { AppDeps } from '../types.js';
 
 const delegateBody = z.object({
+  /** The agent delegating the work. Must be an in-org active agent — the
+   * service enforces org membership, so a forged cross-org id is rejected.
+   * Defaults to the authenticated founder (kept for callers that delegate on
+   * behalf of the user). */
+  delegatingAgentId: z.string().uuid().optional(),
   targetAgentId: z.string().uuid(),
   parentTaskId: z.string().uuid(),
   title: z.string().trim().min(1).max(200),
@@ -115,7 +120,9 @@ export function registerMultiAgentRoutes(app: FastifyInstance, deps: AppDeps): v
 
     const result = await multiAgent.delegateTask(db, {
       orgId: ctx.orgId,
-      delegatingAgentId: ctx.userId, // The user/founder acts as the delegating agent
+      // Prefer the explicitly-delegating agent (validated in-org by the
+      // service); otherwise the authenticated founder acts as the delegator.
+      delegatingAgentId: parsed.data.delegatingAgentId ?? ctx.userId,
       targetAgentId: parsed.data.targetAgentId,
       parentTaskId: parsed.data.parentTaskId,
       title: parsed.data.title,

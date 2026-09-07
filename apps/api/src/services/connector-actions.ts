@@ -107,6 +107,7 @@ async function githubFetch<T>(
   method: string,
   path: string,
   body?: Record<string, unknown>,
+  actionName?: string,
 ): Promise<GithubFetchResult<T>> {
   const correlationId = ctx.correlationId ?? randomUUID();
   const { allowed, requiresApproval, provider } = await canAgentUseCapability(
@@ -117,7 +118,9 @@ async function githubFetch<T>(
     capability,
   );
 
-  const action = path.split('/').pop() ?? capability;
+  // The logical action name (e.g. list_repositories), NOT the URL path — the
+  // path-derived label was meaningless ('repos' for /user/repos).
+  const action = actionName ?? (path.split('/').pop() ?? capability);
   const baseOutcome = {
     orgId: ctx.orgId,
     agentId: ctx.agentId,
@@ -288,7 +291,7 @@ export async function githubListRepositories(
   ctx: ConnectorActionContext,
   params: { visibility?: 'all' | 'public' | 'private' },
 ): Promise<ConnectorActionResult<unknown>> {
-  const { data } = await githubFetch<unknown>(db, ctx, GITHUB_CAPABILITIES.readRepositories, 'GET', '/user/repos');
+  const { data } = await githubFetch<unknown>(db, ctx, GITHUB_CAPABILITIES.readRepositories, 'GET', '/user/repos', undefined, 'list_repositories');
   return { capability: GITHUB_CAPABILITIES.readRepositories, action: 'list_repositories', providerResourceId: null, providerUrl: null, status: 'success', result: data };
 }
 
@@ -304,6 +307,8 @@ export async function githubListIssues(
     GITHUB_CAPABILITIES.readIssues,
     'GET',
     `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues?state=${state}&per_page=30`,
+    undefined,
+    'list_issues',
   );
   return { capability: GITHUB_CAPABILITIES.readIssues, action: 'list_issues', providerResourceId: null, providerUrl: null, status: 'success', result: data };
 }
@@ -323,6 +328,7 @@ export async function githubCreateIssue(
     'POST',
     `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues`,
     { title: params.title, body: params.body ?? '', labels: params.labels ?? [] },
+    'create_issue',
   );
   return {
     capability: GITHUB_CAPABILITIES.createIssues,
@@ -349,6 +355,7 @@ export async function githubCommentOnIssue(
     'POST',
     `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues/${params.issueNumber}/comments`,
     { body: params.body },
+    'comment_on_issue',
   );
   return {
     capability: GITHUB_CAPABILITIES.commentOnIssues,
@@ -387,6 +394,8 @@ export async function githubReadFile(
     GITHUB_CAPABILITIES.readFiles,
     'GET',
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}${ref}`,
+    undefined,
+    'read_file',
   );
   return {
     capability: GITHUB_CAPABILITIES.readFiles,
@@ -422,6 +431,7 @@ export async function githubCreatePullRequest(
     'POST',
     `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/pulls`,
     { title: params.title, head: params.head, base: params.base, body: params.body ?? '' },
+    'create_pull_request',
   );
   return {
     capability: GITHUB_CAPABILITIES.createPullRequests,

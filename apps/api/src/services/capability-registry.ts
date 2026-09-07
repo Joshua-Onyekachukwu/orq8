@@ -318,10 +318,14 @@ export async function resolveCapabilityRequest(
     // Best-effort.
   }
 
-  // Dedupe by name (agent may appear both via registry and via employees scan).
+  // Dedupe by name (agent may appear both via registry and via employees scan)
+  // and drop token-overlap noise below the "extend" threshold — a one-word
+  // coincidence (e.g. "simulation" in an unrelated request) must not surface
+  // as a match. The decision thresholds below then classify the survivors.
   const seen = new Set<string>();
   const unique = matches
     .filter((m) => {
+      if (m.score < 0.3) return false;
       const key = `${m.kind}:${m.name}`;
       if (seen.has(key)) return false;
       seen.add(key);

@@ -25,6 +25,7 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { deleteOrg } from './helpers/delete-org.js';
 import {
   dispatchGithubAction,
   ConnectorActionError,
@@ -98,33 +99,33 @@ beforeAll(async () => {
     encryptedSecret: 'github-test-access-token',
     scopes: ['repo'],
   });
+  // The list_repositories ACTION is gated on the read_repositories capability
+  // (GITHUB_CAPABILITIES.readRepositories) — the grant must match what the
+  // connector action service actually checks.
   await upsertCapability(deps.db, {
     providerId,
-    capability: 'list_repositories',
+    capability: 'read_repositories',
     allowed: true,
     approvalRequiredFor: [],
     description: 'Read repos',
   });
 
-  // Grant list_repositories to the primary agent only.
+  // Grant read_repositories to the primary agent only.
   await grantAgentAccess(deps.db, {
     orgId,
     agentId,
     providerId,
-    capabilities: ['list_repositories'],
+    capabilities: ['read_repositories'],
   });
 });
 
 afterAll(async () => {
   for (const org of [orgId, foreignOrgId].filter(Boolean)) {
-    await deps.db.delete(connectorOutcomes).where(eq(connectorOutcomes.orgId, org));
-    await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, org));
-    await deps.db.delete(agents).where(eq(agents.orgId, org));
-    await deps.db.delete(memberships).where(eq(memberships.orgId, org));
-    await deps.db.delete(organizations).where(eq(organizations.id, org));
+    await deleteOrg(deps.pool, org);
   }
   if (userId) await deps.db.delete(users).where(eq(users.id, userId));
   setConnectorFetch(fetch);
+  await deps.pool.end();
 });
 
 run('connector actions — capability gating', () => {
@@ -140,7 +141,7 @@ run('connector actions — capability gating', () => {
       .where(eq(connectorOutcomes.orgId, orgId));
     const denied = rows.find((o) => o.status === 'denied');
     expect(denied).toBeDefined();
-    expect(denied?.capability).toBe('list_repositories');
+    expect(denied?.capability).toBe('read_repositories');
   });
 });
 

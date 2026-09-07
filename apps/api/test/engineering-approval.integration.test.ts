@@ -24,6 +24,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -61,15 +62,7 @@ const authB = () => ({ authorization: `Bearer ${tokenB}` });
 
 async function cleanupAll(): Promise<void> {
   for (const id of [orgA, orgB].filter(Boolean)) {
-    await deps.db.delete(sessions).where(eq(sessions.orgId, id));
-    await deps.db.delete(agents).where(eq(agents.orgId, id));
-    await deps.db.delete(tasks).where(eq(tasks.orgId, id));
-    await deps.db.delete(goals).where(eq(goals.orgId, id));
-    await deps.db.delete(teams).where(eq(teams.orgId, id));
-    await deps.db.delete(departments).where(eq(departments.orgId, id));
-    await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, id));
-    await deps.db.delete(memberships).where(eq(memberships.orgId, id));
-    await deps.db.delete(organizations).where(eq(organizations.id, id));
+    await deleteOrg(deps.pool, id);
   }
 }
 

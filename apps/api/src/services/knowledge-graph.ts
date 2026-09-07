@@ -16,7 +16,7 @@
  * - No secrets are stored — metadata is for business facts only.
  */
 
-import { eq, and, ilike, desc, or, sql, type SQL } from 'drizzle-orm';
+import { eq, and, ilike, desc, or, inArray, type SQL } from 'drizzle-orm';
 import type { Db, KnowledgeEntity, NewKnowledgeEntity, CompanyDecision, NewCompanyDecision, KnowledgeRelation, NewKnowledgeRelation } from '@orq8/db';
 import { knowledgeEntities, knowledgeRelations, companyDecisions, type Approval } from '@orq8/db';
 
@@ -293,7 +293,7 @@ export async function listRelations(
     ? await db
         .select({ id: knowledgeEntities.id, name: knowledgeEntities.name })
         .from(knowledgeEntities)
-        .where(and(eq(knowledgeEntities.orgId, orgId), sql`${knowledgeEntities.id} = ANY(${toIds})`))
+        .where(and(eq(knowledgeEntities.orgId, orgId), inArray(knowledgeEntities.id, toIds)))
     : [];
   const nameById = new Map(toRows.map((r) => [r.id, r.name]));
   return rows.map((r) => ({ ...r, toName: nameById.get(r.toEntityId) ?? r.toEntityId }));
@@ -363,14 +363,17 @@ export async function searchKnowledge(
       )
       .where(and(
         eq(knowledgeRelations.orgId, orgId),
-        sql`${knowledgeRelations.fromEntityId} = ANY(${entityIds}) OR ${knowledgeRelations.toEntityId} = ANY(${entityIds})`,
+        or(
+          inArray(knowledgeRelations.fromEntityId, entityIds),
+          inArray(knowledgeRelations.toEntityId, entityIds),
+        ),
       ))
       .limit(50);
 
     // Fetch names for the "to" side
     const toIds = [...new Set(rows.map(r => r.toEntityId))];
     const toRows = toIds.length
-      ? await db.select({ id: knowledgeEntities.id, name: knowledgeEntities.name }).from(knowledgeEntities).where(and(eq(knowledgeEntities.orgId, orgId), sql`${knowledgeEntities.id} = ANY(${toIds})`))
+      ? await db.select({ id: knowledgeEntities.id, name: knowledgeEntities.name }).from(knowledgeEntities).where(and(eq(knowledgeEntities.orgId, orgId), inArray(knowledgeEntities.id, toIds)))
       : [];
     const nameById = new Map(toRows.map(r => [r.id, r.name]));
     relations = rows.map(r => ({

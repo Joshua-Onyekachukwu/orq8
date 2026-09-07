@@ -8,7 +8,7 @@
  */
 
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, memberships, users, sessions, agents, tasks, auditEvents } from '@orq8/db';
+import { createDb, organizations, memberships, users, agents, tasks } from '@orq8/db';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +16,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -67,12 +68,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (dbUp && app) {
     await app.close();
-    await deps.db.delete(sessions).where(eq(sessions.orgId, orgId));
-    await deps.db.delete(tasks).where(eq(tasks.orgId, orgId));
-    await deps.db.delete(agents).where(eq(agents.orgId, orgId));
-    await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, orgId));
-    await deps.db.delete(memberships).where(eq(memberships.orgId, orgId));
-    await deps.db.delete(organizations).where(eq(organizations.id, orgId));
+    await deleteOrg(deps.pool, orgId);
   }
   await deps.pool.end();
   await pool?.end();

@@ -15,6 +15,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ingestWebhookEvent, processPendingEvents, upsertRule } from '../src/services/webhooks.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
@@ -55,14 +56,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await deps.db.delete(tasks).where(eq(tasks.orgId, orgId));
-  await deps.db.delete(approvals).where(eq(approvals.orgId, orgId));
-  await deps.db.delete(webhookEvents).where(eq(webhookEvents.orgId, orgId));
-  await deps.db.delete(eventRules).where(eq(eventRules.orgId, orgId));
-  await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, orgId));
-  await deps.db.delete(agents).where(eq(agents.orgId, orgId));
-  await deps.db.delete(memberships).where(eq(memberships.orgId, orgId));
-  await deps.db.delete(organizations).where(eq(organizations.id, orgId));
+  await deleteOrg(deps.pool, orgId);
   await deps.pool.end();
 });
 

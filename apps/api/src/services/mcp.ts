@@ -42,6 +42,16 @@ import { appendAudit } from './audit.js';
 export const MCP_PROVIDERS = ['github', 'gmail', 'linear'] as const;
 export type McpProvider = (typeof MCP_PROVIDERS)[number];
 
+/**
+ * Capability match that tolerates the two historical spellings: bare
+ * (read_repositories) and provider-prefixed canonical registry names
+ * (github.read_repositories). Grants written by playbooks/built-ins use the
+ * prefixed form; connector catalogs historically used the bare form.
+ */
+function hasCapability(granted: string[], provider: string, required: string): boolean {
+  return granted.includes(required) || granted.includes(`${provider}.${required}`);
+}
+
 export interface McpToolCatalogEntry {
   name: string;
   description: string;
@@ -284,7 +294,7 @@ export async function discoverMcpTools(
     const allowlist = (server.allowedAgents as string[] | null) ?? [];
     if (allowlist.length > 0 && !allowlist.includes(agentId)) continue;
 
-    if (tool.requiredCapability && !agentCapabilities.includes(tool.requiredCapability)) continue;
+    if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) continue;
 
     out.push({ ...tool, serverName: server.name, provider: server.provider, serverStatus: server.status, requiresApproval: tool.requiresApproval });
   }
@@ -309,7 +319,7 @@ export async function checkMcpToolPermission(
   if (allowlist.length > 0 && !allowlist.includes(agentId)) {
     return { allowed: false, requiresApproval: false, reason: 'agent_not_allowed' };
   }
-  if (tool.requiredCapability && !agentCapabilities.includes(tool.requiredCapability)) {
+  if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) {
     return { allowed: false, requiresApproval: false, reason: 'capability_denied' };
   }
   return { allowed: true, requiresApproval: tool.requiresApproval };

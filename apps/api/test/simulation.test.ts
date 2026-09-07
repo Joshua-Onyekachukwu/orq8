@@ -1,9 +1,10 @@
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, simulations, departments, teams, agents, goals, approvals, auditEvents, type Simulation } from '@orq8/db';
+import { createDb, organizations, simulations, departments, teams, agents, goals, approvals, type Simulation } from '@orq8/db';
 import { and, eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { deleteOrg } from './helpers/delete-org.js';
 import {
   applySimulation,
   buildApprovalDescription,
@@ -81,16 +82,9 @@ const deps: AppDeps = {
 
 let orgId: string | undefined;
 
-async function cleanupOrg(id: string): Promise<void> {
-  await deps.db.delete(agents).where(eq(agents.orgId, id));
-  await deps.db.delete(teams).where(eq(teams.orgId, id));
-  await deps.db.delete(departments).where(eq(departments.orgId, id));
-  await deps.db.delete(goals).where(eq(goals.orgId, id));
-  await deps.db.delete(approvals).where(eq(approvals.orgId, id));
-  await deps.db.delete(auditEvents).where(eq(auditEvents.orgId, id));
-  await deps.db.delete(simulations).where(eq(simulations.orgId, id));
-  await deps.db.delete(organizations).where(eq(organizations.id, id));
-}
+// Actor ids are REAL uuids — the audit hash chain writes them into a uuid
+// column, so literal labels like 'founder'/'tester' are rejected by Postgres.
+const actorId = randomUUID();
 
 run('simulation apply — founder-approved materialization', () => {
   beforeAll(async () => {
@@ -102,7 +96,7 @@ run('simulation apply — founder-approved materialization', () => {
   });
 
   afterAll(async () => {
-    if (orgId) await cleanupOrg(orgId);
+    if (orgId) await deleteOrg(deps.pool, orgId);
     await deps.pool.end();
   });
 
@@ -143,7 +137,7 @@ run('simulation apply — founder-approved materialization', () => {
       changeDescription: 'Add engineering + marketing',
       state: 'proposed',
     } as never)) as Simulation;
-    await expect(applySimulation(deps.db, orgId!, sim.id, 'tester')).rejects.toThrow(/proposal/);
+    await expect(applySimulation(deps.db, orgId!, sim.id, actorId)).rejects.toThrow(/proposal/);
   });
 
   it('saves a structured proposal and sets state to proposed', async () => {
@@ -157,7 +151,7 @@ run('simulation apply — founder-approved materialization', () => {
   });
 
   it('creating the approval gate does NOT materialize anything', async () => {
-    const result = await applySimulation(deps.db, orgId!, sim.id, 'tester');
+    const result = await applySimulation(deps.db, orgId!, sim.id, actorId);
     expect(result.status).toBe('pending_approval');
     if (result.status !== 'pending_approval') return;
 
@@ -167,7 +161,7 @@ run('simulation apply — founder-approved materialization', () => {
     expect(await deps.db.select().from(goals).where(eq(goals.orgId, orgId!))).toHaveLength(0);
 
     // Repeated apply while pending must reuse the same approval (idempotent).
-    const again = await applySimulation(deps.db, orgId!, sim.id, 'tester');
+    const again = await applySimulation(deps.db, orgId!, sim.id, actorId);
     expect(again.status).toBe('pending_approval');
     if (again.status === 'pending_approval') {
       expect(again.approvalId).toBe(result.approvalId);
@@ -179,7 +173,7 @@ run('simulation apply — founder-approved materialization', () => {
     const decided = await decide(deps.db, orgId!, pending.id, 'approved', 'Approved by founder');
     expect(decided?.status).toBe('approved');
 
-    const result = await applySimulation(deps.db, orgId!, sim.id, 'founder');
+    const result = await applySimulation(deps.db, orgId!, sim.id, actorId);
     expect(result.status).toBe('applied');
     if (result.status !== 'applied') return;
     expect(result.created).toEqual({ departments: 2, teams: 3, agents: 4, goals: 1 });
@@ -215,7 +209,7 @@ run('simulation apply — founder-approved materialization', () => {
       teams: (await deps.db.select().from(teams).where(eq(teams.orgId, orgId!))).length,
       agents: (await deps.db.select().from(agents).where(eq(agents.orgId, orgId!))).length,
     };
-    const result = await applySimulation(deps.db, orgId!, sim.id, 'founder');
+    const result = await applySimulation(deps.db, orgId!, sim.id, actorId);
     expect(result.status).toBe('already_applied');
 
     expect((await deps.db.select().from(departments).where(eq(departments.orgId, orgId!))).length).toBe(before.depts);
@@ -234,12 +228,12 @@ run('simulation apply — founder-approved materialization', () => {
       departments: [{ name: 'Doomed', teams: [{ name: 'Doomed Team', agents: [{ name: 'Doomed Agent', role: 'engineer' }] }] }],
     });
 
-    const first = await applySimulation(deps.db, orgId!, sim2.id, 'tester');
+    const first = await applySimulation(deps.db, orgId!, sim2.id, actorId);
     expect(first.status).toBe('pending_approval');
     if (first.status !== 'pending_approval') return;
     await decide(deps.db, orgId!, first.approvalId, 'rejected', 'Not now');
 
-    const second = await applySimulation(deps.db, orgId!, sim2.id, 'tester');
+    const second = await applySimulation(deps.db, orgId!, sim2.id, actorId);
     expect(second.status).toBe('rejected');
     expect((await deps.db.select().from(departments).where(eq(departments.orgId, orgId!))).filter((d) => d.name === 'Doomed')).toHaveLength(0);
   });

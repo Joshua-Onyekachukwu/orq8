@@ -163,9 +163,11 @@ run('entitlement enforcement', () => {
   });
 
   it('founder org can create departments up to 4 and no further', async () => {
+    // enforceResourceLimit is a pre-flight gate: it must pass BEFORE each
+    // insert (while count < limit) and reject once the org holds 4.
     for (let i = 0; i < 4; i++) {
-      await db.insert(departments).values({ orgId: orgFounder, name: `Dept-${i}` });
       await expect(enforceResourceLimit(db, orgFounder, 'departments')).resolves.toBeUndefined();
+      await db.insert(departments).values({ orgId: orgFounder, name: `Dept-${i}` });
     }
     await expect(enforceResourceLimit(db, orgFounder, 'departments')).rejects.toThrow(/plan allows 4 departments/);
   });
