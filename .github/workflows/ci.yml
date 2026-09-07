@@ -40,7 +40,7 @@ jobs:
     needs: typecheck
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: orq8
           POSTGRES_PASSWORD: orq8_dev_only_change_me
@@ -72,8 +72,8 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Migrate test database
-        run: pnpm --filter @orq8/db migrate
+      - name: Migrate test database (supabase lineage, same as production)
+        run: pnpm --filter @orq8/db migrate:supabase
 
       - name: Run tests
         run: pnpm -r test
