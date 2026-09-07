@@ -8,7 +8,9 @@
  *     chooses the working directory)
  *   - strict wall-clock timeout with process-tree kill (SIGTERM → SIGKILL;
  *     taskkill /T /F on Windows)
- *   - CPU seconds + virtual memory caps via `ulimit` on POSIX
+ *   - CPU seconds via `ulimit -t` on POSIX (virtual-memory capping is deferred to
+ *     the container boundary — see below, since an RLIMIT_AS cap breaks the V8
+ *     sandbox reservation in Node 20+ on 64-bit)
  *   - stdout/stderr byte caps with truncation flags (streams keep draining so
  *     the child never blocks)
  *   - environment scrubbing: only a minimal allowlist survives — database URLs,
@@ -167,13 +169,16 @@ export async function executeCommand(input: ExecutorInput): Promise<ExecutorResu
   let stdoutTruncated = false;
   let stderrTruncated = false;
 
-  // POSIX resource limits via ulimit (memory in KB, CPU in seconds).
-  const memoryKb = Math.max(64, Math.min(input.maxMemoryMb ?? 512, 4096)) * 1024;
+  // POSIX resource limits via ulimit (CPU in seconds).
+  // NOTE: we intentionally do NOT set a `ulimit -v` (virtual-memory) cap here.
+  // Node 20+ on 64-bit reserves a large V8 sandbox address space (~1TB virtual),
+  // so an RLIMIT_AS cap makes V8 fail to initialize and every `node` command
+  // aborts with SIGTRAP (exit 133) on Linux. Memory bounding therefore belongs
+  // to the container/gVisor boundary (see the module header), not to a process
+  // ulimit that is incompatible with the runtime.
   const cpuSeconds = Math.max(1, Math.min(input.maxCpuSeconds ?? 60, Math.ceil(timeoutMs / 1000)));
   const prefix =
-    process.platform === 'win32'
-      ? ''
-      : `ulimit -v ${memoryKb} 2>/dev/null; ulimit -t ${cpuSeconds} 2>/dev/null; `;
+    process.platform === 'win32' ? '' : `ulimit -t ${cpuSeconds} 2>/dev/null; `;
 
   // `shell: true` on a single command string is the only quoting-safe way to
   // run shell commands with embedded quotes on Windows (`cmd /s /c` with an
