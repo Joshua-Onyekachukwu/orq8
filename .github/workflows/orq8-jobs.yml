@@ -69,6 +69,27 @@ jobs:
           echo "briefings HTTP $status"
           cat /tmp/briefings.json; echo
           if [ "$status" != "200" ]; then exit 1; fi
+  anomaly-scan:
+    name: Anomaly scan across all orgs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call anomaly scan endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
+            echo "::warning::API_URL/INTERNAL_TOKEN secrets not set — skipping"
+            exit 0
+          fi
+          status=$(curl -s -o /tmp/anomalies.json -w "%{http_code}" -m 180 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/anomalies/scan")
+          echo "anomalies HTTP $status"
+          cat /tmp/anomalies.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
   weekly-briefing:
     name: Weekly executive briefing (Mondays)
     runs-on: ubuntu-latest

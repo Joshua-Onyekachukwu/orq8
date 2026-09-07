@@ -35,6 +35,7 @@ import {
 import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-memory.js';
 import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
+import { latestJobRuns, trackJobRun } from '../services/job-runs.js';
 import type { AppDeps } from '../types.js';
 
 const ruleBody = z.object({
@@ -346,7 +347,14 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
-    const result = await processPendingEvents(db, { limit: 100 });
+    const result = await trackJobRun(db, 'events_process_pending', () =>
+      processPendingEvents(db, { limit: 100 }),
+    {
+      summarize: (r) => ({
+        detail: { ...(r as unknown as Record<string, unknown>) },
+      }),
+    },
+    );
     return { data: result };
   });
 
@@ -357,23 +365,39 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
     const orgs = await db.select({ id: organizations.id }).from(organizations);
-    const results: Array<{ orgId: string; anomalies: number; error?: string }> = [];
-    for (const org of orgs) {
-      try {
-        const scan = await scanOrgAnomalies(db, org.id);
-        const count = Array.isArray(scan.anomalies) ? scan.anomalies.length : 0;
-        await appendAudit(db, {
-          orgId: org.id,
-          actorType: 'system',
-          action: 'anomaly.scan_completed',
-          outcome: 'success',
-          resultRef: `anomalies:${count}`,
-        });
-        results.push({ orgId: org.id, anomalies: count });
-      } catch (err) {
-        results.push({ orgId: org.id, anomalies: 0, error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' });
-      }
-    }
+    const results = await trackJobRun(
+      db,
+      'anomaly_scan',
+      async () => {
+        const out: Array<{ orgId: string; anomalies: number; error?: string }> = [];
+        for (const org of orgs) {
+          try {
+            const scan = await scanOrgAnomalies(db, org.id);
+            const count = Array.isArray(scan.anomalies) ? scan.anomalies.length : 0;
+            await appendAudit(db, {
+              orgId: org.id,
+              actorType: 'system',
+              action: 'anomaly.scan_completed',
+              outcome: 'success',
+              resultRef: `anomalies:${count}`,
+            });
+            out.push({ orgId: org.id, anomalies: count });
+          } catch (err) {
+            out.push({ orgId: org.id, anomalies: 0, error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' });
+          }
+        }
+        return out;
+      },
+      {
+        summarize: (r) => ({
+          orgsProcessed: r.length,
+          detail: {
+            anomalies: r.reduce((s, x) => s + x.anomalies, 0),
+            failedOrgs: r.filter((x) => x.error).length,
+          },
+        }),
+      },
+    );
     return { data: { orgs: results.length, results } };
   });
 
@@ -384,7 +408,17 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
     const orgIds = await orgIdsWithMemory(db);
-    const results = await consolidateAllOrgs(db, orgIds);
+    const results = await trackJobRun(db, 'memory_consolidate', () => consolidateAllOrgs(db, orgIds), {
+      summarize: (rs) => ({
+        orgsProcessed: rs.length,
+        detail: {
+          scanned: rs.reduce((s, x) => s + x.scanned, 0),
+          merged: rs.reduce((s, x) => s + x.exactDuplicatesMerged, 0),
+          promoted: rs.reduce((s, x) => s + x.promoted, 0),
+          nearDuplicatePairs: rs.reduce((s, x) => s + x.nearDuplicatePairs, 0),
+        },
+      }),
+    });
     return { data: { orgs: results.length, results } };
   });
 
@@ -395,7 +429,12 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
     const now = new Date();
-    const results = await runDailyBriefings(db, deps.config, deps.logger, now);
+    const results = await trackJobRun(db, 'briefing_daily', () => runDailyBriefings(db, deps.config, deps.logger, now), {
+      summarize: (rs) => ({
+        orgsProcessed: rs.length,
+        detail: { generated: rs.filter((r) => !r.skipped).length, skipped: rs.filter((r) => r.skipped).length },
+      }),
+    });
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
   });
 
@@ -405,7 +444,12 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
-    const results = await runBriefings(db, deps.config, deps.logger, 'weekly');
+    const results = await trackJobRun(db, 'briefing_weekly', () => runBriefings(db, deps.config, deps.logger, 'weekly'), {
+      summarize: (rs) => ({
+        orgsProcessed: rs.length,
+        detail: { generated: rs.filter((r) => !r.skipped).length, skipped: rs.filter((r) => r.skipped).length },
+      }),
+    });
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
   });
 
@@ -415,7 +459,22 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
-    const results = await runBriefings(db, deps.config, deps.logger, 'monthly');
+    const results = await trackJobRun(db, 'briefing_monthly', () => runBriefings(db, deps.config, deps.logger, 'monthly'), {
+      summarize: (rs) => ({
+        orgsProcessed: rs.length,
+        detail: { generated: rs.filter((r) => !r.skipped).length, skipped: rs.filter((r) => r.skipped).length },
+      }),
+    });
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
+  });
+
+  // ─── Founder-visible scheduled-job health ──────────────────────────────────
+
+  /** Latest run per scheduled job (session auth, any org member). */
+  app.get('/v1/jobs/status', async (request, reply) => {
+    await requireAuth(request, deps);
+    const jobs = await latestJobRuns(db);
+    reply.code(200);
+    return { data: { jobs } };
   });
 }

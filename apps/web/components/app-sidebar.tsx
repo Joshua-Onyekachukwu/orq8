@@ -7,6 +7,7 @@ import {
   Activity,
   Bell,
   Brain,
+  CalendarClock,
   Building2,
   ChevronDown,
   FileText,
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Dashboard", href: "/app", icon: LayoutDashboard },
       { label: "Company Health", href: "/app/health", icon: HeartPulse },
+      { label: "Scheduled Jobs", href: "/app/jobs", icon: CalendarClock },
       { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },
       { label: "Weekly Report", href: "/app/report", icon: ScrollText },
       { label: "Performance", href: "/app/performance", icon: Activity },

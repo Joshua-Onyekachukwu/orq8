@@ -125,15 +125,15 @@ describeIfDB('approval gates', () => {
     expect(body.data.some((a: { id: string }) => a.id === approvalId)).toBe(true);
   });
 
-  it('PATCH /v1/approvals/:id/approve approves the request', async () => {
+  it('PATCH /v1/approvals/:id approves the request', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: `/v1/approvals/${approvalId}/approve`,
+      url: `/v1/approvals/${approvalId}`,
       headers: {
         authorization: `Bearer ${userA.token}`,
         'content-type': 'application/json',
       },
-      payload: { decision_note: 'Approved — proceed with outreach' },
+      payload: { status: 'approved', note: 'Approved — proceed with outreach' },
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
@@ -141,15 +141,15 @@ describeIfDB('approval gates', () => {
     expect(body.data.decisionNote).toBe('Approved — proceed with outreach');
   });
 
-  it('PATCH /v1/approvals/:id/approve rejects already-approved approval', async () => {
+  it('PATCH /v1/approvals/:id rejects already-approved approval', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: `/v1/approvals/${approvalId}/approve`,
+      url: `/v1/approvals/${approvalId}`,
       headers: {
         authorization: `Bearer ${userA.token}`,
         'content-type': 'application/json',
       },
-      payload: { decision_note: 'Double approve?' },
+      payload: { status: 'approved', note: 'Double approve?' },
     });
     // Should fail because it's already approved
     expect(res.statusCode).toBeGreaterThanOrEqual(400);
@@ -177,12 +177,12 @@ describeIfDB('approval gates', () => {
     // Reject it
     const rejectRes = await app.inject({
       method: 'PATCH',
-      url: `/v1/approvals/${newId}/reject`,
+      url: `/v1/approvals/${newId}`,
       headers: {
         authorization: `Bearer ${userA.token}`,
         'content-type': 'application/json',
       },
-      payload: { decision_note: 'Not in budget right now' },
+      payload: { status: 'rejected', note: 'Not in budget right now' },
     });
     expect(rejectRes.statusCode).toBe(200);
     const body = JSON.parse(rejectRes.payload);
@@ -193,12 +193,12 @@ describeIfDB('approval gates', () => {
   it('IDOR: User B cannot approve User A\'s approval', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: `/v1/approvals/${approvalId}/approve`,
+      url: `/v1/approvals/${approvalId}`,
       headers: {
         authorization: `Bearer ${userB.token}`,
         'content-type': 'application/json',
       },
-      payload: { decision_note: 'Hacked!' },
+      payload: { status: 'approved', note: 'Hacked!' },
     });
     // Should return 404 (not found in User B's org) or 403
     expect(res.statusCode).toBeGreaterThanOrEqual(400);

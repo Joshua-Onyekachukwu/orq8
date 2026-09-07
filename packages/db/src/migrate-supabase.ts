@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Applies supabase/migrations/*.sql (the real ORQ8 schema lineage, 0001-0013)
+// Applies supabase/migrations/*.sql (the real ORQ8 schema lineage, 0001-0015)
 // to a plain PostgreSQL (CI service / local test DB). Supabase-only objects
 // referenced by the migrations are shimmed so they can run anywhere:
 //
@@ -146,7 +146,7 @@ async function main() {
   }
 
   await pool.end();
-  console.log('[db] supabase migrations applied (0001-0013)');
+  console.log('[db] supabase migrations applied (0001-0015)');
 }
 
 main().catch((err) => {

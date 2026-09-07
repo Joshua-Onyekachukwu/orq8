@@ -1416,6 +1416,33 @@ export const businessImports = pgTable(
 export type BusinessImport = typeof businessImports.$inferSelect;
 export type NewBusinessImport = typeof businessImports.$inferInsert;
 
+// ─── Scheduled job run log (platform automation health) ────────────────────
+// One row per execution of an internal scheduled job (webhook event
+// processing, memory consolidation, anomaly scan, daily/weekly/monthly
+// briefings). Rows are written by the INTERNAL_TOKEN-gated cron hooks and read
+// by founders via GET /v1/jobs/status so scheduled-job health is observable.
+// Platform-wide (the jobs run across every org) and stores only aggregate,
+// non-sensitive detail — never tokens, PII or per-org payloads.
+export const jobRuns = pgTable(
+  'job_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    job: text('job').notNull(), // events_process_pending | memory_consolidate | anomaly_scan | briefing_daily | briefing_weekly | briefing_monthly
+    status: text('status').notNull().default('success'), // success | error | partial
+    trigger: text('trigger').notNull().default('schedule'), // schedule | manual | api
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }).notNull().defaultNow(),
+    durationMs: integer('duration_ms'),
+    orgsProcessed: integer('orgs_processed').notNull().default(0),
+    detail: jsonb('detail').notNull().default({}),
+    error: text('error'),
+  },
+  (t) => [index('job_runs_job_started_idx').on(t.job, t.startedAt)],
+);
+
+export type JobRun = typeof jobRuns.$inferSelect;
+export type NewJobRun = typeof jobRuns.$inferInsert;
+
 // ─── Type exports ───────────────────────────────────────────────────────────
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;
