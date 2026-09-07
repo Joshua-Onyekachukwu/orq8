@@ -22,6 +22,7 @@ interface Agent {
   teamId?: string | null;
   teamName?: string | null;
   status: string;
+  autonomyLevel?: string;
   weeklyCost: number;
   tasksCompleted: number;
   currentTask: string | null;
@@ -32,6 +33,24 @@ interface Agent {
   tasksFailed?: number;
   creditsUsed?: number;
 }
+
+interface PolicyLevel {
+  level: string;
+  label: string;
+  description: string;
+  can: string[];
+  requiresApproval: string[];
+  denied: string[];
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  task_execute: "Internal task execution",
+  connector_read: "Read external systems",
+  draft_external: "Create external drafts",
+  connector_action: "Act in external systems",
+  external_communicate: "External communication",
+  modify_resources: "Modify organization resources",
+};
 
 function formatCost(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -62,6 +81,8 @@ export default function AgentsPage() {
   const [hireTeam, setHireTeam] = useState("");
   const [hiring, setHiring] = useState(false);
   const [hireError, setHireError] = useState<string | null>(null);
+  const [policy, setPolicy] = useState<PolicyLevel[] | null>(null);
+  const [showPolicy, setShowPolicy] = useState(false);
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
@@ -80,7 +101,22 @@ export default function AgentsPage() {
 
   useEffect(() => {
     fetchAgents();
+    fetch("/api/autonomy/policy", { cache: "no-store" })
+      .then((res) => res.json().catch(() => null))
+      .then((json) => setPolicy((json?.data?.levels as PolicyLevel[] | undefined) ?? null))
+      .catch(() => undefined);
   }, [fetchAgents]);
+
+  function autonomyChip(level: string | undefined): { label: string; badge: string } | null {
+    const entry = policy?.find((p) => p.level === level);
+    const label = entry?.label ?? (level ? level.replaceAll("_", " ") : "—");
+    const badge = level === "autonomous"
+      ? "bg-orq8-dark text-orq8-green"
+      : level === "execute_with_approval"
+        ? "bg-orq8-orange/10 text-orq8-orange"
+        : "bg-orq8-dark/5 text-orq8-dark";
+    return { label, badge };
+  }
 
   const handleHire = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +212,44 @@ export default function AgentsPage() {
             </button>
         </div>
       </header>
+
+      {/* Autonomy policy legend — rendered from the server-side policy */}
+      {policy && policy.length > 0 && (
+        <div className="mt-4 rounded-xl border border-hairline bg-white">
+          <button
+            type="button"
+            onClick={() => setShowPolicy((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-ink"
+          >
+            <span>Autonomy levels — what each L level can and cannot do</span>
+            <span className="text-xs text-muted">{showPolicy ? "Hide" : "Show"}</span>
+          </button>
+          {showPolicy && (
+            <div className="grid gap-3 border-t border-hairline px-4 py-4 sm:grid-cols-2 lg:grid-cols-3">
+              {policy.map((p) => (
+                <div key={p.level} className="rounded-lg border border-hairline bg-canvas p-3">
+                  <p className="text-sm font-semibold text-ink">{p.label} <span className="font-normal text-muted">— {p.description}</span></p>
+                  {p.can.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs text-orq8-green">
+                      {p.can.map((a) => <li key={a}>✓ {ACTION_LABELS[a] ?? a}</li>)}
+                    </ul>
+                  )}
+                  {p.requiresApproval.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs text-orq8-orange">
+                      {p.requiresApproval.map((a) => <li key={a}>→ {ACTION_LABELS[a] ?? a} (approval)</li>)}
+                    </ul>
+                  )}
+                  {p.denied.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs text-red-500">
+                      {p.denied.map((a) => <li key={a}>✕ {ACTION_LABELS[a] ?? a}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -277,6 +351,11 @@ export default function AgentsPage() {
                     <span className="h-1.5 w-1.5 rounded-full bg-hairline" />
                     <span className="text-muted">Paused</span>
                   </>
+                )}
+                {autonomyChip(a.autonomyLevel) && (
+                  <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold normal-case ${autonomyChip(a.autonomyLevel)!.badge}`}>
+                    Autonomy {autonomyChip(a.autonomyLevel)!.label}
+                  </span>
                 )}
               </p>
 

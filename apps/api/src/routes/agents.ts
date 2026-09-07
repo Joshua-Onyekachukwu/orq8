@@ -6,7 +6,13 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import * as agents from '../services/agents.js';
-import { AUTONOMY_LEVELS, normalizeAutonomyLevel } from '../services/autonomy.js';
+import {
+  AUTONOMY_LEVELS,
+  normalizeAutonomyLevel,
+  enforceAutonomy,
+  autonomyLabel,
+  type ActionClass,
+} from '../services/autonomy.js';
 import { enforceResourceLimit } from '../services/entitlements.js';
 import * as deptService from '../services/departments.js';
 import * as teamService from '../services/teams.js';
@@ -72,6 +78,44 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       .where(eq(agentsTable.orgId, ctx.orgId));
     const list = await agents.findByOrg(db, ctx.orgId, { limit, offset });
     return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+  });
+
+  /**
+   * Autonomy policy — the server-side L0–L4 definitions rendered for the
+   * founder. Derived directly from services/autonomy.enforceAutonomy, so the
+   * UI can never drift from what the execution path enforces. Explanatory
+   * only: enforcement always reads the agent's DB row in the task/tool path.
+   */
+  app.get('/v1/autonomy/policy', async (request) => {
+    await requireAuth(request, deps);
+    const actionClasses: ActionClass[] = [
+      'task_execute',
+      'connector_read',
+      'draft_external',
+      'connector_action',
+      'external_communicate',
+      'modify_resources',
+    ];
+    const levels = AUTONOMY_LEVELS.map((level, i) => {
+      const can: ActionClass[] = [];
+      const requiresApproval: ActionClass[] = [];
+      const denied: ActionClass[] = [];
+      for (const a of actionClasses) {
+        const decision = enforceAutonomy(level, a);
+        if (!decision.allowed) denied.push(a);
+        else if (decision.requiresApproval) requiresApproval.push(a);
+        else can.push(a);
+      }
+      return {
+        level,
+        label: `L${i}`,
+        description: autonomyLabel(level),
+        can,
+        requiresApproval,
+        denied,
+      };
+    });
+    return { data: { levels, actionClasses } };
   });
 
   /** Get a single agent. */

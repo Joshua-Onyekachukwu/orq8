@@ -32,7 +32,10 @@ import {
   grantAgentAccess,
   revokeAgentAccess,
   canAgentUseCapability,
+  classifyConnectorState,
+  latestOutcome,
 } from '../services/integrations.js';
+import type { ConnectorOutcome } from '@orq8/db';
 import {
   buildGitHubAuthorizeUrl,
   verifyOAuthState,
@@ -42,8 +45,32 @@ import {
   buildGoogleAuthorizeUrl,
   exchangeGoogleCode,
   googleHealthCheck,
+  refreshGoogleToken,
 } from '../services/oauth.js';
 import type { AppDeps } from '../types.js';
+
+/** Map an outcome row to its safe, UI-queryable subset (never a secret). */
+function safeOutcome(o: ConnectorOutcome): {
+  id: string;
+  capability: string;
+  action: string;
+  status: string;
+  summary: string | null;
+  providerResourceId: string | null;
+  providerUrl: string | null;
+  createdAt: Date;
+} {
+  return {
+    id: o.id,
+    capability: o.capability,
+    action: o.action,
+    status: o.status,
+    summary: o.summary,
+    providerResourceId: o.providerResourceId,
+    providerUrl: o.providerUrl,
+    createdAt: o.createdAt,
+  };
+}
 
 const providerBody = z.object({
   name: z.string().trim().min(1).max(100),
@@ -281,7 +308,13 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     }
   });
 
-  /** Health — decrypt the stored token and probe the provider API. Returns no secrets. */
+  /**
+   * Health — decrypt the stored token and probe the provider API. Returns no
+   * secrets. Distinguishes connection state (provider.status) from health
+   * state (what the last real check found): healthy / degraded / expired /
+   * error / disconnected. Expired-by-time Google tokens are refreshed
+   * server-side before probing when a refresh token is stored.
+   */
   app.get<{ Params: { id: string } }>('/v1/integrations/:id/health', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     const provider = await getProvider(db, ctx.orgId, request.params.id);
@@ -294,20 +327,60 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     const decrypted = decryptCredentialSecret(credential);
     if (!decrypted) {
       await updateProviderStatus(db, provider.id, 'disconnected');
-      return { data: { status: 'disconnected', providerId: provider.id } };
+      const outcome = await latestOutcome(db, ctx.orgId, provider.provider);
+      return {
+        data: {
+          state: 'disconnected',
+          status: 'disconnected',
+          healthy: false,
+          requiresReconnect: false,
+          providerId: provider.id,
+          lastCheckedAt: new Date().toISOString(),
+          tokenExpiresAt: null,
+          lastOutcome: outcome ? safeOutcome(outcome) : null,
+        },
+      };
     }
 
     const isGoogle = provider.provider === 'gmail';
-    // Google stores { accessToken, refreshToken } as JSON in the encrypted blob.
+    const now = Date.now();
     let accessToken = decrypted;
+    let refreshToken: string | null = null;
+    let storedExpiry: Date | null = credential?.tokenExpiresAt ?? null;
+
+    // Google stores { accessToken, refreshToken } as JSON in the encrypted blob.
     if (isGoogle) {
       try {
-        const parsed = JSON.parse(decrypted) as { accessToken?: string };
+        const parsed = JSON.parse(decrypted) as { accessToken?: string; refreshToken?: string };
         if (parsed.accessToken) accessToken = parsed.accessToken;
+        refreshToken = parsed.refreshToken ?? null;
       } catch {
         // Legacy plain-token storage — fall through with the raw value.
       }
     }
+
+    // Expired-by-time? Refresh Google tokens server-side before probing.
+    const expiredByTime = storedExpiry != null && storedExpiry.getTime() <= now;
+    if (isGoogle && expiredByTime && refreshToken) {
+      try {
+        const refreshed = await refreshGoogleToken(deps.config, refreshToken);
+        if (refreshed) {
+          accessToken = refreshed.accessToken;
+          storedExpiry = refreshed.expiresAt;
+          // Persist the rotated access token (keep the refresh token).
+          await setCredentials(db, provider.id, {
+            credentialType: 'oauth',
+            encryptedSecret: JSON.stringify({ accessToken: refreshed.accessToken, refreshToken }),
+            publicRef: provider.name,
+            tokenExpiresAt: refreshed.expiresAt,
+            scopes: refreshed.scope ? refreshed.scope.split(' ').filter(Boolean) : [],
+          });
+        }
+      } catch {
+        // Refresh failed — fall through; the probe below will classify.
+      }
+    }
+
     let health: Awaited<ReturnType<typeof githubHealthCheck>>;
     if (isGoogle) {
       const google = await googleHealthCheck(accessToken);
@@ -315,15 +388,30 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     } else {
       health = await githubHealthCheck(accessToken);
     }
-    await updateProviderStatus(db, provider.id, health.healthy ? 'connected' : 'error', health.error);
+
+    const classified = classifyConnectorState({
+      hasCredential: true,
+      expiredByTime: expiredByTime && !health.healthy && !(isGoogle && refreshToken),
+      probeHealthy: health.healthy,
+      probeStatus: health.status,
+      error: health.error,
+    });
+    const connection = health.healthy ? 'connected' : 'error';
+    await updateProviderStatus(db, provider.id, connection, health.error);
+    const outcome = await latestOutcome(db, ctx.orgId, provider.provider);
     return {
       data: {
-        status: health.healthy ? 'connected' : 'error',
+        state: classified.state,
+        status: connection,
         healthy: health.healthy,
         login: health.login,
         scopes: health.scopes,
+        error: health.error,
+        requiresReconnect: classified.requiresReconnect,
         providerId: provider.id,
         lastCheckedAt: new Date().toISOString(),
+        tokenExpiresAt: storedExpiry ? storedExpiry.toISOString() : null,
+        lastOutcome: outcome ? safeOutcome(outcome) : null,
       },
     };
   });

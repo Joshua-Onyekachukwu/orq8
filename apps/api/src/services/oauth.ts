@@ -266,6 +266,41 @@ export async function exchangeGoogleCode(
   };
 }
 
+/**
+ * Refresh an expired Google access token using the stored refresh token.
+ * Google access tokens expire hourly; the refresh token is long-lived and
+ * stored encrypted alongside the access token. Returns null when the refresh
+ * grant is rejected (revoked) so callers can mark the connector expired.
+ */
+export async function refreshGoogleToken(
+  config: AppConfig,
+  refreshToken: string,
+): Promise<GitHubTokenResult | null> {
+  if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) return null;
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.GOOGLE_CLIENT_ID,
+      client_secret: config.GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || typeof data.access_token !== 'string' || !data.access_token) {
+    // invalid_grant = refresh token revoked/expired → reconnect required.
+    return null;
+  }
+  return {
+    accessToken: data.access_token,
+    tokenType: typeof data.token_type === 'string' ? data.token_type : 'bearer',
+    scope: typeof data.scope === 'string' ? data.scope : '',
+    expiresAt: typeof data.expires_in === 'number' ? new Date(Date.now() + data.expires_in * 1000) : null,
+  };
+}
+
 export interface GoogleHealthResult {
   healthy: boolean;
   status: number;

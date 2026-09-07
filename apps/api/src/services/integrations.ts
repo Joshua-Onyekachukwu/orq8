@@ -299,6 +299,62 @@ export async function listOutcomes(
     .limit(opts.limit ?? 50);
 }
 
+// ─── Connector Health State ──────────────────────────────────────────────────
+
+/**
+ * Lifecycle states a connector can be in. Connection state (provider.status)
+ * is separate from health state (what the last real check found).
+ */
+export type ConnectorHealthState =
+  | 'disconnected' // no stored credentials
+  | 'healthy'      // credentials present + last probe succeeded
+  | 'degraded'     // credentials present but provider probe failed transiently
+  | 'expired'      // token expired by time or revoked — reconnect required
+  | 'error';       // other authentication/configuration failure
+
+export interface ClassifyInput {
+  hasCredential: boolean;
+  expiredByTime: boolean;
+  probeHealthy: boolean | null; // null = probe not attempted
+  probeStatus?: number;         // HTTP status of the last probe
+  error?: string;
+}
+
+/**
+ * Pure classification of connector health — single source of truth used by
+ * the health endpoint and unit-tested directly. A revoked/invalid token
+ * (401/403) is 'expired' (reconnect required); a provider-side failure (5xx,
+ * network) is 'degraded' — credentials are fine, the provider is not.
+ */
+export function classifyConnectorState(input: ClassifyInput): {
+  state: ConnectorHealthState;
+  requiresReconnect: boolean;
+} {
+  if (!input.hasCredential) return { state: 'disconnected', requiresReconnect: false };
+  if (input.expiredByTime) return { state: 'expired', requiresReconnect: true };
+  if (input.probeHealthy === null) return { state: 'error', requiresReconnect: false };
+  if (input.probeHealthy) return { state: 'healthy', requiresReconnect: false };
+  // Probe failed — classify by HTTP status.
+  const status = input.probeStatus ?? 0;
+  if (status === 401 || status === 403) return { state: 'expired', requiresReconnect: true };
+  return { state: 'degraded', requiresReconnect: false };
+}
+
+/** Most recent connector outcome for an org + provider (evidence for the UI). */
+export async function latestOutcome(
+  db: Db,
+  orgId: string,
+  provider: string,
+): Promise<ConnectorOutcome | undefined> {
+  const rows = await db
+    .select()
+    .from(connectorOutcomes)
+    .where(and(eq(connectorOutcomes.orgId, orgId), eq(connectorOutcomes.provider, provider)))
+    .orderBy(desc(connectorOutcomes.createdAt))
+    .limit(1);
+  return rows[0];
+}
+
 // ─── Capability Enforcement ──────────────────────────────────────────────────
 
 export async function canAgentUseCapability(

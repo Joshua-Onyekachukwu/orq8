@@ -36,6 +36,7 @@ import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-me
 import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
 import { latestJobRuns, trackJobRun } from '../services/job-runs.js';
+import { runOpsCheck } from '../services/ops-check.js';
 import type { AppDeps } from '../types.js';
 
 const ruleBody = z.object({
@@ -476,5 +477,20 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
     const jobs = await latestJobRuns(db);
     reply.code(200);
     return { data: { jobs } };
+  });
+
+  /**
+   * Production ops check (INTERNAL_TOKEN) — lets `pnpm ops:check` validate
+   * production without a local DATABASE_URL. Runs the same check logic as the
+   * script (services/ops-check.ts) against the API service's own production
+   * database. Returns a structured PASS/FAIL report; never leaks secrets.
+   */
+  app.get('/v1/internal/ops-check', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const report = await runOpsCheck(deps.config, deps.pool);
+    return { data: report };
   });
 }
