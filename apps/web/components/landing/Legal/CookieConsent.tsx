@@ -2,41 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-
-const COOKIE_CONSENT_KEY = "orq8_cookie_consent";
-const COOKIE_CONSENT_EXPIRY_DAYS = 365;
-
-type ConsentValue = "essential" | "functional" | "all";
-
-function getStoredConsent(): ConsentValue | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (stored === "essential" || stored === "functional" || stored === "all") {
-      return stored;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function storeConsent(value: ConsentValue) {
-  try {
-    localStorage.setItem(COOKIE_CONSENT_KEY, value);
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + COOKIE_CONSENT_EXPIRY_DAYS);
-    document.cookie = `${COOKIE_CONSENT_KEY}=${value}; expires=${expiry.toUTCString()}; path=/; SameSite=Lax`;
-  } catch {
-    // Storage unavailable — consent not persisted but banner can still be dismissed
-  }
-}
+import {
+  getStoredConsent,
+  storeConsent,
+  type ConsentValue,
+} from "@/lib/cookie-consent";
 
 const CookieConsent: React.FC = () => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = getStoredConsent();
+    const consent: ConsentValue | null = getStoredConsent();
     if (!consent) {
       setVisible(true);
     }
@@ -76,8 +52,8 @@ const CookieConsent: React.FC = () => {
                 Privacy Policy
               </Link>{" "}
               ·{" "}
-              <Link href="/terms" className="underline hover:text-orq8-lime transition-colors">
-                Terms of Service
+              <Link href="/settings/cookies" className="underline hover:text-orq8-lime transition-colors">
+                Manage preferences
               </Link>
             </p>
           </div>

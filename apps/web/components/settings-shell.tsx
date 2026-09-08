@@ -8,6 +8,7 @@ const tabs = [
   { label: "Account settings", href: "/settings" },
   { label: "Change password", href: "/settings/change-password" },
   { label: "Connections", href: "/settings/connections" },
+  { label: "Cookie preferences", href: "/settings/cookies" },
   { label: "Privacy policy", href: "/settings/privacy-policy" },
   { label: "Terms & conditions", href: "/settings/terms-conditions" },
 ];
