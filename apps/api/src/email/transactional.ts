@@ -46,6 +46,45 @@ function divider(): string {
 
 // ─── Password Reset ─────────────────────────────────────────────────────────
 
+/** Email-verification link email — sent at signup and on resend. */
+export function verificationEmail(input: { email: string; verifyUrl: string }): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = 'Verify your email — ORQ8';
+  const text = [
+    'Welcome to ORQ8.',
+    '',
+    'Confirm your email address to finish setting up your account:',
+    input.verifyUrl,
+    '',
+    'This link expires in 24 hours and can be used once.',
+    "If you didn't create an ORQ8 account, you can ignore this email.",
+  ].join('\n');
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px">
+    <div style="background:#0d1117;border-radius:12px;padding:20px 24px;text-align:center">
+      <span style="color:#B8FF66;font-weight:700;font-size:18px;letter-spacing:0.08em">ORQ8</span>
+    </div>
+    <div style="background:#ffffff;border:1px solid #e6e8ec;border-radius:12px;padding:28px 24px;margin-top:12px">
+      <h1 style="margin:0 0 12px;font-size:18px;color:#111">Verify your email</h1>
+      <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#444">
+        Welcome to ORQ8. Confirm <strong>${input.email}</strong> to finish setting up your account.
+      </p>
+      <a href="${input.verifyUrl}" style="display:inline-block;background:#B8FF66;color:#0d1117;font-weight:700;font-size:14px;padding:11px 22px;border-radius:8px;text-decoration:none">Verify email</a>
+      <p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:#777">
+        This link expires in 24 hours and can be used once. If the button doesn't work, paste this URL into your browser:<br>
+        <span style="word-break:break-all">${input.verifyUrl}</span>
+      </p>
+    </div>
+    <p style="margin:16px 4px 0;font-size:11px;color:#999">If you didn't create an ORQ8 account, you can safely ignore this email.</p>
+  </div>
+</body></html>`;
+  return { subject, text, html };
+}
+
 export function passwordResetEmail(input: {
   email: string;
   resetUrl: string;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { analytics, resetAnalytics } from "@/lib/analytics";
+import { UnverifiedEmailBanner } from "./unverified-email-banner";
 import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
@@ -71,6 +72,8 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
 
   return (
     <>
+      {/* Email verification nudge — renders nothing once verified */}
+      <UnverifiedEmailBanner />
       {/* Top bar */}
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm px-4 sm:px-6 lg:px-8">
         {/* Left: breadcrumb */}

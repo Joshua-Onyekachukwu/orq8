@@ -2,12 +2,13 @@ import { hashPassword, verifyPassword } from '@orq8/auth';
 import { conflict, forbidden, platformAdminEmails, unauthorized, validation } from '@orq8/core';
 import { createHash, randomBytes } from 'node:crypto';
 import { eq, and, gt, isNull, sql } from 'drizzle-orm';
-import { users as usersTable, passwordResetTokens } from '@orq8/db';
+import { users as usersTable, passwordResetTokens, emailVerificationTokens, type Db } from '@orq8/db';
 import { z } from 'zod';
 import { loginBody, registerBody } from '@orq8/domain';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
+import * as emailVerification from '../services/email-verification.js';
 import { createEmailTransport } from '../email/transport.js';
 import * as orgs from '../services/orgs.js';
 import * as sessions from '../services/sessions.js';
@@ -47,8 +48,31 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       await appendAudit(tx, { orgId: org.id, actorType: 'user', actorId: user.id, action: 'user.registered', outcome: 'success' });
       await appendAudit(tx, { orgId: org.id, actorType: 'user', actorId: user.id, action: 'org.created', outcome: 'success' });
       await appendAudit(tx, { orgId: org.id, actorType: 'user', actorId: user.id, action: 'member.joined', outcome: 'success' });
-      return { user, org, token, expiresAt };
+      // Verification token is issued inside the same transaction so a
+      // partial signup can never leave a verify-able orphan (or vice versa).
+      const verification = await emailVerification.issueVerificationToken(tx as unknown as Parameters<typeof emailVerification.issueVerificationToken>[0], user.id, email);
+      return { user, org, token, expiresAt, verification };
     });
+
+    // Verification email goes out after the transaction commits — the token
+    // row must exist before the link can work. Send failure is logged but
+    // never fails registration; the user can resend later.
+    if (result.verification.ok) {
+      try {
+        const verifyUrl = `${deps.config.ALLOWED_ORIGINS.split(',')[0]?.trim() ?? 'http://localhost:3000'}/verify-email?token=${result.verification.plaintextToken}`;
+        const { verificationEmail } = await import('../email/transactional.js');
+        const emailContent = verificationEmail({ email: result.user.email, verifyUrl });
+        const transport = createEmailTransport(deps.config, deps.logger);
+        await transport.send({
+          to: result.user.email,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          html: emailContent.html,
+        });
+      } catch (emailErr) {
+        deps.logger.warn({ err: emailErr }, 'verification email delivery failed at signup — user can resend');
+      }
+    }
 
     reply.code(201);
     return {
@@ -306,6 +330,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
           jobTitle: user.jobTitle ?? null,
           timezone: user.timezone ?? null,
           avatarUrl: user.avatarUrl ?? null,
+          emailVerified: !!user.emailVerifiedAt,
         },
         memberships: memberships.map((m) => ({ org: m.org, role: m.membership.role })),
         active_org_id: ctx.orgId,
@@ -405,7 +430,91 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         jobTitle: user!.jobTitle ?? null,
         timezone: user!.timezone ?? null,
         avatarUrl: user!.avatarUrl ?? null,
+        emailVerified: !!user!.emailVerifiedAt,
       },
     };
+  });
+
+  /**
+   * POST /v1/auth/verify-email/resend — issue and email a fresh verification
+   * token for the authenticated user. Rate-limited server-side (3/hour/user)
+   * regardless of how the client paces itself.
+   */
+  app.post('/v1/auth/verify-email/resend', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const result = await emailVerification.issueVerificationToken(db, ctx.userId, ctx.email);
+    if (!result.ok) {
+      if (result.reason === 'already_verified') {
+        return { data: { status: 'already_verified' } };
+      }
+      if (result.reason === 'rate_limited') {
+        request.raw.socket;
+        return {
+          statusCode: 429,
+          error: {
+            code: 'verification_resend_rate_limited',
+            message: `Verification email already sent ${emailVerification.RESEND_MAX_PER_WINDOW} times in the last hour. Try again in ${result.retryAfterMinutes ?? emailVerification.RESEND_WINDOW_MINUTES} minutes.`,
+          },
+        };
+      }
+      throw new Error('Failed to create verification token');
+    }
+
+    const verifyUrl = `${deps.config.ALLOWED_ORIGINS.split(',')[0]?.trim() ?? 'http://localhost:3000'}/verify-email?token=${result.plaintextToken}`;
+    const { verificationEmail } = await import('../email/transactional.js');
+    const emailContent = verificationEmail({ email: ctx.email, verifyUrl });
+    const transport = createEmailTransport(deps.config, deps.logger);
+    await transport.send({
+      to: ctx.email,
+      subject: emailContent.subject,
+      text: emailContent.text,
+      html: emailContent.html,
+    });
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'auth.email_verification_sent',
+      outcome: 'success',
+    });
+    return { data: { status: 'sent', expires_at: result.expiresAt.toISOString() } };
+  });
+
+  /**
+   * POST /v1/auth/verify-email — consume a one-time token from the email
+   * link. Public (the token IS the credential). Structured failure reasons
+   * keep the UX actionable without revealing token existence.
+   */
+  app.post('/v1/auth/verify-email', async (request) => {
+    const parsed = z.object({ token: z.string().min(32).max(128) }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const result = await emailVerification.consumeVerificationToken(db, parsed.data.token);
+    if (!result.ok) {
+      const messages: Record<Extract<emailVerification.ConsumeResult, { ok: false }>['reason'], string> = {
+        invalid: 'This verification link is not valid.',
+        expired: 'This verification link has expired. Request a new email from Settings.',
+        already_used: 'This verification link was already used — your email may already be verified.',
+        already_verified: 'This email is already verified.',
+      };
+      return {
+        statusCode: 400,
+        error: { code: `verification_${result.reason}`, message: messages[result.reason as keyof typeof messages] },
+      };
+    }
+
+    const memberships = await orgs.findMembershipsByUser(db, result.userId);
+    const orgId = memberships[0]?.org.id;
+    if (orgId) {
+      await appendAudit(db, {
+        orgId,
+        actorType: 'user',
+        actorId: result.userId,
+        action: 'auth.email_verified',
+        outcome: 'success',
+      });
+    }
+    return { data: { verified: true } };
   });
 }

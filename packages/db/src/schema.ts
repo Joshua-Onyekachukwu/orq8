@@ -39,6 +39,8 @@ export const users = pgTable(
     jobTitle: text('job_title'),
     timezone: text('timezone'),
     avatarUrl: text('avatar_url'),
+    // Email verification (migration 0023) — null until the user verifies.
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -620,6 +622,30 @@ export const passwordResetTokens = pgTable(
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
+// ---- Email verification (migration 0023) ----
+// One-time, expiring, hash-only tokens proving ownership of a signup email.
+export const emailVerificationTokens = pgTable(
+  'email_verification_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(), // SHA-256 of the plaintext token
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('email_verification_tokens_user_idx').on(t.userId),
+    index('email_verification_tokens_hash_idx').on(t.tokenHash),
+    index('email_verification_tokens_user_created_idx').on(t.userId, t.createdAt),
+  ],
+);
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
 
 // ---- ORQ8 Company Memory ----
 // Persistent organizational memory — facts, decisions, lessons, preferences.

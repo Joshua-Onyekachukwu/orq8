@@ -123,6 +123,15 @@ export function AuthForm({
         analytics.userLoggedIn("email");
       }
       // New founders go through the Company Builder; returning users go to dashboard.
+      // The verification email is sent server-side at signup — surface it so
+      // the inbox action is obvious from the first session.
+      if (mode === "register") {
+        try {
+          sessionStorage.setItem("orq8_verification_notice", "1");
+        } catch {
+          // Storage may be unavailable — banner is still shown from /me state.
+        }
+      }
       router.push(mode === "register" ? "/onboarding" : (target ?? "/app"));
       router.refresh();
     } catch {
