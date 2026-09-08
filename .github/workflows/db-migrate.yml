@@ -1,21 +1,23 @@
 name: DB Migrate
 
-# docs/58_DEPLOYMENT.md — migrations + static seed run against Supabase on every
-# main push touching packages/db; also triggerable manually via workflow_dispatch.
+# Migrations run inside Railway's private network via the run-postgres-migration
+# service, which has direct access to the Railway Postgres database.
+# Triggered on main pushes touching packages/db or manually.
 on:
   push:
     branches: [main]
-    paths: ["packages/db/**", ".github/workflows/db-migrate.yml"]
+    paths: ["packages/db/**", "supabase/migrations/**", ".github/workflows/db-migrate.yml"]
   workflow_dispatch: {}
 
 jobs:
   migrate:
-    name: Apply migrations + seed
+    name: Trigger Railway migration
     runs-on: ubuntu-latest
     env:
-      # Set in repo Settings → Secrets and variables → Actions. The Supabase
-      # connection string (pooled, port 6543) from Project Settings → Database.
-      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: dcf399fb-b581-4b49-b7b5-26adb783818b
+      RAILWAY_ENVIRONMENT_ID: 955ac5ea-e43d-4172-9043-1c0229159a68
+      RAILWAY_MIGRATION_SERVICE_ID: c9fb7a4d-265f-40b3-a95c-42f28c2900ca
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,12 +36,53 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # The drizzle lineage (migrate) targets the legacy schema and fails on
-      # the Supabase database. The supabase lineage runner is idempotent and
-      # safe on real Supabase (it skips the auth shim when auth.uid() already
-      # exists), so new migrations land the same way they do in CI.
-      - name: Migrate
-        run: pnpm --filter @orq8/db migrate:supabase
+      # Run migrations locally against the Railway database via the migration
+      # runner service. This triggers a redeploy of the migration service which
+      # applies new SQL against the production Railway Postgres (internal network).
+      - name: Apply migrations via Railway migration service
+        run: |
+          echo "Triggering Railway migration service redeploy..."
+          RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"$RAILWAY_MIGRATION_SERVICE_ID\", environmentId: \"$RAILWAY_ENVIRONMENT_ID\") }"}')
+          echo "Response: $RESPONSE"
+          SUCCESS=$(echo "$RESPONSE" | python -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('serviceInstanceRedeploy',False))" 2>/dev/null)
+          if [ "$SUCCESS" = "True" ]; then
+            echo "✅ Migration service redeploy triggered successfully"
+          else
+            echo "❌ Failed to trigger migration service"
+            echo "$RESPONSE"
+            exit 1
+          fi
 
-      - name: Seed (idempotent — provider catalog only)
-        run: pnpm --filter @orq8/db seed
+      - name: Wait for migration to complete
+        run: |
+          echo "Waiting 30s for migration service to start..."
+          sleep 30
+          # Check the latest deployment status
+          STATUS=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ serviceInstance(serviceId: \"$RAILWAY_MIGRATION_SERVICE_ID\", environmentId: \"$RAILWAY_ENVIRONMENT_ID\") { latestDeployment { id status } } }"}' \
+            | python -c "import sys,json; print(json.load(sys.stdin)['data']['serviceInstance']['latestDeployment']['status'])" 2>/dev/null)
+          echo "Migration deployment status: $STATUS"
+          if [ "$STATUS" = "SUCCESS" ]; then
+            echo "✅ Migrations applied successfully"
+          elif [ "$STATUS" = "RUNNING" ]; then
+            echo "⏳ Migration still running, waiting 60s more..."
+            sleep 60
+            STATUS2=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "{ serviceInstance(serviceId: \"$RAILWAY_MIGRATION_SERVICE_ID\", environmentId: \"$RAILWAY_ENVIRONMENT_ID\") { latestDeployment { id status } } }"}' \
+              | python -c "import sys,json; print(json.load(sys.stdin)['data']['serviceInstance']['latestDeployment']['status'])" 2>/dev/null)
+            echo "Final status: $STATUS2"
+            if [ "$STATUS2" != "SUCCESS" ]; then
+              echo "❌ Migration failed with status: $STATUS2"
+              exit 1
+            fi
+          else
+            echo "❌ Migration failed with status: $STATUS"
+            exit 1
+          fi
