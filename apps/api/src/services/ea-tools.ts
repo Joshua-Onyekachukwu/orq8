@@ -779,3 +779,204 @@ export async function planEngineering(
     };
   }
 }
+
+/**
+ * "Who should handle this?" — given a work description, rank the active
+ * workforce by capability match, utilization and historical performance.
+ * Read-only: recommendation only, never an assignment.
+ */
+export async function findBestAgent(
+  ctx: ToolContext,
+  params: { task?: unknown },
+): Promise<ToolResult> {
+  const task = typeof params.task === 'string' ? params.task.trim() : '';
+  if (!task) {
+    return { success: false, tool: 'find_best_agent', message: 'Task description is required.', error: 'missing_task' };
+  }
+  try {
+    const { recommendAgents } = await import('./agent-recommendation.js');
+    const recs = await recommendAgents(ctx.db, ctx.orgId, task, 3);
+    const top = recs[0];
+    if (!top) {
+      return {
+        success: true,
+        tool: 'find_best_agent',
+        message: 'No active AI employees exist yet — hire agents with the capabilities this work needs.',
+        data: { recommendations: [] },
+      };
+    }
+    return {
+      success: true,
+      tool: 'find_best_agent',
+      message: `Best match: ${top.name} (${top.role}) — score ${top.score}/100, ${top.utilization}% utilized.`,
+      data: {
+        recommendations: recs.map((r) => ({
+          agentId: r.agentId,
+          name: r.name,
+          role: r.role,
+          department: r.departmentName,
+          score: r.score,
+          reasons: r.reasons,
+          utilization: r.utilization,
+          performanceScore: r.performanceScore,
+        })),
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      tool: 'find_best_agent',
+      message: err instanceof Error ? err.message : 'Failed to rank agents.',
+      error: 'recommendation_failed',
+    };
+  }
+}
+
+/**
+ * Workforce analysis — real utilization/coverage numbers per department and
+ * team, so the EA can answer "who is overloaded?" from measured data.
+ * Read-only.
+ */
+export async function analyzeWorkforce(ctx: ToolContext): Promise<ToolResult> {
+  try {
+    const { calculateOrgWorkforceSummary } = await import('./workforce-engine.js');
+    const summary = await calculateOrgWorkforceSummary(ctx.db, ctx.orgId);
+    const stressedDepts = summary.departments.filter(
+      (d) => d.coverageStatus === 'over_capacity' || d.coverageStatus === 'understaffed' || d.coverageStatus === 'severely_understaffed',
+    );
+    return {
+      success: true,
+      tool: 'analyze_workforce',
+      message: `${summary.activeAgents} active of ${summary.totalAgents} agents across ${summary.totalDepartments} departments — average utilization ${summary.avgUtilization}%.${stressedDepts.length ? ` Needs attention: ${stressedDepts.map((d) => d.departmentName).join(', ')}.` : ' No overloaded units.'}`,
+      data: {
+        totalAgents: summary.totalAgents,
+        activeAgents: summary.activeAgents,
+        totalDepartments: summary.totalDepartments,
+        totalTeams: summary.totalTeams,
+        avgUtilization: summary.avgUtilization,
+        departments: summary.departments.map((d) => ({
+          name: d.departmentName,
+          status: d.coverageStatus,
+          utilizationPct: d.utilizationPct,
+          agentCount: d.agentCount,
+          capabilityGap: d.capabilityGap,
+        })),
+        unassignedAgents: summary.unassignedAgents.length,
+        bloatWarning: summary.bloatWarning,
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      tool: 'analyze_workforce',
+      message: err instanceof Error ? err.message : 'Failed to analyze workforce.',
+      error: 'analysis_failed',
+    };
+  }
+}
+
+/**
+ * Archive (or restore) a department. Archives preserve all history — agents,
+ * tasks and memory keep their references; nothing is destroyed.
+ */
+export async function archiveDepartment(
+  ctx: ToolContext,
+  params: { departmentId?: unknown; restore?: unknown },
+): Promise<ToolResult> {
+  const departmentId = typeof params.departmentId === 'string' ? params.departmentId.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(departmentId)) {
+    return { success: false, tool: 'archive_department', message: 'A valid departmentId is required.', error: 'invalid_id' };
+  }
+  const restore = params.restore === true;
+  try {
+    const deptService = await import('./departments.js');
+    const dept = await deptService.findById(ctx.db, ctx.orgId, departmentId);
+    if (!dept) {
+      return { success: false, tool: 'archive_department', message: 'Department not found in this organization.', error: 'not_found' };
+    }
+    if (!restore && dept.status === 'archived') {
+      return { success: true, tool: 'archive_department', message: `"${dept.name}" is already archived.`, data: { departmentId, name: dept.name, status: dept.status } };
+    }
+    if (restore && dept.status !== 'archived') {
+      return { success: true, tool: 'archive_department', message: `"${dept.name}" is already active.`, data: { departmentId, name: dept.name, status: dept.status } };
+    }
+    const updated = await deptService.updateDepartment(ctx.db, ctx.orgId, departmentId, { status: restore ? 'active' : 'archived' });
+    if (!updated) {
+      return { success: false, tool: 'archive_department', message: 'Failed to update department status.', error: 'update_failed' };
+    }
+    await appendAudit(ctx.db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: restore ? 'department.restored' : 'department.archived',
+      outcome: 'success',
+      inputRef: JSON.stringify({ departmentId, name: dept.name }),
+    });
+    return {
+      success: true,
+      tool: 'archive_department',
+      message: `${restore ? 'Restored' : 'Archived'} department "${dept.name}". History and references are preserved.`,
+      data: { departmentId, name: dept.name, status: updated.status },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      tool: 'archive_department',
+      message: err instanceof Error ? err.message : 'Failed to archive department.',
+      error: 'archive_failed',
+    };
+  }
+}
+
+/**
+ * Archive (or restore) a team. Same history-preserving contract as
+ * archive_department.
+ */
+export async function archiveTeam(
+  ctx: ToolContext,
+  params: { teamId?: unknown; restore?: unknown },
+): Promise<ToolResult> {
+  const teamId = typeof params.teamId === 'string' ? params.teamId.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId)) {
+    return { success: false, tool: 'archive_team', message: 'A valid teamId is required.', error: 'invalid_id' };
+  }
+  const restore = params.restore === true;
+  try {
+    const teamService = await import('./teams.js');
+    const team = await teamService.findById(ctx.db, ctx.orgId, teamId);
+    if (!team) {
+      return { success: false, tool: 'archive_team', message: 'Team not found in this organization.', error: 'not_found' };
+    }
+    if (!restore && team.status === 'archived') {
+      return { success: true, tool: 'archive_team', message: `"${team.name}" is already archived.`, data: { teamId, name: team.name, status: team.status } };
+    }
+    if (restore && team.status !== 'archived') {
+      return { success: true, tool: 'archive_team', message: `"${team.name}" is already active.`, data: { teamId, name: team.name, status: team.status } };
+    }
+    const updated = await teamService.updateTeam(ctx.db, ctx.orgId, teamId, { status: restore ? 'active' : 'archived' });
+    if (!updated) {
+      return { success: false, tool: 'archive_team', message: 'Failed to update team status.', error: 'update_failed' };
+    }
+    await appendAudit(ctx.db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: restore ? 'team.restored' : 'team.archived',
+      outcome: 'success',
+      inputRef: JSON.stringify({ teamId, name: team.name }),
+    });
+    return {
+      success: true,
+      tool: 'archive_team',
+      message: `${restore ? 'Restored' : 'Archived'} team "${team.name}". History and references are preserved.`,
+      data: { teamId, name: team.name, status: updated.status },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      tool: 'archive_team',
+      message: err instanceof Error ? err.message : 'Failed to archive team.',
+      error: 'archive_failed',
+    };
+  }
+}

@@ -261,6 +261,10 @@ TOOLS AVAILABLE (include in toolCalls array):
 - update_task: { taskId: "uuid", agentId?, priority?, status?, title?, description?, dueDate? }. Safe — updates task properties.
 - rename_organization: { newName: "string" }. Safe — renames the company/organization identity.
 - plan_engineering: { objective: "string", description?: "string", constraints?: "string", priority?: "low|normal|high|urgent" }. Safe — delegates a software-engineering objective to the Engineering Manager, who assembles a team and creates engineering tasks. Use when the CEO asks to build software, an app, a feature, or a technical system. Idempotent: repeating the same objective returns the existing plan.
+- find_best_agent: { task: "string" }. Safe — "who should handle this?" Ranks active AI employees by capability match, current utilization and historical performance. Recommendation only; use create_task with the suggested agentId to actually assign.
+- analyze_workforce: {}. Safe — real utilization and coverage numbers per department/team; identifies overloaded or understaffed units. Use for "which team is overloaded?", "do we need another agent?", "what is each department's workload?".
+- archive_department: { departmentId: "uuid", restore?: boolean }. Safe — archives (or restores) a department; history, agents and tasks are preserved.
+- archive_team: { teamId: "uuid", restore?: boolean }. Safe — archives (or restores) a team; history and members are preserved.
 
 For rename_agent: match the agentId from the AI Employees list in context.
 For rename_department: match the departmentId from the Departments list in context.
@@ -1344,6 +1348,18 @@ export async function executeCommand(
             break;
           case 'plan_engineering':
             result = await eaTools.planEngineering(toolCtx, tc.params as any);
+            break;
+          case 'find_best_agent':
+            result = await eaTools.findBestAgent(toolCtx, tc.params as any);
+            break;
+          case 'analyze_workforce':
+            result = await eaTools.analyzeWorkforce(toolCtx);
+            break;
+          case 'archive_department':
+            result = await eaTools.archiveDepartment(toolCtx, tc.params as any);
+            break;
+          case 'archive_team':
+            result = await eaTools.archiveTeam(toolCtx, tc.params as any);
             break;
           default:
             result = { success: false, tool: tc.tool, message: `Unknown tool: ${tc.tool}` };
