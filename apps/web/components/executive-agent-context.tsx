@@ -11,7 +11,7 @@
  * uses React contexts + fetch-based API calls.
  */
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 /** What the Executive Agent receives about the current page. */
 export interface PageContext {
@@ -48,6 +48,18 @@ export function ExecutiveAgentProvider({ children }: { children: ReactNode }) {
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const togglePanel = useCallback(() => setPanelOpen((p) => !p), []);
+
+  // Global keyboard shortcut: Cmd/Ctrl + Shift + E opens/closes the panel.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        togglePanel();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePanel]);
 
   return (
     <ExecutiveAgentCtx.Provider

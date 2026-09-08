@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Target, Bot, ShieldCheck, Command, X } from "lucide-react";
+import { FloatingLauncher } from "../floating-launcher";
 
 const actions = [
   {
@@ -42,11 +43,13 @@ const actions = [
 export function QuickActionsHub() {
   const [open, setOpen] = useState(false);
 
+  const toggleMenu = () => setOpen((o) => !o);
+
   return (
-    <div data-floating-control="quick-actions" className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-30 lg:bottom-20 lg:right-6">
-      {/* Action buttons */}
+    <div className="relative" data-floating-control="quick-actions">
+      {/* Action buttons — stacked above the FAB */}
       {open && (
-        <div className="mb-3 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="absolute bottom-16 right-0 mb-3 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
           {actions.map((action) => {
             const Icon = action.icon;
             return (
@@ -69,19 +72,18 @@ export function QuickActionsHub() {
         </div>
       )}
 
-      {/* FAB button */}
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200 ${
-          open
-            ? "bg-orq8-dark text-white rotate-45"
-            : "bg-orq8-orange text-white hover:bg-orq8-orange-dark hover:shadow-xl"
-        }`}
-        title={open ? "Close actions" : "Quick actions"}
-      >
-        {open ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-      </button>
+      {/* FAB — uses shared FloatingLauncher positioning system */}
+      <FloatingLauncher
+        onClick={toggleMenu}
+        icon={open ? <X className="h-5 w-5 rotate-45 transition-transform" /> : <Plus className="h-5 w-5" />}
+        label="Quick actions"
+        floatingId="quick-actions"
+        isActive={open}
+        buttonBg="bg-orq8-orange"
+        buttonBgActive="bg-orq8-dark"
+        zIndex={30}
+        className="h-14 w-14"
+      />
     </div>
   );
 }

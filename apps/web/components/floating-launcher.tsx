@@ -28,12 +28,22 @@ import { useCollisionDetection } from "../hooks/use-collision-detection";
 import { useDraggable } from "../hooks/use-draggable";
 import type { LauncherPreference } from "../hooks/use-launcher-preference";
 
-interface FloatingLauncherProps {
+export interface FloatingLauncherProps {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   /** Extra class names for the button */
   className?: string;
+  /** Unique ID for stacking coordination between floating controls */
+  floatingId?: string;
+  /** Whether the launcher is in an active/toggled-on state (changes icon styling) */
+  isActive?: boolean;
+  /** Button color when not active — defaults to bg-orq8-dark */
+  buttonBg?: string;
+  /** Button color when active */
+  buttonBgActive?: string;
+  /** z-index for stacking order — higher = on top */
+  zIndex?: number;
 }
 
 /** Position to CSS classes mapping. Safe-area padding keeps the launcher
@@ -66,6 +76,10 @@ export function FloatingLauncher({
   icon,
   label,
   className = "",
+  isActive = false,
+  buttonBg = "bg-orq8-dark",
+  buttonBgActive,
+  zIndex = 40,
 }: FloatingLauncherProps) {
   const { preference, setPreference } = useLauncherPreference();
   /** Transient position while dragging (not persisted until snap). */
@@ -117,9 +131,9 @@ export function FloatingLauncher({
       ref={elementRef}
       data-ea-launcher="true"
       onClick={handleClick}
-      className={`group fixed z-40 flex h-12 w-12 touch-none select-none items-center justify-center rounded-full bg-orq8-dark text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-orq8-orange/70 focus-visible:ring-offset-2 ${posClasses} ${stateClasses} ${className}`}
-      style={isDragging && tempPosition ? dragPreviewStyle(tempPosition) : undefined}
-      title={label}
+      className={`group fixed flex h-12 w-12 touch-none select-none items-center justify-center rounded-full text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-orq8-orange/70 focus-visible:ring-offset-2 ${posClasses} ${stateClasses} ${className} ${isActive && buttonBgActive ? buttonBgActive : buttonBg}`}
+      style={{ zIndex: zIndex, ...(isDragging && tempPosition ? dragPreviewStyle(tempPosition) : {}) }}
+      title={`${label} (\u2318\u21E7E)`}
       aria-label={label}
       aria-keyshortcuts="Meta+Shift+E"
       {...handlers}
