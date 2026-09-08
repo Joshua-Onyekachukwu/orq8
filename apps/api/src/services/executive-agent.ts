@@ -67,6 +67,15 @@ export interface ExecutiveContext {
   // `decision` is present when the founder's query was resolved against the
   // registry (reuse | extend | build); otherwise just the reusable catalog.
   capabilities?: Array<{ name: string; category: string; decision?: 'reuse' | 'extend' | 'build' }>;
+  // Strategy chain — the layer above goals that connects strategy to execution.
+  strategySummary?: {
+    activeStrategies: number;
+    activeObjectives: number;
+    activeKeyResults: number;
+    activeInitiatives: number;
+    overallProgress: number;
+    topPriorities: Array<{ type: string; title: string; progress: number; status: string }>;
+  };
 }
 
 export interface IntentAnalysis {
@@ -512,6 +521,14 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     capabilities,
   };
 
+  // Strategy chain — lazy-loaded, non-blocking.
+  try {
+    const { getStrategySummary } = await import('./strategy.js');
+    ctx.strategySummary = await getStrategySummary(db, orgId);
+  } catch {
+    // Strategy tables may not exist yet — degrade gracefully.
+  }
+
   // Populate workforce coverage if available — lazy-loaded, non-blocking.
   // Failures degrade gracefully so the Executive Agent still works without it.
   try {
@@ -596,9 +613,31 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     capabilityBlock = parts.join('\n');
   }
 
+  // Strategy block — gives the LLM awareness of the company's strategic direction.
+  let strategyBlock = '';
+  if (ctx.strategySummary && ctx.strategySummary.activeStrategies > 0) {
+    const s = ctx.strategySummary;
+    const lines: string[] = [
+      '\n### Strategy & Objectives',
+      `- Active strategies: ${s.activeStrategies}`,
+      `- Active objectives: ${s.activeObjectives}`,
+      `- Key results: ${s.activeKeyResults}`,
+      `- Active initiatives: ${s.activeInitiatives}`,
+      `- Overall strategic progress: ${s.overallProgress}%`,
+    ];
+    if (s.topPriorities.length > 0) {
+      lines.push('Top priorities:');
+      for (const p of s.topPriorities) {
+        lines.push(`  - [${p.status}] ${p.title} (${p.progress}%)`);
+      }
+    }
+    strategyBlock = lines.join('\n');
+  }
+
   return '## ORGANIZATION CONTEXT\n\n' +
     '### AI Employees\n' + agentList + '\n\n' +
     structureBlock + '\n\n' +
+    (strategyBlock ? strategyBlock + '\n\n' : '') +
     '### Active Goals\n' + goalList + '\n\n' +
     '### Active Tasks\n' + taskList + '\n\n' +
     '### Pending Approvals: ' + ctx.pendingApprovals + '\n\n' +
@@ -610,7 +649,9 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     'When the founder asks who owns work or who is responsible, answer from the organization structure above.\n' +
     'If no suitable agent exists, recommend hiring one.\n' +
     'Always be specific about which agent should handle each task.\n' +
-    'Before proposing to build anything new (a new agent, tool, workflow or capability), first search the Reusable Company Capabilities above — if the company can already do the work, recommend reusing the existing capability instead of building a parallel one.';
+    'Before proposing to build anything new (a new agent, tool, workflow or capability), first search the Reusable Company Capabilities above — if the company can already do the work, recommend reusing the existing capability instead of building a parallel one.\n' +
+    'When the founder asks about strategy or priorities, reference the Strategy & Objectives section above.\n' +
+    'Connect tasks and goals to strategic objectives where possible.';
 }
 
 // ─── Intent Analysis ────────────────────────────────────────────────────────

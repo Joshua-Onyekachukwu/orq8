@@ -4,6 +4,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -1528,3 +1529,110 @@ export type DepartmentTemplate = typeof departmentTemplates.$inferSelect;
 export type NewDepartmentTemplate = typeof departmentTemplates.$inferInsert;
 export type TeamTemplate = typeof teamTemplates.$inferSelect;
 export type NewTeamTemplate = typeof teamTemplates.$inferInsert;
+
+// ── Strategy → Objective → Key Result chain ──────────────────────────────────
+
+export const strategies = pgTable(
+  'strategies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('active'),
+    priority: text('priority').notNull().default('high'),
+    timeHorizon: text('time_horizon'),
+    startDate: timestamp('start_date', { withTimezone: true }),
+    targetDate: timestamp('target_date', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('strategies_org_idx').on(t.orgId)],
+);
+
+export const objectives = pgTable(
+  'objectives',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    strategyId: uuid('strategy_id').references(() => strategies.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('active'),
+    priority: text('priority').notNull().default('high'),
+    progress: integer('progress').notNull().default(0),
+    ownerAgentId: uuid('owner_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    startDate: timestamp('start_date', { withTimezone: true }),
+    targetDate: timestamp('target_date', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('objectives_org_idx').on(t.orgId),
+    index('objectives_strategy_idx').on(t.strategyId),
+  ],
+);
+
+export const keyResults = pgTable(
+  'key_results',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    objectiveId: uuid('objective_id').notNull().references(() => objectives.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('on_track'),
+    metricType: text('metric_type').notNull().default('numeric'),
+    metricStart: numeric('metric_start'),
+    metricTarget: numeric('metric_target'),
+    metricCurrent: numeric('metric_current'),
+    unit: text('unit'),
+    progress: integer('progress').notNull().default(0),
+    confidence: integer('confidence').notNull().default(80),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('kresults_org_idx').on(t.orgId),
+    index('kresults_objective_idx').on(t.objectiveId),
+  ],
+);
+
+export const initiatives = pgTable(
+  'initiatives',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    strategyId: uuid('strategy_id').references(() => strategies.id, { onDelete: 'set null' }),
+    objectiveId: uuid('objective_id').references(() => objectives.id, { onDelete: 'set null' }),
+    keyResultId: uuid('key_result_id').references(() => keyResults.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('active'),
+    priority: text('priority').notNull().default('high'),
+    progress: integer('progress').notNull().default(0),
+    ownerAgentId: uuid('owner_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    estimatedHours: numeric('estimated_hours'),
+    actualHours: numeric('actual_hours'),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('initiatives_org_idx').on(t.orgId),
+    index('initiatives_objective_idx').on(t.objectiveId),
+    index('initiatives_kr_idx').on(t.keyResultId),
+  ],
+);
+
+export type Strategy = typeof strategies.$inferSelect;
+export type NewStrategy = typeof strategies.$inferInsert;
+export type Objective = typeof objectives.$inferSelect;
+export type NewObjective = typeof objectives.$inferInsert;
+export type KeyResult = typeof keyResults.$inferSelect;
+export type NewKeyResult = typeof keyResults.$inferInsert;
+export type Initiative = typeof initiatives.$inferSelect;
+export type NewInitiative = typeof initiatives.$inferInsert;
