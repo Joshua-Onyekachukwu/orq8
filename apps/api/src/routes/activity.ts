@@ -1,5 +1,6 @@
 import { eq, and, gte, sql } from 'drizzle-orm';
 import { goals, tasks, activityEvents, type Db } from '@orq8/db';
+import { calculateCompanyProgress } from '../services/company-progress.js';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as activity from '../services/activity.js';
@@ -117,5 +118,12 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
         recent_activity: recentActivity,
       },
     };
+  });
+
+  /** Company progress — real progress calculated from goals, tasks, and activity. */
+  app.get('/v1/company-progress', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const progress = await calculateCompanyProgress(db, ctx.orgId);
+    return { data: progress };
   });
 }

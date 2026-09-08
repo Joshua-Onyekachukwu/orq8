@@ -80,9 +80,39 @@ interface DashboardData {
   recent_activity: ActivityEvent[];
 }
 
+interface DepartmentProgress {
+  departmentId: string;
+  departmentName: string;
+  taskCount: number;
+  completedTaskCount: number;
+  activeTaskCount: number;
+  blockedTaskCount: number;
+  recentOutputs: number;
+  agentCount: number;
+  activeAgentCount: number;
+  progressPct: number;
+  status: string;
+}
+
+interface CompanyProgressData {
+  overallPct: number;
+  maturityStage: string;
+  departments: DepartmentProgress[];
+  totalGoals: number;
+  activeGoals: number;
+  completedGoals: number;
+  totalTasks: number;
+  completedTasks: number;
+  activeTasks: number;
+  blockedTasks: number;
+  recentOutputs: number;
+  attentionNeeded: string[];
+}
+
 const fetchDashboardData = () => fetchWithAuth<DashboardData>("/v1/dashboard");
 const fetchAgents = () => fetchWithAuth<Agent[]>("/v1/agents");
 const fetchApprovals = () => fetchWithAuth<Approval[]>("/v1/approvals?status=pending");
+const fetchCompanyProgress = () => fetchWithAuth<CompanyProgressData>("/v1/company-progress");
 
 function StatCard({
   label,
@@ -124,10 +154,11 @@ function StatCard({
 
 
 export default async function AppPage() {
-  const [dashboard, agents, approvals] = await Promise.all([
+  const [dashboard, agents, approvals, companyProgress] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
     fetchApprovals(),
+    fetchCompanyProgress(),
   ]);
 
   const agentList = agents ?? [];
@@ -249,6 +280,87 @@ export default async function AppPage() {
         </div>
       )}
 
+      {/* Company Progress — real progress from goals, tasks, activity */}
+      {companyProgress && companyProgress.totalTasks > 0 && (
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+                Company Progress
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-ink">
+                {companyProgress.maturityStage}
+              </h2>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold text-ink">{companyProgress.overallPct}%</p>
+              <p className="text-xs text-muted">Overall progress</p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-3 rounded-full bg-hairline overflow-hidden mb-4">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-orq8-green to-orq8-lime transition-all duration-500"
+              style={{ width: `${companyProgress.overallPct}%` }}
+            />
+          </div>
+
+          {/* Department breakdown */}
+          {companyProgress.departments.length > 0 && (
+            <div className="space-y-2">
+              {companyProgress.departments.map((dept) => (
+                <div key={dept.departmentId} className="flex items-center gap-3">
+                  <span className="w-32 truncate text-xs font-medium text-ink">
+                    {dept.departmentName}
+                  </span>
+                  <div className="flex-1 h-2 rounded-full bg-hairline overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        dept.progressPct >= 70 ? 'bg-emerald-400' :
+                        dept.progressPct >= 40 ? 'bg-amber-400' :
+                        dept.progressPct > 0 ? 'bg-orange-400' : 'bg-gray-200'
+                      }`}
+                      style={{ width: `${Math.max(dept.progressPct, 2)}%` }}
+                    />
+                  </div>
+                  <span className="w-10 text-right font-mono text-xs text-muted">
+                    {dept.progressPct}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Summary stats */}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
+            <span>{companyProgress.completedTasks} / {companyProgress.totalTasks} tasks completed</span>
+            <span>·</span>
+            <span>{companyProgress.activeTasks} active</span>
+            {companyProgress.blockedTasks > 0 && (
+              <>
+                <span>·</span>
+                <span className="text-red-500">{companyProgress.blockedTasks} blocked</span>
+              </>
+            )}
+            <span>·</span>
+            <span>{companyProgress.recentOutputs} outputs this week</span>
+          </div>
+
+          {/* Attention needed */}
+          {companyProgress.attentionNeeded.length > 0 && (
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <p className="text-xs font-medium text-amber-800">Attention needed:</p>
+              <ul className="mt-1 space-y-0.5">
+                {companyProgress.attentionNeeded.map((item, i) => (
+                  <li key={i} className="text-xs text-amber-700">• {item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -284,6 +396,36 @@ export default async function AppPage() {
           href="/app/budgets"
         />
       </div>
+
+      {/* Daily Brief — what happened recently */}
+      {recentActivity.length > 0 && (
+        <div className="rounded-xl border border-hairline bg-white p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+              What happened recently
+            </p>
+          </div>
+          <div className="space-y-2">
+            {recentActivity.slice(0, 5).map((event) => (
+              <div key={event.id} className="flex items-start gap-3 rounded-lg bg-canvas/50 px-3 py-2">
+                <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                  event.type.includes('completed') ? 'bg-emerald-400' :
+                  event.type.includes('failed') ? 'bg-red-400' :
+                  event.type.includes('created') ? 'bg-blue-400' :
+                  'bg-gray-300'
+                }`} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-ink leading-snug">{event.summary}</p>
+                  <p className="mt-0.5 text-2xs text-muted">
+                    {new Date(event.occurredAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    {event.department ? ` · ${event.department}` : ''}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Company Health + Goal Execution — side by side */}
       <div className="grid gap-6 lg:grid-cols-2">
