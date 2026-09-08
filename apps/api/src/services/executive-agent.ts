@@ -83,6 +83,10 @@ export interface IntentAnalysis {
     suggestedAgentRole: string;
     priority: 'low' | 'normal' | 'high';
   }>;
+  toolCalls?: Array<{
+    tool: string;
+    params: Record<string, unknown>;
+  }>;
   response: string;
 }
 
@@ -115,6 +119,7 @@ export interface ExecutionResult {
     unassigned: number;
     assignedAgents: string[];
   } | null;
+  toolResults?: Array<{ tool: string; success: boolean; message: string }>;
 }
 
 // ─── Workflow Verification Types ────────────────────────────────────────────
@@ -216,6 +221,25 @@ When recommending workforce changes:
 5. Recommend the minimum workforce change needed
 6. Consider promotion, reassignment, or restriction before replacement
 7. All hiring/replacement/retirement requires founder approval
+
+EXECUTIVE TOOLS — YOU CAN EXECUTE THESE ACTIONS:
+When the CEO asks you to create, rename, or modify something, you can use these tools directly:
+
+TOOLS AVAILABLE:
+- rename_agent: Rename any AI employee (agentId, newName). Safe action.
+- create_agent: Hire a new AI employee (name, role, departmentId?, teamId?, capabilities?). Requires approval.
+- create_department: Create a department (name, description?). Requires approval.
+- create_team: Create a team (name, departmentId?, lead?). Requires approval.
+- create_goal: Create a goal (title, description?, priority?). Safe action.
+- create_task: Create and optionally assign a task (title, agentId?, goalId?, priority?). Safe action.
+- get_organization_summary: Get current org stats. Always safe.
+
+When you decide to use a tool, include it in your response as:
+"toolCalls": [{"tool": "tool_name", "params": {"key": "value"}}]
+
+The system will execute the tool and return the result. You must then report the outcome to the CEO.
+
+IMPORTANT: Tools are executed server-side with full authorization checks. You cannot bypass limits.
 
 Be decisive, clear, and professional. You are the CEO's chief of staff.`;
 
@@ -975,6 +999,54 @@ export async function executeCommand(
     };
   }
 
+  // ── Step 3.5: Execute Tool Calls ──
+  // If the LLM decided to use organizational tools (rename, create, etc.),
+  // execute them here before creating tasks.
+  const toolStep = startStep(trace, 'tool_execution');
+  let toolResults: Array<{ tool: string; success: boolean; message: string }> = [];
+  if (intent.toolCalls && intent.toolCalls.length > 0) {
+    try {
+      const eaTools = await import('./ea-tools.js');
+      const toolCtx = { db, orgId, userId };
+      for (const tc of intent.toolCalls) {
+        let result;
+        switch (tc.tool) {
+          case 'rename_agent':
+            result = await eaTools.renameAgent(toolCtx, tc.params as any);
+            break;
+          case 'create_agent':
+            result = await eaTools.createAgent(toolCtx, tc.params as any);
+            break;
+          case 'create_department':
+            result = await eaTools.createDepartment(toolCtx, tc.params as any);
+            break;
+          case 'create_team':
+            result = await eaTools.createTeam(toolCtx, tc.params as any);
+            break;
+          case 'create_goal':
+            result = await eaTools.createGoal(toolCtx, tc.params as any);
+            break;
+          case 'create_task':
+            result = await eaTools.createTask(toolCtx, tc.params as any);
+            break;
+          case 'get_organization_summary':
+            result = await eaTools.getOrganizationSummary(toolCtx);
+            break;
+          default:
+            result = { success: false, tool: tc.tool, message: `Unknown tool: ${tc.tool}` };
+        }
+        toolResults.push({ tool: tc.tool, success: result.success, message: result.message });
+      }
+      completeStep(toolStep, { executed: toolResults.length, successful: toolResults.filter(r => r.success).length });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      completeStep(toolStep, undefined, msg);
+      // Tool failures are non-fatal — continue with task creation
+    }
+  } else {
+    completeStep(toolStep, { skipped: true, reason: 'no_tool_calls' });
+  }
+
   // ── Step 4: Create Tasks ──
   const taskStep = startStep(trace, 'task_creation');
   let taskIds: string[];
@@ -1204,6 +1276,8 @@ export async function executeCommand(
     workflowTrace,
     // Delegation summary — shows which agents were assigned
     delegationSummary,
+    // Tool execution results
+    toolResults: toolResults.length > 0 ? toolResults : undefined,
   };
 }
 

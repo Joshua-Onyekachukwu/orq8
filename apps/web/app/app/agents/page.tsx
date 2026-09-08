@@ -74,6 +74,11 @@ export default function AgentsPage() {
   const [showHireModal, setShowHireModal] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Rename state
+  const [renamingAgent, setRenamingAgent] = useState<Agent | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
   // Hire form state
   const [hireName, setHireName] = useState("");
   const [hireRole, setHireRole] = useState("");
@@ -174,6 +179,32 @@ export default function AgentsPage() {
       setError(err instanceof Error ? err.message : "Failed to update agent");
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renamingAgent || !renameValue.trim()) return;
+    setRenaming(true);
+    try {
+      const res = await fetch(`/api/agents/${renamingAgent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error?.message ?? "Failed to rename agent");
+      }
+      const json = await res.json();
+      setAgents((prev) =>
+        prev.map((a) => (a.id === renamingAgent.id ? { ...a, name: renameValue.trim() } : a))
+      );
+      setRenamingAgent(null);
+      setRenameValue("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to rename agent");
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -318,21 +349,32 @@ export default function AgentsPage() {
                     <p className="truncate text-xs text-muted">{a.role}</p>
                   </div>
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => handleToggleStatus(a)}
-                  disabled={processingId === a.id}
-                  aria-label={a.status === "active" ? `Pause ${a.name}` : `Resume ${a.name}`}
-                  className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-ink disabled:opacity-50"
-                >
-                  {processingId === a.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : a.status === "active" ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setRenamingAgent(a); setRenameValue(a.name); }}
+                    aria-label={`Rename ${a.name}`}
+                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-ink"
+                    title="Rename"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(a)}
+                    disabled={processingId === a.id}
+                    aria-label={a.status === "active" ? `Pause ${a.name}` : `Resume ${a.name}`}
+                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-ink disabled:opacity-50"
+                  >
+                    {processingId === a.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : a.status === "active" ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <p className="mt-3 flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-wide">
@@ -532,6 +574,54 @@ export default function AgentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Agent Modal */}
+      {renamingAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
+              <h2 className="text-lg font-semibold text-ink">Rename {renamingAgent.name}</h2>
+              <button type="button" onClick={() => setRenamingAgent(null)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-muted">
+                Rename your AI employee. This changes the display name only — the role, capabilities, and permissions remain unchanged.
+              </p>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-ink">Name</label>
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  placeholder="e.g. Atlas, Maya, Alex"
+                  className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); }}
+                />
+              </div>
+              <div className="rounded-lg bg-canvas px-3 py-2 text-xs text-muted">
+                <strong>Role:</strong> {renamingAgent.role} — unchanged
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
+              <button type="button" onClick={() => setRenamingAgent(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={!renameValue.trim() || renameValue.trim() === renamingAgent.name || renaming}
+                className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+              >
+                {renaming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

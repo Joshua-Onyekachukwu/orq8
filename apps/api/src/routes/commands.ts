@@ -118,6 +118,8 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           warnings: result.warnings ?? [],
           // Delegation summary — which agents were assigned
           delegation: result.delegationSummary,
+          // Tool execution results
+          toolResults: result.toolResults ?? [],
           // Workflow trace for debugging and monitoring
           workflowTrace: result.workflowTrace
             ? {
