@@ -231,24 +231,40 @@ When recommending workforce changes:
 6. Consider promotion, reassignment, or restriction before replacement
 7. All hiring/replacement/retirement requires founder approval
 
-EXECUTIVE TOOLS — YOU CAN EXECUTE THESE ACTIONS:
-When the CEO asks you to create, rename, or modify something, you can use these tools directly:
+EXECUTIVE TOOLS — YOU CAN EXECUTE ACTIONS DIRECTLY:
 
-TOOLS AVAILABLE:
-- rename_agent: Rename any AI employee (agentId, newName). Safe action.
-- create_agent: Hire a new AI employee (name, role, departmentId?, teamId?, capabilities?). Requires approval.
-- create_department: Create a department (name, description?). Requires approval.
-- create_team: Create a team (name, departmentId?, lead?). Requires approval.
-- create_goal: Create a goal (title, description?, priority?). Safe action.
-- create_task: Create and optionally assign a task (title, agentId?, goalId?, priority?). Safe action.
-- get_organization_summary: Get current org stats. Always safe.
+WHEN TO USE TOOLS vs TASKS:
+- If the CEO asks to CREATE, RENAME, or MODIFY an organizational entity (department, team, agent, goal), use a TOOL directly.
+- If the CEO asks to DO WORK (research, write, analyze, build), create TASKS for AI employees.
+- If the CEO asks a QUESTION, just answer with analysis and recommendations.
+- NEVER create tasks describing an action when a tool can execute it directly.
 
-When you decide to use a tool, include it in your response as:
-"toolCalls": [{"tool": "tool_name", "params": {"key": "value"}}]
+TOOLS AVAILABLE (include in toolCalls array):
+- rename_agent: { agentId: "uuid", newName: "string" }. Safe — renames display name only.
+- create_agent: { name, role, departmentId?, teamId?, capabilities? }. Requires approval.
+- create_department: { name, description? }. Requires approval.
+- create_team: { name, departmentId?, lead? }. Requires approval.
+- create_goal: { title, description?, priority? }. Safe action.
+- create_task: { title, description?, agentId?, goalId?, priority? }. Safe action.
+- get_organization_summary: {}. Always safe.
 
-The system will execute the tool and return the result. You must then report the outcome to the CEO.
+For rename_agent: match the agentId from the AI Employees list in context.
+For create_department/team/agent: use the name the CEO specified.
+For create_goal: use the CEO's goal statement as the title.
 
-IMPORTANT: Tools are executed server-side with full authorization checks. You cannot bypass limits.
+Response format when using tools:
+{
+  "intent": "description",
+  "category": "manage",
+  "requiresApproval": true/false,
+  "toolCalls": [{"tool": "tool_name", "params": {...}}],
+  "taskDecomposition": [],
+  "response": "what you're about to do"
+}
+
+Set taskDecomposition to [] when using tools — the tool IS the action.
+
+IMPORTANT: Tools are executed server-side with full authorization and limit checks.
 
 Be decisive, clear, and professional. You are the CEO's chief of staff.`;
 
@@ -700,6 +716,94 @@ export async function analyzeIntent(
   return fallbackAnalysis(command, ctx);
 }
 
+// ─── Tool Detection (rule-based) ──────────────────────────────────────────
+
+/**
+ * Detect if a command maps to a direct tool action.
+ * Returns toolCalls if detected, null otherwise.
+ * Used by both the LLM path (post-processing) and the fallback path.
+ */
+function detectToolCalls(
+  command: string,
+  ctx: ExecutiveContext,
+): Array<{ tool: string; params: Record<string, unknown> }> | null {
+  const lower = command.toLowerCase().trim();
+
+  // ── Rename agent ───────────────────────────────────────────────────────
+  // "Rename X to Y" / "Call X Y" / "Change X's name to Y"
+  const renameMatch = lower.match(/\b(?:rename|call|change)\b.*\b(.+?)\b\s+(?:to|as)\s+\b(.+?)$/i)
+    ?? lower.match(/\bchange\b\s+\b(.+?)\b\s+(?:'s|name)\s+(?:to|as)\s+\b(.+?)$/i);
+  if (renameMatch && renameMatch[1] && renameMatch[2]) {
+    const oldName = renameMatch[1].trim();
+    const newName = renameMatch[2].trim();
+    // Find matching agent by name
+    const agent = ctx.agents.find(a =>
+      a.name.toLowerCase() === oldName.toLowerCase() ||
+      a.name.toLowerCase().includes(oldName.toLowerCase()),
+    );
+    if (agent && newName.length > 0 && newName.length <= 100) {
+      return [{ tool: 'rename_agent', params: { agentId: agent.id, newName } }];
+    }
+  }
+
+  // ── Create department ──────────────────────────────────────────────────
+  // "Create a marketing department" / "Set up engineering" / "Add a finance dept"
+  const deptCreateMatch = lower.match(/\b(?:create|set up|add|open|establish|launch)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:department|dept|division)$/i)
+    ?? lower.match(/\b(?:create|set up|add)\b.*\bdepartment\b\s*(?:called|named)?\s*\b(.+?)$/i);
+  if (deptCreateMatch && deptCreateMatch[1]) {
+    const deptName = deptCreateMatch[1].trim();
+    if (deptName.length > 0 && deptName.length < 100) {
+      const name = deptName.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return [{ tool: 'create_department', params: { name } }];
+    }
+  }
+
+  // ── Create team ────────────────────────────────────────────────────────
+  // "Create a frontend team" / "Set up a growth team under marketing"
+  const teamCreateMatch = lower.match(/\b(?:create|set up|add|establish)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:team|squad|group)$/i)
+    ?? lower.match(/\b(?:create|set up|add)\b.*\bteam\b\s*(?:called|named)?\s*\b(.+?)$/i);
+  if (teamCreateMatch && teamCreateMatch[1]) {
+    const teamName = teamCreateMatch[1].trim();
+    if (teamName.length > 0 && teamName.length < 100) {
+      const name = teamName.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return [{ tool: 'create_team', params: { name } }];
+    }
+  }
+
+  // ── Create agent ───────────────────────────────────────────────────────
+  // "Hire an SEO agent" / "Create a content writer" / "Add a sales agent"
+  const agentCreateMatch = lower.match(/\b(?:hire|create|add|recruit|onboard)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:agent|employee|member|specialist)?$/i)
+    ?? lower.match(/\b(?:hire|create|add)\b.*\bagent\b\s*(?:called|named|for)?\s*\b(.+?)$/i);
+  if (agentCreateMatch && agentCreateMatch[1] && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/)) {
+    const roleDesc = agentCreateMatch[1].trim();
+    if (roleDesc.length > 0 && roleDesc.length < 100) {
+      const name = roleDesc.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const role = roleDesc.toLowerCase().replace(/\s+/g, '_');
+      return [{ tool: 'create_agent', params: { name, role } }];
+    }
+  }
+
+  // ── Create goal ────────────────────────────────────────────────────────
+  // "Set a goal to reach $1M ARR" / "Create a goal: launch v2" / "Goal: 100 customers"
+  const goalMatch = lower.match(/\b(?:set|create|add|establish)\b.*\bgoal\b\s*(?:to|:)?\s*(.+)/i)
+    ?? lower.match(/\bgoal\b\s*(?::|to)\s*(.+)/i);
+  if (goalMatch && goalMatch[1]) {
+    const goalTitle = goalMatch[1].trim();
+    if (goalTitle.length > 3 && goalTitle.length < 500) {
+      const title = goalTitle.charAt(0).toUpperCase() + goalTitle.slice(1);
+      return [{ tool: 'create_goal', params: { title } }];
+    }
+  }
+
+  // ── Get organization summary ───────────────────────────────────────────
+  if (lower.match(/\b(?:organization|company|org)\b.*\b(?:summary|stats|status|overview)/i)
+    || lower.match(/\bhow\s+(?:is|are)\s+(?:the\s+)?(?:company|organization|org)/i)) {
+    return [{ tool: 'get_organization_summary', params: {} }];
+  }
+
+  return null;
+}
+
 /**
  * Rule-based fallback analysis when the LLM is not available.
  * Creates multi-step task decompositions based on keyword analysis.
@@ -744,6 +848,37 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
 
   // Calculate estimated cost based on task count and complexity
   const estimatedCost = taskDecomposition.length * 2;
+
+  // Check if this maps to a direct tool action
+  const detectedTools = detectToolCalls(command, ctx);
+  if (detectedTools && detectedTools.length > 0 && detectedTools[0]) {
+    const tool = detectedTools[0];
+    const toolName = tool.tool;
+    // Determine if this tool requires approval
+    const approvalTools = ['create_department', 'create_team', 'create_agent'];
+    const needsToolApproval = approvalTools.includes(toolName);
+    const toolLabel = toolName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const paramSummary = Object.entries(tool.params)
+      .filter(([k]) => k !== 'agentId')
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ');
+    return {
+      intent: command,
+      category: 'manage',
+      requiresApproval: needsToolApproval,
+      approvalReason: needsToolApproval
+        ? `${toolLabel} requires your approval.`
+        : undefined,
+      riskLevel: needsToolApproval ? 'medium' : 'low',
+      estimatedCost: 0,
+      suggestedAgentRole: 'executive_agent',
+      taskDecomposition: [],
+      toolCalls: detectedTools,
+      response: needsToolApproval
+        ? `I'll ${toolLabel.toLowerCase()} (${paramSummary}). This requires your approval.`
+        : `I'll ${toolLabel.toLowerCase()} (${paramSummary}). Executing now.`,
+    };
+  }
 
   // Build a descriptive response
   const taskCount = taskDecomposition.length;
@@ -1088,17 +1223,23 @@ export async function executeCommand(
     completeStep(toolStep, { skipped: true, reason: 'no_tool_calls' });
   }
 
-  // ── Step 4: Create Tasks ──
+  // ── Step 4: Create Tasks (skip when tool calls were the primary action) ──
   const taskStep = startStep(trace, 'task_creation');
-  let taskIds: string[];
-  try {
-    taskIds = await createTasksFromIntent(db, orgId, intent);
-    completeStep(taskStep, { created: taskIds.length });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'unknown error';
-    completeStep(taskStep, undefined, msg);
-    trace.status = 'failed';
-    return buildErrorResult(commandId, command, `Task creation failed: ${msg}`, trace, startTime);
+  let taskIds: string[] = [];
+  const hasToolResults = toolResults.length > 0 && toolResults.some(r => r.success);
+  if (hasToolResults && intent.taskDecomposition.length === 0) {
+    // Tool calls were the action — no additional tasks needed
+    completeStep(taskStep, { skipped: true, reason: 'tool_calls_completed' });
+  } else {
+    try {
+      taskIds = await createTasksFromIntent(db, orgId, intent);
+      completeStep(taskStep, { created: taskIds.length });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      completeStep(taskStep, undefined, msg);
+      trace.status = 'failed';
+      return buildErrorResult(commandId, command, `Task creation failed: ${msg}`, trace, startTime);
+    }
   }
 
   // ── Step 5: Create Approval if Needed ──
@@ -1225,6 +1366,22 @@ export async function executeCommand(
   }
 
   let message = intent.response;
+
+  // ── Enrich response with tool execution results ──
+  if (toolResults.length > 0) {
+    const toolParts: string[] = [];
+    for (const tr of toolResults) {
+      if (tr.success) {
+        toolParts.push(`✅ **${tr.tool.replace(/_/g, ' ')}**: ${tr.message}`);
+      } else {
+        toolParts.push(`❌ **${tr.tool.replace(/_/g, ' ')}**: ${tr.message}`);
+      }
+    }
+    if (toolParts.length > 0) {
+      message += `\n\n${toolParts.join('\n')}`;
+    }
+  }
+
   if (totalCount > 0) {
     const totalCost = taskExecutionResults.reduce((sum, r) => sum + r.cost, 0);
     const parts: string[] = [];
