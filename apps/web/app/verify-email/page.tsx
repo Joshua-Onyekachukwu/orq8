@@ -1,17 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, MailCheck, AlertCircle, Clock } from "lucide-react";
 
-export const metadata = {
-  title: "Verify your email — ORQ8",
-};
-
 type VerifyState = "pending" | "verifying" | "success" | "invalid" | "expired" | "already_used" | "error";
 
 export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
+          <Loader2 className="h-7 w-7 animate-spin text-orq8-green" />
+        </div>
+      }
+    >
+      <VerifyEmailInner />
+    </Suspense>
+  );
+}
+
+function VerifyEmailInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [state, setState] = useState<VerifyState>("pending");
