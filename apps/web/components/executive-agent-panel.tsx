@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useExecutiveAgent, type PageContext } from "./executive-agent-context";
+import { FloatingLauncher } from "./floating-launcher";
 
 interface ChatMessage {
   id: string;
@@ -172,15 +173,12 @@ export function ExecutiveAgentPanel() {
 
   return (
     <>
-      {/* Floating trigger button — bottom-right, always visible */}
-      <button
+      {/* Floating trigger — collision-aware, draggable, snap-to-edge */}
+      <FloatingLauncher
         onClick={togglePanel}
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-orq8-dark text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orq8-orange/50 lg:bottom-8 lg:right-8"
-        title="Executive Agent"
-        aria-label="Open Executive Agent"
-      >
-        <MessageSquare className="h-5 w-5" />
-      </button>
+        icon={<MessageSquare className="h-5 w-5" />}
+        label="Executive Agent"
+      />
 
       {/* Panel overlay */}
       {panelOpen && (

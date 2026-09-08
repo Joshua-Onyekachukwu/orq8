@@ -43,7 +43,7 @@ export function QuickActionsHub() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-6 right-6 z-30 lg:bottom-8 lg:right-8">
+    <div data-floating-control="quick-actions" className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-30 lg:bottom-20 lg:right-6">
       {/* Action buttons */}
       {open && (
         <div className="mb-3 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
