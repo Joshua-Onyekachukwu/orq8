@@ -15,6 +15,13 @@ import {
   Save,
   Loader2,
   X,
+  Shield,
+  Clock,
+  Building2,
+  Key,
+  LogOut,
+  Calendar,
+  Settings,
 } from "lucide-react";
 
 interface UserData {
@@ -273,26 +280,102 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Details */}
+      {/* Account Details Grid */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center gap-4 rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orq8-dark text-orq8-green">
-            <Mail className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Email</p>
-            <p className="truncate text-sm font-medium text-ink">{user?.email ?? "—"}</p>
+        {/* Contact Information */}
+        <div className="rounded-xl border border-hairline bg-white p-6">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Mail className="h-4 w-4 text-muted" />
+            Contact Information
+          </h3>
+          <div className="mt-4 space-y-4">
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Email</p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{user?.email ?? "—"}</p>
+            </div>
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Display Name</p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{user?.name ?? "Not set"}</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orq8-dark text-orq8-green">
-            <CheckCircle2 className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Organization</p>
-            <p className="truncate text-sm font-medium text-ink">{org?.name ?? "—"}</p>
+        {/* Organization */}
+        <div className="rounded-xl border border-hairline bg-white p-6">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Building2 className="h-4 w-4 text-muted" />
+            Organization
+          </h3>
+          <div className="mt-4 space-y-4">
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Company</p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{org?.name ?? "—"}</p>
+            </div>
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Role</p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-orq8-lime/10 px-2.5 py-1 text-xs font-medium text-orq8-green">
+                  <Shield className="h-3 w-3" />
+                  {activeOrg?.role === "owner" ? "Founder" : activeOrg?.role ?? "Member"}
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Plan</p>
+              <p className="mt-0.5 text-sm font-medium text-ink capitalize">{org?.plan ?? "trial"}</p>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Account Security */}
+      <div className="mt-6 rounded-xl border border-hairline bg-white p-6">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <Key className="h-4 w-4 text-muted" />
+          Account Security
+        </h3>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
+              <CheckCircle2 className="h-4 w-4 text-orq8-green" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-ink">Session Active</p>
+              <p className="text-2xs text-muted">Authenticated</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
+              <Shield className="h-4 w-4 text-orq8-green" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-ink">Password Set</p>
+              <p className="text-2xs text-muted">Argon2id hashed</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
+              <Clock className="h-4 w-4 text-orq8-green" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-ink">Session Timeout</p>
+              <p className="text-2xs text-muted">30 days</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <a
+            href="/settings/change-password"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+          >
+            <Key className="h-3.5 w-3.5" /> Change Password
+          </a>
+          <a
+            href="/settings"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+          >
+            <Settings className="h-3.5 w-3.5" /> Account Settings
+          </a>
         </div>
       </div>
 

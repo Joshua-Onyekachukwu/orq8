@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Shield } from "lucide-react";
 import { AdminSidebar } from "../../components/admin/admin-sidebar";
 import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
@@ -61,7 +62,32 @@ export default async function AdminLayout({
   const userRole = activeMembership?.role ?? "member";
   const platformRole = me.platformRole ?? "user";
   if (platformRole !== "admin") {
-    redirect("/app");
+    // Instead of silently redirecting, show a clear Access Denied page
+    // so the user understands why they can't access the admin area.
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas">
+        <div className="mx-auto max-w-md text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+            <Shield className="h-8 w-8 text-red-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-ink">Access Denied</h1>
+          <p className="mt-3 text-sm text-muted leading-relaxed">
+            The Admin Dashboard requires platform administrator access. Your account
+            ({me.user.email}) does not have the required permissions.
+          </p>
+          <p className="mt-2 text-xs text-muted/70">
+            If you believe you should have access, contact the platform administrator
+            to add your email to the admin allowlist.
+          </p>
+          <a
+            href="/app"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-orq8-green px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+          >
+            Go to Dashboard
+          </a>
+        </div>
+      </div>
+    );
   }
 
   const orgName = activeMembership?.org.name ?? "ORQ8";
