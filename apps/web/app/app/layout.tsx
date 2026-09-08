@@ -10,7 +10,7 @@ import { ExecutiveAgentShell } from "../../components/executive-agent-shell";
 
 
 type MeData = {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string; name: string | null; avatarUrl?: string | null };
   memberships: {
     org: { id: string; name: string; slug: string; plan: string };
     role: string;
@@ -100,6 +100,7 @@ export default async function AppLayout({
   const orgName = active?.org.name ?? "My Organization";
   const plan = active?.org.plan ?? "starter";
   const userName = me?.user.name ?? me?.user.email ?? "Founder";
+  const userAvatarUrl = me?.user.avatarUrl ?? null;
   const hasSession = !!me;
 
   const userRole = active?.role ?? "member";
@@ -117,6 +118,7 @@ export default async function AppLayout({
         orgName={orgName}
         plan={plan}
         userName={userName}
+        userAvatarUrl={userAvatarUrl}
         sampleMode={false}
         platformRole={platformRole}
       />
@@ -124,6 +126,7 @@ export default async function AppLayout({
       <div className="lg:pl-64">
         <TopBar
           userName={userName}
+          userAvatarUrl={userAvatarUrl}
           orgName={orgName}
           plan={plan}
           userRole={userRole}

@@ -20,13 +20,14 @@ import { NotificationsBell } from "./notifications-bell";
 
 interface TopBarProps {
   userName: string;
+  userAvatarUrl?: string | null;
   orgName: string;
   plan: string;
   userRole: string;
   platformRole?: string;
 }
 
-export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopBarProps) {
+export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platformRole }: TopBarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,8 +115,18 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-50"
             >
-              <div className="h-8 w-8 rounded-full bg-orq8-green flex items-center justify-center text-xs font-bold text-orq8-lime">
-                {initials}
+              <div className="h-8 w-8 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-xs font-bold text-orq8-lime">
+                {userAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={userAvatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                ) : (
+                  initials
+                )}
               </div>
               <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
             </button>

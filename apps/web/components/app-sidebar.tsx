@@ -103,11 +103,13 @@ export function AppSidebar({
   orgName,
   plan,
   userName,
+  userAvatarUrl,
   platformRole,
 }: {
   orgName: string;
   plan: string;
   userName: string;
+  userAvatarUrl?: string | null;
   sampleMode: boolean;
   platformRole?: string;
 }) {
@@ -270,8 +272,18 @@ export function AppSidebar({
             aria-haspopup="menu"
             aria-label="User account menu"
           >
-            <div className="h-7 w-7 shrink-0 rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
-              {userName.charAt(0).toUpperCase()}
+            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
+              {userAvatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={userAvatarUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              ) : (
+                userName.charAt(0).toUpperCase()
+              )}
             </div>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-xs font-medium text-white/70 truncate">{userName}</p>
