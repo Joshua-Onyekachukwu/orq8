@@ -137,7 +137,7 @@ function BusinessImportDashboard() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Business Import</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Give ORQ8 a description of your company and a website URL. ORQ8 fetches the site safely, extracts
+          Give us a description of your company and a website URL. We fetch the site safely, extract
           evidence-backed facts (each with a source and confidence), proposes an organization, and applies it{" "}
           <span className="font-medium text-foreground">only after you approve</span>.
         </p>

@@ -359,7 +359,7 @@ export default function IntegrationsPage() {
           <div>
             <h1 className="text-2xl font-semibold text-ink">Integrations</h1>
             <p className="mt-1 text-sm text-muted">
-              Connect external systems and tell ORQ8 what to do when events arrive.
+              Connect external systems and tell us what to do when events arrive.
             </p>
           </div>
           <button

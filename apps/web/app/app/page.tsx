@@ -22,7 +22,7 @@ import { HealthScore } from "../../components/dashboard/HealthScore";
 import { GoalExecutionPanel } from "../../components/dashboard/GoalExecutionPanel";
 import { fetchWithAuth, formatCost } from "../../lib/api";
 
-export const metadata = { title: "Dashboard — ORQ8" };
+export const metadata = { title: "Dashboard" };
 
 interface Agent {
   id: string;
@@ -113,6 +113,7 @@ const fetchDashboardData = () => fetchWithAuth<DashboardData>("/v1/dashboard");
 const fetchAgents = () => fetchWithAuth<Agent[]>("/v1/agents");
 const fetchApprovals = () => fetchWithAuth<Approval[]>("/v1/approvals?status=pending");
 const fetchCompanyProgress = () => fetchWithAuth<CompanyProgressData>("/v1/company-progress");
+const fetchOrgInfo = () => fetchWithAuth<{ memberships: { org: { id: string; name: string; slug: string; plan: string }; role: string }[]; active_org_id: string | null }>("/v1/auth/me");
 
 function StatCard({
   label,
@@ -154,11 +155,12 @@ function StatCard({
 
 
 export default async function AppPage() {
-  const [dashboard, agents, approvals, companyProgress] = await Promise.all([
+  const [dashboard, agents, approvals, companyProgress, orgInfo] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
     fetchApprovals(),
     fetchCompanyProgress(),
+    fetchOrgInfo(),
   ]);
 
   const agentList = agents ?? [];
@@ -248,8 +250,8 @@ export default async function AppPage() {
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-lime" />
               System Online
             </p>
-            <p className="text-2xl font-bold tracking-tight">ORQ8</p>
-            <p className="text-xs text-white/50">Company of One</p>
+            <p className="text-2xl font-bold tracking-tight">{orgInfo?.memberships?.find((m: { org: { id: string }; role: string }) => m.org.id === orgInfo?.active_org_id)?.org?.name ?? "My Company"}</p>
+            <p className="text-xs text-white/50">{orgInfo?.memberships?.find((m: { org: { id: string }; role: string }) => m.org.id === orgInfo?.active_org_id)?.role === "owner" ? "Founder & CEO" : "Team Member"}</p>
           </div>
         </div>
       </div>

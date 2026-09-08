@@ -12,20 +12,29 @@ A solo founder or lean team CEO directs their AI organization through natural la
 
 **Core capabilities:**
 
-- **Executive Agent** — Central orchestration layer that plans, coordinates, and reports
-- **AI Employees** — Hire by role (Market Researcher, Content Writer, Financial Analyst, etc.) with capabilities, permissions, memory, and execution history
-- **Approval Gates** — Sensitive actions require CEO approval before execution
-- **Company Memory** — Persistent organizational knowledge that accumulates over time
-- **Work Credits** — Usage-based economic system tracking AI execution costs
-- **Billing & Subscriptions** — Plan-based access with Stripe-ready architecture
-- **Company Constitution** — Define company rules, values, and agent policies
-- **Departments & Teams** — Organize AI employees into functional groups
-- **Organization Explorer** — Visual org chart with departments, agents, and stats
-- **Command Center** — Real-time command interface with SSE live updates
-- **Audit Trail** — Immutable record of all organizational actions
-- **File Management** — Upload, store, and share documents with your AI organization
-- **Notifications** — Real-time alerts with configurable preferences
-- **Admin Dashboard** — Platform management for operators
+- **Executive Agent** — Central orchestration layer that plans, coordinates, and reports. Handles natural-language organization management (create departments, hire agents, assign work), strategy-aware decision-making, and autonomous tool execution with verification.
+- **AI Employees** — Hire by role with capabilities, permissions, memory, and execution history. Supports pause, reassign, rename, and performance tracking.
+- **Agent Templates** — 18 pre-built role templates across 9 categories (Engineering, Marketing, Sales, Customer Success, Finance, Operations, Product, Data, Executive) with recommended capabilities, tools, and autonomy levels.
+- **Agent Recommendations** — "Who should handle this?" engine that scores agents by capability match, utilization, performance, and reliability.
+- **Priority Recommendations** — "What should I do next?" engine that surfaces overdue tasks, stalled goals, and unassigned high-priority work.
+- **Strategic Lineage** — Trace every task back to company strategy: Strategy → Objective → Key Result → Initiative → Task.
+- **Decision Memory** — Record decisions with rationale, alternatives, expected outcomes, and actual outcomes for future reference.
+- **AI Workforce ROI** — Track completed work, failed work, revisions, time saved, cost, quality, and ROI per agent and per department.
+- **Strategy Page** — Create strategies, objectives, key results, and link them to initiatives and tasks.
+- **Approval Gates** — Sensitive actions require CEO approval before execution.
+- **Company Memory** — Persistent organizational knowledge that accumulates over time.
+- **Work Credits** — Usage-based economic system tracking AI execution costs.
+- **Billing & Subscriptions** — Plan-based access with Stripe-ready architecture.
+- **Company Constitution** — Define company rules, values, and agent policies.
+- **Departments & Teams** — Organize AI employees into functional groups with department/team templates.
+- **Organization Explorer** — Visual org chart with departments, agents, and stats.
+- **Company Health** — Real-time health score based on agent activity, task completion, credit usage, and approvals.
+- **Audit Trail** — Immutable record of all organizational actions with CSV/JSON export.
+- **File Management** — Upload, store, and share documents with your AI organization.
+- **Notifications** — Real-time alerts with configurable preferences.
+- **Collision-Aware Floating Launcher** — Executive Agent launcher with drag, snap-to-edge, collision detection, and position persistence.
+- **Keyboard Shortcuts** — Meta+Shift+E opens the Executive Agent from anywhere.
+- **Admin Dashboard** — Platform management for operators with user/org management, health monitoring, and security controls.
 
 ---
 
@@ -46,7 +55,7 @@ orq8/
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
 │   └── deploy/              # Deployment manifests
-├── docs/                 # 59 documentation files + 21 ADRs
+├── docs/                 # 75 documentation files + ADRs
 └── marketing/            # Landing copy, brand guide, design-partner kit
 ```
 
@@ -98,12 +107,14 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 | Metric | Count |
 |--------|-------|
-| Database tables | 23 |
-| API endpoints | 66 |
-| Unit tests | 82 (all passing) |
-| Documentation files | 59 markdown + 21 ADRs |
-| User-facing pages | 20+ (landing, auth, app, settings, admin) |
-| Admin pages | 6 (dashboard, users, organizations, activity, health, settings) |
+| Database tables | 63 |
+| API endpoints | 160+ |
+| Test files | 60 |
+| Documentation files | 75 |
+| User-facing app pages | 36 |
+| Admin pages | 14 |
+| Agent templates | 18 (across 9 categories) |
+| Migrations | 20 |
 | Security score | 9/10 (CSRF, brute-force lockout, rate limiting, CSP, HSTS) |
 
 ### Feature Status
@@ -113,41 +124,55 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 | Landing Page | ✅ Production | Responsive, animated, conversions-optimized |
 | Authentication | ✅ Production | Register, login, logout, forgot/reset password, brute-force lockout |
 | Onboarding | ✅ Production | Multi-step flow, backend-persisted, resume on login |
-| CEO Dashboard | ✅ Production | Real API data, SSE live updates, metrics |
+| CEO Dashboard | ✅ Production | Real API data, SSE live updates, company progress, health score, activity feed |
 | Command Center | ✅ Production | Real LLM execution, credit tracking, live status |
-| AI Employees | ✅ Production | Hire, configure, assign, monitor, pause, plan-enforced limits |
-| Executive Agent | ✅ Production | Real LLM integration, task decomposition, credit-aware |
+| AI Employees | ✅ Production | Hire, configure, assign, monitor, pause, rename, plan-enforced limits |
+| Agent Templates | ✅ Production | 18 templates, create-from-template, recommended capabilities/tools/autonomy |
+| Executive Agent | ✅ Production | Real LLM integration, tool execution pipeline, org management, strategy-aware |
+| EA Tool Execution | ✅ Production | create_department, create_team, create_agent, create_goal, create_task, rename operations |
+| EA Recommendations | ✅ Production | "Who should handle this?" + "What should I do next?" + workforce intelligence |
+| Strategic Lineage | ✅ Production | Task → Initiative → KR → Objective → Strategy trace, visual tree, lineage score |
+| Decision Memory | ✅ Production | Record decisions, rationale, alternatives, outcomes; EA can retrieve history |
+| AI Workforce ROI | ✅ Production | Per-agent/dept/company ROI with quality-adjusted metrics |
+| Strategy Page | ✅ Production | Strategy → Objectives → Key Results, progress tracking, EA awareness |
 | Approval Gates | ✅ Production | Create, approve, reject, audit trail, organization-scoped |
-| Goals & Tasks | ✅ Production | CRUD, priority, status, due dates, agent assignment |
+| Goals & Tasks | ✅ Production | CRUD, priority, status, due dates, agent assignment, initiative linking |
 | Work Credits | ✅ Production | Balance, consumption, alerts, atomic guard, history |
 | Billing/Entitlements | ✅ Ready | Plan enforcement, limits, Stripe skeleton (keys needed) |
 | Company Memory | ✅ Production | Create, view, delete, stats, agent-driven, org-scoped |
+| Company Health | ✅ Production | Real-time health score, department progress, attention items |
 | Constitution | ✅ Production | Company rules, agent policies, budget limits |
-| Departments | ✅ Production | Department management, agent counts, budgets |
+| Departments | ✅ Production | Department management, agent counts, budgets, templates |
+| Teams | ✅ Production | Team management, agent assignment, department linking |
 | Org Explorer | ✅ Production | Visual org chart, departments, agents, goals, stats |
+| Business Import | ✅ Production | Describe company + URL → auto-creates org structure |
 | Files & Documents | ✅ Production | Upload, list, download, delete |
 | Notifications | ✅ Production | Bell, unread badge, preferences, 30s polling |
-| Settings | ✅ Production | Real profile data, notification preferences |
+| Settings | ✅ Production | Real profile data, notification preferences, provider keys |
 | Profile | ✅ Production | Real user data, edit name |
 | Audit Trail | ✅ Production | Activity log, CSV/JSON export |
 | Activity | ✅ Production | Real API data, filtering |
 | Reports | ✅ Production | CEO weekly/monthly briefings |
-| Admin Dashboard | ✅ Production | Users, organizations, activity, health |
+| Knowledge Graph | ✅ Production | Entity/relation management, EA-aware |
+| Quality & Learning | ✅ Production | QA scoring, revision tracking, learning loops |
+| Performance | ✅ Production | Agent performance, reliability, workload analysis |
+| Workforce ROI | ✅ Production | Per-agent/dept/company ROI with quality metrics |
+| Floating Launcher | ✅ Production | Collision-aware, draggable, snap-to-edge, position-persistent EA launcher |
+| Keyboard Shortcuts | ✅ Production | Meta+Shift+E opens EA from anywhere |
+| Admin Dashboard | ✅ Production | Users, organizations, agents, execution, health, errors, security |
 | Security | ✅ Hardened | CSRF, brute-force, rate limiting, CSP, HSTS, IDOR protection |
 | Error Resilience | ✅ Production | React ErrorBoundary, graceful API errors |
-| CI/CD | ✅ Active | GitHub Actions, automated testing, Vercel/Railway deploy |
+| CI/CD | ✅ Active | GitHub Actions, automated testing, Vercel/Railway deploy, DB migration workflow |
 
 ### What's Pending
 
 | Item | Priority | Notes |
 |------|----------|-------|
 | Stripe payment integration | P1 | Architecture ready, need Stripe keys |
-| Real LLM tool execution | P1 | Agent CRUD and execution lifecycle exists; specific tool integrations TBD |
-| Onboarding persistence improvements | P2 | Backend save works; refine multi-step resume |
-| Account lockout display | P2 | Lockout logic works; add user-facing lockout message |
+| Members page → real API | P2 | Currently uses sample data |
 | Pagination on admin lists | P2 | Most lists paginated; some admin views need pagination |
-| Additional unit tests | P2 | 82 tests covering core logic; expand coverage |
-| Members page → real API | P3 | Currently uses sample data |
+| E2E test suite | P2 | Unit + integration tests exist; add Playwright/Cypress E2E |
+| EA rename department/team tools | P3 | create works; rename/update not yet in EA tool dispatch |
 
 ---
 

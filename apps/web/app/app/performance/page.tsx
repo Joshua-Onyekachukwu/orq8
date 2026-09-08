@@ -329,7 +329,7 @@ export default function PerformancePage() {
               <div className="rounded-xl border border-dashed border-hairline bg-white p-10 text-center">
                 <UserCheck className="mx-auto h-10 w-10 text-muted/30" aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium text-ink">Select an AI employee</p>
-                <p className="mt-1 text-xs text-muted">See their quality, reliability, cost and what ORQ8 recommends based on real data.</p>
+                <p className="mt-1 text-xs text-muted">See their quality, reliability, cost and what we recommend based on real data.</p>
               </div>
             ) : (
               <div className="rounded-xl border border-hairline bg-white p-5">

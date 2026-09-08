@@ -212,7 +212,7 @@ export default function ProfilePage() {
                   </>
                 )}
                 <p className="text-sm text-muted">
-                  {activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member"} · {org?.name ?? "ORQ8"}
+                  {activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member"} · {org?.name ?? "Organization"}
                 </p>
               </div>
             </div>

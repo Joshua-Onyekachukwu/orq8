@@ -64,7 +64,7 @@ export default async function AppLayout({
   } catch {
     // Network error - API is completely unreachable
     isApiReachable = false;
-    apiError = "Could not connect to the ORQ8 API. The service may be temporarily unavailable.";
+    apiError = "Could not connect to the API. The service may be temporarily unavailable.";
   }
 
   // SECURITY: Always require valid session. No dev fallback to sample data.
