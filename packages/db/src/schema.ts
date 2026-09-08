@@ -417,6 +417,7 @@ export const tasks = pgTable(
     priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
     dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
     teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
+    initiativeId: uuid('initiative_id').references(() => initiatives.id, { onDelete: 'set null' }), // strategy lineage link
     cost: integer('cost').notNull().default(0), // cost in cents
     result: text('result'), // execution result when completed
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

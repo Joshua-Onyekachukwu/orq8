@@ -9,6 +9,7 @@ import { executeWithQuality, type QualityPipelineResult } from './quality-pipeli
 import { broadcastToOrg } from './realtime.js';
 import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
 import { getDecisionContext } from './decision-memory.js';
+import { getLineageContext } from './lineage.js';
 import { listCapabilities, resolveCapabilityRequest } from './capability-registry.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
@@ -79,6 +80,8 @@ export interface ExecutiveContext {
   };
   // Decision Memory — past decisions with outcomes for learning.
   decisionMemory?: string;
+  // Strategic Lineage — connection between tasks and strategy.
+  lineageContext?: string;
 }
 
 export interface IntentAnalysis {
@@ -555,6 +558,13 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     // Decision tables may not exist yet — degrade gracefully.
   }
 
+  // Strategic Lineage — lazy-loaded, non-blocking.
+  try {
+    ctx.lineageContext = await getLineageContext(db, orgId);
+  } catch {
+    // Lineage tables may not exist yet — degrade gracefully.
+  }
+
   // Populate workforce coverage if available — lazy-loaded, non-blocking.
   // Failures degrade gracefully so the Executive Agent still works without it.
   try {
@@ -665,6 +675,7 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     structureBlock + '\n\n' +
     (strategyBlock ? strategyBlock + '\n\n' : '') +
     (ctx.decisionMemory ? ctx.decisionMemory + '\n\n' : '') +
+    (ctx.lineageContext ? ctx.lineageContext + '\n\n' : '') +
     '### Active Goals\n' + goalList + '\n\n' +
     '### Active Tasks\n' + taskList + '\n\n' +
     '### Pending Approvals: ' + ctx.pendingApprovals + '\n\n' +

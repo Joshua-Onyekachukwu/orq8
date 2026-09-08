@@ -14,6 +14,7 @@ import {
   Compass,
   DollarSign,
   FileText,
+
   Globe,
   Code2,
   GitBranch,
@@ -82,6 +83,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Notifications", href: "/app/notifications", icon: Bell },
       { label: "Company Memory", href: "/app/memory", icon: ScrollText },
+      { label: "Strategic Lineage", href: "/app/lineage", icon: GitBranch },
       { label: "Decision Memory", href: "/app/decisions", icon: BookOpen },
       { label: "Knowledge Graph", href: "/app/knowledge", icon: Brain },
       { label: "Audit Trail", href: "/app/audit", icon: Shield },
