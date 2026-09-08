@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { analytics } from "@/lib/analytics";
+import { scorePassword, type StrengthLabel } from "@/lib/password-strength";
 
 type AuthMode = "login" | "register";
 
@@ -35,6 +36,8 @@ export function AuthForm({
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [password, setPassword] = useState("");
+  const passwordStrength = scorePassword(password);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<{ secondsLeft: number; message: string } | null>(null);
@@ -138,6 +141,9 @@ export function AuthForm({
     show,
     onToggle,
     minLength,
+    withStrengthMeter,
+    strength,
+    onChange,
   }: {
     id: string;
     name: string;
@@ -147,6 +153,9 @@ export function AuthForm({
     show: boolean;
     onToggle: () => void;
     minLength?: number;
+    withStrengthMeter?: boolean;
+    strength?: { score: 0 | 1 | 2 | 3 | 4; label: StrengthLabel; suggestions: string[] };
+    onChange?: (value: string) => void;
   }) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +178,13 @@ export function AuthForm({
       });
     };
 
+    const meterColors: Record<StrengthLabel, string> = {
+      weak: "bg-red-400",
+      fair: "bg-amber-400",
+      good: "bg-lime-500",
+      strong: "bg-orq8-green",
+    };
+
     return (
       <div>
         <label htmlFor={id} className={labelClass}>
@@ -186,6 +202,8 @@ export function AuthForm({
             disabled={pending}
             className={`${fieldClass} pr-11`}
             placeholder={placeholder}
+            aria-describedby={withStrengthMeter && strength ? `${id}-strength` : undefined}
+            onChange={(e) => onChange?.(e.target.value)}
           />
           <button
             type="button"
@@ -197,6 +215,29 @@ export function AuthForm({
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+        {withStrengthMeter && strength && (
+          <div id={`${id}-strength`} className="mt-2" aria-live="polite">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-1 gap-1">
+                {[0, 1, 2, 3].map((seg) => (
+                  <span
+                    key={seg}
+                    aria-hidden
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      strength.score > seg ? meterColors[strength.label] : "bg-hairline"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs font-medium capitalize text-muted">
+                {strength.label}
+              </span>
+            </div>
+            {strength.suggestions.length > 0 && (
+              <p className="mt-1 text-xs text-muted">{strength.suggestions[0]}</p>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -293,6 +334,9 @@ export function AuthForm({
         minLength={mode === "register" ? 8 : undefined}
         show={showPassword}
         onToggle={() => setShowPassword((v) => !v)}
+        withStrengthMeter={mode === "register"}
+        strength={passwordStrength}
+        onChange={setPassword}
       />
 
       {mode === "register" && (

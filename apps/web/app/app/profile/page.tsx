@@ -28,6 +28,9 @@ interface UserData {
   id: string;
   email: string;
   name: string | null;
+  jobTitle?: string | null;
+  timezone?: string | null;
+  avatarUrl?: string | null;
 }
 
 interface OrgData {
@@ -136,13 +139,28 @@ export default function ProfilePage() {
   return (
     <PageErrorBoundary pageName="Profile" backHref="/app">
     <div className="mx-auto max-w-5xl">
-      {/* Cover card */}
+      {/* Cover card — welcome banner */}
       <div className="overflow-hidden rounded-xl border border-hairline bg-white">
         <div className="relative h-36 bg-orq8-dark sm:h-44">
           <div aria-hidden className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
           <div aria-hidden className="absolute -top-20 right-10 h-56 w-56 rounded-full bg-orq8-green/20 blur-[80px]" />
           <div aria-hidden className="absolute bottom-4 left-6 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-white/50">
             {org?.name ?? "My Organization"} · Profile
+          </div>
+          {/* Welcome context — time-aware greeting + one useful action */}
+          <div aria-hidden className="absolute bottom-4 right-6 hidden text-right sm:block">
+            <p className="text-sm font-medium text-white/80">
+              {(() => {
+                const hour = new Date().getHours();
+                return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+              })()}
+              , {(user?.name ?? "Founder").split(" ")[0]}.
+            </p>
+            <p className="text-xs text-white/40">
+              {activeAgents.length > 0
+                ? `${activeAgents.length} AI employee${activeAgents.length !== 1 ? "s" : ""} working in ${org?.name ?? "your organization"}.`
+                : "Hire your first AI employee to get started."}
+            </p>
           </div>
         </div>
 
@@ -219,17 +237,25 @@ export default function ProfilePage() {
                   </>
                 )}
                 <p className="text-sm text-muted">
-                  {activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member"} · {org?.name ?? "Organization"}
+                  {user?.jobTitle ?? (activeOrg?.role === "owner" ? "Founder & CEO" : activeOrg?.role ?? "Member")} · {org?.name ?? "Organization"}
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={fetchData}
-              className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-orq8-green"
-            >
-              <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href="/settings"
+                className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit profile
+              </a>
+              <button
+                type="button"
+                onClick={fetchData}
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-orq8-green"
+              >
+                <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -297,7 +323,21 @@ export default function ProfilePage() {
               <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Display Name</p>
               <p className="mt-0.5 text-sm font-medium text-ink">{user?.name ?? "Not set"}</p>
             </div>
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Job Title</p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{user?.jobTitle ?? "Not set"}</p>
+            </div>
+            <div>
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Timezone</p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{user?.timezone ?? "Not set"}</p>
+            </div>
           </div>
+          <a
+            href="/settings"
+            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+          >
+            <Edit className="h-3.5 w-3.5" /> Edit in Settings
+          </a>
         </div>
 
         {/* Organization */}

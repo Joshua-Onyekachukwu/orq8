@@ -299,7 +299,14 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       user.platformRole === 'admin' || platformAdminEmails(deps.config).has(user.email.toLowerCase());
     return {
       data: {
-        user: { id: user.id, email: user.email, name: user.name },
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          jobTitle: user.jobTitle ?? null,
+          timezone: user.timezone ?? null,
+          avatarUrl: user.avatarUrl ?? null,
+        },
         memberships: memberships.map((m) => ({ org: m.org, role: m.membership.role })),
         active_org_id: ctx.orgId,
         platformRole: isPlatformAdmin ? 'admin' : 'user',
@@ -359,11 +366,17 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const parsed = z.object({
       name: z.string().trim().min(1).max(200).optional(),
       email: z.string().email().optional(),
+      jobTitle: z.string().trim().max(120).optional(),
+      timezone: z.string().trim().max(64).optional(),
+      avatarUrl: z.string().url().max(2048).optional(),
     }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+    if (parsed.data.jobTitle !== undefined) updates.jobTitle = parsed.data.jobTitle;
+    if (parsed.data.timezone !== undefined) updates.timezone = parsed.data.timezone;
+    if (parsed.data.avatarUrl !== undefined) updates.avatarUrl = parsed.data.avatarUrl;
     if (parsed.data.email !== undefined) {
       const newEmail = parsed.data.email.trim().toLowerCase();
       // Check if email is already taken by another user
@@ -385,7 +398,14 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     const user = await users.findById(db, ctx.userId);
     return {
-      data: { id: user!.id, email: user!.email, name: user!.name },
+      data: {
+        id: user!.id,
+        email: user!.email,
+        name: user!.name,
+        jobTitle: user!.jobTitle ?? null,
+        timezone: user!.timezone ?? null,
+        avatarUrl: user!.avatarUrl ?? null,
+      },
     };
   });
 }

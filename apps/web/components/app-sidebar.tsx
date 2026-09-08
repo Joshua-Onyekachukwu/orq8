@@ -37,6 +37,7 @@ import {
   Gauge,
   type LucideIcon,
 } from "lucide-react";
+import { LogoMark } from "./branding/logo-mark";
 
 type NavItem = {
   label: string;
@@ -161,9 +162,8 @@ export function AppSidebar({
     <div className="flex h-full flex-col bg-orq8-dark">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-white/[0.06] px-5">
-        <Link href="/app" className="flex items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.svg" alt={orgName} className="h-8 w-auto" />
+        <Link href="/app" className="flex items-center gap-2.5 text-white">
+          <LogoMark className="h-8 w-auto" wordmarkColor="currentColor" dotColor="#B8FF66" ariaLabel={`${orgName} home`} />
         </Link>
         <button
           onClick={() => setMobileOpen(false)}

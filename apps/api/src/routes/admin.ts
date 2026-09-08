@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -36,6 +37,10 @@ import type { AppDeps } from '../types.js';
  * them platform-wide reads leaks every tenant's users/activity (docs/34.x).
  * The platform_role is re-read from the DB so a promotion/demotion takes effect
  * immediately even for sessions cached in Redis.
+ *
+ * Phase 2: denied attempts are recorded server-side in the audit trail with
+ * the reason category, actor identity, route and request id — never tokens,
+ * secrets or credentials.
  */
 async function requirePlatformAdmin(request: any, deps: AppDeps) {
   const ctx = await requireAuth(request, deps);
@@ -43,9 +48,30 @@ async function requirePlatformAdmin(request: any, deps: AppDeps) {
   const dbAdmin = user?.platformRole === 'admin';
   const envAdmin = platformAdminEmails(deps.config).has(ctx.email.toLowerCase());
   if (!dbAdmin && !envAdmin) {
+    await appendAudit(deps.db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'admin.access_denied',
+      outcome: 'denied',
+      inputRef: JSON.stringify({
+        route: request.raw?.url ?? request.url,
+        method: request.raw?.method ?? request.method,
+        reason: 'not_platform_admin',
+        requestId: request.id,
+        userAgent: request.headers['user-agent']?.slice(0, 200),
+        ipHash: hashForAudit(request.ip ?? request.raw?.socket?.remoteAddress ?? ''),
+      }),
+    }).catch(() => {}); // audit must never block the denial response
     throw forbidden('Platform admin access required');
   }
   return ctx;
+}
+
+/** One-way hash for audit metadata — identifiable for correlation, not reversible. */
+function hashForAudit(value: string): string {
+  if (!value) return '';
+  return createHash('sha256').update(value).digest('hex').slice(0, 16);
 }
 
 export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {

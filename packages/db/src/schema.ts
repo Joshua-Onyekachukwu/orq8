@@ -35,6 +35,10 @@ export const users = pgTable(
     // Platform-level role ('user' | 'admin') — gates /v1/admin/* and /admin.
     // Distinct from membership.role (owner|admin|member), which is org-scoped.
     platformRole: text('platform_role').notNull().default('user'),
+    // Profile personalization (Phase 8) — optional, user-editable.
+    jobTitle: text('job_title'),
+    timezone: text('timezone'),
+    avatarUrl: text('avatar_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

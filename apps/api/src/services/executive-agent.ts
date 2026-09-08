@@ -260,6 +260,7 @@ TOOLS AVAILABLE (include in toolCalls array):
 - update_goal: { goalId: "uuid", title?, description?, priority?, status?, departmentId?, teamId? }. Safe — updates goal properties.
 - update_task: { taskId: "uuid", agentId?, priority?, status?, title?, description?, dueDate? }. Safe — updates task properties.
 - rename_organization: { newName: "string" }. Safe — renames the company/organization identity.
+- plan_engineering: { objective: "string", description?: "string", constraints?: "string", priority?: "low|normal|high|urgent" }. Safe — delegates a software-engineering objective to the Engineering Manager, who assembles a team and creates engineering tasks. Use when the CEO asks to build software, an app, a feature, or a technical system. Idempotent: repeating the same objective returns the existing plan.
 
 For rename_agent: match the agentId from the AI Employees list in context.
 For rename_department: match the departmentId from the Departments list in context.
@@ -1340,6 +1341,9 @@ export async function executeCommand(
             break;
           case 'rename_organization':
             result = await eaTools.renameOrganization(toolCtx, tc.params as any);
+            break;
+          case 'plan_engineering':
+            result = await eaTools.planEngineering(toolCtx, tc.params as any);
             break;
           default:
             result = { success: false, tool: tc.tool, message: `Unknown tool: ${tc.tool}` };

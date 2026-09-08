@@ -718,3 +718,64 @@ export async function getOrganizationSummary(
     },
   };
 }
+
+/**
+ * Delegate a software-engineering objective to the Engineering Manager.
+ *
+ * The Engineering Manager performs capability search → team assembly →
+ * task decomposition with an idempotency guard, so repeated EA calls for
+ * the same objective return the existing plan instead of duplicating work.
+ */
+export async function planEngineering(
+  ctx: ToolContext,
+  params: { objective?: unknown; description?: unknown; constraints?: unknown; priority?: unknown },
+): Promise<ToolResult> {
+  const objective = typeof params.objective === 'string' ? params.objective.trim() : '';
+  if (!objective) {
+    return { success: false, tool: 'plan_engineering', message: 'Objective is required.', error: 'missing_objective' };
+  }
+  if (objective.length > 1000) {
+    return { success: false, tool: 'plan_engineering', message: 'Objective must be 1000 characters or less.', error: 'objective_too_long' };
+  }
+
+  const description = typeof params.description === 'string' && params.description.trim() ? params.description.trim().slice(0, 4000) : undefined;
+  const constraints = typeof params.constraints === 'string' && params.constraints.trim() ? params.constraints.trim().slice(0, 1000) : undefined;
+  const priority =
+    params.priority === 'low' || params.priority === 'normal' || params.priority === 'high' || params.priority === 'urgent'
+      ? params.priority
+      : undefined;
+
+  try {
+    const { planEngineeringRequest } = await import('./engineering-manager.js');
+    const plan = await planEngineeringRequest(ctx.db, ctx.orgId, ctx.userId, {
+      objective,
+      description,
+      constraints,
+      priority,
+    });
+
+    return {
+      success: true,
+      tool: 'plan_engineering',
+      message: plan.alreadyPlanned
+        ? `Engineering plan already exists for this objective (${plan.tasks.length} tasks, team of ${plan.team.length}).`
+        : `Engineering Manager assembled a team of ${plan.team.length} and created ${plan.tasks.length} tasks for: ${objective}`,
+      data: {
+        requestId: plan.requestId,
+        alreadyPlanned: plan.alreadyPlanned,
+        teamSize: plan.team.length,
+        taskCount: plan.tasks.length,
+        capabilitiesReused: plan.capabilitiesReused.length,
+        capabilityGaps: plan.capabilityGaps,
+        report: plan.report,
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      tool: 'plan_engineering',
+      message: err instanceof Error ? err.message : 'Failed to plan engineering request.',
+      error: 'plan_failed',
+    };
+  }
+}

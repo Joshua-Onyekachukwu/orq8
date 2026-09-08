@@ -9,10 +9,24 @@ const fieldClass =
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
+// Curated common timezones — the full IANA list is 400+ entries and unusable as
+// a dropdown. Users outside this list keep the browser-detected default.
+const COMMON_TIMEZONES = [
+  "Pacific/Honolulu", "America/Los_Angeles", "America/Denver", "America/Chicago",
+  "America/New_York", "America/Sao_Paulo", "Europe/London", "Europe/Paris",
+  "Europe/Berlin", "Europe/Istanbul", "Europe/Moscow", "Africa/Lagos",
+  "Africa/Cairo", "Asia/Dubai", "Asia/Karachi", "Asia/Kolkata",
+  "Asia/Shanghai", "Asia/Singapore", "Asia/Tokyo", "Asia/Seoul",
+  "Australia/Sydney", "Pacific/Auckland",
+];
+
 interface UserData {
   id: string;
   email: string;
   name: string | null;
+  jobTitle?: string | null;
+  timezone?: string | null;
+  avatarUrl?: string | null;
 }
 
 interface OrgData {
@@ -52,6 +66,8 @@ export default function SettingsPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
     emailOnApproval: true,
     emailOnTaskComplete: true,
@@ -79,6 +95,10 @@ export default function SettingsPage() {
       const parts = name.split(" ");
       setFirstName(parts[0] ?? "");
       setLastName(parts.slice(1).join(" ") ?? "");
+
+      // Profile personalization
+      setJobTitle(data.user.jobTitle ?? "");
+      setTimezone(data.user.timezone ?? (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : ""));
 
       // Set org name
       const activeOrg = data.memberships?.find((m) => m.org.id === data.active_org_id) ?? data.memberships?.[0];
@@ -110,13 +130,17 @@ export default function SettingsPage() {
     setSaveSuccess(false);
     setError(null);
     try {
-      // Save profile name to the backend (PATCH /v1/auth/me)
+      // Save profile fields to the backend (PATCH /v1/auth/me)
       const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-      if (fullName && fullName !== (user?.name ?? "")) {
+      const profileBody: Record<string, string> = {};
+      if (fullName && fullName !== (user?.name ?? "")) profileBody.name = fullName;
+      if (jobTitle !== (user?.jobTitle ?? "")) profileBody.jobTitle = jobTitle.trim();
+      if (timezone !== (user?.timezone ?? "")) profileBody.timezone = timezone.trim();
+      if (Object.keys(profileBody).length > 0) {
         const profileRes = await fetch("/api/auth/me", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: fullName }),
+          body: JSON.stringify(profileBody),
         });
         if (!profileRes.ok) {
           const json = await profileRes.json().catch(() => null);
@@ -271,6 +295,36 @@ export default function SettingsPage() {
               onChange={(e) => setCompany(e.target.value)}
               className={fieldClass}
             />
+          </div>
+          <div>
+            <label htmlFor="job-title" className={labelClass}>
+              Job title
+            </label>
+            <input
+              id="job-title"
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              className={fieldClass}
+              placeholder="e.g. Founder & CEO"
+            />
+          </div>
+          <div>
+            <label htmlFor="timezone" className={labelClass}>
+              Timezone
+            </label>
+            <select
+              id="timezone"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">Not set</option>
+              {COMMON_TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>{tz}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted">Used for schedules, deadlines and reports</p>
           </div>
           <div>
             <label htmlFor="role" className={labelClass}>
