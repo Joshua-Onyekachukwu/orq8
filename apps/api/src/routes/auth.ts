@@ -440,7 +440,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
    * token for the authenticated user. Rate-limited server-side (3/hour/user)
    * regardless of how the client paces itself.
    */
-  app.post('/v1/auth/verify-email/resend', async (request) => {
+  app.post('/v1/auth/verify-email/resend', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     const result = await emailVerification.issueVerificationToken(db, ctx.userId, ctx.email);
     if (!result.ok) {
@@ -448,9 +448,8 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         return { data: { status: 'already_verified' } };
       }
       if (result.reason === 'rate_limited') {
-        request.raw.socket;
+        reply.code(429);
         return {
-          statusCode: 429,
           error: {
             code: 'verification_resend_rate_limited',
             message: `Verification email already sent ${emailVerification.RESEND_MAX_PER_WINDOW} times in the last hour. Try again in ${result.retryAfterMinutes ?? emailVerification.RESEND_WINDOW_MINUTES} minutes.`,
@@ -486,7 +485,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
    * link. Public (the token IS the credential). Structured failure reasons
    * keep the UX actionable without revealing token existence.
    */
-  app.post('/v1/auth/verify-email', async (request) => {
+  app.post('/v1/auth/verify-email', async (request, reply) => {
     const parsed = z.object({ token: z.string().min(32).max(128) }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -498,9 +497,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         already_used: 'This verification link was already used — your email may already be verified.',
         already_verified: 'This email is already verified.',
       };
+      reply.code(400);
       return {
-        statusCode: 400,
-        error: { code: `verification_${result.reason}`, message: messages[result.reason as keyof typeof messages] },
+        error: { code: `verification_${result.reason}`, message: messages[result.reason] },
       };
     }
 
