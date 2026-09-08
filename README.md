@@ -43,8 +43,7 @@ A solo founder or lean team CEO directs their AI organization through natural la
 ```
 orq8/
 ├── apps/
-│   ├── landing/          # Marketing site → orq8-landing on Vercel
-│   ├── web/              # Product shell → orq8-web on Vercel
+│   ├── web/              # Next.js app: landing (route group `(landing)`) + product shell + admin → orq8 on Vercel
 │   └── api/              # Fastify API → orq8-api on Railway
 ├── packages/
 │   ├── db/               # Drizzle ORM schema, migrations, seed data
@@ -55,7 +54,8 @@ orq8/
 ├── infra/
 │   ├── docker-compose.yml   # Postgres, MinIO, Ollama, LiteLLM (local dev)
 │   └── deploy/              # Deployment manifests
-├── docs/                 # 75 documentation files + ADRs
+├── supabase/migrations/  # Production SQL migrations (applied by DB Migrate workflow)
+├── docs/                 # 75+ documentation files + ADRs
 └── marketing/            # Landing copy, brand guide, design-partner kit
 ```
 
@@ -97,7 +97,7 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 | AI Routing | LiteLLM (OpenAI, Anthropic, Gemini, Ollama, etc.) |
 | File Storage | MinIO (S3-compatible) |
 | Deployment | Vercel (web/landing), Railway (API), GitHub Actions (CI/CD) |
-| Testing | Vitest, React Testing Library |
+| Testing | Vitest, React Testing Library, Playwright (E2E specs) |
 
 ---
 
@@ -107,14 +107,14 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 | Metric | Count |
 |--------|-------|
-| Database tables | 63 |
-| API endpoints | 160+ |
-| Test files | 60 |
-| Documentation files | 75 |
-| User-facing app pages | 36 |
+| Database tables | 63+ |
+| API endpoints | 300+ |
+| Test files | 66 (unit + integration + E2E specs) |
+| Documentation files | 75+ |
+| User-facing app pages | 70 |
 | Admin pages | 14 |
 | Agent templates | 18 (across 9 categories) |
-| Migrations | 20 |
+| Migrations | 22 (auto-applied by the DB Migrate workflow on push to main) |
 | Security score | 9/10 (CSRF, brute-force lockout, rate limiting, CSP, HSTS) |
 
 ### Feature Status
@@ -129,7 +129,7 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 | AI Employees | ✅ Production | Hire, configure, assign, monitor, pause, rename, plan-enforced limits |
 | Agent Templates | ✅ Production | 18 templates, create-from-template, recommended capabilities/tools/autonomy |
 | Executive Agent | ✅ Production | Real LLM integration, tool execution pipeline, org management, strategy-aware |
-| EA Tool Execution | ✅ Production | create_department, create_team, create_agent, create_goal, create_task, rename operations |
+| EA Tool Execution | ✅ Production | Org management (create/rename departments & teams, create/update agents, goals, tasks, org rename) + `plan_engineering` delegation to the Engineering Manager |
 | EA Recommendations | ✅ Production | "Who should handle this?" + "What should I do next?" + workforce intelligence |
 | Strategic Lineage | ✅ Production | Task → Initiative → KR → Objective → Strategy trace, visual tree, lineage score |
 | Decision Memory | ✅ Production | Record decisions, rationale, alternatives, outcomes; EA can retrieve history |
@@ -149,7 +149,10 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 | Files & Documents | ✅ Production | Upload, list, download, delete |
 | Notifications | ✅ Production | Bell, unread badge, preferences, 30s polling |
 | Settings | ✅ Production | Real profile data, notification preferences, provider keys |
-| Profile | ✅ Production | Real user data, edit name |
+| Profile | ✅ Production | Real user data, inline name edit, job title + timezone editing, avatar rendering (initials fallback), unified identity across sidebar/top-bar |
+| Legal & Compliance | ✅ Production | Privacy Policy, Terms, Security Practices, AI Transparency Notice, cookie consent banner + `/settings/cookies` preferences page |
+| Account Security UX | ✅ Production | Password visibility toggle (focus/cursor preserved), client-side password strength meter, POST-based logout, sidebar + top-bar account menus |
+| Admin Governance | ✅ Production | Server-side access-denied audit logging (hashed IP, request id), Access Denied page, platform-role gating |
 | Audit Trail | ✅ Production | Activity log, CSV/JSON export |
 | Activity | ✅ Production | Real API data, filtering |
 | Reports | ✅ Production | CEO weekly/monthly briefings |
@@ -168,11 +171,16 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| Stripe payment integration | P1 | Architecture ready, need Stripe keys |
-| Members page → real API | P2 | Currently uses sample data |
-| Pagination on admin lists | P2 | Most lists paginated; some admin views need pagination |
-| E2E test suite | P2 | Unit + integration tests exist; add Playwright/Cypress E2E |
-| EA rename department/team tools | P3 | create works; rename/update not yet in EA tool dispatch |
+| Stripe payment integration | P1 | Architecture ready, need Stripe keys (explicitly out of current scope) |
+| Email delivery in production | P1 | Password reset + briefing emails need `RESEND_API_KEY` or SMTP creds — dev mode logs instead |
+| `INTERNAL_TOKEN` in production | P1 | Scheduled jobs (daily briefings, anomaly scans, consolidation) skip until set |
+| Custom domain | P1 | `orq8.com` is parked; live site runs on `orq8.vercel.app` |
+| Founder admin access | P1 | Set `PLATFORM_ADMIN_EMAILS` (Railway) or `users.platform_role='admin'` in DB |
+| Playwright E2E execution | P2 | 28 specs committed; browser download blocked by CDN in dev environment — run `npx playwright install chromium` then `npx playwright test` |
+| Avatar upload pipeline | P2 | `avatar_url` field, display, and server validation exist; file-picker UI + storage endpoint remain |
+| Email verification for signups | P2 | Lifecycle (token, expiry, resend) not yet implemented |
+| Vercel static `/images/*` 404s | P2 | Files committed but 404 live; sidebar already uses inline SVG — root cause is Vercel project config |
+| Live connector E2E | P2 | GitHub/Gmail/Linear OAuth apps need real client credentials |
 
 ---
 

@@ -74,17 +74,26 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 
 - **`orq8.com` is a parked registrar page** — NOT the product. Live site: `orq8.vercel.app`.
   No custom domain configured.
-- **`supabase/migrations/0003_add_teams.sql` NOT yet applied to production** — teams API
-  returns 503 until it is.
-- **Migrations 0004 depends on 0005** — 0004 failed on prod with
-  `relation "integration_providers" does not exist` because the integration/engineering/
-  simulation tables existed only in the drizzle-side artifact (never run against prod).
-  **Run `0005_add_integration_engineering_simulation_tables.sql` FIRST, then re-run 0004**
-  (both idempotent).
-- **`vercel.json` asset fix NOT yet deployed** — `/images/*` still 404 live until the next
-  deploy (source fix committed).
+- **Vercel static asset 404s (partially mitigated)** — files under `apps/web/public/images/`
+  are committed and the deploy is on the correct SHA, yet `/images/logo.svg` etc. return 404
+  live while route handlers work (JPG illustrations serve fine). Root cause is Vercel project
+  configuration, not code. Mitigated: the sidebar and admin layout now render an inline SVG
+  `LogoMark` component that cannot 404. Remaining impact: landing-page imagery only.
+- **`INTERNAL_TOKEN` unset in production** — scheduled jobs (briefings 07:00 UTC, anomaly
+  scans, consolidation) auto-skip with a warning. Ops action: set the secret in the GitHub
+  workflow environment / Railway.
+- **Playwright browser not installed in the dev environment** — the 28 committed E2E specs
+  parse (`playwright test --list` verified) but browser download from both the default CDN
+  and a mirror host failed. CI does not run E2E yet; unit + integration suites are the active
+  gate (web 53/53, API 372 passing).
 - **Pre-existing (other session)**: untracked route files are now type-clean; nothing else
   known-broken in my change set. Web + API typecheck clean; build passes.
+
+**Resolved 2026-09-08**: migrations now auto-apply via `.github/workflows/db-migrate.yml`
+(push to `main` touching `packages/db/**` or `supabase/migrations/**`) — the manual
+`0003 → 0005 → 0004` ordering note above is historical; latest run (`4d8a49d`) applied
+`0022_profile_personalization.sql` successfully in CI. Members page now uses the real
+`/api/members` endpoint (was sample data).
 
 ## 4. What is blocked (credentials / deployment / external config)
 
@@ -376,3 +385,50 @@ prod-credential gap (routes are auth-gated and register cleanly).
 - **Tests**: `test/engineering-manager.test.ts` (14 tests: slug derivation, PR gate, team
   assembly, task drafts, idempotency, gaps). Full API suite **381 passing**; web typecheck +
   production build clean. No lint script is configured in this repo — typecheck is the gate.
+
+---
+
+## 10. Session record — 2026-09-08 (final polish round: profile, auth UX, legal, EA engineering delegation)
+
+**Commits** (all pushed to `origin/main`, CI + Vercel deploy green, live-verified):
+
+- `33d24c7` — **Legal & compliance**: Privacy Policy, Terms of Service, Security Practices,
+  AI Transparency Notice pages (`/privacy`, `/terms`, `/security`, `/ai-disclosure`), footer
+  links, EU cookie-consent banner (localStorage + cookie), 28 Playwright E2E specs across
+  landing/auth/dashboard, `docs/INCIDENT_RESPONSE.md`, Hire-from-Template on Departments +
+  Teams pages, legacy-table documentation in the Drizzle schema.
+- `71647d1` — **Auth fixes**: password visibility toggle no longer clears the field
+  (root cause: uncontrolled input; fix: ref-based focus/cursor preservation), logout 405
+  fixed (top-bar was a `<Link>` → GET against a POST-only route; now a POST form + GET
+  handler for direct navigation, both invalidating the session server-side), sidebar user
+  icon became a real account menu (Profile/Settings/Admin/Logout with aria attributes,
+  Escape/outside-click close).
+- `fb44c85` — **Admin**: Access Denied page instead of silent redirect (authorization stays
+  server-side; `PLATFORM_ADMIN_EMAILS` or DB `platform_role` grants access — unset today,
+  so even the founder sees Access Denied until configured). Profile page redesign.
+- `e4d24a2` — **Cookie preferences page** at `/settings/cookies`: current-choice display,
+  three consent levels, reset-to-re-show, shared `lib/cookie-consent.ts` module (single
+  source of truth with the banner), 11 unit tests.
+- `4d8a49d` — **EA engineering delegation + hardening**: `plan_engineering` EA tool wired
+  to the Engineering Manager (system prompt + dispatch; idempotent team assembly + task
+  creation); admin access-denied audit logging (route/method/reason/requestId/hashed IP/
+  user agent, no secrets); `job_title`/`timezone`/`avatar_url` user columns (migration
+  `0022`, auto-applied in CI) exposed via `/v1/auth/me` GET/PATCH and editable in Settings;
+  client-side password-strength meter on registration (advisory only; server policy
+  unchanged); sidebar uses inline `LogoMark` SVG; vitest excludes Playwright specs (this
+  had broken CI).
+- `ce17b91` — **Profile banner overlap fix**: root cause was absolute text at the cover's
+  bottom corners colliding with the avatar/action row pulled up via negative margins.
+  Cover is now purely decorative; identity row in normal flow; avatar overlaps the boundary
+  by exactly half its height; `avatarUrl` threaded through the app layout so Profile,
+  TopBar, and AppSidebar render one identity; break-words for long names/titles; a11y
+  labels + `role="status"`.
+
+**Verification**: web typecheck 0 errors; API typecheck 0 errors; web unit tests 53/53;
+API tests 372 passed / 212 skipped (DB- and credential-gated, pre-existing); CI ✅;
+DB Migrate ✅ (`0022` live in prod DB); Vercel deploy ✅; live probes — 9 public routes 200,
+protected routes 307 → login, API guards 401, `/api/agent-templates` 200.
+
+**Not done / blocked (unchanged)**: Playwright browser install (CDN blocked — specs parse,
+not executed), avatar upload pipeline (field + display exist; no picker/endpoint), email
+verification lifecycle, `INTERNAL_TOKEN`, Stripe keys, founder admin access config.
