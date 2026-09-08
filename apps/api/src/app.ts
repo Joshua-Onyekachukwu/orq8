@@ -62,6 +62,7 @@ import { registerEngineeringManagerRoutes } from './routes/engineering-manager.j
 import { registerBusinessImportRoutes } from './routes/business-import.js';
 import { registerEntitlementRoutes } from './routes/entitlements.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
+import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerStrategyRoutes } from './routes/strategy.js';
 import { registerWorkforceROIRoutes } from './routes/workforce-roi.js';
 import { registerDecisionRoutes } from './routes/decisions.js';
@@ -301,6 +302,7 @@ export async function buildApp(
   registerWorkforceROIRoutes(app, deps);
   registerDecisionRoutes(app, deps);
   registerLineageRoutes(app, deps);
+  registerRecommendationRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce
   registerBuiltinTools();

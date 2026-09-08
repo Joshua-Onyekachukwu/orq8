@@ -65,6 +65,7 @@ export interface ExecutiveContext {
     totalWorkloadHours: number;
   }>;
   unassignedAgentCount?: number;
+  workforceIntelligence?: string;
   // Build-vs-buy (Phase 11): what the company already knows how to do.
   // `decision` is present when the founder's query was resolved against the
   // registry (reuse | extend | build); otherwise just the reusable catalog.
@@ -584,6 +585,14 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     // Workforce engine not available — context degrades gracefully.
   }
 
+  // Workforce intelligence — priority recommendations and agent availability.
+  try {
+    const { getWorkforceIntelligence } = await import('./agent-recommendation.js');
+    ctx.workforceIntelligence = await getWorkforceIntelligence(db, orgId);
+  } catch {
+    // Recommendation engine not available — degrade gracefully.
+  }
+
   return ctx;
 }
 
@@ -626,6 +635,11 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
       wfLines.push(`- Unassigned agents: ${ctx.unassignedAgentCount} (consider assigning to departments with gaps)`);
     }
     workforceBlock = wfLines.join('\n');
+  }
+
+  // Workforce intelligence summary.
+  if (ctx.workforceIntelligence) {
+    workforceBlock += '\n\n### Workforce Status\n' + ctx.workforceIntelligence;
   }
 
   // Build-vs-buy guidance: reuse-before-building catalog + resolution when the

@@ -1531,6 +1531,38 @@ export type NewDepartmentTemplate = typeof departmentTemplates.$inferInsert;
 export type TeamTemplate = typeof teamTemplates.$inferSelect;
 export type NewTeamTemplate = typeof teamTemplates.$inferInsert;
 
+// ── Agent Templates ───────────────────────────────────────────────────────
+
+export const agentTemplates = pgTable(
+  'agent_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    category: text('category').notNull().default('general'),
+    description: text('description'),
+    role: text('role').notNull(),
+    capabilities: jsonb('capabilities').notNull().default([]),
+    suggestedAutonomy: text('suggested_autonomy').notNull().default('execute_with_approval'),
+    suggestedDepartmentSlug: text('suggested_department_slug'),
+    suggestedTeamSlug: text('suggested_team_slug'),
+    typicalTasks: jsonb('typical_tasks').notNull().default([]),
+    requiredTools: jsonb('required_tools').notNull().default([]),
+    isSystem: boolean('is_system').notNull().default(false),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('atemplates_org_idx').on(t.orgId),
+    index('atemplates_category_idx').on(t.category),
+  ],
+);
+
+export type AgentTemplate = typeof agentTemplates.$inferSelect;
+export type NewAgentTemplate = typeof agentTemplates.$inferInsert;
+
 // ── Strategy → Objective → Key Result chain ──────────────────────────────────
 
 export const strategies = pgTable(
