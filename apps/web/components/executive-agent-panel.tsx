@@ -70,6 +70,8 @@ function suggestedQuestion(ctx: PageContext | null): string {
       return "What happened recently?";
     case "Company Health":
       return "Explain the biggest risk.";
+    case "Strategy":
+      return "Are we working on the right things?";
     case "Departments":
       return "Which department is overloaded?";
     case "Approvals":

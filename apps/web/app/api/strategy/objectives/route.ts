@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
 
 function getSessionToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
-// ── Strategies ──────────────────────────────────────────────────────────────
-
-// GET /api/strategy — List strategies
+// GET /api/strategy/objectives?strategyId=...
 export async function GET(request: NextRequest) {
   const token = getSessionToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const res = await fetch(`${API_URL}/v1/strategies`, {
+    const qs = request.nextUrl.search;
+    const res = await fetch(`${API_URL}/v1/objectives${qs}`, {
       headers: proxyAuthHeaders(token),
       next: { revalidate: 30 },
     });
@@ -23,14 +22,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/strategy — Create a strategy
+// POST /api/strategy/objectives — Create an objective
 export async function POST(request: NextRequest) {
   const token = getSessionToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null);
   if (!body?.title) return NextResponse.json({ error: "title required" }, { status: 400 });
   try {
-    const res = await fetch(`${API_URL}/v1/strategies`, {
+    const res = await fetch(`${API_URL}/v1/objectives`, {
       method: "POST",
       headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
