@@ -12,6 +12,7 @@ import {
   RefreshCw,
   X,
   Users,
+  ClipboardList,
 } from "lucide-react";
 
 interface Agent {
@@ -86,6 +87,19 @@ export default function AgentsPage() {
   const [hireTeam, setHireTeam] = useState("");
   const [hiring, setHiring] = useState(false);
   const [hireError, setHireError] = useState<string | null>(null);
+
+  // Hire from Template state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates, setTemplates] = useState<Array<{
+    id: string; name: string; role: string; category: string;
+    description: string | null; capabilities: string[];
+    suggestedAutonomy: string; typicalTasks: string[]; requiredTools: string[];
+  }>>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<typeof templates[0] | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateHiring, setTemplateHiring] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const [policy, setPolicy] = useState<PolicyLevel[] | null>(null);
   const [showPolicy, setShowPolicy] = useState(false);
 
@@ -122,6 +136,46 @@ export default function AgentsPage() {
         : "bg-orq8-dark/5 text-orq8-dark";
     return { label, badge };
   }
+
+  const fetchTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const res = await fetch("/api/agent-templates");
+      if (!res.ok) throw new Error("Failed to fetch templates");
+      const json = await res.json();
+      setTemplates(json.data ?? []);
+    } catch {
+      setTemplates([]);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, []);
+
+  const handleHireFromTemplate = async () => {
+    if (!selectedTemplate) return;
+    setTemplateHiring(true);
+    setTemplateError(null);
+    try {
+      const res = await fetch(`/api/agent-templates/${selectedTemplate.id}/hire`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: templateName.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error ?? "Failed to hire from template");
+      }
+      const json = await res.json();
+      setAgents((prev) => [json.data, ...prev]);
+      setShowTemplateModal(false);
+      setSelectedTemplate(null);
+      setTemplateName("");
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : "Failed to hire from template");
+    } finally {
+      setTemplateHiring(false);
+    }
+  };
 
   const handleHire = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,6 +289,16 @@ export default function AgentsPage() {
           >
             <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>            <button
+              type="button"
+              onClick={() => {
+                fetchTemplates();
+                setShowTemplateModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-orq8-green/30 bg-orq8-green/5 px-4 py-2 text-xs font-semibold text-orq8-green transition-colors hover:bg-orq8-green/10"
+            >
+              <ClipboardList className="h-3.5 w-3.5" /> Hire from Template
+            </button>
+            <button
               type="button"
               onClick={() => setShowHireModal(true)}
               className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
@@ -622,6 +686,141 @@ export default function AgentsPage() {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hire from Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
+              <h2 className="text-lg font-semibold text-ink">Hire from Template</h2>
+              <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); }} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted" />
+                  <span className="ml-2 text-sm text-muted">Loading templates...</span>
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="py-12 text-center">
+                  <ClipboardList className="mx-auto h-10 w-10 text-muted/30" />
+                  <p className="mt-3 text-sm text-muted">No templates available yet.</p>
+                  <p className="mt-1 text-xs text-muted/60">Templates are created by the system or your organization.</p>
+                </div>
+              ) : !selectedTemplate ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted mb-3">Select a role template to quickly hire an AI employee with pre-configured capabilities.</p>
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setSelectedTemplate(t); setTemplateName(t.name); }}
+                      className="w-full rounded-lg border border-hairline bg-white p-4 text-left transition-colors hover:border-orq8-green/30 hover:bg-orq8-green/5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-ink">{t.name}</p>
+                          <p className="text-xs text-muted">{t.role} · {t.category}</p>
+                        </div>
+                        <span className="rounded-full bg-orq8-green/10 px-2 py-0.5 text-2xs font-medium text-orq8-green">
+                          {t.suggestedAutonomy?.replace(/_/g, ' ') ?? 'standard'}
+                        </span>
+                      </div>
+                      {t.description && <p className="mt-2 text-xs text-muted line-clamp-2">{t.description}</p>}
+                      {t.capabilities && t.capabilities.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {t.capabilities.slice(0, 5).map((c: string) => (
+                            <span key={c} className="rounded bg-canvas px-1.5 py-0.5 text-2xs text-muted">{c}</span>
+                          ))}
+                          {t.capabilities.length > 5 && <span className="text-2xs text-muted">+{t.capabilities.length - 5} more</span>}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <button type="button" onClick={() => setSelectedTemplate(null)} className="text-xs text-orq8-green hover:underline">
+                    ← Back to templates
+                  </button>
+                  <div className="rounded-lg bg-canvas p-4">
+                    <p className="text-sm font-semibold text-ink">{selectedTemplate.name}</p>
+                    <p className="text-xs text-muted">Role: {selectedTemplate.role} · Category: {selectedTemplate.category}</p>
+                    {selectedTemplate.description && <p className="mt-2 text-xs text-muted">{selectedTemplate.description}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-ink">Display Name</label>
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder={selectedTemplate.name}
+                      className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                      autoFocus
+                    />
+                    <p className="mt-1 text-xs text-muted">Leave blank to use the template name.</p>
+                  </div>
+                  {selectedTemplate.capabilities && selectedTemplate.capabilities.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-ink">Capabilities</p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTemplate.capabilities.map((c: string) => (
+                          <span key={c} className="rounded bg-orq8-green/10 px-2 py-0.5 text-2xs font-medium text-orq8-green">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedTemplate.typicalTasks && selectedTemplate.typicalTasks.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-ink">Typical Tasks</p>
+                      <ul className="space-y-1">
+                        {selectedTemplate.typicalTasks.map((task: string, i: number) => (
+                          <li key={i} className="text-xs text-muted">• {task}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="rounded-lg bg-canvas px-3 py-2 text-xs text-muted">
+                    <strong>Autonomy:</strong> {selectedTemplate.suggestedAutonomy?.replace(/_/g, ' ') ?? 'standard'}
+                  </div>
+                  {templateError && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                      {templateError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {selectedTemplate && (
+              <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
+                <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); }} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHireFromTemplate}
+                  disabled={templateHiring}
+                  className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+                >
+                  {templateHiring ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Hiring...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      Hire {selectedTemplate.name}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

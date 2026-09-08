@@ -3,8 +3,9 @@ import { eq, and } from 'drizzle-orm';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
-import { departmentTemplates, teamTemplates } from '@orq8/db';
+import { departmentTemplates, teamTemplates, agentTemplates, agents } from '@orq8/db';
 import * as workforce from '../services/workforce-engine.js';
+import { enforceResourceLimit } from '../services/entitlements.js';
 import type { AppDeps } from '../types.js';
 
 export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -110,6 +111,110 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
       .returning();
 
     return reply.status(201).send({ data: created });
+  });
+
+  // ─── Agent Templates ────────────────────────────────────────────────
+
+  /** List agent templates (system + org-scoped). */
+  app.get('/v1/agent-templates', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const templates = await db
+      .select()
+      .from(agentTemplates)
+      .where(
+        and(
+          eq(agentTemplates.isSystem, true),
+        ),
+      )
+      .orderBy(agentTemplates.category, agentTemplates.name);
+    return { data: templates };
+  });
+
+  /** Create a custom agent template. */
+  app.post('/v1/agent-templates', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const body = z.object({
+      name: z.string().min(1).max(100).trim(),
+      slug: z.string().min(1).max(100).trim().regex(/^[a-z0-9-]+$/),
+      category: z.string().max(50).optional(),
+      description: z.string().max(500).optional(),
+      role: z.string().min(1).max(100).trim(),
+      capabilities: z.array(z.string()).optional(),
+      suggestedAutonomy: z.string().optional(),
+      suggestedDepartmentSlug: z.string().optional(),
+      suggestedTeamSlug: z.string().optional(),
+      typicalTasks: z.array(z.string()).optional(),
+      requiredTools: z.array(z.string()).optional(),
+    }).safeParse(request.body);
+    if (!body.success) throw validation(body.error.flatten());
+
+    const [created] = await db
+      .insert(agentTemplates)
+      .values({
+        name: body.data.name,
+        slug: body.data.slug,
+        category: body.data.category ?? 'general',
+        description: body.data.description,
+        role: body.data.role,
+        capabilities: body.data.capabilities ?? [],
+        suggestedAutonomy: body.data.suggestedAutonomy ?? 'execute_with_approval',
+        suggestedDepartmentSlug: body.data.suggestedDepartmentSlug,
+        suggestedTeamSlug: body.data.suggestedTeamSlug,
+        typicalTasks: body.data.typicalTasks ?? [],
+        requiredTools: body.data.requiredTools ?? [],
+        isSystem: false,
+        orgId: ctx.orgId,
+      })
+      .returning();
+
+    return reply.status(201).send({ data: created });
+  });
+
+  /** Hire an agent from a template — creates the agent and assigns to dept/team. */
+  app.post('/v1/agent-templates/:templateId/hire', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { templateId } = request.params as { templateId: string };
+    const body = z.object({
+      name: z.string().min(1).max(100).trim().optional(),
+      departmentId: z.string().uuid().optional(),
+      teamId: z.string().uuid().optional(),
+    }).safeParse(request.body);
+    if (!body.success) throw validation(body.error.flatten());
+
+    // Fetch the template
+    const [template] = await db
+      .select()
+      .from(agentTemplates)
+      .where(eq(agentTemplates.id, templateId))
+      .limit(1);
+    if (!template) return reply.status(404).send({ error: 'Template not found' });
+
+    // Enforce agent limits
+    try {
+      await enforceResourceLimit(db, ctx.orgId, 'agents');
+    } catch (err: any) {
+      return reply.status(403).send({ error: err.message || 'Agent limit reached' });
+    }
+
+    // Create the agent from template
+    const agentName = body.data.name ?? template.name;
+    const [agent] = await db
+      .insert(agents)
+      .values({
+        orgId: ctx.orgId,
+        name: agentName,
+        role: template.role,
+        departmentId: body.data.departmentId ?? null,
+        teamId: body.data.teamId ?? null,
+        status: 'active',
+        autonomyLevel: template.suggestedAutonomy,
+        capabilities: template.capabilities as string[],
+      })
+      .returning();
+
+    if (!agent) return reply.status(500).send({ error: 'Failed to create agent' });
+
+    return reply.status(201).send({ data: agent });
   });
 
   // ─── Workforce Coverage ──────────────────────────────────────────────
