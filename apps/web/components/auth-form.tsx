@@ -147,35 +147,59 @@ export function AuthForm({
     show: boolean;
     onToggle: () => void;
     minLength?: number;
-  }) => (
-    <div>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          name={name}
-          type={show ? "text" : "password"}
-          required
-          autoComplete={autoComplete}
-          minLength={minLength}
-          disabled={pending}
-          className={`${fieldClass} pr-11`}
-          placeholder={placeholder}
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={show ? "Hide password" : "Show password"}
-          aria-pressed={show}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-orq8-green"
-        >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
+  }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleToggle = (e: React.MouseEvent) => {
+      e.preventDefault();
+      // Preserve focus and cursor position across type change
+      const input = inputRef.current;
+      const cursorPos = input?.selectionStart ?? 0;
+      onToggle();
+      // Restore focus and cursor after React re-render
+      requestAnimationFrame(() => {
+        if (input) {
+          input.focus();
+          try {
+            input.setSelectionRange(cursorPos, cursorPos);
+          } catch {
+            // selectionRange not supported on some input types
+          }
+        }
+      });
+    };
+
+    return (
+      <div>
+        <label htmlFor={id} className={labelClass}>
+          {label}
+        </label>
+        <div className="relative">
+          <input
+            ref={inputRef}
+            id={id}
+            name={name}
+            type={show ? "text" : "password"}
+            required
+            autoComplete={autoComplete}
+            minLength={minLength}
+            disabled={pending}
+            className={`${fieldClass} pr-11`}
+            placeholder={placeholder}
+          />
+          <button
+            type="button"
+            onClick={handleToggle}
+            aria-label={show ? "Hide password" : "Show password"}
+            aria-pressed={show}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-orq8-green"
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>

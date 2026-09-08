@@ -118,6 +118,7 @@ export default async function AppLayout({
         plan={plan}
         userName={userName}
         sampleMode={false}
+        platformRole={platformRole}
       />
 
       <div className="lg:pl-64">

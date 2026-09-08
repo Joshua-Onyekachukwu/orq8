@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
@@ -111,7 +111,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
           />
           <button
             type="button"
-            onClick={() => setShowPassword((v) => !v)}
+            onClick={() => {
+              setShowPassword((v) => !v);
+              document.getElementById("password")?.focus();
+            }}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-orq8-lime"
@@ -139,7 +142,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
           />
           <button
             type="button"
-            onClick={() => setShowConfirm((v) => !v)}
+            onClick={() => {
+              setShowConfirm((v) => !v);
+              document.getElementById("confirm_password")?.focus();
+            }}
             aria-label={showConfirm ? "Hide password" : "Show password"}
             aria-pressed={showConfirm}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-orq8-lime"

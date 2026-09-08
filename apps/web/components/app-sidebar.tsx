@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import {
   Activity,
   Bell,
@@ -11,6 +11,7 @@ import {
   CalendarClock,
   Building2,
   ChevronDown,
+  Command,
   Compass,
   DollarSign,
   FileText,
@@ -28,6 +29,7 @@ import {
   Shield,
   ShieldCheck,
   Target,
+  User,
   Users,
   Wallet,
   X,
@@ -100,15 +102,40 @@ export function AppSidebar({
   orgName,
   plan,
   userName,
+  platformRole,
 }: {
   orgName: string;
   plan: string;
   userName: string;
   sampleMode: boolean;
+  platformRole?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Close user menu on Escape
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setUserMenuOpen(false);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Mobile menu toggle is rendered in the sticky TopBar (top of viewport,
   // reachable without scrolling). The sidebar listens for the toggle event.
@@ -233,14 +260,69 @@ export function AppSidebar({
           <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-orq8-orange-bright" : "text-white/30"}`} />
           Provider Keys
         </Link>
-        <div className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/30">
-          <div className="h-7 w-7 rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
-            {userName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white/70 truncate">{userName}</p>
-            <p className="text-3xs text-white/30 truncate">{orgName}</p>
-          </div>
+
+        {/* User account menu */}
+        <div className="relative mt-2" ref={userMenuRef}>
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white/80"
+            aria-expanded={userMenuOpen}
+            aria-haspopup="menu"
+            aria-label="User account menu"
+          >
+            <div className="h-7 w-7 shrink-0 rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-xs font-medium text-white/70 truncate">{userName}</p>
+              <p className="text-3xs text-white/30 truncate">{orgName}</p>
+            </div>
+            <ChevronDown className={`h-3 w-3 shrink-0 text-white/30 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 bg-orq8-dark/95 backdrop-blur-xl py-2 shadow-2xl">
+              <div className="border-b border-white/[0.06] px-4 py-3">
+                <p className="text-xs font-medium text-white/80 truncate">{userName}</p>
+                <p className="text-3xs text-white/40 truncate">{orgName}</p>
+              </div>
+              <div className="py-1">
+                <Link
+                  href="/app/profile"
+                  className="flex items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <User className="h-4 w-4 text-white/40" /> Profile
+                </Link>
+                <Link
+                  href="/settings"
+                  className="flex items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <Settings className="h-4 w-4 text-white/40" /> Settings
+                </Link>
+                {platformRole === "admin" && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-2 px-4 py-2 text-2sm text-orq8-orange hover:bg-orq8-orange/5"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <Command className="h-4 w-4" /> Admin Dashboard
+                  </Link>
+                )}
+              </div>
+              <div className="border-t border-white/[0.06] pt-1">
+                <form action="/api/auth/logout" method="post">
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                  >
+                    <LogOut className="h-4 w-4 text-white/40" /> Sign out
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

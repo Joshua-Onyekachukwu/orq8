@@ -140,17 +140,19 @@ export function TopBar({ userName, orgName, plan, userRole, platformRole }: TopB
                   )}
                 </div>
                 <div className="border-t border-gray-100 pt-1">
-                  <Link
-                    href="/api/auth/logout"
-                    className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-600 hover:bg-gray-100"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      analytics.userLoggedOut();
-                      resetAnalytics();
-                    }}
-                  >
-                    <LogOut className="h-4 w-4 text-gray-500" /> Sign out
-                  </Link>
+                  <form action="/api/auth/logout" method="post">
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-gray-600 hover:bg-gray-100"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        analytics.userLoggedOut();
+                        resetAnalytics();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4 text-gray-500" /> Sign out
+                    </button>
+                  </form>
                 </div>
               </div>
             )}
