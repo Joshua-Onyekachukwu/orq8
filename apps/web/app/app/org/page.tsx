@@ -50,11 +50,24 @@ interface Goal {
   priority: string;
 }
 
+interface WorkforceDept {
+  departmentId: string;
+  departmentName: string;
+  agentCount: number;
+  activeAgentCount: number;
+  utilizationPct: number;
+  coverageStatus: string;
+  coveragePct: number;
+  totalCapacityHours: number;
+  totalWorkloadHours: number;
+}
+
 interface OrgData {
   agents: Agent[];
   teams: Team[];
   departments: Record<string, TeamGroup[]>;
   goals: Goal[];
+  workforce: WorkforceDept[];
   stats: {
     totalAgents: number;
     activeAgents: number;
@@ -102,9 +115,20 @@ export default function OrgPage() {
         teamGroup.agents.push(agent);
       }
 
+      // Fetch workforce data
+      let workforce: WorkforceDept[] = [];
+      try {
+        const wfRes = await fetch("/api/workforce");
+        if (wfRes.ok) {
+          const wfJson = await wfRes.json();
+          workforce = wfJson.data?.departments ?? [];
+        }
+      } catch { /* workforce data optional */ }
+
       setData({
         agents,
         teams: teamsJson.data ?? [],
+        workforce,
         departments,
         goals,
         stats: {
@@ -220,9 +244,26 @@ export default function OrgPage() {
                 <div className="flex items-center gap-2 rounded-lg border border-hairline bg-canvas px-4 py-3">
                   <Building2 className="h-4 w-4 text-muted" />
                   <span className="text-sm font-semibold text-ink">{dept}</span>
-                  <span className="font-mono text-3xs text-muted">
-                    {deptAgentCount} agent{deptAgentCount !== 1 ? "s" : ""}
-                  </span>
+                  {(() => {
+                    const wf = data.workforce.find((w) => w.departmentName === dept);
+                    if (!wf) return (
+                      <span className="font-mono text-3xs text-muted">
+                        {deptAgentCount} agent{deptAgentCount !== 1 ? "s" : ""}
+                      </span>
+                    );
+                    const dot = wf.coverageStatus === 'healthy' ? '🟢'
+                      : wf.coverageStatus === 'near_capacity' ? '🟡'
+                      : wf.coverageStatus === 'over_capacity' ? '🔴'
+                      : '⚪';
+                    return (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-xs">{dot}</span>
+                        <span className="font-mono text-3xs font-medium text-muted">
+                          {wf.coveragePct}% · {wf.utilizationPct}% util · {wf.activeAgentCount} agents
+                        </span>
+                      </span>
+                    );
+                  })()}
                   <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted" />
                 </div>
 

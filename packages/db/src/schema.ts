@@ -1467,3 +1467,64 @@ export type Simulation = typeof simulations.$inferSelect;
 export type NewSimulation = typeof simulations.$inferInsert;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+
+// ─── Organization Templates (migration 0017) ─────────────────────────────
+// Reusable department and team blueprints. System templates are seeded;
+// org-specific templates allow founders to customize and save.
+export const departmentTemplates = pgTable(
+  'department_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description'),
+    mission: text('mission'),
+    functions: jsonb('functions').notNull().default([]),
+    roles: jsonb('roles').notNull().default([]),
+    teams: jsonb('teams').notNull().default([]),
+    typicalGoals: jsonb('typical_goals').notNull().default([]),
+    kpis: jsonb('kpis').notNull().default([]),
+    industry: text('industry'),
+    orgSize: text('org_size'),
+    isSystem: boolean('is_system').notNull().default(true),
+    createdBy: uuid('created_by'),
+    orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('dtemplates_org_idx').on(t.orgId),
+    uniqueIndex('dtemplates_slug_idx').on(t.slug),
+  ],
+);
+
+export const teamTemplates = pgTable(
+  'team_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description'),
+    mission: text('mission'),
+    responsibilities: jsonb('responsibilities').notNull().default([]),
+    requiredCapabilities: jsonb('required_capabilities').notNull().default([]),
+    recommendedRoles: jsonb('recommended_roles').notNull().default([]),
+    kpis: jsonb('kpis').notNull().default([]),
+    departmentSlug: text('department_slug'),
+    industry: text('industry'),
+    isSystem: boolean('is_system').notNull().default(true),
+    createdBy: uuid('created_by'),
+    orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('ttemplates_org_idx').on(t.orgId),
+    uniqueIndex('ttemplates_slug_idx').on(t.slug),
+  ],
+);
+
+export type DepartmentTemplate = typeof departmentTemplates.$inferSelect;
+export type NewDepartmentTemplate = typeof departmentTemplates.$inferInsert;
+export type TeamTemplate = typeof teamTemplates.$inferSelect;
+export type NewTeamTemplate = typeof teamTemplates.$inferInsert;

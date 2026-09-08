@@ -52,6 +52,17 @@ export interface ExecutiveContext {
   activeTasks: Array<{ id: string; title: string; status: string; agentId: string | null }>;
   pendingApprovals: number;
   recentMemory: Array<{ content: string; category: string }>;
+  // Workforce coverage — real capacity/utilization data for staffing intelligence.
+  workforceCoverage?: Array<{
+    departmentName: string;
+    coverageStatus: string;
+    coveragePct: number;
+    utilizationPct: number;
+    activeAgentCount: number;
+    totalCapacityHours: number;
+    totalWorkloadHours: number;
+  }>;
+  unassignedAgentCount?: number;
   // Build-vs-buy (Phase 11): what the company already knows how to do.
   // `decision` is present when the founder's query was resolved against the
   // registry (reuse | extend | build); otherwise just the reusable catalog.
@@ -183,6 +194,28 @@ RESPOND IN THIS EXACT JSON FORMAT:
   ],
   "response": "natural language response to the CEO explaining your plan"
 }
+
+ORGANIZATIONAL MANAGEMENT:
+When the CEO asks about departments, teams, staffing, or workforce:
+- Analyze the current organizational structure and workforce coverage
+- Identify understaffed, overstaffed, or capability-gapped departments
+- Check if existing agents can absorb additional work before recommending new hires
+- Recommend consolidation, reassignment, or generalist coverage when appropriate
+- Explain WHY with specific utilization percentages and capacity numbers
+- Never recommend creating an agent without checking existing capacity first
+- Distinguish between generalist and specialist needs
+- Consider cross-department support before creating new positions
+- Warn about organizational bloat when departments outnumber agents significantly
+
+STAFFING DECISIONS:
+When recommending workforce changes:
+1. Check existing agent utilization and capabilities
+2. Identify if the work can be absorbed by current agents
+3. Only recommend new hires when there is a genuine capacity or capability gap
+4. Explain the gap with specific numbers (hours/week, utilization %)
+5. Recommend the minimum workforce change needed
+6. Consider promotion, reassignment, or restriction before replacement
+7. All hiring/replacement/retirement requires founder approval
 
 Be decisive, clear, and professional. You are the CEO's chief of staff.`;
 
@@ -429,7 +462,7 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     capabilities = [];
   }
 
-  return {
+  const ctx: ExecutiveContext = {
     orgId,
     userId: '',
     agents: orgAgents,
@@ -454,6 +487,27 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     })),
     capabilities,
   };
+
+  // Populate workforce coverage if available — lazy-loaded, non-blocking.
+  // Failures degrade gracefully so the Executive Agent still works without it.
+  try {
+    const { calculateDepartmentCoverage } = await import('./workforce-engine.js');
+    const coverage = await calculateDepartmentCoverage(db, orgId);
+    ctx.workforceCoverage = coverage.map(c => ({
+      departmentName: c.departmentName,
+      coverageStatus: c.coverageStatus,
+      coveragePct: c.coveragePct,
+      utilizationPct: c.utilizationPct,
+      activeAgentCount: c.activeAgentCount,
+      totalCapacityHours: c.totalCapacityHours,
+      totalWorkloadHours: c.totalWorkloadHours,
+    }));
+    ctx.unassignedAgentCount = orgAgents.filter(a => !a.departmentId).length;
+  } catch {
+    // Workforce engine not available — context degrades gracefully.
+  }
+
+  return ctx;
 }
 
 /**
@@ -477,6 +531,25 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     : 'No company memory yet.';
 
   const structureBlock = formatOrgStructure(ctx.orgStructure);
+
+  // Workforce coverage summary — gives the LLM real capacity/utilization data
+  // so it can make informed staffing recommendations.
+  let workforceBlock = '';
+  if (ctx.workforceCoverage && ctx.workforceCoverage.length > 0) {
+    const wfLines: string[] = ['\n### Workforce Coverage'];
+    for (const wf of ctx.workforceCoverage) {
+      const status = wf.coverageStatus === 'healthy' ? '🟢' :
+        wf.coverageStatus === 'near_capacity' ? '🟡' :
+        wf.coverageStatus === 'over_capacity' ? '🔴' : '⚪';
+      wfLines.push(
+        `- ${wf.departmentName}: ${status} ${wf.coveragePct}% coverage, ${wf.utilizationPct}% utilization, ${wf.activeAgentCount} active agents, ${Math.round(wf.totalWorkloadHours)}h/${Math.round(wf.totalCapacityHours)}h capacity`,
+      );
+    }
+    if (ctx.unassignedAgentCount && ctx.unassignedAgentCount > 0) {
+      wfLines.push(`- Unassigned agents: ${ctx.unassignedAgentCount} (consider assigning to departments with gaps)`);
+    }
+    workforceBlock = wfLines.join('\n');
+  }
 
   // Build-vs-buy guidance: reuse-before-building catalog + resolution when the
   // founder's query was matched against the registry. Built with concatenation
@@ -506,7 +579,7 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     '### Active Tasks\n' + taskList + '\n\n' +
     '### Pending Approvals: ' + ctx.pendingApprovals + '\n\n' +
     '### Company Memory\n' + memoryList +
-    capabilityBlock + '\n\n' +
+    capabilityBlock + workforceBlock + '\n\n' +
     '### Instructions\n' +
     'You have full awareness of the organization\'s current state, including its departments, teams, team owners, members and where work is blocked or overdue.\n' +
     'Use this context to make informed decisions about task decomposition and agent selection.\n' +

@@ -27,6 +27,20 @@ interface Department {
   activeCount: number;
 }
 
+interface WorkforceCoverage {
+  departmentId: string;
+  departmentName: string;
+  agentCount: number;
+  activeAgentCount: number;
+  totalCapacityHours: number;
+  totalWorkloadHours: number;
+  utilizationPct: number;
+  coverageStatus: string;
+  coveragePct: number;
+  teamCount: number;
+  capabilityGap: string[];
+}
+
 interface Team {
   id: string;
   name: string;
@@ -39,6 +53,7 @@ interface Team {
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [workforce, setWorkforce] = useState<WorkforceCoverage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,13 +81,21 @@ export default function DepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [res, teamsRes] = await Promise.all([fetch("/api/departments"), fetch("/api/teams")]);
+      const [res, teamsRes, workforceRes] = await Promise.all([
+        fetch("/api/departments"),
+        fetch("/api/teams"),
+        fetch("/api/workforce"),
+      ]);
       if (!res.ok) throw new Error("Failed to fetch departments");
       const json = await res.json();
       setDepartments((json.data ?? []).filter((d: Department) => d.id !== null));
       if (teamsRes.ok) {
         const teamsJson = await teamsRes.json();
         setTeams(teamsJson.data ?? []);
+      }
+      if (workforceRes.ok) {
+        const wfJson = await workforceRes.json();
+        setWorkforce(wfJson.data?.departments ?? []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load departments");
@@ -281,7 +304,25 @@ export default function DepartmentsPage() {
                   </span>
                   <div>
                     <h2 className="text-sm font-semibold text-ink">{dept.name}</h2>
-                    <p className="text-xs text-muted">
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {(() => {
+                        const wf = workforce.find((w) => w.departmentId === dept.id);
+                        if (!wf) return null;
+                        const badge = wf.coverageStatus === 'healthy'
+                          ? { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: '🟢' }
+                          : wf.coverageStatus === 'near_capacity'
+                          ? { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: '🟡' }
+                          : wf.coverageStatus === 'over_capacity'
+                          ? { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: '🔴' }
+                          : { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-200', icon: '⚪' };
+                        return (
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium ${badge.bg} ${badge.text} ${badge.border}`}>
+                            {badge.icon} {wf.coveragePct}% coverage
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <p className="text-xs text-muted mt-1">
                       {dept.agentCount} agent{dept.agentCount !== 1 ? "s" : ""}
                       {" · "}
                       {dept.activeCount} active
@@ -340,19 +381,31 @@ export default function DepartmentsPage() {
 
               <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Budget</dt>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Capacity</dt>
                   <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
-                    {dept.budget != null ? `${dept.budget.toLocaleString()} cr` : "Not set"}
+                    {(() => {
+                      const wf = workforce.find((w) => w.departmentId === dept.id);
+                      return wf ? `${Math.round(wf.totalWorkloadHours)}h / ${Math.round(wf.totalCapacityHours)}h` : `${dept.agentCount} agents`;
+                    })()}
                   </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Head</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-ink truncate">{dept.head ?? "—"}</dd>
+                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Teams</dt>
+                  <dd className="mt-0.5 text-xs font-medium text-ink">
+                    {(() => {
+                      const wf = workforce.find((w) => w.departmentId === dept.id);
+                      const teamCount = wf?.teamCount ?? teams.filter((t) => t.department === dept.name).length;
+                      return teamCount > 0 ? teamCount : "—";
+                    })()}
+                  </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
                   <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Utilization</dt>
                   <dd className="mt-0.5 text-xs font-medium text-ink">
-                    {dept.agentCount > 0 ? Math.round((dept.activeCount / dept.agentCount) * 100) : 0}%
+                    {(() => {
+                      const wf = workforce.find((w) => w.departmentId === dept.id);
+                      return wf ? `${wf.utilizationPct}%` : (dept.agentCount > 0 ? `${Math.round((dept.activeCount / dept.agentCount) * 100)}%` : "—");
+                    })()}
                   </dd>
                 </div>
               </dl>

@@ -36,6 +36,7 @@ import { registerNotificationRoutes } from './routes/notifications.js';
 import { registerConstitutionRoutes } from './routes/constitution.js';
 import { registerDepartmentRoutes } from './routes/departments.js';
 import { registerTeamRoutes } from './routes/teams.js';
+import { registerWorkforceRoutes } from './routes/workforce.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerMemberRoutes } from './routes/members.js';
 import { registerToolRoutes } from './routes/tools.js';
@@ -266,6 +267,7 @@ export async function buildApp(
   registerConstitutionRoutes(app, deps);
   registerDepartmentRoutes(app, deps);
   registerTeamRoutes(app, deps);
+  registerWorkforceRoutes(app, deps);
   registerSettingsRoutes(app, deps);
   registerMemberRoutes(app, deps);
   registerToolRoutes(app, deps);
