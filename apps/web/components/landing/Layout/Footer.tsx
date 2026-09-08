@@ -171,15 +171,39 @@ const Footer: React.FC = () => {
 
               <div>
                 <span className="block uppercase font-bold tracking-[0.15em] text-overline text-white/40 mb-[20px] md:mb-[24px]">
-                  Next steps
+                  Legal
                 </span>
                 <ul className="space-y-[14px] md:space-y-[16px]">
                   <li>
                     <Link
-                      href="/#waitlist"
+                      href="/privacy"
                       className="text-white/70 transition-colors hover:text-orq8-lime text-md"
                     >
-                      Join the waitlist
+                      Privacy Policy
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/terms"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
+                    >
+                      Terms of Service
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/security"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
+                    >
+                      Security
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/ai-disclosure"
+                      className="text-white/70 transition-colors hover:text-orq8-lime text-md"
+                    >
+                      AI Transparency
                     </Link>
                   </li>
                 </ul>

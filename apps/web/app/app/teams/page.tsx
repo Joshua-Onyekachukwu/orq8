@@ -75,6 +75,15 @@ export default function TeamsPage() {
   const [confirmAction, setConfirmAction] = useState<"archive" | "delete">("archive");
   const [confirmBusy, setConfirmBusy] = useState(false);
 
+  // Hire from Template state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateTeamId, setTemplateTeamId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; slug: string; role: string; description: string | null; capabilities: string[]; suggestedAutonomy: string; typicalTasks: string[] }>>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [hireName, setHireName] = useState("");
+  const [hiring, setHiring] = useState(false);
+
   // Team-scoped goals/tasks (Task 8 — team pages show their work)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [teamGoals, setTeamGoals] = useState<Record<string, Goal[]>>({});
@@ -132,6 +141,46 @@ export default function TeamsPage() {
   }, []);
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
+
+  useEffect(() => {
+    if (showTemplateModal) {
+      setTemplatesLoading(true);
+      fetch("/api/agent-templates")
+        .then((r) => r.ok ? r.json() : { data: [] })
+        .then((json) => setTemplates(json.data ?? []))
+        .catch(() => setTemplates([]))
+        .finally(() => setTemplatesLoading(false));
+    }
+  }, [showTemplateModal]);
+
+  const handleHireFromTemplate = async () => {
+    if (!selectedTemplate) return;
+    setHiring(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/agent-templates/${selectedTemplate}/hire`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: hireName.trim() || undefined,
+          teamId: templateTeamId || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error?.message ?? "Failed to hire from template");
+      }
+      setShowTemplateModal(false);
+      setSelectedTemplate(null);
+      setHireName("");
+      setTemplateTeamId(null);
+      fetchTeams();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to hire from template");
+    } finally {
+      setHiring(false);
+    }
+  };
 
   const openEdit = (team: Team) => {
     setEditingTeam(team);
@@ -256,6 +305,13 @@ export default function TeamsPage() {
           </button>
           <button
             type="button"
+            onClick={() => { setShowTemplateModal(true); setTemplateTeamId(null); }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-orq8-green/30 bg-orq8-green/5 px-4 py-2 text-xs font-semibold text-orq8-green transition-colors hover:bg-orq8-green/10"
+          >
+            <Plus className="h-3.5 w-3.5" /> Hire from Template
+          </button>
+          <button
+            type="button"
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
           >
@@ -362,6 +418,13 @@ export default function TeamsPage() {
               </dl>
 
               <div className="mt-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowTemplateModal(true); setTemplateTeamId(team.id); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Hire from Template
+                </button>
                 <Link
                   href="/app/agents"
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
@@ -524,6 +587,86 @@ export default function TeamsPage() {
               <button type="button" onClick={handleSave} disabled={saving || !editName.trim()} className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hire from Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
+              <h2 className="text-lg font-semibold text-ink">Hire from Template</h2>
+              <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-orq8-green" />
+                  <span className="ml-2 text-sm text-muted">Loading templates…</span>
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-muted">No templates available.</p>
+                </div>
+              ) : (
+                <div className="max-h-[300px] space-y-2 overflow-y-auto">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedTemplate(t.id)}
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                        selectedTemplate === t.id
+                          ? "border-orq8-green bg-orq8-green/5"
+                          : "border-hairline hover:border-orq8-green/40"
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-ink">{t.name}</p>
+                      <p className="text-xs text-muted mt-0.5">{t.role}</p>
+                      {t.capabilities.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {t.capabilities.slice(0, 3).map((cap) => (
+                            <span key={cap} className="rounded-full bg-canvas px-2 py-0.5 text-2xs text-muted">{cap}</span>
+                          ))}
+                          {t.capabilities.length > 3 && (
+                            <span className="rounded-full bg-canvas px-2 py-0.5 text-2xs text-muted">+{t.capabilities.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedTemplate && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-ink">Display Name (optional)</label>
+                  <input
+                    type="text"
+                    value={hireName}
+                    onChange={(e) => setHireName(e.target.value)}
+                    placeholder="Custom name for this employee"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
+              <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleHireFromTemplate}
+                disabled={!selectedTemplate || hiring}
+                className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+              >
+                {hiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Hire
               </button>
             </div>
           </div>

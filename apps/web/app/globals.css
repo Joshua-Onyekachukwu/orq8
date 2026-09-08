@@ -686,3 +686,77 @@ body {
 .text-muted\/40 { color: rgba(115, 115, 115, 0.58); }
 .text-muted\/50 { color: rgba(115, 115, 115, 0.72); }
 .text-muted\/60 { color: rgba(115, 115, 115, 0.86); }
+
+/* Legal page prose styles */
+.prose-orq8 h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: white;
+  margin-top: 40px;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+.prose-orq8 h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-top: 28px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.prose-orq8 p {
+  color: rgba(255,255,255,0.6);
+  line-height: 1.75;
+  margin-bottom: 16px;
+}
+.prose-orq8 ul {
+  list-style-type: disc;
+  padding-left: 24px;
+  margin-bottom: 16px;
+}
+.prose-orq8 li {
+  color: rgba(255,255,255,0.6);
+  line-height: 1.75;
+  margin-bottom: 6px;
+}
+.prose-orq8 strong {
+  color: rgba(255,255,255,0.85);
+  font-weight: 600;
+}
+.prose-orq8 a {
+  color: #B8FF66;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-orq8 a:hover {
+  color: #c8ff8a;
+}
+
+/* AI disclosure grid */
+.ai-disclosure-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .ai-disclosure-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ai-disclosure-grid h3 {
+  margin-top: 0;
+}
+
+/* Security grid */
+.security-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+}

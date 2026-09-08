@@ -17,6 +17,12 @@ import {
 // enums as constrained text, org_id on every business table, immutable audit rows.
 // This chunk covers the Identity + Security domains (auth foundation);
 // Organization/Governance/Strategy/Work tables land with their phases.
+//
+// LEGACY TABLES (not in Drizzle schema, created by inline SQL in migration.ts):
+// - agent_memory: per-agent learning storage. The app now uses company_memory
+//   with source='agent_memory' instead. The table still exists in production.
+// - notification_preferences: org notification prefs. The app now reads from
+//   organizations.settings JSONB column instead. The table still exists in production.
 
 export const users = pgTable(
   'users',
