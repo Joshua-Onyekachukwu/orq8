@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import React from "react";
 import { useDraggable } from "../hooks/use-draggable";
 
 // ─── Mock window dimensions ──────────────────────────────────────────────────
@@ -27,7 +28,7 @@ function mockElement(left: number, top: number) {
 function createPointerEvent(
   type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel",
   overrides: Partial<PointerEventInit> & { clientX: number; clientY: number; currentTarget?: Element },
-): PointerEvent {
+): React.PointerEvent<HTMLButtonElement> {
   const event = new PointerEvent(type, {
     bubbles: true,
     cancelable: true,
@@ -40,7 +41,12 @@ function createPointerEvent(
   if (overrides.currentTarget) {
     Object.defineProperty(event, "currentTarget", { value: overrides.currentTarget, writable: false });
   }
-  return event;
+  // Add React-specific properties that the hook expects
+  Object.defineProperty(event, "nativeEvent", { value: event, writable: false });
+  Object.defineProperty(event, "isDefaultPrevented", { value: () => false, writable: false });
+  Object.defineProperty(event, "isPropagationStopped", { value: () => false, writable: false });
+  Object.defineProperty(event, "persist", { value: () => {}, writable: false });
+  return event as unknown as React.PointerEvent<HTMLButtonElement>;
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
