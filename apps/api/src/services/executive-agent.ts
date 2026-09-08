@@ -8,6 +8,7 @@ import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
 import { broadcastToOrg } from './realtime.js';
 import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
+import { getDecisionContext } from './decision-memory.js';
 import { listCapabilities, resolveCapabilityRequest } from './capability-registry.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
@@ -76,6 +77,8 @@ export interface ExecutiveContext {
     overallProgress: number;
     topPriorities: Array<{ type: string; title: string; progress: number; status: string }>;
   };
+  // Decision Memory — past decisions with outcomes for learning.
+  decisionMemory?: string;
 }
 
 export interface IntentAnalysis {
@@ -545,6 +548,13 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     // Strategy tables may not exist yet — degrade gracefully.
   }
 
+  // Decision Memory — lazy-loaded, non-blocking.
+  try {
+    ctx.decisionMemory = await getDecisionContext(db, orgId, opts.query);
+  } catch {
+    // Decision tables may not exist yet — degrade gracefully.
+  }
+
   // Populate workforce coverage if available — lazy-loaded, non-blocking.
   // Failures degrade gracefully so the Executive Agent still works without it.
   try {
@@ -654,6 +664,7 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     '### AI Employees\n' + agentList + '\n\n' +
     structureBlock + '\n\n' +
     (strategyBlock ? strategyBlock + '\n\n' : '') +
+    (ctx.decisionMemory ? ctx.decisionMemory + '\n\n' : '') +
     '### Active Goals\n' + goalList + '\n\n' +
     '### Active Tasks\n' + taskList + '\n\n' +
     '### Pending Approvals: ' + ctx.pendingApprovals + '\n\n' +

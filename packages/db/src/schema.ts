@@ -1636,3 +1636,44 @@ export type KeyResult = typeof keyResults.$inferSelect;
 export type NewKeyResult = typeof keyResults.$inferInsert;
 export type Initiative = typeof initiatives.$inferSelect;
 export type NewInitiative = typeof initiatives.$inferInsert;
+
+// ── Decision Memory ─────────────────────────────────────────────────────────
+
+export const decisions = pgTable(
+  'decisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    decisionType: text('decision_type').notNull().default('operational'),
+    status: text('status').notNull().default('active'),
+    confidence: text('confidence').notNull().default('medium'),
+    decisionMakerType: text('decision_maker_type').notNull().default('user'),
+    decisionMakerId: uuid('decision_maker_id'),
+    decisionMakerName: text('decision_maker_name'),
+    whatWasDecided: text('what_was_decided').notNull(),
+    rationale: text('rationale'),
+    alternatives: jsonb('alternatives').notNull().default([]),
+    evidence: jsonb('evidence').notNull().default([]),
+    assumptions: jsonb('assumptions').notNull().default([]),
+    expectedOutcome: text('expected_outcome'),
+    actualOutcome: text('actual_outcome'),
+    outcomeFiledAt: timestamp('outcome_filed_at', { withTimezone: true }),
+    reversalConditions: jsonb('reversal_conditions').notNull().default([]),
+    lessonsLearned: text('lessons_learned'),
+    strategyId: uuid('strategy_id').references(() => strategies.id, { onDelete: 'set null' }),
+    objectiveId: uuid('objective_id').references(() => objectives.id, { onDelete: 'set null' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('decisions_org_idx').on(t.orgId),
+    index('decisions_org_type_idx').on(t.orgId, t.decisionType),
+    index('decisions_org_status_idx').on(t.orgId, t.status),
+  ],
+);
+
+export type Decision = typeof decisions.$inferSelect;
+export type NewDecision = typeof decisions.$inferInsert;
