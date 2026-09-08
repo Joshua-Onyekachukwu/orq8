@@ -29,7 +29,7 @@
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.12.1",
     "ioredis": "^6.0.0",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^9.1.0",
     "pino": "^10.3.1",
     "tsx": "^4.23.12",
     "zod": "^4.4.3"
