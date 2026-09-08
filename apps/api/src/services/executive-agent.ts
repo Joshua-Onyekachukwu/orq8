@@ -254,8 +254,20 @@ TOOLS AVAILABLE (include in toolCalls array):
 - create_goal: { title, description?, priority? }. Safe action.
 - create_task: { title, description?, agentId?, goalId?, priority? }. Safe action.
 - get_organization_summary: {}. Always safe.
+- rename_department: { departmentId: "uuid", newName: "string" }. Safe — renames display name only.
+- rename_team: { teamId: "uuid", newName: "string" }. Safe — renames display name only.
+- update_agent: { agentId: "uuid", departmentId?, teamId?, status?, autonomyLevel? }. Safe — reassigns or changes agent status (active/paused/archived).
+- update_goal: { goalId: "uuid", title?, description?, priority?, status?, departmentId?, teamId? }. Safe — updates goal properties.
+- update_task: { taskId: "uuid", agentId?, priority?, status?, title?, description?, dueDate? }. Safe — updates task properties.
+- rename_organization: { newName: "string" }. Safe — renames the company/organization identity.
 
 For rename_agent: match the agentId from the AI Employees list in context.
+For rename_department: match the departmentId from the Departments list in context.
+For rename_team: match the teamId from the Teams list in context.
+For update_agent: use agentId from context; set status to 'paused'/'archived'/'active' as appropriate.
+For update_goal: use goalId from context; update the fields the CEO mentioned.
+For update_task: use taskId from context; assign agentId, change priority/status as needed.
+For rename_organization: use the new name the CEO specified.
 For create_department/team/agent: use the name the CEO specified.
 For create_goal: use the CEO's goal statement as the title.
 
@@ -837,6 +849,73 @@ function detectToolCalls(
     return [{ tool: 'get_organization_summary', params: {} }];
   }
 
+  // ── Rename department ─────────────────────────────────────────────────
+  // "Rename marketing to Growth" / "Change engineering's name to Platform"
+  const deptRenameMatch = lower.match(/\b(?:rename|change)\b.*\b(.+?)\b\s+(?:to|as)\s+\b(.+?)$/i)
+    ?? lower.match(/\b(?:rename|change)\b.*\b(.+?)\b\s+(?:'s|name)\s+(?:to|as)\s+\b(.+?)$/i);
+  if (deptRenameMatch && deptRenameMatch[1] && deptRenameMatch[2]) {
+    const oldName = deptRenameMatch[1].trim();
+    const newName = deptRenameMatch[2].trim();
+    // Check if it matches a department (not an agent)
+    const dept = ctx.orgStructure.departments.find((d: { id: string; name: string; status: string }) =>
+      d.name.toLowerCase() === oldName.toLowerCase() || d.name.toLowerCase().includes(oldName.toLowerCase()),
+    );
+    if (dept && newName.length > 0 && newName.length <= 100) {
+      return [{ tool: 'rename_department', params: { departmentId: dept.id, newName } }];
+    }
+  }
+
+  // ── Rename team ───────────────────────────────────────────────────────
+  const teamRenameMatch = lower.match(/\b(?:rename|change)\b.*\b(.+?)\b\s+team\s+(?:to|as)\s+\b(.+?)$/i)
+    ?? lower.match(/\b(?:rename|change)\b.*\b(.+?)\b\s+(?:'s|name)\s+(?:to|as)\s+\b(.+?)\s+team$/i);
+  if (teamRenameMatch && teamRenameMatch[1] && teamRenameMatch[2]) {
+    const oldName = teamRenameMatch[1].trim();
+    const newName = teamRenameMatch[2].trim();
+    const team = ctx.orgStructure.teams.find((t: { id: string; name: string }) =>
+      t.name.toLowerCase() === oldName.toLowerCase() || t.name.toLowerCase().includes(oldName.toLowerCase()),
+    );
+    if (team && newName.length > 0 && newName.length <= 100) {
+      return [{ tool: 'rename_team', params: { teamId: team.id, newName } }];
+    }
+  }
+
+  // ── Pause/retire agent ────────────────────────────────────────────────
+  // "Pause Sarah" / "Retire the marketing agent" / "Archive the content writer"
+  const pauseMatch = lower.match(/\b(?:pause|suspend|deactivate|retire|archive|remove)\b.*\b(.+?)$/i);
+  if (pauseMatch && pauseMatch[1]) {
+    const agentName = pauseMatch[1].trim();
+    const agent = ctx.agents.find(a =>
+      a.name.toLowerCase() === agentName.toLowerCase() || a.name.toLowerCase().includes(agentName.toLowerCase()),
+    );
+    if (agent) {
+      const isRetire = lower.match(/\b(?:retire|archive|remove)\b/);
+      return [{ tool: 'update_agent', params: { agentId: agent.id, status: isRetire ? 'archived' : 'paused' } }];
+    }
+  }
+
+  // ── Resume agent ──────────────────────────────────────────────────────
+  const resumeMatch = lower.match(/\b(?:resume|reactivate|activate|unpause|restore)\b.*\b(.+?)$/i);
+  if (resumeMatch && resumeMatch[1]) {
+    const agentName = resumeMatch[1].trim();
+    const agent = ctx.agents.find(a =>
+      a.name.toLowerCase() === agentName.toLowerCase() || a.name.toLowerCase().includes(agentName.toLowerCase()),
+    );
+    if (agent) {
+      return [{ tool: 'update_agent', params: { agentId: agent.id, status: 'active' } }];
+    }
+  }
+
+  // ── Rename organization (EA self-rename) ──────────────────────────────
+  // "Rename yourself to Atlas" / "Call yourself Sentinel" / "Change your name to Oracle"
+  const eaRenameMatch = lower.match(/\b(?:rename|call|change)\b.*\b(?:yourself|your name)\b.*\b(?:to|as)\s+\b(.+?)$/i)
+    ?? lower.match(/\b(?:rename|call|change)\b.*\b(?:org(?:anization)?|company)\b.*\b(?:to|as)\s+\b(.+?)$/i);
+  if (eaRenameMatch && eaRenameMatch[1]) {
+    const newName = eaRenameMatch[1].trim();
+    if (newName.length > 0 && newName.length <= 200) {
+      return [{ tool: 'rename_organization', params: { newName } }];
+    }
+  }
+
   return null;
 }
 
@@ -1243,6 +1322,24 @@ export async function executeCommand(
             break;
           case 'get_organization_summary':
             result = await eaTools.getOrganizationSummary(toolCtx);
+            break;
+          case 'rename_department':
+            result = await eaTools.renameDepartment(toolCtx, tc.params as any);
+            break;
+          case 'rename_team':
+            result = await eaTools.renameTeam(toolCtx, tc.params as any);
+            break;
+          case 'update_agent':
+            result = await eaTools.updateAgent(toolCtx, tc.params as any);
+            break;
+          case 'update_goal':
+            result = await eaTools.updateGoal(toolCtx, tc.params as any);
+            break;
+          case 'update_task':
+            result = await eaTools.updateTask(toolCtx, tc.params as any);
+            break;
+          case 'rename_organization':
+            result = await eaTools.renameOrganization(toolCtx, tc.params as any);
             break;
           default:
             result = { success: false, tool: tc.tool, message: `Unknown tool: ${tc.tool}` };
