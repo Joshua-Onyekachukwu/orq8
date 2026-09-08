@@ -63,6 +63,7 @@ import { registerBusinessImportRoutes } from './routes/business-import.js';
 import { registerEntitlementRoutes } from './routes/entitlements.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerStrategyRoutes } from './routes/strategy.js';
+import { registerWorkforceROIRoutes } from './routes/workforce-roi.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
 import { csrfPlugin } from './plugins/csrf.js';
@@ -295,6 +296,7 @@ export async function buildApp(
   registerEntitlementRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
   registerStrategyRoutes(app, deps);
+  registerWorkforceROIRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce
   registerBuiltinTools();

@@ -11,6 +11,7 @@ import {
   Building2,
   ChevronDown,
   Compass,
+  DollarSign,
   FileText,
   Globe,
   Code2,
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
       { label: "MCP & Tools", href: "/app/mcp", icon: Plug },
       { label: "Simulation", href: "/app/simulation", icon: Zap },
       { label: "Squads", href: "/app/squads", icon: Users },
+      { label: "AI Workforce ROI", href: "/app/roi", icon: DollarSign },
     ],
   },
   {
