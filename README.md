@@ -109,12 +109,12 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 |--------|-------|
 | Database tables | 63+ |
 | API endpoints | 300+ |
-| Test files | 84 (unit + integration + E2E specs) |
+| Test files | 85 (unit + integration + E2E specs) |
 | Documentation files | 75+ |
 | User-facing app pages | 70 |
 | Admin pages | 14 |
 | Agent templates | 18 (across 9 categories) |
-| Migrations | 23 (auto-applied by the DB Migrate workflow on push to main) |
+| Migrations | 24 (auto-applied by the DB Migrate workflow on push to main) |
 | Security score | 9/10 (CSRF, brute-force lockout, rate limiting, CSP, HSTS) |
 
 ### Feature Status
@@ -173,16 +173,15 @@ With Ollama running locally you can operate with **zero model cost**. To use fro
 |------|----------|-------|
 | Email delivery in production | P1 | Verification + reset emails are fully implemented but log to console until `RESEND_API_KEY`/`EMAIL_FROM` are set on Railway (free tier: 3,000/mo, 100/day, one domain). Full runbook: `docs/ORQ8_LAUNCH_CHECKLIST.md` §2 |
 | S3-compatible storage in production | P1 | Avatars/files currently use the local-filesystem fallback — uploads work but **bytes are lost on every Railway redeploy** (DB records survive; UI falls back to initials). Configure `S3_*` vars (Cloudflare R2 / S3) for durable storage |
-| Executive Agent LLM provider in production | P1 | `POST /v1/commands` hangs until an LLM provider key is live on Railway (checklist §1) — EA delegation is the demo-critical path |
-| System agent-template catalog | P2 | `GET /v1/agent-templates` returns empty on production — no seed exists for `is_system=true` templates, so "Hire from Template" shows an empty catalog for every new org |
 | `INTERNAL_TOKEN` in production | P2 | Scheduled jobs (daily briefings, anomaly scans, consolidation) skip until set |
 | Stripe payment integration | P2 | Architecture ready, need Stripe keys (explicitly deferred) |
+| Migration runner error visibility | P3 | `migrate-supabase.ts` swallows per-file SQL errors by design (multi-pass apply); failures surface only as "could not be applied after N passes" without the underlying cause — surfacing it would cut migration debugging time |
 | Custom domain | P2 | `orq8.com` is parked; live site runs on `orq8.vercel.app` |
 | Founder admin access | P2 | Set `PLATFORM_ADMIN_EMAILS` (Railway) or `users.platform_role='admin'` in DB |
 | Vercel static `/images/*` 404s | P3 | Files committed but 404 live; sidebar uses inline SVG — root cause is Vercel project config |
 | Live connector E2E | P3 | GitHub/Gmail/Linear OAuth apps need real client credentials |
 
-Recently completed (was pending): **email verification lifecycle** (migration 0023, hashed tokens, rate-limited resend, banner UX — live), **avatar upload end-to-end** (picker → validation → storage → profile/sidebar/top-bar rendering, production E2E verified), **512px client-side downscaling** (EXIF-aware, oversized photos rescued instead of rejected), **authenticated live E2E journey** (Playwright against production — caught and fixed three real auth bugs), **launch checklist** (`docs/ORQ8_LAUNCH_CHECKLIST.md` — every remaining dashboard action with verification commands).
+Recently completed (was pending): **system agent-template catalog dedupe** (migration 0024 — production catalog had 18× duplication from a NULL-conflict seed guard; now deduped with a partial unique index and one-pass fresh-DB convergence), **org-scoped template visibility** (custom templates were silently dropped from list routes) and **task-create status contract** (`POST /v1/tasks` honors an explicit initial status), **Executive Agent LLM provider live on Railway** (real `POST /v1/commands` returns a genuine plan; ~60s latency), **email verification lifecycle** (migration 0023, hashed tokens, rate-limited resend, banner UX — live), **avatar upload end-to-end** (picker → validation → storage → profile/sidebar/top-bar rendering, production E2E verified), **512px client-side downscaling** (EXIF-aware, oversized photos rescued instead of rejected), **authenticated live E2E journey** (Playwright against production — caught and fixed three real auth bugs), **launch checklist** (`docs/ORQ8_LAUNCH_CHECKLIST.md` — every remaining dashboard action with verification commands).
 
 ---
 

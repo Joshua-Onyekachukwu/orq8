@@ -480,8 +480,48 @@ varied states) for the application Loom.
 **Open items discovered this session (now in the README pending table)**: EA
 `POST /v1/commands` hangs (LLM provider key unset on Railway — checklist §1); system
 agent-template catalog empty on prod (no seed for `is_system=true`); local storage is
-ephemeral across redeploys (S3 config needed for durable avatars/files).
-
-**Verification totals**: API tests **391 passing** / 212 skipped (DB/credential-gated,
+ephemeral across redeploys (S3 config needed for durable avatars/files).**Verification totals**: API tests **391 passing** / 212 skipped (DB/credential-gated,
 pre-existing); web tests **61/61**; both typechecks clean; production build clean; all
 fixes proven against the live site, not just locally.
+
+---
+
+## 12. Session record — 2026-09-09 (P0 organizational audit: template catalog dedupe,
+### org-template visibility, task-status contract)
+
+**Master-ecosystem P0 audit finding**: the P0–P8 organizational architecture (departments,
+teams, templates, capability registry, workforce engine, company-builder, 19 EA org tools,
+decision memory) was already built in prior sessions. The audit surfaced four real defects
+instead, all fixed and tested in `aee6f82`:
+
+1. **System agent-template catalog duplicated 18× on production** — the migration runner
+   (`migrate-supabase.ts`) re-applies every file on each deploy by design, and 0020's
+   `on conflict (org_id, slug)` guard is inert for system rows (`org_id` NULL is never in
+   conflict in Postgres). `0024_fix_agent_template_duplication.sql` dedupes to the oldest
+   row per slug and adds a partial unique index `(slug) where is_system and org_id is null`;
+   0020 declares the same index before its seed so a **fresh database converges in one
+   pass** (discovered on a local fresh-DB run — drizzle executes files as single implicit
+   transactions, so the seed originally failed and rolled back its own CREATE TABLE).
+2. **Template list routes silently dropped org-scoped templates** — the query documented
+   "system + org-scoped" but filtered `is_system = true` only; custom templates were
+   invisible everywhere. Now `or(isSystem, orgId = ctx.orgId)`.
+3. **`POST /v1/tasks` ignored explicit status** — create always forced `pending`; the
+   schema now accepts the full status enum (defaults `pending`).
+4. **Migration-runner error visibility** — per-file SQL errors are swallowed by the
+   multi-pass design; noted as a P3 item in the README pending table.
+
+**Testing**: new `apps/api/test/template-catalog.integration.test.ts` (6 tests: no
+duplicate system slugs, org-scoped visibility to owner only, cross-org hire 404 while
+system hire works, task default/explicit/invalid status). Local Postgres rebuilt from the
+correct compose image (pgvector) — the stale plain-postgres container without pgvector
+masked real results; **API 566/566 passing** (was 391 — DB-gated suites now run locally),
+web 61/61, both typechecks clean, both production builds clean.
+
+**Live production findings during the audit** (prior session): EA `POST /v1/commands`
+works (200 in ~59s, genuine LLM plan — provider key is live); system template catalog was
+seeded but 18× duplicated (fixed above); plan caps enforced live (2-department, 3-agent).
+
+**Untracked, intentionally not committed**: `apps/web/tests/e2e/account-journey.spec.ts`
+selector-robustness fix from the earlier E2E session — left for its author to land.
+
+
