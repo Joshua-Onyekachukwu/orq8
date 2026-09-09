@@ -30,6 +30,19 @@ export async function GET(
         return NextResponse.redirect(location, { status: 302, headers: { "Cache-Control": "private, max-age=300" } });
       }
     }
+    // The API either streams bytes (local storage backend) or returns a
+    // JSON error. Pass bytes through untouched; forward JSON errors with
+    // their real status codes.
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      return new NextResponse(res.body, {
+        status: res.status,
+        headers: {
+          "Content-Type": contentType || "application/octet-stream",
+          "Cache-Control": res.headers.get("cache-control") ?? "private, max-age=300",
+        },
+      });
+    }
     const data = await res.json().catch(() => null);
     return NextResponse.json(data ?? { error: "File not found" }, { status: res.status });
   } catch {

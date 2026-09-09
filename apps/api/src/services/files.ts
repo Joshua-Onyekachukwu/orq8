@@ -228,7 +228,9 @@ export async function uploadFile(
 /**
  * Fetch a file's bytes for direct streaming (local backend has no servable
  * URL — `file://` paths must never reach a browser). Returns null when the
- * record doesn't exist in this org.
+ * record doesn't exist in this org — or when the bytes can no longer be
+ * read (e.g. ephemeral local storage lost on redeploy); callers treat both
+ * as 404 so the UI falls back gracefully instead of erroring.
  */
 export async function readFileBytes(
   config: AppConfig,
@@ -245,8 +247,12 @@ export async function readFileBytes(
   if (!record) return null;
 
   const backend = getStorageBackend(config);
-  const bytes = await backend.read(record.key);
-  return { bytes, record };
+  try {
+    const bytes = await backend.read(record.key);
+    return { bytes, record };
+  } catch {
+    return null;
+  }
 }
 
 /** True when a storage URL is a local filesystem path (not servable by browsers). */
