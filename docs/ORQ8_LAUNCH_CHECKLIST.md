@@ -44,11 +44,12 @@ Do sections in this order — later steps depend on earlier ones (domain → COR
 | `NVIDIA_API_KEY` / `OPENROUTER_API_KEY` | Already set? Verify | The EA is inert without an LLM provider. |
 | `INTERNAL_TOKEN` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | Without it, daily briefings / anomaly scans / memory consolidation silently skip in production. |
 
-Verify after setting (replace `$RAILWAY_API_URL` with the API's public URL):
+Verify after setting (the API's own health endpoint proves boot passed the secret check — the web app has no `/api/healthz` route):
 
 ```bash
-curl -s https://$RAILWAY_API_URL/healthz                                   # → {"status":"ok"} (or equivalent) — proves boot passed the secret check
-curl -s -o /dev/null -w "%{http_code}\n" https://orq8.vercel.app/api/healthz # → 200 via web proxy
+curl -s https://$RAILWAY_API_URL/healthz                                   # → {"data":{"status":"ok","service":"orq8-api"}}
+curl -s -o /dev/null -w "%{http_code}\n" -X POST https://orq8.vercel.app/api/auth/login \
+  -H "Content-Type: application/json" -d '{"email":"probe@orq8.test","password":"wrongpass123"}'  # → 401 (proxy → API alive; 502 would mean unreachable)
 ```
 
 ### 1.2 Vercel (web project) — Settings → Environment Variables
