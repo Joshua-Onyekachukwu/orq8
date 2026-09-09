@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 30 },
+      // Per-user authenticated payload whose PATCH mutates it — must never be
+      // served from the Data Cache (a GET cached pre-PATCH would show the old
+      // profile for up to 30s after saving). Cross-user safety: the auth
+      // header is part of the fetch key, verified live with two accounts.
+      cache: "no-store",
     });
     if (!res.ok) {
       return NextResponse.json({ error: "Failed to load user" }, { status: res.status });
