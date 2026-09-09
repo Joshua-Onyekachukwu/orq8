@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -20,8 +20,9 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
       .select()
       .from(departmentTemplates)
       .where(
-        and(
+        or(
           eq(departmentTemplates.isSystem, true),
+          eq(departmentTemplates.orgId, ctx.orgId),
         ),
       )
       .orderBy(departmentTemplates.name);
@@ -67,13 +68,18 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
 
   // ─── Team Templates ──────────────────────────────────────────────────
 
-  /** List team templates (system-scoped). */
+  /** List team templates (system + org-scoped). */
   app.get('/v1/team-templates', async (request) => {
     const ctx = await requireAuth(request, deps);
     const templates = await db
       .select()
       .from(teamTemplates)
-      .where(eq(teamTemplates.isSystem, true))
+      .where(
+        or(
+          eq(teamTemplates.isSystem, true),
+          eq(teamTemplates.orgId, ctx.orgId),
+        ),
+      )
       .orderBy(teamTemplates.name);
     return { data: templates };
   });
@@ -123,10 +129,15 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
       .from(agentTemplates)
       .where(
         and(
-          eq(agentTemplates.isSystem, true),
+          eq(agentTemplates.status, 'active'),
+          or(
+            eq(agentTemplates.isSystem, true),
+            eq(agentTemplates.orgId, ctx.orgId),
+          ),
         ),
       )
-      .orderBy(agentTemplates.category, agentTemplates.name);
+      // Keep the system catalog stable; org templates arrive newest-first.
+      .orderBy(agentTemplates.category, agentTemplates.isSystem, sql`${agentTemplates.createdAt} desc`);
     return { data: templates };
   });
 
@@ -185,7 +196,17 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
     const [template] = await db
       .select()
       .from(agentTemplates)
-      .where(eq(agentTemplates.id, templateId))
+      .where(
+        and(
+          eq(agentTemplates.id, templateId),
+          // Tenant isolation: system templates are global; custom templates
+          // are only hireable by their owning organization.
+          or(
+            eq(agentTemplates.isSystem, true),
+            eq(agentTemplates.orgId, ctx.orgId),
+          ),
+        ),
+      )
       .limit(1);
     if (!template) return reply.status(404).send({ error: 'Template not found' });
 

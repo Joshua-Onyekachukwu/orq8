@@ -58,6 +58,16 @@ create policy agent_templates_delete on public.agent_templates
     org_id in (select org_id from public.memberships where user_id = auth.uid())
   );
 
+-- ── Real uniqueness for system rows ─────────────────────────────────
+-- The (org_id, slug) unique constraint above cannot dedupe system rows:
+-- org_id is NULL and Postgres treats NULLs as distinct. This partial index
+-- is both the actual guard and the conflict target the seed below infers.
+-- Declared here (not only in 0024) so a fresh database converges in one
+-- pass: 0020's seed needs the index to exist when its inserts run.
+create unique index if not exists agent_templates_system_slug_unique
+  on public.agent_templates (slug)
+  where is_system = true and org_id is null;
+
 -- ── Seed system agent templates ──────────────────────────────────────
 
 insert into public.agent_templates (name, slug, category, description, role, capabilities, suggested_autonomy, suggested_department_slug, typical_tasks, required_tools, is_system) values
@@ -96,4 +106,4 @@ insert into public.agent_templates (name, slug, category, description, role, cap
 
 -- Executive
 ('Executive Assistant', 'executive-assistant', 'executive', 'Manages scheduling, communications, and administrative tasks for leadership.', 'Executive Assistant', '["scheduling","communication","organization","prioritization"]', 'execute_with_approval', null, '["Manage calendar","Draft email","Organize files","Prepare briefing"]', '[]', true)
-on conflict (org_id, slug) do nothing;
+on conflict (slug) where is_system = true and org_id is null do nothing;

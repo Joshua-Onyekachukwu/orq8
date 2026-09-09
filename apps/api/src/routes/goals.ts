@@ -33,6 +33,9 @@ const createTaskBody = z.object({
   agentId: z.string().uuid().optional(),
   teamId: z.string().uuid().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
+  // Honor an explicit initial state (e.g. migrating in-progress work). Fresh
+  // work should omit this and let the server default it to 'pending'.
+  status: z.enum(['pending', 'in_progress', 'completed', 'failed', 'cancelled']).default('pending'),
   dueDate: z.string().datetime().optional(),
 });
 
@@ -308,7 +311,7 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
         teamId,
         priority: parsed.data.priority,
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
-        status: 'pending',
+        status: parsed.data.status,
         cost: 0,
       })
       .returning();
