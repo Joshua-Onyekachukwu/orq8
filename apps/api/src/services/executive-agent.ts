@@ -159,6 +159,44 @@ export interface WorkflowTrace {
   llmTraceSummary?: LLMTraceSummary;
 }
 
+// ─── Progress streaming (demo-latency fix) ─────────────────────────────────
+//
+// The full pipeline (context → LLM intent → tools → tasks → execution) can
+// take ~60s. Streaming endpoints attach a progress sink to the workflow trace
+// so every stage transition is pushed to the client AS IT HAPPENS — the
+// founder sees live progress instead of a frozen spinner.
+//
+// Design: a WeakMap keyed by trace keeps the public executeCommand() signature
+// and every existing call site unchanged; non-streaming callers (REST route,
+// tests, cron) behave exactly as before.
+
+export type EAProgressEvent =
+  | { type: 'step_started'; step: string }
+  | { type: 'step_completed'; step: string; detail?: Record<string, unknown> }
+  | { type: 'step_failed'; step: string; error: string }
+  | { type: 'step_skipped'; step: string; reason?: string };
+
+export type EAProgressSink = (event: EAProgressEvent) => void;
+
+const progressSinks = new WeakMap<WorkflowTrace, EAProgressSink>();
+/** Reverse index so completeStep (which only receives the step) can find its trace. */
+const tracesByStep = new WeakMap<WorkflowStep, WorkflowTrace>();
+
+/** Attach a progress sink to a trace before running executeCommand(). */
+export function setTraceProgressSink(trace: WorkflowTrace, sink: EAProgressSink): void {
+  progressSinks.set(trace, sink);
+}
+
+function emitTraceProgress(trace: WorkflowTrace, event: EAProgressEvent): void {
+  const sink = progressSinks.get(trace);
+  if (!sink) return;
+  try {
+    sink(event);
+  } catch {
+    // A broken stream must never break the pipeline.
+  }
+}
+
 // ─── System Prompts ─────────────────────────────────────────────────────────
 
 const EXECUTIVE_AGENT_SYSTEM_PROMPT = `You are the Executive Agent of ORQ8 — an AI executive operating system for founders and CEOs.
@@ -317,6 +355,8 @@ function startStep(trace: WorkflowTrace, name: string): WorkflowStep {
     startedAt: new Date(),
   };
   trace.steps.push(step);
+  tracesByStep.set(step, trace);
+  emitTraceProgress(trace, { type: 'step_started', step: name });
   return step;
 }
 
@@ -329,6 +369,28 @@ function completeStep(step: WorkflowStep, result?: unknown, error?: string): voi
   step.status = error ? 'failed' : 'completed';
   step.result = result;
   step.error = error;
+  // Skips are expressed as completed-with-{skipped:true} upstream; surface
+  // them as explicit skip events so the UI never shows a stage as "done work".
+  const skipped =
+    error == null &&
+    result != null &&
+    typeof result === 'object' &&
+    (result as Record<string, unknown>).skipped === true;
+  const trace = tracesByStep.get(step);
+  if (!trace) return;
+  if (error) emitTraceProgress(trace, { type: 'step_failed', step: step.name, error });
+  else if (skipped)
+    emitTraceProgress(trace, {
+      type: 'step_skipped',
+      step: step.name,
+      reason: String((result as Record<string, unknown>).reason ?? ''),
+    });
+  else
+    emitTraceProgress(trace, {
+      type: 'step_completed',
+      step: step.name,
+      detail: result as Record<string, unknown> | undefined,
+    });
 }
 
 /**
@@ -1215,10 +1277,12 @@ export async function executeCommand(
   userId: string,
   command: string,
   contextNote?: string,
+  opts?: { onProgress?: EAProgressSink },
 ): Promise<ExecutionResult> {
   const commandId = crypto.randomUUID();
   const startTime = Date.now();
   const trace = createWorkflowTrace(commandId);
+  if (opts?.onProgress) setTraceProgressSink(trace, opts.onProgress);
 
   // ── Step 1: Build Context ──
   const ctxStep = startStep(trace, 'context_building');
@@ -1349,6 +1413,34 @@ export async function executeCommand(
           case 'plan_engineering':
             result = await eaTools.planEngineering(toolCtx, tc.params as any);
             break;
+          case 'deliberate': {
+            // Decision Council (§10–§17): route a significant question through
+            // structured multi-agent deliberation instead of a single-model take.
+            // Never executes anything — produces a recommendation (and a decision
+            // record at council level); execution still requires the normal gates.
+            const params = tc.params as { question?: string; context?: string };
+            if (!params?.question || typeof params.question !== 'string' || params.question.trim().length < 8) {
+              result = { success: false, tool: tc.tool, message: 'A question of at least 8 characters is required.' };
+              break;
+            }
+            const { runDeliberation } = await import('./deliberation.js');
+            const dr = await runDeliberation(config, db, orgId, userId, {
+              question: params.question.trim().slice(0, 1000),
+              context: typeof params.context === 'string' ? params.context.slice(0, 2000) : null,
+            });
+            result = {
+              success: dr.stoppedReason === 'completed',
+              tool: tc.tool,
+              message:
+                dr.stoppedReason !== 'completed'
+                  ? `Deliberation stopped early (${dr.stoppedReason}) — no recommendation fabricated.`
+                  : dr.synthesis.consensusReached
+                    ? `Council recommendation (${dr.synthesis.confidence} confidence): ${dr.synthesis.recommendation.slice(0, 400)}`
+                    : `No consensus. ${dr.synthesis.disagreements.length} disagreements preserved.${dr.synthesis.recommendation ? ` Chair summary: ${dr.synthesis.recommendation.slice(0, 300)}` : ''}`,
+              ...(dr.decisionId ? { decisionId: dr.decisionId } : {}),
+            } as any;
+            break;
+          }
           case 'find_best_agent':
             result = await eaTools.findBestAgent(toolCtx, tc.params as any);
             break;

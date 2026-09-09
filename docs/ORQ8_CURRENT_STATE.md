@@ -74,11 +74,18 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 
 - **`orq8.com` is a parked registrar page** — NOT the product. Live site: `orq8.vercel.app`.
   No custom domain configured.
-- **Vercel static asset 404s (partially mitigated)** — files under `apps/web/public/images/`
-  are committed and the deploy is on the correct SHA, yet `/images/logo.svg` etc. return 404
-  live while route handlers work (JPG illustrations serve fine). Root cause is Vercel project
-  configuration, not code. Mitigated: the sidebar and admin layout now render an inline SVG
-  `LogoMark` component that cannot 404. Remaining impact: landing-page imagery only.
+- **Vercel static asset 404s — ROOT CAUSE FOUND (2026-09-09)** — not a code or git problem.
+  **Two Vercel projects exist**: the production domain `orq8.vercel.app` belongs to project
+  `orq8` (per the tracked `.vercel/project.json`), whose git-integration deploys silently
+  stopped — production is frozen at an old commit (proven by webpack/main-app chunk-hash
+  mismatch between the deployed HTML and a local build of the same commit). Meanwhile the
+  CI deploy workflow was targeting a *different* project (`orq8-web`) with no domain
+  attached — so every push "deployed successfully" while production never changed. The
+  missing png/svg class was simply whatever that old frozen build emitted. **Fixed**:
+  the workflow now deploys the domain-owning project + runs a post-deploy production
+  smoke check (chunk freshness) so staleness can never again pass silently. Remaining
+  one-time dashboard action: disconnect the stale git integration on project `orq8`
+  (or delete that project) so the two paths cannot fight.
 - **`INTERNAL_TOKEN` unset in production** — scheduled jobs (briefings 07:00 UTC, anomaly
   scans, consolidation) auto-skip with a warning. Ops action: set the secret in the GitHub
   workflow environment / Railway.
@@ -480,7 +487,9 @@ varied states) for the application Loom.
 **Open items discovered this session (now in the README pending table)**: EA
 `POST /v1/commands` hangs (LLM provider key unset on Railway — checklist §1); system
 agent-template catalog empty on prod (no seed for `is_system=true`); local storage is
-ephemeral across redeploys (S3 config needed for durable avatars/files).**Verification totals**: API tests **391 passing** / 212 skipped (DB/credential-gated,
+ephemeral across redeploys (S3 config needed for durable avatars/files).
+*(Superseded 2026-09-09: the EA provider is live with SSE streaming; the template
+catalog is seeded and deduped — see §12–§13.)***Verification totals**: API tests **391 passing** / 212 skipped (DB/credential-gated,
 pre-existing); web tests **61/61**; both typechecks clean; production build clean; all
 fixes proven against the live site, not just locally.
 
@@ -523,5 +532,64 @@ seeded but 18× duplicated (fixed above); plan caps enforced live (2-department,
 
 **Untracked, intentionally not committed**: `apps/web/tests/e2e/account-journey.spec.ts`
 selector-robustness fix from the earlier E2E session — left for its author to land.
+
+---
+
+## 13. Session record — 2026-09-09 (model intelligence, Decision Council, EA streaming,
+### deploy root cause)
+
+**Built** (extends the §12 P0 audit; model-intelligence substrate + demo-latency fix):
+
+1. **Model intelligence layer** (`services/model-intelligence.ts`): task complexity
+   classifier (trivial→simple→moderate→complex→critical, reasoning/risk/impact/accuracy
+   axes), capability-based model tiers 0–3 derived from the REAL model registry (no
+   fabricated availability), agent-preference routing with complexity-based override
+   (preferences are advisory, never absolute), escalation ladder, cost-aware selection —
+   cheapest sufficient model, but cost never overrides quality/safety floors. Wired into
+   `task-executor.ts`: task execution now selects a model per task instead of always
+   using the default.
+2. **Decision Council deliberation engine** (`services/deliberation.ts` +
+   `routes/deliberation.ts`): structured multi-round process — Round 1 independent
+   analysis (participants cannot see each other), Round 2 cross-examination (disagreements,
+   weak assumptions, missing evidence), Round 3 re-analysis, Round 4 synthesis (scoped to
+   the evidence actually produced). Explicit **no-consensus** and insufficient-evidence
+   outcomes are preserved, never forced. Decision budget bounds total LLM spend; max-round
+   + loop caps prevent infinite exchanges; multi-model diversity used where providers
+   allow. Sessions persist into the existing `decisions` table (Decision Memory reuse —
+   no new architecture). Endpoints: `POST /v1/deliberations` (run), `GET /v1/deliberations`
+   (list), `GET /v1/deliberations/:id`. EA `deliberate` tool added to the dispatch switch.
+3. **EA live progress streaming** (demo-latency fix): `POST /v1/commands` blocks through
+   context build → LLM intent → tools → task creation (~10–60s) with zero feedback. The
+   pipeline's 13 existing trace stages now feed an optional progress sink (WeakMap on the
+   trace — zero interface churn), surfaced by `GET /v1/commands/stream` (SSE: `stage` →
+   `progress` → `done` events carrying the full command result, heartbeats, mirrors
+   realtime.ts conventions). Web side: same-origin proxy `GET /api/commands/stream`,
+   `lib/command-stream.ts` client (fetch + ReadableStream parsing), shared
+   `ea-progress.tsx` progress UI, wired into **both** EA surfaces (Command Center bar +
+   floating panel). POST endpoint unchanged as fallback; a typed error distinguishes
+   "stream never started" (safe to POST-fallback) from "pipeline already ran" (error
+   shown, **no double credit consumption**). Also fixed: the floating panel was sending
+   `contextNote` which the API schema silently dropped — founder context now reaches the
+   pipeline on both paths.
+4. **Vercel deploy root cause + fix** (details in §3): workflow repointed at the
+   domain-owning project + post-deploy production smoke check.
+5. **Template seed idempotency — verified, not just claimed**: re-running 0020's guarded
+   catalog insert against a live database returns `INSERT 0 0` with the system count
+   unchanged (18 rows, zero duplicate slugs, `agent_templates_system_slug_unique` present).
+   Migration 0024 (dedupe + partial unique index) ships in this deploy; production
+   self-heals on the next deploy because the lineage re-runs.
+
+**Testing**: new `test/ea-progress.test.ts` (sink attachment, event ordering) +
+`test/command-stream.integration.test.ts` (end-to-end SSE over a live Fastify instance:
+stages arrive in pipeline order, `done` carries the complete result; hermetic — the
+rule-based intent fallback means no LLM key needed). **Full matrix: API 571 passed / 0
+failed / 43 DB-gated skips (65 files); web 61/61; both typechecks clean; API bundle build
++ Next production build clean.** No lint script exists in this repo — typecheck is the gate.
+
+**Remaining (honest gaps)**: deliberation UI page (engine + API + EA tool only); §19
+outcome feedback loop is schema-ready but the scheduled comparison job is not; model
+performance memory (§7) records via llm-tracer but no router-learning consumer yet; the
+§56 full-company conversation E2E needs a live LLM key in CI. Deploy verification pending
+CI + Vercel build of this push.
 
 

@@ -21,6 +21,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useExecutiveAgent, type PageContext } from "./executive-agent-context";
+import { ExecutiveAgentProgress, type EAProgressStage } from "./ea-progress";
+import { runCommandStream, CommandStreamError } from "../lib/command-stream";
 import { FloatingLauncher } from "./floating-launcher";
 
 interface ChatMessage {
@@ -89,6 +91,8 @@ export function ExecutiveAgentPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Live pipeline stages from the streaming endpoint.
+  const [stages, setStages] = useState<EAProgressStage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -120,20 +124,43 @@ export function ExecutiveAgentPanel() {
       setInput("");
       setLoading(true);
       setError(null);
+      setStages([]);
 
       try {
-        const res = await fetch("/api/executive-agent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: text.trim(), contextNote }),
-        });
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          throw new Error(body?.error ?? `Agent returned ${res.status}`);
+        // Streaming first: live pipeline progress while the Executive Agent
+        // works, then the full result in a final `done` event. Falls back to
+        // the buffered POST ONLY when the stream never started the real
+        // pipeline (route missing / proxy down) — never after work began,
+        // to avoid double execution.
+        let data: any;
+        try {
+          data = await runCommandStream({
+            command: text.trim(),
+            context: { page: pageContext?.route, contextNote },
+            onStage: (ev) =>
+              setStages((prev) => {
+                const next = prev.filter((s) => s.stage !== ev.stage);
+                next.push({ stage: ev.stage, label: ev.label, status: ev.status });
+                return next;
+              }),
+          });
+        } catch (err) {
+          if (err instanceof CommandStreamError && !err.pipelineStarted) {
+            const res = await fetch("/api/executive-agent", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ command: text.trim(), contextNote }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => null);
+              throw new Error(body?.error ?? `Agent returned ${res.status}`);
+            }
+            data = await res.json();
+          } else {
+            throw err;
+          }
         }
 
-        const data = await res.json();
         const assistantMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
@@ -276,9 +303,15 @@ export function ExecutiveAgentPanel() {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
                     <Bot className="h-3.5 w-3.5 text-orq8-lime" />
                   </div>
-                  <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    <span className="text-sm text-gray-500">Thinking...</span>
+                  <div className="rounded-xl bg-gray-100 px-4 py-3">
+                    {stages.length > 0 ? (
+                      <ExecutiveAgentProgress stages={stages} />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                        <span className="text-sm text-gray-500">Thinking...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

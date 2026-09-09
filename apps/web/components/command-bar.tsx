@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { useRealtime } from "../hooks/use-realtime";
 import { CommandInput } from "./command-bar-input";
 import { CommandResultDisplay } from "./command-bar-result";
+import { ExecutiveAgentProgress, type EAProgressStage } from "./ea-progress";
+import { runCommandStream, CommandStreamError } from "../lib/command-stream";
 import { analytics } from "@/lib/analytics";
 
 interface CommandResult {
@@ -51,6 +53,8 @@ export function CommandBar({ context }: { context?: CommandContext }) {
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
+  // Live pipeline stages from the streaming endpoint (empty on POST fallback).
+  const [stages, setStages] = useState<EAProgressStage[]>([]);
 
   const { connected } = useRealtime({
     onEvent: useCallback((event: any) => {
@@ -83,16 +87,42 @@ export function CommandBar({ context }: { context?: CommandContext }) {
   const handleSubmit = async (command: string) => {
     setIsProcessing(true);
     setResult(null);
+    setStages([]);
     setApprovalStatus("idle");
     const startTime = performance.now();
     analytics.commandSent(command); // length only — never content
     try {
-      const response = await fetch("/api/commands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command, context }),
-      });
-      const data = await response.json();
+      // Streaming first: live pipeline progress, same final result shape as
+      // POST /api/commands. The stream runs the REAL pipeline — a `done`
+      // event means the command executed exactly once.
+      let data: any;
+      try {
+        data = await runCommandStream({
+          command,
+          context: context as Record<string, unknown> | undefined,
+          onStage: (ev) =>
+            setStages((prev) => {
+              const next = prev.filter((s) => s.stage !== ev.stage);
+              next.push({ stage: ev.stage, label: ev.label, status: ev.status });
+              return next;
+            }),
+        });
+      } catch (err) {
+        // Fall back to the buffered POST ONLY when the stream never got far
+        // enough to start the real pipeline (route missing, proxy down, auth).
+        // If the pipeline already ran, retrying could double-execute/double-charge.
+        if (err instanceof CommandStreamError && !err.pipelineStarted) {
+          const response = await fetch("/api/commands", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ command, context }),
+          });
+          const payload = await response.json();
+          data = payload?.data ?? payload;
+        } else {
+          throw err;
+        }
+      }
       const newResult = data?.data ?? data;
       setResult(newResult);
       if (newResult && newResult.status !== "error") {
@@ -129,6 +159,12 @@ export function CommandBar({ context }: { context?: CommandContext }) {
   return (
     <div className="w-full">
       <CommandInput isProcessing={isProcessing} onSubmit={handleSubmit} onSuggestionClick={(cmd) => handleSubmit(cmd)} />
+
+      {isProcessing && stages.length > 0 && (
+        <div className="mt-3 rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
+          <ExecutiveAgentProgress stages={stages} />
+        </div>
+      )}
 
       {result && (
         <CommandResultDisplay

@@ -206,7 +206,9 @@ export interface RouterResult {
  * Known models with their capabilities.
  * This registry is used for capability-aware routing.
  */
-const MODEL_REGISTRY: ModelDefinition[] = [
+// Exported for the model-intelligence layer (tier classification must be
+// derived from the real registry — never fabricated availability).
+export const MODEL_REGISTRY: ModelDefinition[] = [
   // NVIDIA models
   {
     id: 'nvidia/nemotron-3-super-120b-a12b',

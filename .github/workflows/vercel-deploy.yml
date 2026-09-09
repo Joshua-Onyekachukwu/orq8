@@ -24,7 +24,12 @@ jobs:
       - name: Trigger production deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          # Must be the project that OWNS the production domain (orq8.vercel.app).
+          # A previous id (orq8-web) deployed a parallel project that serves no
+          # domain — production silently froze at an old commit while this
+          # workflow stayed green. Project ids are not secrets (they are in the
+          # tracked apps/web/.vercel/project.json), so it is pinned here.
+          PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
           SHA: ${{ github.sha }}
         run: |
           set -u
@@ -33,7 +38,7 @@ jobs:
             exit 1
           fi
           if [ -z "$PROJECT_ID" ]; then
-            echo "::error::VERCEL_WEB_PROJECT_ID secret not set"
+            echo "::error::PROJECT_ID not set"
             exit 1
           fi
           RESP=$(curl -s -w "\n%{http_code}" -X POST \
@@ -48,11 +53,35 @@ jobs:
           echo
           if [ "$CODE" = "200" ]; then
             echo "Deployment created."
-            exit 0
+          else
+            if echo "$BODY" | grep -q "api-deployments-free-per-day"; then
+              echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
+              exit 0
+            fi
+            echo "::error::Deployment failed with HTTP $CODE"
+            exit 1
           fi
-          if echo "$BODY" | grep -q "api-deployments-free-per-day"; then
-            echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
-            exit 0
+
+      - name: Production smoke check (guards against silent staleness)
+        run: |
+          set -u
+          # The deployment is created async; poll until the live site reflects
+          # this commit. A marker string from current main + a public/ asset
+          # (this class of files was silently 404-ing on the stale deploy).
+          MARKER="Golden Workflow"
+          ASSET="/images/hero-bg.png"
+          ok=0
+          for i in $(seq 1 20); do
+            sleep 30
+            if curl -sf "https://orq8.vercel.app/" | grep -q "$MARKER" \
+              && [ "$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app$ASSET")" = "200" ]; then
+              echo "Production is current (marker + $ASSET verified)."
+              ok=1
+              break
+            fi
+            echo "attempt $i: production not yet current..."
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Production did not reflect the deployed commit within 10 minutes — deployment created but site is stale. Check the Vercel project build logs."
+            exit 1
           fi
-          echo "::error::Deployment failed with HTTP $CODE"
-          exit 1
