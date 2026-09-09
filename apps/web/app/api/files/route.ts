@@ -9,3 +9,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   return proxyApiJson(request, "/v1/files", { method: "POST", body });
 }
+
+export async function DELETE(request: NextRequest) {
+  return proxyApiJson(request, "/v1/files", { method: "DELETE" });
+}

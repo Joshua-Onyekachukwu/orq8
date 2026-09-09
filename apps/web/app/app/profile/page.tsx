@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   CreditCard,
   Save,
   Loader2,
+  Upload,
   X,
   Shield,
   Clock,
@@ -62,6 +63,143 @@ interface MeData {
 
 interface CreditBalance {
   balance: { total: number; used: number; remaining: number };
+}
+
+/**
+ * AvatarControl — the profile avatar with upload/replace/remove.
+ * Client-side pre-validation (type + size) gives instant feedback; the
+ * server re-validates everything (MIME, magic bytes, size) authoritatively.
+ */
+function AvatarControl({
+  avatarUrl,
+  fallbackInitial,
+  onUploaded,
+  onRemoved,
+}: {
+  avatarUrl: string | null;
+  fallbackInitial: string;
+  onUploaded: (url: string) => void;
+  onRemoved: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+
+  async function handleFile(file: File) {
+    setError(null);
+    if (!ACCEPTED.includes(file.type)) {
+      setError("Use a PNG, JPEG or WebP image.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Images must be 2 MB or smaller.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result ?? "");
+          resolve(result.slice(result.indexOf(",") + 1));
+        };
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch("/api/avatars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mimeType: file.type, body: base64 }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.data?.avatarUrl) {
+        onUploaded(json.data.avatarUrl);
+      } else {
+        setError(json?.error?.message ?? "Upload failed. Try again.");
+      }
+    } catch {
+      setError("Upload failed. Check your connection and try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemove() {
+    setError(null);
+    setUploading(true);
+    try {
+      const res = await fetch("/api/avatars", { method: "DELETE" });
+      if (res.ok) {
+        onRemoved();
+      } else {
+        const json = await res.json().catch(() => null);
+        setError(json?.error?.message ?? "Could not remove the avatar.");
+      }
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="group relative">
+        <span className="-mt-10 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-orq8-dark text-2xl font-bold text-orq8-green shadow-lg sm:-mt-12 sm:h-24 sm:w-24 sm:text-3xl">
+          {uploading ? (
+            <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+          ) : avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          ) : (
+            fallbackInitial
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          aria-label={avatarUrl ? "Change profile photo" : "Upload profile photo"}
+          title={avatarUrl ? "Change photo" : "Upload photo"}
+          className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-orq8-green text-white shadow transition-colors hover:bg-orq8-green-dark disabled:opacity-60"
+        >
+          <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          aria-hidden="true"
+          tabIndex={-1}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleFile(file);
+          }}
+        />
+      </div>
+      {avatarUrl && !uploading && (
+        <button
+          type="button"
+          onClick={handleRemove}
+          className="text-3xs font-medium text-muted transition-colors hover:text-red-500"
+        >
+          Remove photo
+        </button>
+      )}
+      {error && (
+        <p className="max-w-40 text-center text-3xs text-red-500" role="alert">{error}</p>
+      )}
+    </div>
+  );
 }
 
 export default function ProfilePage() {
@@ -156,19 +294,12 @@ export default function ProfilePage() {
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             {/* Identity — avatar overlaps the cover by exactly half its height */}
             <div className="flex min-w-0 items-end gap-4">
-              <span className="-mt-10 flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-orq8-dark text-2xl font-bold text-orq8-green shadow-lg sm:-mt-12 sm:h-24 sm:w-24 sm:text-3xl">
-                {user?.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.avatarUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                ) : (
-                  (user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()
-                )}
-              </span>
+              <AvatarControl
+                avatarUrl={user?.avatarUrl ?? null}
+                fallbackInitial={(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
+                onUploaded={(newUrl) => setMe((prev) => prev ? { ...prev, user: { ...prev.user, avatarUrl: newUrl } } : prev)}
+                onRemoved={() => setMe((prev) => prev ? { ...prev, user: { ...prev.user, avatarUrl: null } } : prev)}
+              />
               <div className="min-w-0 pb-1">
                 {editing ? (
                   <div className="flex items-center gap-2">
