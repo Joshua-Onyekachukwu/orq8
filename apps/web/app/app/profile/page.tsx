@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { downscaleImage } from "../../../lib/image-downscale";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   CheckCircle2,
@@ -93,12 +94,28 @@ function AvatarControl({
       setError("Use a PNG, JPEG or WebP image.");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Images must be 2 MB or smaller.");
-      return;
-    }
     setUploading(true);
     try {
+      // Downscale in the browser (512px long edge) before upload. Runs for
+      // every image: small ones pass through untouched (no re-encode),
+      // while large photos — including >2 MB ones the API would reject —
+      // are resized to a fraction of the cap. Any failure falls back to
+      // the original file; downscaling must never break a workable upload.
+      let uploadBlob: Blob = file;
+      let uploadMime = file.type;
+      try {
+        const scaled = await downscaleImage(file);
+        if (scaled.blob.size <= 2 * 1024 * 1024) {
+          uploadBlob = scaled.blob;
+          uploadMime = scaled.mimeType;
+        }
+      } catch {
+        // keep the original file
+      }
+      if (uploadBlob.size > 2 * 1024 * 1024) {
+        setError("That image is too large even after resizing. Try a smaller one.");
+        return;
+      }
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -106,12 +123,12 @@ function AvatarControl({
           resolve(result.slice(result.indexOf(",") + 1));
         };
         reader.onerror = () => reject(new Error("read failed"));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(uploadBlob);
       });
       const res = await fetch("/api/avatars", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mimeType: file.type, body: base64 }),
+        body: JSON.stringify({ mimeType: uploadMime, body: base64 }),
       });
       const json = await res.json().catch(() => null);
       if (res.ok && json?.data?.avatarUrl) {
