@@ -661,3 +661,55 @@ standalone org-graph UI (the graph is queryable via EA tools and existing pages)
 workforce-forecasting numbers (no real capacity data yet — nothing fabricated).
 
 
+---
+
+## 15. Session record — 2026-09-09/10 (organizational intelligence loops: model
+### performance memory, outcome feedback, Decision Council UX, plan_engineering proof)
+
+Closes the four tracked gaps from §13's "Remaining" list. All built on the existing
+architecture (llm-tracer, deliberation engine, decision memory, jobs workflow) — no
+parallel systems.
+
+1. **Model performance memory (§7/§32)** — migration `0026` adds `llm_performance`
+   (model, phase, task_type, org, tokens, latency, cost, success) with membership-RLS.
+   `llm-tracer.ts` now persists a structured row per recorded call (best-effort —
+   tracing failures never break execution). `model-insights.ts` aggregates per-model
+   stats and produces cost-optimization recommendations **only from measured rows**;
+   below `MIN_CALLS_FOR_RELIABILITY` it returns an explicit `insufficient_data`
+   verdict. Exposed at `GET /v1/model-insights` (+ web proxy). The router-learning
+   consumer now has real data to learn from.
+2. **Decision outcome feedback loop (§20)** — `decision-feedback.ts`: a daily job
+   (cron-wired in `orq8-jobs.yml`, `INTERNAL_TOKEN`-gated `POST /v1/internal/events/
+   decision-feedback`) files every decided deliberation with **real evidence** — goal
+   progress %, task completion counts at filing time — into `expected_outcome`,
+   computes a verdict, and updates Decision Memory. Next session: compare expected vs
+   actual to score prediction accuracy.
+3. **Decision Council UX (§47)** — migration `0027` persists the full deliberation
+   session (participants, models, all rounds, disagreements, risks, unknowns,
+   consensus state) to `decisions.council_detail`. `GET /v1/deliberations/:id`
+   (+ web proxies) serves it. New `/app/council` page renders the founder-readable
+   explanation: question, who analyzed it, which models, key evidence, disagreements,
+   risks, unknowns, confidence, recommendation, outcome status — raw rounds collapsed
+   by default, expandable on demand. Sidebar: "Decision Council".
+4. **plan_engineering end-to-end proof (§35/§36)** — `plan-engineering.e2e.test.ts`
+   runs the **live EA pipeline** (`POST /v1/commands` with natural language "Build me
+   an app for managing customer leads") against a real seeded org: asserts the
+   Engineering Manager executed, real engineering tasks exist in the DB with
+   assignments/audit, state persists on re-query, and re-running with identical input
+   does not duplicate work (idempotency). Writing it exposed and fixed a **real
+   product bug**: the rule-based intent fallback had no engineering-intent pattern
+   (engineering delegation only worked with a live LLM), and the pipeline's
+   "No tasks decomposed" gate aborted tool-detected intents before their tool ran —
+   a detected organizational tool **is** the complete intent. Both fixed in
+   `executive-agent.ts` with a regression test.
+
+**Tests**: `intelligence-loops.integration.test.ts` (8 tests, DB-gated): insights
+honesty below threshold, aggregation from seeded real calls, threshold-gated
+recommendations, feedback filing (goal progress %, task completion evidence, verdict,
+decision-memory update), job idempotency. **Full matrix: API 594 passed / 0 failed
+(68 files, 43 skipped DB-gated-but-running); web 61/61; both typechecks clean; API
+bundle + Next production builds clean.**
+
+**Remaining**: the Vercel dashboard action (§13 diagnosis, pending table in README);
+router-learning consumer for `llm_performance` (data now flowing); expected-vs-actual
+comparison job for filed decisions (§20 phase 2); connector/provider live creds.

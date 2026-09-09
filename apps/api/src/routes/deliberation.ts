@@ -10,7 +10,7 @@
  *   (decision-maker type `ai_council`), newest first.
  */
 
-import { eq, desc } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { decisions } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -80,6 +80,40 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
         decidedAt: d.decidedAt,
         createdAt: d.createdAt,
       })),
+    };
+  });
+
+  /** Full council session detail (§47) — participants, rounds, disagreements,
+   * confidence, budget. Org-scoped; council decisions only. */
+  app.get('/v1/deliberations/:id', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params as { id: string };
+    const [row] = await db
+      .select()
+      .from(decisions)
+      .where(and(eq(decisions.id, id), eq(decisions.orgId, ctx.orgId)))
+      .limit(1);
+    if (!row || row.decisionMakerType !== 'ai_council') {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Council session not found' } };
+    }
+    return {
+      data: {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        confidence: row.confidence,
+        whatWasDecided: row.whatWasDecided,
+        rationale: row.rationale,
+        evidence: row.evidence,
+        assumptions: row.assumptions,
+        expectedOutcome: row.expectedOutcome,
+        actualOutcome: row.actualOutcome,
+        lessonsLearned: row.lessonsLearned,
+        decidedAt: row.decidedAt,
+        createdAt: row.createdAt,
+        councilDetail: row.councilDetail ?? null,
+      },
     };
   });
 }

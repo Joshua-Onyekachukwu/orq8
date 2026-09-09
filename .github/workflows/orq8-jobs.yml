@@ -12,6 +12,8 @@ on:
     - cron: '10 7 * * 1'
     # Monthly executive briefing — 1st of month 07:15 UTC.
     - cron: '15 7 1 * *'
+    # Decision outcome feedback loop — Mondays 07:20 UTC (after the weekly briefing).
+    - cron: '20 7 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -105,6 +107,23 @@ jobs:
             "$API_URL/v1/internal/briefings/weekly")
           echo "weekly HTTP $status"
           cat /tmp/weekly.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
+  decision-outcome-review:
+    name: Decision outcome feedback loop (§20)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call decision outcome-review endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/outcome.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/decisions/outcome-review")
+          echo "outcome-review HTTP $status"
+          cat /tmp/outcome.json; echo
           if [ "$status" != "200" ]; then exit 1; fi
 
   monthly-briefing:

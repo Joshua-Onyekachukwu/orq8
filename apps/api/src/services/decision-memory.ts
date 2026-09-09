@@ -51,6 +51,9 @@ export async function createDecision(
     evidence?: Array<{ source: string; type: string; summary: string }>;
     assumptions?: string[];
     expectedOutcome?: string;
+    /** Full Decision Council session (§11/§47) — participants, rounds,
+     * disagreements, budget. Null/undefined for non-council decisions. */
+    councilDetail?: Record<string, unknown> | null;
     reversalConditions?: string[];
     strategyId?: string;
     objectiveId?: string;
@@ -73,6 +76,7 @@ export async function createDecision(
     evidence: data.evidence ?? [],
     assumptions: data.assumptions ?? [],
     expectedOutcome: data.expectedOutcome ?? null,
+    councilDetail: (data.councilDetail ?? null) as never,
     reversalConditions: data.reversalConditions ?? [],
     strategyId: data.strategyId ?? null,
     objectiveId: data.objectiveId ?? null,

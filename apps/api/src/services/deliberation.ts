@@ -412,6 +412,24 @@ export async function runDeliberation(
           .flatMap((a) => a.claims.filter((c) => c.kind === 'assumption').map((c) => c.text))
           .slice(0, 10),
         expectedOutcome: result.synthesis.recommendation.slice(0, 500),
+        councilDetail: {
+          question: input.question,
+          context: input.context,
+          objective: input.context ?? null,
+          participants: result.participants,
+          rounds: result.rounds,
+          disagreements: result.synthesis.disagreements,
+          risks: result.synthesis.risks,
+          unknowns: result.synthesis.unknowns,
+          alternatives: result.synthesis.alternatives,
+          consensusReached: result.synthesis.consensusReached,
+          confidence: result.synthesis.confidence,
+          requiresFounderApproval: result.requiresFounderApproval,
+          budgetUsd: result.budgetUsd,
+          totalTokensUsed: result.totalTokensUsed,
+          stoppedReason: result.stoppedReason,
+          recordedAt: new Date().toISOString(),
+        },
       });
       result.decisionId = decision.id;
     } catch {

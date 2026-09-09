@@ -35,6 +35,7 @@ import {
 import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-memory.js';
 import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
+import { runOutcomeFeedbackLoop } from '../services/decision-feedback.js';
 import { latestJobRuns, trackJobRun } from '../services/job-runs.js';
 import { runOpsCheck } from '../services/ops-check.js';
 import type { AppDeps } from '../types.js';
@@ -452,6 +453,22 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       }),
     });
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
+  });
+
+  /** Decision outcome feedback loop (§20) — reviews decisions whose expected
+   * outcome can now be compared against measured reality (cron: weekly, after
+   * the Monday briefing). */
+  app.post('/v1/internal/decisions/outcome-review', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const result = await trackJobRun(db, 'decision_outcome_review', () => runOutcomeFeedbackLoop(db), {
+      summarize: (r) => ({
+        detail: { ...r },
+      }),
+    });
+    return { data: result };
   });
 
   /** Generate + deliver monthly briefings (cron: 1st of month 07:15 UTC). */

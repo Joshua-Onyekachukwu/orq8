@@ -493,6 +493,35 @@ export const activityEvents = pgTable(
   ],
 );
 
+// Model performance memory (§7) — one row per completed LLM call, consumed
+// by model-insights to ground routing recommendations in measured data.
+export const llmPerformance = pgTable(
+  'llm_performance',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    phase: text('phase').notNull(),
+    model: text('model').notNull(),
+    provider: text('provider').notNull(),
+    agentId: uuid('agent_id'),
+    taskId: uuid('task_id'),
+    success: boolean('success').notNull(),
+    error: text('error'),
+    durationMs: integer('duration_ms'),
+    promptTokens: integer('prompt_tokens').notNull().default(0),
+    completionTokens: integer('completion_tokens').notNull().default(0),
+    totalTokens: integer('total_tokens').notNull().default(0),
+    retryAttempt: integer('retry_attempt').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('llm_performance_org_model_idx').on(t.orgId, t.model, t.createdAt),
+    index('llm_performance_org_created_idx').on(t.orgId, t.createdAt),
+  ],
+);
+
 // Drip outbox for waitlist emails (docs/00 GTM, marketing/design_partner_application.md §4).
 // DB-as-queue: rows carry scheduled_at + status; a process-due pass (API endpoint or
 // local timer) sends due rows. No external queue dependency — works on serverless too.
@@ -1733,6 +1762,11 @@ export const decisions = pgTable(
     outcomeFiledAt: timestamp('outcome_filed_at', { withTimezone: true }),
     reversalConditions: jsonb('reversal_conditions').notNull().default([]),
     lessonsLearned: text('lessons_learned'),
+    // Full Decision Council session (§11/§47, migration 0027): participants,
+    // rounds with verbatim analyses + claim labels, disagreements, risks,
+    // unknowns, alternatives, budget and stop reason. Null for non-council
+    // decisions.
+    councilDetail: jsonb('council_detail'),
     strategyId: uuid('strategy_id').references(() => strategies.id, { onDelete: 'set null' }),
     objectiveId: uuid('objective_id').references(() => objectives.id, { onDelete: 'set null' }),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),

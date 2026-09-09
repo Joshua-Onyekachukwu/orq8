@@ -410,7 +410,13 @@ function validateContext(ctx: ExecutiveContext): string | null {
 function validateIntent(intent: IntentAnalysis): string | null {
   if (!intent.intent) return 'Missing intent description';
   if (!intent.category || intent.category === 'unknown') return 'Could not determine command category';
-  if (!intent.taskDecomposition || intent.taskDecomposition.length === 0) return 'No tasks decomposed from command';
+  // A detected organizational tool IS the complete intent — the action happens
+  // in tool execution, so no task decomposition is required for it. (Engineering
+  // delegation, rename, create-department etc. all route through here.)
+  const hasToolAction = Array.isArray(intent.toolCalls) && intent.toolCalls.length > 0;
+  if (!hasToolAction && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
+    return 'No tasks decomposed from command';
+  }
   if (intent.estimatedCost < 0) return 'Invalid cost estimate';
 
   // Validate each task
@@ -885,7 +891,20 @@ function detectToolCalls(
     }
   }
 
-  // ── Create agent ───────────────────────────────────────────────────────
+  // ── Engineering delegation (plan_engineering) ────────────────────────
+  // "Build me an app for X" / "Create a feature that Y" — software-building
+  // intents delegate to the Engineering Manager. Must run BEFORE the generic
+  // create-agent pattern, which would otherwise misread "create an app…" as
+  // hiring a person named "App". Gated on software nouns so ordinary
+  // create-department/team/goal commands are never captured.
+  const engIntent = lower.match(
+    /\b(?:build|create|develop|make|ship)\b[^.?!]*\b(app|application|software|feature|platform|website|dashboard|saas|api|integration|mobile app|web app|tech stack|system)\b/,
+  );
+  if (engIntent && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/) && !lower.match(/\bagent\b/) && !lower.match(/\bgoal\b/)) {
+    return [{ tool: 'plan_engineering', params: { objective: command.trim().slice(0, 1000) } }];
+  }
+
+  // ── Create agent ───────────────────────────────────────────────────
   // "Hire an SEO agent" / "Create a content writer" / "Add a sales agent"
   const agentCreateMatch = lower.match(/\b(?:hire|create|add|recruit|onboard)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:agent|employee|member|specialist)?$/i)
     ?? lower.match(/\b(?:hire|create|add)\b.*\bagent\b\s*(?:called|named|for)?\s*\b(.+?)$/i);

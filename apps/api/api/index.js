@@ -28145,6 +28145,7 @@ __export(schema_exports, {
   keyResults: () => keyResults,
   knowledgeEntities: () => knowledgeEntities,
   knowledgeRelations: () => knowledgeRelations,
+  llmPerformance: () => llmPerformance,
   loginLockouts: () => loginLockouts,
   mcpServers: () => mcpServers,
   mcpTools: () => mcpTools,
@@ -28178,7 +28179,7 @@ __export(schema_exports, {
   waitlistSignups: () => waitlistSignups,
   webhookEvents: () => webhookEvents
 });
-var users, organizations, memberships, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, goals, tasks, approvals, activityEvents, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
+var users, organizations, memberships, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, goals, tasks, approvals, activityEvents, llmPerformance, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
 var init_schema2 = __esm({
   "../../packages/db/src/schema.ts"() {
     "use strict";
@@ -28641,6 +28642,30 @@ var init_schema2 = __esm({
       (t) => [
         index("activity_events_org_idx").on(t.orgId, t.occurredAt),
         index("activity_events_agent_idx").on(t.agentId)
+      ]
+    );
+    llmPerformance = pgTable(
+      "llm_performance",
+      {
+        id: uuid3("id").primaryKey().defaultRandom(),
+        orgId: uuid3("org_id").notNull().references(() => organizations.id),
+        phase: text("phase").notNull(),
+        model: text("model").notNull(),
+        provider: text("provider").notNull(),
+        agentId: uuid3("agent_id"),
+        taskId: uuid3("task_id"),
+        success: boolean4("success").notNull(),
+        error: text("error"),
+        durationMs: integer2("duration_ms"),
+        promptTokens: integer2("prompt_tokens").notNull().default(0),
+        completionTokens: integer2("completion_tokens").notNull().default(0),
+        totalTokens: integer2("total_tokens").notNull().default(0),
+        retryAttempt: integer2("retry_attempt").notNull().default(0),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+      },
+      (t) => [
+        index("llm_performance_org_model_idx").on(t.orgId, t.model, t.createdAt),
+        index("llm_performance_org_created_idx").on(t.orgId, t.createdAt)
       ]
     );
     waitlistEmails = pgTable(
@@ -29646,6 +29671,11 @@ var init_schema2 = __esm({
         outcomeFiledAt: timestamp("outcome_filed_at", { withTimezone: true }),
         reversalConditions: jsonb("reversal_conditions").notNull().default([]),
         lessonsLearned: text("lessons_learned"),
+        // Full Decision Council session (§11/§47, migration 0027): participants,
+        // rounds with verbatim analyses + claim labels, disagreements, risks,
+        // unknowns, alternatives, budget and stop reason. Null for non-council
+        // decisions.
+        councilDetail: jsonb("council_detail"),
         strategyId: uuid3("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
         objectiveId: uuid3("objective_id").references(() => objectives.id, { onDelete: "set null" }),
         taskId: uuid3("task_id").references(() => tasks.id, { onDelete: "set null" }),
@@ -35366,6 +35396,7 @@ __export(src_exports, {
   keyResults: () => keyResults,
   knowledgeEntities: () => knowledgeEntities,
   knowledgeRelations: () => knowledgeRelations,
+  llmPerformance: () => llmPerformance,
   loginLockouts: () => loginLockouts,
   mcpServers: () => mcpServers,
   mcpTools: () => mcpTools,
@@ -96558,6 +96589,24 @@ async function persistTrace(db, trace) {
     });
   } catch {
   }
+  try {
+    await db.insert(llmPerformance).values({
+      orgId: trace.orgId,
+      phase: trace.phase,
+      model: trace.model,
+      provider: trace.provider,
+      agentId: trace.agentId ?? null,
+      taskId: trace.taskId ?? null,
+      success: trace.success,
+      error: trace.error ?? null,
+      durationMs: trace.durationMs ?? null,
+      promptTokens: trace.promptTokens,
+      completionTokens: trace.completionTokens,
+      totalTokens: trace.totalTokens,
+      retryAttempt: trace.retryAttempt
+    });
+  } catch {
+  }
 }
 function getTraceById(traceId2) {
   return recentTraces.find((t) => t.id === traceId2);
@@ -100868,6 +100917,7 @@ async function createDecision(db, orgId, userId, data) {
     evidence: data.evidence ?? [],
     assumptions: data.assumptions ?? [],
     expectedOutcome: data.expectedOutcome ?? null,
+    councilDetail: data.councilDetail ?? null,
     reversalConditions: data.reversalConditions ?? [],
     strategyId: data.strategyId ?? null,
     objectiveId: data.objectiveId ?? null,
@@ -102963,7 +103013,25 @@ ${finalPositions.join("\n\n").slice(0, 9e3)}`,
         alternatives: result.synthesis.alternatives,
         evidence: result.rounds.flatMap((r) => r.analyses).flatMap((a) => a.claims.filter((c) => c.kind === "evidence").map((c) => ({ source: a.participant, type: "council_analysis", summary: c.text }))).slice(0, 12),
         assumptions: result.rounds.flatMap((r) => r.analyses).flatMap((a) => a.claims.filter((c) => c.kind === "assumption").map((c) => c.text)).slice(0, 10),
-        expectedOutcome: result.synthesis.recommendation.slice(0, 500)
+        expectedOutcome: result.synthesis.recommendation.slice(0, 500),
+        councilDetail: {
+          question: input.question,
+          context: input.context,
+          objective: input.context ?? null,
+          participants: result.participants,
+          rounds: result.rounds,
+          disagreements: result.synthesis.disagreements,
+          risks: result.synthesis.risks,
+          unknowns: result.synthesis.unknowns,
+          alternatives: result.synthesis.alternatives,
+          consensusReached: result.synthesis.consensusReached,
+          confidence: result.synthesis.confidence,
+          requiresFounderApproval: result.requiresFounderApproval,
+          budgetUsd: result.budgetUsd,
+          totalTokensUsed: result.totalTokensUsed,
+          stoppedReason: result.stoppedReason,
+          recordedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
       });
       result.decisionId = decision.id;
     } catch {
@@ -107929,7 +107997,10 @@ function validateContext(ctx) {
 function validateIntent(intent) {
   if (!intent.intent) return "Missing intent description";
   if (!intent.category || intent.category === "unknown") return "Could not determine command category";
-  if (!intent.taskDecomposition || intent.taskDecomposition.length === 0) return "No tasks decomposed from command";
+  const hasToolAction = Array.isArray(intent.toolCalls) && intent.toolCalls.length > 0;
+  if (!hasToolAction && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
+    return "No tasks decomposed from command";
+  }
   if (intent.estimatedCost < 0) return "Invalid cost estimate";
   for (const task of intent.taskDecomposition) {
     if (!task.title) return "Task missing title";
@@ -108234,6 +108305,12 @@ function detectToolCalls(command, ctx) {
       const name2 = teamName.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
       return [{ tool: "create_team", params: { name: name2 } }];
     }
+  }
+  const engIntent = lower.match(
+    /\b(?:build|create|develop|make|ship)\b[^.?!]*\b(app|application|software|feature|platform|website|dashboard|saas|api|integration|mobile app|web app|tech stack|system)\b/
+  );
+  if (engIntent && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/) && !lower.match(/\bagent\b/) && !lower.match(/\bgoal\b/)) {
+    return [{ tool: "plan_engineering", params: { objective: command.trim().slice(0, 1e3) } }];
   }
   const agentCreateMatch = lower.match(/\b(?:hire|create|add|recruit|onboard)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:agent|employee|member|specialist)?$/i) ?? lower.match(/\b(?:hire|create|add)\b.*\bagent\b\s*(?:called|named|for)?\s*\b(.+?)$/i);
   if (agentCreateMatch && agentCreateMatch[1] && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/)) {
@@ -117733,6 +117810,155 @@ async function runDailyBriefings(db, config2, logger, now = /* @__PURE__ */ new 
   return runBriefings(db, config2, logger, "daily", now);
 }
 
+// src/services/decision-feedback.ts
+init_drizzle_orm();
+init_src2();
+init_audit();
+init_notifications();
+var OUTCOME_REVIEW_DAYS = 14;
+var BATCH_LIMIT = 20;
+async function reviewDecisionOutcome(db, orgId, decision) {
+  const anchor = decision.decidedAt ?? decision.createdAt;
+  const since = new Date(anchor.getTime());
+  const now = /* @__PURE__ */ new Date();
+  const [taskStats] = await db.select({
+    created: sql`count(*)::int`,
+    completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
+    failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`,
+    open: sql`count(*) filter (where ${tasks.status} not in ('completed','failed','archived'))::int`
+  }).from(tasks).where(and(eq(tasks.orgId, orgId), gte(tasks.createdAt, since)));
+  const [goalStats] = await db.select({
+    active: sql`count(*) filter (where ${goals.status} = 'active')::int`,
+    completed: sql`count(*) filter (where ${goals.status} = 'completed')::int`
+  }).from(goals).where(and(eq(goals.orgId, orgId), gte(goals.createdAt, since)));
+  const completed = taskStats?.completed ?? 0;
+  const failed = taskStats?.failed ?? 0;
+  const open = taskStats?.open ?? 0;
+  const goalsCompleted = goalStats?.completed ?? 0;
+  const supportingEvidence = [];
+  const contradictingEvidence = [];
+  if (completed > 0) {
+    supportingEvidence.push(`${completed} task(s) completed since the decision`);
+  }
+  if (failed > 0) {
+    contradictingEvidence.push(`${failed} task(s) failed since the decision`);
+  }
+  if (goalsCompleted > 0) {
+    supportingEvidence.push(`${goalsCompleted} goal(s) completed since the decision`);
+  }
+  if (completed === 0 && failed === 0 && goalsCompleted === 0) {
+    return {
+      decisionId: decision.id,
+      title: decision.title,
+      decisionType: decision.decisionType ?? "general",
+      decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
+      expectedOutcome: decision.expectedOutcome,
+      actualOutcomeSummary: "Insufficient data: no completed, failed, or goal work has been recorded since this decision. Re-review after execution activity accumulates.",
+      predictionAccuracy: "insufficient_data",
+      supportingEvidence: [],
+      contradictingEvidence: [],
+      lessons: "No measurable outcome yet \u2014 outcome review will be attempted again on the next scheduled run."
+    };
+  }
+  let predictionAccuracy;
+  if (failed > completed) {
+    predictionAccuracy = "inaccurate";
+  } else if (failed > 0) {
+    predictionAccuracy = "partially_accurate";
+  } else {
+    predictionAccuracy = "accurate";
+  }
+  const actualOutcomeSummary = [
+    `${completed} completed / ${failed} failed / ${open} still open task(s) since the decision`,
+    goalsCompleted > 0 ? `${goalsCompleted} goal(s) completed` : null
+  ].filter(Boolean).join("; ");
+  const lessons = [
+    predictionAccuracy === "accurate" ? "Measured execution supported the decision's expectation." : predictionAccuracy === "inaccurate" ? "Measured execution contradicted the decision's expectation \u2014 revisit the assumptions behind it." : "Execution was mixed \u2014 evidence both supported and contradicted the expectation.",
+    `Basis: task/goal outcome counts since ${since.toISOString().slice(0, 10)} (the only measurable proxies currently recorded).`
+  ].join(" ");
+  return {
+    decisionId: decision.id,
+    title: decision.title,
+    decisionType: decision.decisionType ?? "general",
+    decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
+    expectedOutcome: decision.expectedOutcome,
+    actualOutcomeSummary,
+    predictionAccuracy,
+    supportingEvidence,
+    contradictingEvidence,
+    lessons
+  };
+}
+async function findDecisionsDueForReview(db, limit = BATCH_LIMIT) {
+  const cutoff = new Date(Date.now() - OUTCOME_REVIEW_DAYS * 24 * 60 * 60 * 1e3);
+  return db.select({
+    id: decisions.id,
+    orgId: decisions.orgId,
+    title: decisions.title,
+    decisionType: decisions.decisionType,
+    decidedAt: decisions.decidedAt,
+    createdAt: decisions.createdAt,
+    expectedOutcome: decisions.expectedOutcome,
+    actualOutcome: decisions.actualOutcome,
+    status: decisions.status
+  }).from(decisions).where(
+    and(
+      sql`${decisions.outcomeFiledAt} is null`,
+      lt(decisions.createdAt, cutoff),
+      // Live decisions only — archived/reversed rows are historical record.
+      or(eq(decisions.status, "active"), eq(decisions.status, "validated"))
+    )
+  ).limit(limit);
+}
+async function runOutcomeFeedbackLoop(db) {
+  const due = await findDecisionsDueForReview(db);
+  let filed = 0;
+  let skipped = 0;
+  for (const decision of due) {
+    const review = await reviewDecisionOutcome(db, decision.orgId, decision);
+    if (review.predictionAccuracy === "insufficient_data") {
+      skipped += 1;
+      continue;
+    }
+    await db.update(decisions).set({
+      actualOutcome: review.actualOutcomeSummary,
+      lessonsLearned: review.lessons,
+      outcomeFiledAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(eq(decisions.id, decision.id), eq(decisions.orgId, decision.orgId)));
+    await appendAudit(db, {
+      orgId: decision.orgId,
+      actorType: "system",
+      actorId: null,
+      action: "decision.outcome_reviewed",
+      inputRef: JSON.stringify({ decisionId: decision.id, accuracy: review.predictionAccuracy }),
+      outcome: "success"
+    });
+    try {
+      await db.insert(companyMemory).values({
+        orgId: decision.orgId,
+        category: "lesson",
+        content: `Decision review \u2014 "${decision.title.slice(0, 120)}": ${review.lessons}`,
+        importance: 4,
+        source: "decision_feedback_loop"
+      });
+    } catch {
+    }
+    try {
+      await createNotification(
+        db,
+        decision.orgId,
+        "report",
+        `Outcome review: ${decision.title.slice(0, 80)}`,
+        review.actualOutcomeSummary
+      );
+    } catch {
+    }
+    filed += 1;
+  }
+  return { reviewed: due.length, filed, skippedInsufficientData: skipped };
+}
+
 // src/services/job-runs.ts
 init_drizzle_orm();
 init_src2();
@@ -118255,6 +118481,18 @@ function registerEventRoutes(app, deps) {
       })
     });
     return { data: { generated: results.filter((r) => !r.skipped).length, results } };
+  });
+  app.post("/v1/internal/decisions/outcome-review", async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers["x-internal-token"])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: "unauthorized", message: "Invalid internal token" } };
+    }
+    const result = await trackJobRun(db, "decision_outcome_review", () => runOutcomeFeedbackLoop(db), {
+      summarize: (r) => ({
+        detail: { ...r }
+      })
+    });
+    return { data: result };
   });
   app.post("/v1/internal/briefings/monthly", async (request, reply) => {
     if (!internalTokenGuard(deps, request.headers["x-internal-token"])) {

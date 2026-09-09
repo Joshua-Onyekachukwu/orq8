@@ -20,7 +20,8 @@ export type JobKey =
   | 'anomaly_scan'
   | 'briefing_daily'
   | 'briefing_weekly'
-  | 'briefing_monthly';
+  | 'briefing_monthly'
+  | 'decision_outcome_review';
 
 export interface JobRunMeta {
   /** Number of orgs (or events) the pass touched. */

@@ -8,7 +8,7 @@
  * this tracer so we have full visibility into model usage and costs.
  */
 
-import { activityEvents, type Db } from '@orq8/db';
+import { activityEvents, llmPerformance, type Db } from '@orq8/db';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +176,28 @@ export async function persistTrace(
     });
   } catch {
     // Trace persistence should not block the pipeline
+  }
+
+  // Model performance memory (§7): structured, queryable per-call history
+  // feeding model-insights. Best-effort — never blocks the pipeline.
+  try {
+    await db.insert(llmPerformance).values({
+      orgId: trace.orgId,
+      phase: trace.phase,
+      model: trace.model,
+      provider: trace.provider,
+      agentId: trace.agentId ?? null,
+      taskId: trace.taskId ?? null,
+      success: trace.success,
+      error: trace.error ?? null,
+      durationMs: trace.durationMs ?? null,
+      promptTokens: trace.promptTokens,
+      completionTokens: trace.completionTokens,
+      totalTokens: trace.totalTokens,
+      retryAttempt: trace.retryAttempt,
+    });
+  } catch {
+    // Table may not exist on stale databases; insights degrade gracefully.
   }
 }
 
