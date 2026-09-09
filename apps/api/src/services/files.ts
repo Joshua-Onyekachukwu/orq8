@@ -27,11 +27,13 @@ export interface StorageBackend {
   upload(key: string, body: Buffer, mimeType: string): Promise<string>;
   getSignedUrl(key: string, expiresIn?: number): Promise<string>;
   delete(key: string): Promise<void>;
+  /** Fetch the object's bytes. Used to stream content that has no servable URL. */
+  read(key: string): Promise<Buffer>;
 }
 
 // ─── Local Filesystem Backend ───────────────────────────────────────────────
 
-import { writeFile, unlink, mkdir } from 'node:fs/promises';
+import { writeFile, readFile, unlink, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -67,6 +69,12 @@ class LocalStorageBackend implements StorageBackend {
     } catch {
       // File may not exist — ignore
     }
+  }
+
+  async read(key: string): Promise<Buffer> {
+    // key comes from the DB record (built by upload as `${orgId}/${uuid}.${ext}`),
+    // never from client input — join stays inside baseDir.
+    return readFile(join(this.baseDir, key));
   }
 }
 
@@ -135,6 +143,13 @@ class S3StorageBackend implements StorageBackend {
       Bucket: this.bucket,
       Key: key,
     }));
+  }
+
+  async read(key: string): Promise<Buffer> {
+    const { client, GetObjectCommand } = await this.getS3Client();
+    const res = await client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const bytes = await res.Body.transformToByteArray();
+    return Buffer.from(bytes);
   }
 }
 
@@ -208,6 +223,35 @@ export async function uploadFile(
     mimeType: opts.mimeType,
     size: opts.body.length,
   };
+}
+
+/**
+ * Fetch a file's bytes for direct streaming (local backend has no servable
+ * URL — `file://` paths must never reach a browser). Returns null when the
+ * record doesn't exist in this org.
+ */
+export async function readFileBytes(
+  config: AppConfig,
+  db: Db,
+  orgId: string,
+  fileId: string,
+): Promise<{ bytes: Buffer; record: FileRecord } | null> {
+  const [record] = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.id, fileId), eq(files.orgId, orgId)))
+    .limit(1);
+
+  if (!record) return null;
+
+  const backend = getStorageBackend(config);
+  const bytes = await backend.read(record.key);
+  return { bytes, record };
+}
+
+/** True when a storage URL is a local filesystem path (not servable by browsers). */
+export function isLocalFileUrl(url: string): boolean {
+  return typeof url === 'string' && url.startsWith('file://');
 }
 
 /**

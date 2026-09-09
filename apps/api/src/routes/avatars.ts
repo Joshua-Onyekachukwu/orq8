@@ -87,9 +87,12 @@ export function registerAvatarRoutes(app: FastifyInstance, deps: AppDeps): void 
   });
 
   /**
-   * GET /v1/files/:id/file — authenticated redirect to a short-lived signed
-   * storage URL (org-scoped lookup first). Gives avatars a stable,
-   * browser-cacheable URL without exposing long-lived credentials.
+   * GET /v1/files/:id/file — serves avatar bytes. For object storage this
+   * redirects to a short-lived signed URL (org-scoped record lookup),
+   * giving avatars a stable, browser-cacheable URL without exposing
+   * credentials. For the local-filesystem backend there is no servable
+   * URL (`file://` must never reach a browser), so bytes are streamed
+   * directly.
    */
   app.get<{ Params: { id: string } }>('/v1/files/:id/file', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
@@ -97,6 +100,19 @@ export function registerAvatarRoutes(app: FastifyInstance, deps: AppDeps): void 
     if (!result) {
       reply.code(404);
       return { error: { code: 'not_found', message: 'File not found' } };
+    }
+    if (filesService.isLocalFileUrl(result.url)) {
+      const content = await filesService.readFileBytes(config, db, ctx.orgId, request.params.id);
+      if (!content) {
+        reply.code(404);
+        return { error: { code: 'not_found', message: 'File not found' } };
+      }
+      reply
+        .header('Content-Type', content.record.mimeType || 'application/octet-stream')
+        .header('Cache-Control', 'private, max-age=300')
+        .header('Content-Length', String(content.bytes.length))
+        .header('Content-Disposition', `inline; filename="${content.record.name.replace(/["\\\r\n]/g, '')}"`);
+      return reply.send(content.bytes);
     }
     reply.header('Cache-Control', 'private, max-age=300');
     reply.redirect(result.url, 302);
