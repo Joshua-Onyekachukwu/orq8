@@ -86,6 +86,20 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   smoke check (chunk freshness) so staleness can never again pass silently. Remaining
   one-time dashboard action: disconnect the stale git integration on project `orq8`
   (or delete that project) so the two paths cannot fight.
+
+  **Escalated evidence (2026-09-09, later same day):** the deploy workflow now polls the
+  created deployment's `readyState` until READY and then verifies the domain. Live result:
+  the `name:"orq8-web"` deployments build to **READY** but serve no domain (production
+  chunks + `/images/hero-bg.png` unchanged), and direct API deploys targeting project
+  `orq8` by id — with `project`+`repoId`, `project`+`org/repo`(+sha), and
+  `project`+`org/repo`(ref only) — all return **HTTP 400 `bad_request`** while the same
+  token deploys `orq8-web` fine. Conclusion: deploying the domain-owning project is
+  blocked at the Vercel account/token level (likely missing team/project permission or a
+  project-level restriction on `orq8`), not fixable from the repository. **BLOCKED —
+  requires one dashboard action:** (A) connect Git on project `orq8` (Settings → Git →
+  `Joshua-Onyekachukwu/orq8`, branch `main`), or (B) move the `orq8.vercel.app` domain to
+  project `orq8-web` (Settings → Domains). The smoke check stays red — correctly — until
+  one of these lands; the workflow no longer reports success while production is stale.
 - **`INTERNAL_TOKEN` unset in production** — scheduled jobs (briefings 07:00 UTC, anomaly
   scans, consolidation) auto-skip with a warning. Ops action: set the secret in the GitHub
   workflow environment / Railway.
