@@ -606,4 +606,58 @@ performance memory (§7) records via llm-tracer but no router-learning consumer 
 §56 full-company conversation E2E needs a live LLM key in CI. Deploy verification pending
 CI + Vercel build of this push.
 
+---
+
+## 14. Session record — 2026-09-09 (organizational ecosystem: full template catalog,
+### lifecycle integrity, tenant-correct templates)
+
+**Audit-first findings** (per the master-ecosystem prompt's own directive): the
+organizational core was already deep — departments/teams/agents with matrix columns
+(`support_departments`, `lifecycle_state`, `workload_hours`, `utilization_pct` —
+migration 0017), capability registry, coverage/workforce engine, `find_best_agent` +
+`analyze_workforce` EA tools, recommendation services grounded in real utilization,
+company-builder with stage detection (§44), governance via autonomy levels + approval
+gates. Genuine gaps found and fixed:
+
+1. **Full department catalog (P4)** — only 8 of the organizational architecture's
+   departments had templates. Migration `0025_org_template_catalog_expansion.sql` adds
+   15 substantive system templates (Executive/CEO Office, Customer Research/VOC,
+   Legal & Compliance, People/HR, Research & Intelligence, Security & Trust,
+   IT/Internal Tech, Corporate Communications, Revenue & Monetization, Innovation/R&D,
+   Program & Project Management, Company Brain/Knowledge, AI Workforce Management,
+   Quality & Assurance, Strategy & Simulation). Roles in templates are CATALOG GUIDANCE
+   for hiring recommendations — no fake agents are created (§70/§71). Each template
+   carries `org_size` stage guidance per the workforce maturity model (Stage 1→5), and
+   the legal template explicitly preserves the human-counsel boundary ("assists licensed
+   professionals; does not replace them"). Catalog: 23 system departments, all with
+   stage guidance, all JSON columns verified valid. Seed idempotency proven by re-run
+   (`INSERT 0 0`).
+2. **Tenant-correct template uniqueness** — dept/team templates had a GLOBAL unique
+   slug (0017), so no two orgs could create a same-named custom template and an org
+   couldn't customize a system slug (surfaced as a raw 500). 0025 replaces those with
+   the partial-index model agent_templates already uses (0024): system slugs unique
+   among system rows; `(org_id, slug)` unique per org.
+3. **Clean 409 on template slug conflicts (§59)** — all three template-create routes
+   previously threw an unhandled unique-violation 500; now return a structured 409.
+4. **Agent retirement integrity (§48)** — `retired_at` existed in SQL but was never set
+   (and wasn't mapped in the drizzle schema). Now mapped in `packages/db` and stamped by
+   all three archival paths (`agents.updateStatus`, EA `update_agent`, the
+   performance-action REPLACE flow); cleared on restore/reactivation. History is never
+   destroyed.
+
+**Tests**: new `ea-org-lifecycle.integration.test.ts` (13 tests, DB-gated): department
+create→rename→archive→restore with direct DB verification at every step + audit-trail
+counts; agent pause→resume→archive with `retired_at` assertions; archived-agent
+assignment rejection; cross-department reassignment; cross-tenant isolation (org A's
+tool context cannot modify org B's agent); 409 contracts for same-org duplicate
+templates; tenant-correct cross-org slug reuse; catalog integrity (no duplicate system
+slugs, full §9–§32 coverage, stage guidance present, valid JSON columns, legal
+governance text). **Full matrix: API 584 passed / 0 failed (66 files); web 61/61; both
+typechecks clean; API bundle + Next production builds clean.**
+
+**Explicitly not done** (per §70/§71 — architecture over surface): hundreds of hire-
+ready agent role templates (the 18 existing + catalog guidance cover hiring); a
+standalone org-graph UI (the graph is queryable via EA tools and existing pages);
+workforce-forecasting numbers (no real capacity data yet — nothing fabricated).
+
 

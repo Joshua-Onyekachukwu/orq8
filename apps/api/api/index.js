@@ -28519,6 +28519,9 @@ var init_schema2 = __esm({
           forbiddenActions: []
         }),
         lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
+        // Retirement timestamp (migration 0017) — set when the agent is archived
+        // so lifecycle history is preserved (never destroyed on retirement).
+        retiredAt: timestamp("retired_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
       },
@@ -102357,6 +102360,8 @@ async function updateAgent(ctx, params) {
   if (departmentId !== void 0) updates.departmentId = departmentId;
   if (teamId !== void 0) updates.teamId = teamId;
   if (status) updates.status = status;
+  if (status === "archived") updates.retiredAt = /* @__PURE__ */ new Date();
+  if (status === "active" || status === "paused") updates.retiredAt = null;
   if (autonomyLevel) updates.autonomyLevel = autonomyLevel;
   const [updated] = await ctx.db.update(agents).set(updates).where(eq(agents.id, agentId)).returning();
   if (!updated) return { success: false, tool: "update_agent", message: "Failed to update agent.", error: "update_failed" };
@@ -104720,10 +104725,12 @@ function registerAgentRoutes(app, deps) {
     switch (parsed.data.action) {
       case "replace":
         updates.status = "archived";
+        updates.retiredAt = /* @__PURE__ */ new Date();
         break;
       case "confirm_keep":
       case "improve":
         updates.status = "active";
+        updates.retiredAt = null;
         break;
       case "set_autonomy":
         break;
@@ -111860,6 +111867,10 @@ init_auth();
 init_src2();
 init_workforce_engine();
 init_entitlements();
+function isTemplateSlugCollision(err) {
+  const e = err;
+  return e?.code === "23505" || e?.cause?.code === "23505";
+}
 function registerWorkforceRoutes(app, deps) {
   const { db } = deps;
   app.get("/v1/department-templates", async (request) => {
@@ -111885,22 +111896,29 @@ function registerWorkforceRoutes(app, deps) {
       industry: external_exports.string().optional()
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
-    const [created] = await db.insert(departmentTemplates).values({
-      name: body.data.name,
-      slug: body.data.slug,
-      description: body.data.description,
-      mission: body.data.mission,
-      functions: body.data.functions ?? [],
-      roles: body.data.roles ?? [],
-      teams: body.data.teams ?? [],
-      typicalGoals: [],
-      kpis: [],
-      industry: body.data.industry,
-      isSystem: false,
-      createdBy: ctx.userId,
-      orgId: ctx.orgId
-    }).returning();
-    return reply.status(201).send({ data: created });
+    try {
+      const [created] = await db.insert(departmentTemplates).values({
+        name: body.data.name,
+        slug: body.data.slug,
+        description: body.data.description,
+        mission: body.data.mission,
+        functions: body.data.functions ?? [],
+        roles: body.data.roles ?? [],
+        teams: body.data.teams ?? [],
+        typicalGoals: [],
+        kpis: [],
+        industry: body.data.industry,
+        isSystem: false,
+        createdBy: ctx.userId,
+        orgId: ctx.orgId
+      }).returning();
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: "A template with this slug already exists. Choose a different slug." });
+      }
+      throw err;
+    }
   });
   app.get("/v1/team-templates", async (request) => {
     const ctx = await requireAuth(request, deps);
@@ -111924,21 +111942,28 @@ function registerWorkforceRoutes(app, deps) {
       department_slug: external_exports.string().optional()
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
-    const [created] = await db.insert(teamTemplates).values({
-      name: body.data.name,
-      slug: body.data.slug,
-      description: body.data.description,
-      mission: body.data.mission,
-      responsibilities: body.data.responsibilities ?? [],
-      requiredCapabilities: body.data.required_capabilities ?? [],
-      recommendedRoles: [],
-      kpis: [],
-      departmentSlug: body.data.department_slug,
-      isSystem: false,
-      createdBy: ctx.userId,
-      orgId: ctx.orgId
-    }).returning();
-    return reply.status(201).send({ data: created });
+    try {
+      const [created] = await db.insert(teamTemplates).values({
+        name: body.data.name,
+        slug: body.data.slug,
+        description: body.data.description,
+        mission: body.data.mission,
+        responsibilities: body.data.responsibilities ?? [],
+        requiredCapabilities: body.data.required_capabilities ?? [],
+        recommendedRoles: [],
+        kpis: [],
+        departmentSlug: body.data.department_slug,
+        isSystem: false,
+        createdBy: ctx.userId,
+        orgId: ctx.orgId
+      }).returning();
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: "A template with this slug already exists. Choose a different slug." });
+      }
+      throw err;
+    }
   });
   app.get("/v1/agent-templates", async (request) => {
     const ctx = await requireAuth(request, deps);
@@ -111969,22 +111994,29 @@ function registerWorkforceRoutes(app, deps) {
       requiredTools: external_exports.array(external_exports.string()).optional()
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
-    const [created] = await db.insert(agentTemplates).values({
-      name: body.data.name,
-      slug: body.data.slug,
-      category: body.data.category ?? "general",
-      description: body.data.description,
-      role: body.data.role,
-      capabilities: body.data.capabilities ?? [],
-      suggestedAutonomy: body.data.suggestedAutonomy ?? "execute_with_approval",
-      suggestedDepartmentSlug: body.data.suggestedDepartmentSlug,
-      suggestedTeamSlug: body.data.suggestedTeamSlug,
-      typicalTasks: body.data.typicalTasks ?? [],
-      requiredTools: body.data.requiredTools ?? [],
-      isSystem: false,
-      orgId: ctx.orgId
-    }).returning();
-    return reply.status(201).send({ data: created });
+    try {
+      const [created] = await db.insert(agentTemplates).values({
+        name: body.data.name,
+        slug: body.data.slug,
+        category: body.data.category ?? "general",
+        description: body.data.description,
+        role: body.data.role,
+        capabilities: body.data.capabilities ?? [],
+        suggestedAutonomy: body.data.suggestedAutonomy ?? "execute_with_approval",
+        suggestedDepartmentSlug: body.data.suggestedDepartmentSlug,
+        suggestedTeamSlug: body.data.suggestedTeamSlug,
+        typicalTasks: body.data.typicalTasks ?? [],
+        requiredTools: body.data.requiredTools ?? [],
+        isSystem: false,
+        orgId: ctx.orgId
+      }).returning();
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: "A template with this slug already exists. Choose a different slug." });
+      }
+      throw err;
+    }
   });
   app.post("/v1/agent-templates/:templateId/hire", async (request, reply) => {
     const ctx = await requireAuth(request, deps);

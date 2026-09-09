@@ -396,10 +396,12 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     switch (parsed.data.action) {
       case 'replace':
         updates.status = 'archived'; // preserve history, deactivate for new work
+        updates.retiredAt = new Date();
         break;
       case 'confirm_keep':
       case 'improve':
         updates.status = 'active';
+        updates.retiredAt = null;
         break;
       case 'set_autonomy':
         break; // autonomy-only

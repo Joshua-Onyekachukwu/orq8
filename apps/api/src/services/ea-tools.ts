@@ -507,6 +507,8 @@ export async function updateAgent(
   if (departmentId !== undefined) updates.departmentId = departmentId;
   if (teamId !== undefined) updates.teamId = teamId;
   if (status) updates.status = status;
+  if (status === 'archived') updates.retiredAt = new Date(); // preserve lifecycle history
+  if (status === 'active' || status === 'paused') updates.retiredAt = null;
   if (autonomyLevel) updates.autonomyLevel = autonomyLevel;
 
   const [updated] = await ctx.db

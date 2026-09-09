@@ -145,16 +145,21 @@ export async function createAgent(
   }
 }
 
-/** Update agent status (active/paused/archived). */
+/** Update agent status (active/paused/archived). Archival stamps retiredAt
+ * (migration 0017) so retirement history is preserved, and clears it when an
+ * archived agent is reactivated. */
 export async function updateStatus(
   db: Db,
   orgId: string,
   id: string,
   status: string,
 ): Promise<AnyRecord | undefined> {
+  const updates: Record<string, unknown> = { status, updatedAt: new Date() };
+  if (status === 'archived') updates.retiredAt = new Date();
+  if (status === 'active' || status === 'paused') updates.retiredAt = null;
   const rows = await db
     .update(agents)
-    .set({ status, updatedAt: new Date() })
+    .set(updates)
     .where(and(eq(agents.id, id), eq(agents.orgId, orgId)))
     .returning();
   return rows[0] ?? undefined;

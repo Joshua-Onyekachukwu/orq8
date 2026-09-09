@@ -8,6 +8,17 @@ import * as workforce from '../services/workforce-engine.js';
 import { enforceResourceLimit } from '../services/entitlements.js';
 import type { AppDeps } from '../types.js';
 
+/**
+ * Template slugs are globally unique today (single-column slug_key on the
+ * template tables), so a second org reusing a slug — or an org customizing a
+ * system slug — collides. Surface that as a clean 409 instead of an unhandled
+ * 500 (drizzle may wrap the driver error, hence the cause check).
+ */
+function isTemplateSlugCollision(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } } | null;
+  return e?.code === '23505' || e?.cause?.code === '23505';
+}
+
 export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
 
@@ -44,26 +55,33 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
 
-    const [created] = await db
-      .insert(departmentTemplates)
-      .values({
-        name: body.data.name,
-        slug: body.data.slug,
-        description: body.data.description,
-        mission: body.data.mission,
-        functions: body.data.functions ?? [],
-        roles: body.data.roles ?? [],
-        teams: body.data.teams ?? [],
-        typicalGoals: [],
-        kpis: [],
-        industry: body.data.industry,
-        isSystem: false,
-        createdBy: ctx.userId,
-        orgId: ctx.orgId,
-      })
-      .returning();
+    try {
+      const [created] = await db
+        .insert(departmentTemplates)
+        .values({
+          name: body.data.name,
+          slug: body.data.slug,
+          description: body.data.description,
+          mission: body.data.mission,
+          functions: body.data.functions ?? [],
+          roles: body.data.roles ?? [],
+          teams: body.data.teams ?? [],
+          typicalGoals: [],
+          kpis: [],
+          industry: body.data.industry,
+          isSystem: false,
+          createdBy: ctx.userId,
+          orgId: ctx.orgId,
+        })
+        .returning();
 
-    return reply.status(201).send({ data: created });
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: 'A template with this slug already exists. Choose a different slug.' });
+      }
+      throw err;
+    }
   });
 
   // ─── Team Templates ──────────────────────────────────────────────────
@@ -98,25 +116,32 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
 
-    const [created] = await db
-      .insert(teamTemplates)
-      .values({
-        name: body.data.name,
-        slug: body.data.slug,
-        description: body.data.description,
-        mission: body.data.mission,
-        responsibilities: body.data.responsibilities ?? [],
-        requiredCapabilities: body.data.required_capabilities ?? [],
-        recommendedRoles: [],
-        kpis: [],
-        departmentSlug: body.data.department_slug,
-        isSystem: false,
-        createdBy: ctx.userId,
-        orgId: ctx.orgId,
-      })
-      .returning();
+    try {
+      const [created] = await db
+        .insert(teamTemplates)
+        .values({
+          name: body.data.name,
+          slug: body.data.slug,
+          description: body.data.description,
+          mission: body.data.mission,
+          responsibilities: body.data.responsibilities ?? [],
+          requiredCapabilities: body.data.required_capabilities ?? [],
+          recommendedRoles: [],
+          kpis: [],
+          departmentSlug: body.data.department_slug,
+          isSystem: false,
+          createdBy: ctx.userId,
+          orgId: ctx.orgId,
+        })
+        .returning();
 
-    return reply.status(201).send({ data: created });
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: 'A template with this slug already exists. Choose a different slug.' });
+      }
+      throw err;
+    }
   });
 
   // ─── Agent Templates ────────────────────────────────────────────────
@@ -159,26 +184,33 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
     }).safeParse(request.body);
     if (!body.success) throw validation(body.error.flatten());
 
-    const [created] = await db
-      .insert(agentTemplates)
-      .values({
-        name: body.data.name,
-        slug: body.data.slug,
-        category: body.data.category ?? 'general',
-        description: body.data.description,
-        role: body.data.role,
-        capabilities: body.data.capabilities ?? [],
-        suggestedAutonomy: body.data.suggestedAutonomy ?? 'execute_with_approval',
-        suggestedDepartmentSlug: body.data.suggestedDepartmentSlug,
-        suggestedTeamSlug: body.data.suggestedTeamSlug,
-        typicalTasks: body.data.typicalTasks ?? [],
-        requiredTools: body.data.requiredTools ?? [],
-        isSystem: false,
-        orgId: ctx.orgId,
-      })
-      .returning();
+    try {
+      const [created] = await db
+        .insert(agentTemplates)
+        .values({
+          name: body.data.name,
+          slug: body.data.slug,
+          category: body.data.category ?? 'general',
+          description: body.data.description,
+          role: body.data.role,
+          capabilities: body.data.capabilities ?? [],
+          suggestedAutonomy: body.data.suggestedAutonomy ?? 'execute_with_approval',
+          suggestedDepartmentSlug: body.data.suggestedDepartmentSlug,
+          suggestedTeamSlug: body.data.suggestedTeamSlug,
+          typicalTasks: body.data.typicalTasks ?? [],
+          requiredTools: body.data.requiredTools ?? [],
+          isSystem: false,
+          orgId: ctx.orgId,
+        })
+        .returning();
 
-    return reply.status(201).send({ data: created });
+      return reply.status(201).send({ data: created });
+    } catch (err) {
+      if (isTemplateSlugCollision(err)) {
+        return reply.status(409).send({ error: 'A template with this slug already exists. Choose a different slug.' });
+      }
+      throw err;
+    }
   });
 
   /** Hire an agent from a template — creates the agent and assigns to dept/team. */

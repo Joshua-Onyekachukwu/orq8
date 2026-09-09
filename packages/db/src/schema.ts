@@ -379,6 +379,9 @@ export const agents = pgTable(
       forbiddenActions: [],
     }),
     lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
+    // Retirement timestamp (migration 0017) — set when the agent is archived
+    // so lifecycle history is preserved (never destroyed on retirement).
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
