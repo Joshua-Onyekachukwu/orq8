@@ -177,7 +177,7 @@ INSERT INTO public.department_templates (name, slug, description, mission, funct
  '["scenario_coverage","forecast_accuracy","simulation_adoption_in_decisions"]',
  NULL, 'Stage 5 (Enterprise: simulation pays for itself only at strategic scale)')
 
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ─── Tenant-correct uniqueness for dept/team templates ──────────────────
 -- agent_templates already use the partial-index model (0024): system slugs

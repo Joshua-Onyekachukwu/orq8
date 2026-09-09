@@ -154,7 +154,7 @@ INSERT INTO public.department_templates (name, slug, description, mission, funct
   '["data_freshness","report_accuracy","query_performance","data_coverage"]',
   NULL, NULL
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ─── Seed system team templates ──────────────────────────────────────────
 INSERT INTO public.team_templates (name, slug, description, mission, responsibilities, required_capabilities, recommended_roles, kpis, department_slug) VALUES
@@ -198,7 +198,7 @@ INSERT INTO public.team_templates (name, slug, description, mission, responsibil
   '["cac","conversion_rate","growth_rate","experiment_velocity"]',
   'marketing'
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- ─── Agent lifecycle index ───────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS agents_lifecycle_idx ON public.agents(org_id, lifecycle_state);
