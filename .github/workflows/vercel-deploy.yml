@@ -50,7 +50,7 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.vercel.com/v13/deployments" \
-            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"org\":\"Joshua-Onyekachukwu\",\"repo\":\"orq8\",\"ref\":\"main\",\"sha\":\"$SHA\"}}")
+            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"org\":\"Joshua-Onyekachukwu\",\"repo\":\"orq8\",\"ref\":\"main\"}}")
           BODY=$(echo "$RESP" | head -n -1)
           CODE=$(echo "$RESP" | tail -n 1)
           echo "HTTP $CODE"
