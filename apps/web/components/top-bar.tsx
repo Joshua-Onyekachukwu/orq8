@@ -158,8 +158,11 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
                     <button
                       type="submit"
                       className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-gray-600 hover:bg-gray-100"
+                      // NOTE: do not close the dropdown here — unmounting the
+                      // form during click dispatch cancels the HTML form
+                      // submission and sign-out silently does nothing. The
+                      // 303 redirect to /login navigates the page anyway.
                       onClick={() => {
-                        setProfileOpen(false);
                         analytics.userLoggedOut();
                         resetAnalytics();
                       }}
