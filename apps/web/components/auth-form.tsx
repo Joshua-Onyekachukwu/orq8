@@ -24,6 +24,118 @@ function safeNext(value: string | null | undefined): string | null {
   return value;
 }
 
+function PasswordField({
+  id,
+  name,
+  label = "Password",
+  placeholder,
+  autoComplete,
+  show,
+  onToggle,
+  minLength,
+  withStrengthMeter,
+  strength,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  name: string;
+  label?: string;
+  placeholder: string;
+  autoComplete: string;
+  show: boolean;
+  onToggle: () => void;
+  minLength?: number;
+  withStrengthMeter?: boolean;
+  strength?: { score: 0 | 1 | 2 | 3 | 4; label: StrengthLabel; suggestions: string[] };
+  onChange?: (value: string) => void;
+  disabled: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Preserve focus and cursor position across type change
+    const input = inputRef.current;
+    const cursorPos = input?.selectionStart ?? 0;
+    onToggle();
+    // Restore focus and cursor after React re-render
+    requestAnimationFrame(() => {
+      if (input) {
+        input.focus();
+        try {
+          input.setSelectionRange(cursorPos, cursorPos);
+        } catch {
+          // selectionRange not supported on some input types
+        }
+      }
+    });
+  };
+
+  const meterColors: Record<StrengthLabel, string> = {
+    weak: "bg-red-400",
+    fair: "bg-amber-400",
+    good: "bg-lime-500",
+    strong: "bg-orq8-green",
+  };
+
+  return (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id={id}
+          name={name}
+          type={show ? "text" : "password"}
+          required
+          autoComplete={autoComplete}
+          minLength={minLength}
+          disabled={disabled}
+          className={`${fieldClass} pr-11`}
+          placeholder={placeholder}
+          aria-describedby={withStrengthMeter && strength ? `${id}-strength` : undefined}
+          onChange={(e) => onChange?.(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-label={show ? "Hide password" : "Show password"}
+          aria-pressed={show}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-orq8-green"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {withStrengthMeter && strength && (
+        <div id={`${id}-strength`} className="mt-2" aria-live="polite">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 gap-1">
+              {[0, 1, 2, 3].map((seg) => (
+                <span
+                  key={seg}
+                  aria-hidden
+                  className={`h-1 flex-1 rounded-full transition-colors ${
+                    strength.score > seg ? meterColors[strength.label] : "bg-hairline"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-xs font-medium capitalize text-muted">
+              {strength.label}
+            </span>
+          </div>
+          {strength.suggestions.length > 0 && (
+            <p className="mt-1 text-xs text-muted">{strength.suggestions[0]}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AuthForm({
   mode,
   next,
@@ -141,115 +253,6 @@ export function AuthForm({
     }
   }
 
-  const PasswordField = ({
-    id,
-    name,
-    label = "Password",
-    placeholder,
-    autoComplete,
-    show,
-    onToggle,
-    minLength,
-    withStrengthMeter,
-    strength,
-    onChange,
-  }: {
-    id: string;
-    name: string;
-    label?: string;
-    placeholder: string;
-    autoComplete: string;
-    show: boolean;
-    onToggle: () => void;
-    minLength?: number;
-    withStrengthMeter?: boolean;
-    strength?: { score: 0 | 1 | 2 | 3 | 4; label: StrengthLabel; suggestions: string[] };
-    onChange?: (value: string) => void;
-  }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const handleToggle = (e: React.MouseEvent) => {
-      e.preventDefault();
-      // Preserve focus and cursor position across type change
-      const input = inputRef.current;
-      const cursorPos = input?.selectionStart ?? 0;
-      onToggle();
-      // Restore focus and cursor after React re-render
-      requestAnimationFrame(() => {
-        if (input) {
-          input.focus();
-          try {
-            input.setSelectionRange(cursorPos, cursorPos);
-          } catch {
-            // selectionRange not supported on some input types
-          }
-        }
-      });
-    };
-
-    const meterColors: Record<StrengthLabel, string> = {
-      weak: "bg-red-400",
-      fair: "bg-amber-400",
-      good: "bg-lime-500",
-      strong: "bg-orq8-green",
-    };
-
-    return (
-      <div>
-        <label htmlFor={id} className={labelClass}>
-          {label}
-        </label>
-        <div className="relative">
-          <input
-            ref={inputRef}
-            id={id}
-            name={name}
-            type={show ? "text" : "password"}
-            required
-            autoComplete={autoComplete}
-            minLength={minLength}
-            disabled={pending}
-            className={`${fieldClass} pr-11`}
-            placeholder={placeholder}
-            aria-describedby={withStrengthMeter && strength ? `${id}-strength` : undefined}
-            onChange={(e) => onChange?.(e.target.value)}
-          />
-          <button
-            type="button"
-            onClick={handleToggle}
-            aria-label={show ? "Hide password" : "Show password"}
-            aria-pressed={show}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors hover:text-orq8-green"
-          >
-            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        {withStrengthMeter && strength && (
-          <div id={`${id}-strength`} className="mt-2" aria-live="polite">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-1 gap-1">
-                {[0, 1, 2, 3].map((seg) => (
-                  <span
-                    key={seg}
-                    aria-hidden
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      strength.score > seg ? meterColors[strength.label] : "bg-hairline"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs font-medium capitalize text-muted">
-                {strength.label}
-              </span>
-            </div>
-            {strength.suggestions.length > 0 && (
-              <p className="mt-1 text-xs text-muted">{strength.suggestions[0]}</p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>
@@ -338,6 +341,7 @@ export function AuthForm({
       <PasswordField
         id="password"
         name="password"
+        disabled={pending}
         placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
         autoComplete={mode === "register" ? "new-password" : "current-password"}
         minLength={mode === "register" ? 8 : undefined}
@@ -353,6 +357,7 @@ export function AuthForm({
           <PasswordField
             id="confirm_password"
             name="confirm_password"
+            disabled={pending}
             label="Confirm password"
             placeholder="Repeat your password"
             autoComplete="new-password"
