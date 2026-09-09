@@ -50,7 +50,7 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.vercel.com/v13/deployments" \
-            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
+            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"org\":\"Joshua-Onyekachukwu\",\"repo\":\"orq8\",\"ref\":\"main\",\"sha\":\"$SHA\"}}")
           BODY=$(echo "$RESP" | head -n -1)
           CODE=$(echo "$RESP" | tail -n 1)
           echo "HTTP $CODE"
@@ -69,7 +69,7 @@ jobs:
               echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
               exit 0
             fi
-            echo "::error::Deployment failed with HTTP $CODE"
+            echo "::error::Deployment failed with HTTP $CODE ($(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); e=d.get('error') or {}; print(e.get('code') or e.get('message') or 'unknown')" 2>/dev/null || echo unparsed))"
             exit 1
           fi
         id: create-deployment
