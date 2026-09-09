@@ -93,6 +93,10 @@ curl -s -X POST https://orq8.vercel.app/api/auth/verify-email/resend \
 
 SMTP alternative (if you prefer not to use Resend): set `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` on the API instead — the transport picks SMTP automatically.
 
+Free-tier facts (verified 2026-09): **3,000 emails/month with a 100/day cap** (the daily cap is the binding constraint), **one custom domain** — verify only `orq8.com`, and one API key. Until the domain is verified in Resend, every send returns 403 from the Resend API and is logged as a failure — registration/password-reset flows still succeed (delivery never blocks signup), but no mail arrives. Before DNS propagates you can smoke-test delivery by temporarily sending only to your own inbox… not possible with a fixed `EMAIL_FROM`; the practical path is: add the key + `EMAIL_FROM`, finish DNS, then test.
+
+Transport precedence in code (`apps/api/src/email/transport.ts`): Resend > SMTP > dev-log. Setting `RESEND_API_KEY` alone flips production to Resend; `EMAIL_FROM` must then be on the verified domain (the default `founder@orq8.ai` 403s otherwise).
+
 ---
 
 ## 3. Platform admin (fixes "Access Denied" on /admin)
