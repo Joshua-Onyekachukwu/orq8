@@ -1,7 +1,12 @@
 name: Deploy to Vercel
 
 # Unified Vercel deployment for ORQ8 web app (dashboard + landing page).
-# Single Vercel project: orq8-web
+# Production domain orq8.vercel.app belongs to project "orq8"
+# (prj_apiN6ei5QfGK4Dev4toYXLrjDmVl, per apps/web/.vercel/project.json).
+# A previous version of this workflow POSTed name="orq8-web" alongside that
+# project id — the name field won, the deployment landed on the parallel
+# project that serves no domain, and production silently froze at an old
+# commit while this workflow stayed green.
 # The web app serves both the landing page (/) and the dashboard (/app).
 
 on:
@@ -45,14 +50,20 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.vercel.com/v13/deployments" \
-            -d "{\"name\":\"orq8-web\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
+            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
           BODY=$(echo "$RESP" | head -n -1)
           CODE=$(echo "$RESP" | tail -n 1)
           echo "HTTP $CODE"
           echo "$BODY" | head -c 600
           echo
           if [ "$CODE" = "200" ]; then
-            echo "Deployment created."
+            DEPLOY_ID=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+            if [ -z "$DEPLOY_ID" ]; then
+              echo "::error::Deployment created but no id in response"
+              exit 1
+            fi
+            echo "Deployment created: $DEPLOY_ID"
+            echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
           else
             if echo "$BODY" | grep -q "api-deployments-free-per-day"; then
               echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
@@ -61,27 +72,47 @@ jobs:
             echo "::error::Deployment failed with HTTP $CODE"
             exit 1
           fi
+        id: create-deployment
 
       - name: Production smoke check (guards against silent staleness)
+        if: steps.create-deployment.outputs.deploy_id != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -u
-          # The deployment is created async; poll until the live site reflects
-          # this commit. A marker string from current main + a public/ asset
-          # (this class of files was silently 404-ing on the stale deploy).
-          MARKER="Golden Workflow"
-          ASSET="/images/hero-bg.png"
-          ok=0
-          for i in $(seq 1 20); do
-            sleep 30
-            if curl -sf "https://orq8.vercel.app/" | grep -q "$MARKER" \
-              && [ "$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app$ASSET")" = "200" ]; then
-              echo "Production is current (marker + $ASSET verified)."
-              ok=1
-              break
-            fi
-            echo "attempt $i: production not yet current..."
+          DEPLOY_ID="${{ steps.create-deployment.outputs.deploy_id }}"
+          # Wait for the deployment itself to become READY (build failures and
+          # cancels surface here instead of being mistaken for success).
+          state=""
+          for i in $(seq 1 40); do
+            sleep 15
+            RESP=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v13/deployments/$DEPLOY_ID")
+            state=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('readyState') or d.get('status',''))")
+            echo "attempt $i: readyState=$state"
+            case "$state" in
+              READY) break ;;
+              ERROR|CANCELED)
+                echo "::error::Deployment $state — check the Vercel project build logs."
+                exit 1 ;;
+            esac
           done
-          if [ "$ok" != "1" ]; then
-            echo "::error::Production did not reflect the deployed commit within 10 minutes — deployment created but site is stale. Check the Vercel project build logs."
+          if [ "$state" != "READY" ]; then
+            echo "::error::Deployment never became READY within 10 minutes (last state: $state)."
             exit 1
           fi
+          # The domain must now serve the new build. hero-bg.png is tracked and
+          # was one of the asset class silently 404-ing on the stale deploy.
+          ok=0
+          for i in $(seq 1 12); do
+            sleep 10
+            ASSET=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/hero-bg.png")
+            HOMEPAGE=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/")
+            echo "attempt $i: /=$HOMEPAGE /images/hero-bg.png=$ASSET"
+            if [ "$ASSET" = "200" ] && [ "$HOMEPAGE" = "200" ]; then ok=1; break; fi
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Deployment is READY but the production domain did not pick it up (asset/homepage check failed). Verify the project's domain aliasing."
+            exit 1
+          fi
+          echo "Production is current (deployment READY + domain verified)."
