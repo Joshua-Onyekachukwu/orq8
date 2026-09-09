@@ -29,11 +29,11 @@ jobs:
       - name: Trigger production deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          # Must be the project that OWNS the production domain (orq8.vercel.app).
-          # A previous id (orq8-web) deployed a parallel project that serves no
-          # domain — production silently froze at an old commit while this
-          # workflow stayed green. Project ids are not secrets (they are in the
-          # tracked apps/web/.vercel/project.json), so it is pinned here.
+          # Project id from the tracked apps/web/.vercel/project.json (ids are
+          # not secrets). NOTE: project+gitSource without the legacy name field
+          # 400s (bad_request) while this name+repoId form is accepted; the
+          # readyState poll + domain check below now verify what actually
+          # happens to the deployment instead of trusting the 200.
           PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
           SHA: ${{ github.sha }}
         run: |
@@ -50,7 +50,7 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.vercel.com/v13/deployments" \
-            -d "{\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"org\":\"Joshua-Onyekachukwu\",\"repo\":\"orq8\",\"ref\":\"main\"}}")
+            -d "{\"name\":\"orq8-web\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
           BODY=$(echo "$RESP" | head -n -1)
           CODE=$(echo "$RESP" | tail -n 1)
           echo "HTTP $CODE"
