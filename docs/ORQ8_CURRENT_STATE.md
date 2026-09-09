@@ -51,7 +51,7 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
   timeout budgets; quality pipeline / QA / learning system (prior sessions).
 - **Tests**: 301 API tests passing / 0 failing (35 files; 232 DB-gated skips — no local
   Postgres); web typecheck + production build pass; `test:contrast` PASS (9 semantic pairs,
-  light + dark).
+  light + dark). *(Superseded 2026-09-09: API suite is now 391 passing, web 61/61 — see §11.)*
 
 ## 2. What is partially complete
 
@@ -82,10 +82,11 @@ Companion to `docs/ORQ8_PROJECT_HISTORY.md`. Priority legend: **P0** production 
 - **`INTERNAL_TOKEN` unset in production** — scheduled jobs (briefings 07:00 UTC, anomaly
   scans, consolidation) auto-skip with a warning. Ops action: set the secret in the GitHub
   workflow environment / Railway.
-- **Playwright browser not installed in the dev environment** — the 28 committed E2E specs
-  parse (`playwright test --list` verified) but browser download from both the default CDN
-  and a mirror host failed. CI does not run E2E yet; unit + integration suites are the active
-  gate (web 53/53, API 372 passing).
+- **Playwright E2E — RESOLVED 2026-09-09 (see §11)** — browsers installed (chromium 1243),
+  and a full authenticated **account-journey spec runs green against production**
+  (login → profile edit → refresh → sidebar/top-bar identity → logout). It caught three real
+  production auth bugs, all fixed. The remaining 28 legacy specs still need a live-stack run;
+  CI does not execute E2E yet.
 - **Pre-existing (other session)**: untracked route files are now type-clean; nothing else
   known-broken in my change set. Web + API typecheck clean; build passes.
 
@@ -429,6 +430,58 @@ API tests 372 passed / 212 skipped (DB- and credential-gated, pre-existing); CI 
 DB Migrate ✅ (`0022` live in prod DB); Vercel deploy ✅; live probes — 9 public routes 200,
 protected routes 307 → login, API guards 401, `/api/agent-templates` 200.
 
-**Not done / blocked (unchanged)**: Playwright browser install (CDN blocked — specs parse,
-not executed), avatar upload pipeline (field + display exist; no picker/endpoint), email
-verification lifecycle, `INTERNAL_TOKEN`, Stripe keys, founder admin access config.
+**Not done / blocked — SUPERSEDED 2026-09-09 (see §11)**: avatar upload pipeline and email
+verification are now complete and production-verified; Playwright E2E runs against
+production. Still open: `INTERNAL_TOKEN`, Stripe keys, founder admin access config.
+
+---
+
+## 11. Session record — 2026-09-09 (auth hardening, avatar end-to-end, launch readiness)
+
+**Commits** (all pushed to `origin/main`, CI green, live-verified on `orq8.vercel.app`):
+
+- `0f4934b`/`6108904` — **Email verification lifecycle**: migration `0023`
+  (`users.email_verified_at` + `email_verification_tokens`, hash-only storage, 24h expiry,
+  one-time use, resend limit 3/user/hour from token rows); `POST /v1/auth/verify-email`
+  (+`/resend`), `/me` exposes `emailVerified`; branded HTML template; `/verify-email` page
+  with full state machine; in-app unverified banner with inline resend. Found + fixed live:
+  the page's client component failed the Next 15 build (`metadata` export), and Fastify was
+  returning HTTP 200 with `statusCode` in the body — real 400s now.
+- `6108904` — **Password-field wipe bug (production login blocker)**: `PasswordField` was
+  defined inside `AuthForm`'s render body, so each keystroke re-rendered the parent, React
+  remounted the input and **cleared the password** — human login was effectively impossible
+  (HTML5 `required` silently blocked submits). Fix: hoist to module scope. Proven by DOM
+  node-identity probes.
+- `a6bc290` — **`/api/auth/me` Data-Cache staleness**: the proxy cached the upstream `/me`
+  fetch 30s, so a GET cached pre-PATCH served the old profile after saving. Now `no-store`.
+  Cross-user safety verified live with two accounts (Authorization header is part of the
+  fetch cache key — no leak occurred), but self-staleness was real.
+- `b8a0fbc` — **Top-bar Sign out dead**: the button's `onClick` closed the dropdown,
+  unmounting the `<form>` mid-click, cancelling submission — users stayed logged in.
+  Sidebar variant unaffected. Caught by the journey spec; verified fixed on prod.
+- `2739e10` — **Avatar upload end-to-end** (+ related commits): picker → MIME/magic-byte/2 MB
+  server validation → storage → stable `/api/files/:id/file` URL → profile/sidebar/top-bar.
+  Plus **512px client-side downscaling** (EXIF-aware, type-preserving, small images pass
+  through untouched; an **11.6 MB photo now uploads as ~614 KB** instead of being rejected).
+- `b044783`/`0814897` — **File serving fix (production bug)**: the local-storage backend has
+  no servable URL (`file://`), but `/files/:id/file` redirected unconditionally — avatars
+  uploaded and **never rendered**. Now the API streams local bytes (correct headers, 404
+  when storage is gone) and the web proxy passes binary through untouched. Browser-verified:
+  upload → 200 `image/png` → **`<img>` naturalWidth > 0** on sidebar + top-bar after reload.
+- `2548c1f`/`f35a637` — **Launch checklist** (`docs/ORQ8_LAUNCH_CHECKLIST.md`): every
+  remaining dashboard action with copy-paste verification commands; live-verified §1–§4
+  state (API health, register gate already open, admin still needs config).
+
+**Verified account-journey (production, single-run green)**: signup → login (password fix
+live) → profile edit → save → refresh persistence → sidebar/top-bar identity consistency →
+logout. Demo org seeded through real APIs (Marketing dept, 2 AI employees, 3 tasks in
+varied states) for the application Loom.
+
+**Open items discovered this session (now in the README pending table)**: EA
+`POST /v1/commands` hangs (LLM provider key unset on Railway — checklist §1); system
+agent-template catalog empty on prod (no seed for `is_system=true`); local storage is
+ephemeral across redeploys (S3 config needed for durable avatars/files).
+
+**Verification totals**: API tests **391 passing** / 212 skipped (DB/credential-gated,
+pre-existing); web tests **61/61**; both typechecks clean; production build clean; all
+fixes proven against the live site, not just locally.
