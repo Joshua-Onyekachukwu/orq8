@@ -105,6 +105,18 @@ jobs:
           fi
           # The domain must now serve the new build. hero-bg.png is tracked and
           # was one of the asset class silently 404-ing on the stale deploy.
+          # Diagnosis first: the deployment's own subdomain isolates WHERE the
+          # failure is, so the error message names the actual defect.
+          #   • subdomain 404s        → the build itself produced no app
+          #     (project settings/framework/root-directory problem).
+          #   • subdomain serves but
+          #     domain does not       → aliasing: the domain is not attached
+          #     to this project/deployment (dashboard: Settings → Domains).
+          SUBDOMAIN="https://${DEPLOY_ID}.vercel.app"  # dpl_ id → dpl- subdomain
+          DEPLOY_URL=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$DEPLOY_ID" | python3 -c "import json,sys; print(json.load(sys.stdin).get('url') or '')" 2>/dev/null || true)
+          if [ -n "$DEPLOY_URL" ]; then SUBDOMAIN="https://$DEPLOY_URL"; fi
+          SELF=$(curl -s -o /dev/null -w '%{http_code}' "$SUBDOMAIN/")
+          echo "deployment self-check: $SUBDOMAIN/ -> $SELF"
           ok=0
           for i in $(seq 1 12); do
             sleep 10
@@ -114,7 +126,11 @@ jobs:
             if [ "$ASSET" = "200" ] && [ "$HOMEPAGE" = "200" ]; then ok=1; break; fi
           done
           if [ "$ok" != "1" ]; then
-            echo "::error::Deployment is READY but the production domain did not pick it up (asset/homepage check failed). Verify the project's domain aliasing."
+            if [ "$SELF" != "200" ]; then
+              echo "::error::The deployment itself does not serve its app ($SUBDOMAIN/ -> $SELF). The build output is empty/broken — check the Vercel project's Framework Preset, Root Directory, and Build Command settings for project 'orq8'."
+            else
+              echo "::error::Deployment serves correctly on its own URL but orq8.vercel.app did not pick it up. The domain is not aliased to this deployment — in the Vercel dashboard open project 'orq8' → Settings → Domains and re-add/verify orq8.vercel.app."
+            fi
             exit 1
           fi
           echo "Production is current (deployment READY + domain verified)."
