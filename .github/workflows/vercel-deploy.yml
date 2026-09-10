@@ -30,10 +30,12 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           # Project id from the tracked apps/web/.vercel/project.json (ids are
-          # not secrets). NOTE: project+gitSource without the legacy name field
-          # 400s (bad_request) while this name+repoId form is accepted; the
-          # readyState poll + domain check below now verify what actually
-          # happens to the deployment instead of trusting the 200.
+          # not secrets). NOTE: in this legacy API form the `name` field WINS
+          # over the project id — it must be the production project's NAME
+          # ("orq8", which owns orq8.vercel.app). Posting "orq8-web" here
+          # silently deployed to the parallel domain-less project: the
+          # deployment went READY while production stayed frozen (caught by
+          # the readyState poll + domain check below on 2026-09-10).
           PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
           SHA: ${{ github.sha }}
         run: |
@@ -50,7 +52,7 @@ jobs:
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.vercel.com/v13/deployments" \
-            -d "{\"name\":\"orq8-web\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
+            -d "{\"name\":\"orq8\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
           BODY=$(echo "$RESP" | head -n -1)
           CODE=$(echo "$RESP" | tail -n 1)
           echo "HTTP $CODE"
