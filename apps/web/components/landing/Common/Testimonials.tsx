@@ -4,6 +4,9 @@ import React from "react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation } from "swiper/modules";
+// Bundler-emitted so the icon survives even if the /images/* static-copy
+// class is dropped from deployment output (see Navbar.tsx note).
+import quoteIconSrc from "@/public/images/icons/quote.svg";
 
 const testimonials = [
   {
@@ -78,7 +81,7 @@ const Testimonials: React.FC = () => {
               {testimonials.map((t) => (
                 <SwiperSlide key={t.id}>
                   <Image
-                    src="/images/icons/quote.svg"
+                    src={quoteIconSrc}
                     className="mb-[15px] md:mb-[25px] xl:mb-[40px]"
                     alt="quote"
                     width={36}

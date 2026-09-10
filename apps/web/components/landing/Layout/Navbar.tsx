@@ -4,6 +4,12 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+// Static imports: the bundler emits these into /_next/static/media, which
+// survives even when the /images/* static-copy class is dropped from the
+// deployment output (observed 2026-09-10: every public /images png/svg 404'd
+// while bundled assets served).
+import logoWhiteSrc from "@/public/images/logo-white.png";
+import logoDarkSrc from "@/public/images/logo-dark.png";
 
 const menuItems = [
   { label: "Home", href: "/", section: null as string | null },
@@ -56,7 +62,7 @@ const Navbar: React.FC = () => {
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
         <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between">
           <Link href="/" className="inline-block flex-none" aria-label="ORQ8 home">
-            {wLogo ? <Image src="/images/logo-white.png" alt="ORQ8" width={100} height={26} className="h-[26px] w-auto" /> : <Image src="/images/logo-dark.png" alt="ORQ8" width={100} height={26} className="h-[26px] w-auto" />}
+            {wLogo ? <Image src={logoWhiteSrc} alt="ORQ8" width={100} height={26} className="h-[26px] w-auto" /> : <Image src={logoDarkSrc} alt="ORQ8" width={100} height={26} className="h-[26px] w-auto" />}
           </Link>
           <button type="button" className="inline-block relative leading-none lg:hidden" onClick={() => setMob(!mob)}>
             <span className={`h-[3px] w-[30px] my-[5px] block ${wLogo ? "bg-white" : "bg-black"}`}></span>
