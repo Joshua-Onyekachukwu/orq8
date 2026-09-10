@@ -27,6 +27,18 @@ interface Department {
   activeCount: number;
 }
 
+interface DeptTemplate {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  mission: string | null;
+  functions: string[];
+  roles: string[];
+  teams: Array<{ name: string; description?: string }>;
+  isSystem: boolean;
+}
+
 interface WorkforceCoverage {
   departmentId: string;
   departmentName: string;
@@ -77,6 +89,13 @@ export default function DepartmentsPage() {
   const [confirmAction, setConfirmAction] = useState<"archive" | "delete">("archive");
   const [confirmBusy, setConfirmBusy] = useState(false);
 
+  // Department template catalog (one-click activation) state
+  const [showDeptCatalog, setShowDeptCatalog] = useState(false);
+  const [deptTemplates, setDeptTemplates] = useState<DeptTemplate[]>([]);
+  const [deptTemplatesLoading, setDeptTemplatesLoading] = useState(false);
+  const [activatingTemplateId, setActivatingTemplateId] = useState<string | null>(null);
+  const [justActivated, setJustActivated] = useState<string | null>(null);
+
   // Hire from Template state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateDeptId, setTemplateDeptId] = useState<string | null>(null);
@@ -85,6 +104,41 @@ export default function DepartmentsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [hireName, setHireName] = useState("");
   const [hiring, setHiring] = useState(false);
+
+  const fetchDeptTemplates = useCallback(async () => {
+    setDeptTemplatesLoading(true);
+    try {
+      const res = await fetch("/api/department-templates");
+      if (res.ok) {
+        const json = await res.json();
+        setDeptTemplates(json.data ?? []);
+      }
+    } catch {
+      setDeptTemplates([]);
+    } finally {
+      setDeptTemplatesLoading(false);
+    }
+  }, []);
+
+  const activateDeptTemplate = async (templateId: string) => {
+    setActivatingTemplateId(templateId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/department-templates/${templateId}/activate`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? json?.error ?? "Activation failed");
+      }
+      const name = deptTemplates.find((t) => t.id === templateId)?.name ?? "Department";
+      setJustActivated(name);
+      setShowDeptCatalog(false);
+      await fetchDepartments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Activation failed");
+    } finally {
+      setActivatingTemplateId(null);
+    }
+  };
 
   const fetchTemplates = async (deptId?: string | null) => {
     setTemplatesLoading(true);
@@ -289,6 +343,13 @@ export default function DepartmentsPage() {
             className="inline-flex items-center gap-1.5 rounded-full border border-orq8-green/30 bg-orq8-green/5 px-4 py-2 text-xs font-semibold text-orq8-green transition-colors hover:bg-orq8-green/10"
           >
             <Plus className="h-3.5 w-3.5" /> Hire from Template
+          </button>
+          <button
+            type="button"
+            onClick={() => { setShowDeptCatalog(true); fetchDeptTemplates(); }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-orq8-orange/30 bg-orq8-orange/5 px-4 py-2 text-xs font-semibold text-orq8-orange transition-colors hover:bg-orq8-orange/10"
+          >
+            <Building2 className="h-3.5 w-3.5" /> Add from catalog
           </button>
           <button
             type="button"
@@ -566,6 +627,64 @@ export default function DepartmentsPage() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Department Template Catalog (one-click activation) */}
+      {showDeptCatalog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-ink">Department catalog</h2>
+                <p className="text-xs text-muted">Activate a ready-made department with its teams — one click, no duplication of what you already run.</p>
+              </div>
+              <button type="button" onClick={() => setShowDeptCatalog(false)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              {deptTemplatesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-orq8-green" />
+                  <span className="ml-2 text-sm text-muted">Loading catalog…</span>
+                </div>
+              ) : deptTemplates.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-muted">No department templates available yet.</p>
+                </div>
+              ) : (
+                <div className="max-h-[420px] space-y-2 overflow-y-auto">
+                  {deptTemplates.map((t) => {
+                    const teamCount = Array.isArray(t.teams) ? t.teams.length : 0;
+                    const busy = activatingTemplateId === t.id;
+                    const active = justActivated === t.name;
+                    return (
+                      <div key={t.id} className="rounded-lg border border-hairline p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-ink">{t.name}</p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-muted">{t.mission ?? t.description ?? ""}</p>
+                            {teamCount > 0 && (
+                              <p className="mt-1 text-2xs text-muted">Includes {teamCount} team{teamCount === 1 ? "" : "s"}: {(t.teams.map((x) => x.name)).join(", ")}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => activateDeptTemplate(t.id)}
+                            disabled={busy || activatingTemplateId !== null}
+                            className="shrink-0 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+                          >
+                            {busy ? "Activating…" : active ? "Activated ✓" : "Activate"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

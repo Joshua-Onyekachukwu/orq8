@@ -6,6 +6,9 @@ import { requireAuth } from '../plugins/auth.js';
 import { departmentTemplates, teamTemplates, agentTemplates, agents } from '@orq8/db';
 import * as workforce from '../services/workforce-engine.js';
 import { enforceResourceLimit } from '../services/entitlements.js';
+import { appendAudit } from '../services/audit.js';
+import * as deptService from '../services/departments.js';
+import * as teamService from '../services/teams.js';
 import type { AppDeps } from '../types.js';
 
 /**
@@ -82,6 +85,92 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
       }
       throw err;
     }
+  });
+
+  /**
+   * POST /v1/department-templates/:id/activate — one-click activation.
+   *
+   * Creates the real department from the template (mission as description,
+   * functions as capabilities context), then its template-defined teams, then
+   * the template's team rows so a founder gets a *working* department, not a
+   * shell. Idempotent per org: existing department/team names are reused, not
+   * duplicated. Entitlement caps are enforced server-side per resource type.
+   */
+  app.post('/v1/department-templates/:id/activate', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params as { id: string };
+
+    const [template] = await db
+      .select()
+      .from(departmentTemplates)
+      .where(
+        and(
+          eq(departmentTemplates.id, id),
+          or(
+            eq(departmentTemplates.isSystem, true),
+            eq(departmentTemplates.orgId, ctx.orgId),
+          ),
+        ),
+      )
+      .limit(1);
+    if (!template) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Template not found' } };
+    }
+
+    const activated: { departments: string[]; teams: string[]; reused: string[] } = {
+      departments: [], teams: [], reused: [],
+    };
+
+    // 1. Department — reuse by name so re-activation never duplicates.
+    const existingDept = await deptService.findByName(db, ctx.orgId, template.name);
+    let departmentId: string;
+    if (existingDept) {
+      departmentId = existingDept.id;
+      activated.reused.push(template.name);
+    } else {
+      await enforceResourceLimit(db, ctx.orgId, 'departments');
+      const created = await deptService.createDepartment(db, {
+        orgId: ctx.orgId,
+        name: template.name,
+        description: template.mission ?? template.description ?? undefined,
+      });
+      departmentId = created.id;
+      activated.departments.push(template.name);
+    }
+
+    // 2. Teams from the template's team rows (names only — the template's
+    //    team_templates catalog is a separate system; these are the
+    //    department-specific team entries embedded in the department template).
+    const teamDefs = Array.isArray(template.teams) ? (template.teams as Array<{ name: string; description?: string }>) : [];
+    for (const t of teamDefs) {
+      if (!t?.name) continue;
+      const existingTeam = await teamService.findByName(db, ctx.orgId, t.name);
+      if (existingTeam) {
+        activated.reused.push(t.name);
+        continue;
+      }
+      await enforceResourceLimit(db, ctx.orgId, 'teams');
+      const team = await teamService.createTeam(db, {
+        orgId: ctx.orgId,
+        name: t.name,
+        description: t.description,
+        departmentId,
+      });
+      activated.teams.push(team.name);
+    }
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'department.activated_from_template',
+      inputRef: JSON.stringify({ templateId: template.id, templateSlug: template.slug }),
+      resultRef: JSON.stringify({ departmentId, ...activated }),
+      outcome: 'success',
+    });
+
+    return { data: { departmentId, ...activated } };
   });
 
   // ─── Team Templates ──────────────────────────────────────────────────

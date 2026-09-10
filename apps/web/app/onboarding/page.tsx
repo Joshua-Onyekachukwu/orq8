@@ -118,6 +118,17 @@ export default function OnboardingPage() {
   const [editedAnalysis, setEditedAnalysis] = useState<CompanyAnalysis | null>(null);
   const typingRef = useRef<number | null>(null);
 
+  // Department catalog (post-activation expansion from the system template catalog)
+  const [catalogDepts, setCatalogDepts] = useState<Array<{ id: string; name: string; mission: string | null; description: string | null; teams: Array<{ name: string }> }>>([]);
+  const [activatingDeptId, setActivatingDeptId] = useState<string | null>(null);
+  const [stayedForCatalog, setStayedForCatalog] = useState(false);
+  const redirectRef = useRef<number | null>(null);
+
+  const scheduleRedirect = (ms: number) => {
+    if (redirectRef.current) window.clearTimeout(redirectRef.current);
+    redirectRef.current = window.setTimeout(() => router.push("/app"), ms);
+  };
+
   // Load saved state so the founder can resume
   useEffect(() => {
     async function loadState() {
@@ -201,7 +212,8 @@ export default function OnboardingPage() {
           result.activation.agents?.length ?? 0,
           result.activation.goals?.length ?? 0,
         );
-        setTimeout(() => router.push("/app"), 2200);
+        const catalogCount = await fetchCatalog();
+        scheduleRedirect(catalogCount > 0 ? 6500 : 2200);
       } else {
         // Already seeded — straight to the dashboard.
         router.push("/app");
@@ -271,6 +283,42 @@ export default function OnboardingPage() {
     }
   };
 
+  const fetchCatalog = async (): Promise<number> => {
+    try {
+      const res = await fetch("/api/department-templates");
+      if (res.ok) {
+        const json = await res.json();
+        const list = (json.data ?? []) as Array<{ id: string; name: string; mission: string | null; description: string | null; teams: Array<{ name: string }> }>;
+        setCatalogDepts(list);
+        return list.length;
+      }
+    } catch {
+      setCatalogDepts([]);
+    }
+    return 0;
+  };
+
+  const activateCatalogDept = async (templateId: string) => {
+    setActivatingDeptId(templateId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/department-templates/${templateId}/activate`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? json?.error ?? "Activation failed");
+      }
+      // Stay on this screen so the founder can activate more; hand them an
+      // explicit continue button instead of an auto-redirect race.
+      if (redirectRef.current) window.clearTimeout(redirectRef.current);
+      setStayedForCatalog(true);
+      setCatalogDepts((prev) => prev.filter((t) => t.id !== templateId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Activation failed");
+    } finally {
+      setActivatingDeptId(null);
+    }
+  };
+
   const activateCompany = async () => {
     if (!plan) return;
     setPhase("activating");
@@ -292,7 +340,8 @@ export default function OnboardingPage() {
         act?.agents?.length ?? 0,
         act?.goals?.length ?? 0,
       );
-      setTimeout(() => router.push("/app"), 2200);
+      const catalogCount = await fetchCatalog();
+      scheduleRedirect(catalogCount > 0 ? 6500 : 2200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to activate your company");
       setPhase("plan");
@@ -818,6 +867,38 @@ export default function OnboardingPage() {
             </div>
             <Loader2 className="mt-10 h-5 w-5 animate-spin text-orq8-lime" />
             <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
+            {catalogDepts.length > 0 && (
+              <div className="mt-8 w-full max-w-lg text-left">
+                {stayedForCatalog && (
+                  <button
+                    onClick={() => router.push("/app")}
+                    className="mb-3 rounded-lg bg-orq8-lime px-4 py-2 text-xs font-semibold text-ink transition-colors hover:bg-orq8-lime/90"
+                  >
+                    Done adding departments — go to dashboard →
+                  </button>
+                )}
+                <p className="text-sm font-medium text-white/70">Add another department from the catalog</p>
+                <div className="mt-3 space-y-2">
+                  {catalogDepts.slice(0, 4).map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">{t.name}</p>
+                        <p className="text-3xs text-white/40">
+                          {Array.isArray(t.teams) && t.teams.length > 0 ? `${t.teams.length} team${t.teams.length === 1 ? "" : "s"} included` : "Ready to activate"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => activateCatalogDept(t.id)}
+                        disabled={activatingDeptId !== null}
+                        className="shrink-0 rounded-lg border border-orq8-lime/40 px-3 py-1.5 text-xs font-semibold text-orq8-lime transition-colors hover:bg-orq8-lime/10 disabled:opacity-50"
+                      >
+                        {activatingDeptId === t.id ? "Activating…" : "Activate"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
