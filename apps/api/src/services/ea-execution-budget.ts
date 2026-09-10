@@ -126,6 +126,17 @@ export async function executeTasksWithBudget(
     deferred: true,
   });
 
+  // Honest DB convergence for ANY deferred task: a timed-out or budget-
+  // exhausted task must never linger in_progress. Pending is the true state
+  // (the work did not complete and can be re-run).
+  const convergeToPending = async (taskId: string): Promise<void> => {
+    try {
+      await db.update(tasks).set({ status: 'pending' }).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)));
+    } catch {
+      // Non-fatal: leave the true state rather than guess.
+    }
+  };
+
   for (const taskId of taskIds) {
     const remaining = deadline - Date.now();
     if (remaining <= 5_000) {
@@ -133,6 +144,7 @@ export async function executeTasksWithBudget(
         taskId,
         'Deferred: the execution budget was reached before this task started. It remains pending and can be re-run.',
       );
+      await convergeToPending(taskId);
       results.push(r);
       deferred++;
       if (opts.onTaskDone) opts.onTaskDone(r);
@@ -140,14 +152,7 @@ export async function executeTasksWithBudget(
     }
 
     const r = await executeTaskWithBudget(config, db, orgId, taskId, Math.min(remaining, INTERACTIVE_TASK_BUDGET_MS));
-    // Honest DB convergence: a timed-out task must not stay in_progress.
-    if (r.deferred) {
-      try {
-        await db.update(tasks).set({ status: 'pending' }).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)));
-      } catch {
-        // Non-fatal: leave the true in_progress state rather than guess.
-      }
-    }
+    if (r.deferred) await convergeToPending(taskId);
     results.push(r);
     if (r.status === 'completed') completed++;
     else if (r.status === 'failed') failed++;
