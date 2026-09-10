@@ -39,6 +39,7 @@ interface CouncilListItem {
   rationale: string | null;
   expectedOutcome: string | null;
   actualOutcome: string | null;
+  predictionAccuracy?: string | null;
   decidedAt: string | null;
   createdAt: string;
 }
@@ -80,6 +81,28 @@ function confidenceColor(c: string) {
   if (c === "high") return "text-orq8-green";
   if (c === "low" || c === "none") return "text-red-500";
   return "text-muted";
+}
+
+/**
+ * Council status — derived ONLY from real backend state (decisions.status,
+ * outcomeFiledAt, prediction_accuracy). No invented states (Phase 26).
+ */
+function councilStatus(session: { status: string; actualOutcome: string | null; predictionAccuracy?: string | null }): {
+  label: string;
+  className: string;
+} {
+  if (session.status === "validated") return { label: "validated by outcome", className: "text-orq8-green" };
+  if (session.status === "reversed") return { label: "reversed by outcome", className: "text-red-500" };
+  if (session.status === "archived") return { label: "archived", className: "text-muted" };
+  if (session.status === "pending") return { label: "pending", className: "text-muted" };
+  // active:
+  if (session.actualOutcome) {
+    if (session.predictionAccuracy === "accurate") return { label: "outcome filed — prediction accurate", className: "text-orq8-green" };
+    if (session.predictionAccuracy === "inaccurate") return { label: "outcome filed — prediction inaccurate", className: "text-red-500" };
+    if (session.predictionAccuracy === "partially_accurate") return { label: "outcome filed — partially accurate", className: "text-amber-600" };
+    return { label: "outcome filed", className: "text-orq8-green" };
+  }
+  return { label: "awaiting outcome", className: "text-muted" };
 }
 
 function formatTimeAgo(iso: string): string {
@@ -137,11 +160,7 @@ function SessionCard({ session, onOpen }: { session: CouncilListItem; onOpen: (i
           <div className="flex items-center gap-2 mt-0.5 text-2xs text-muted">
             <span>{formatTimeAgo(session.createdAt)}</span>
             <span className={confidenceColor(session.confidence)}>● {session.confidence} confidence</span>
-            {session.actualOutcome ? (
-              <span className="text-orq8-green">outcome filed</span>
-            ) : (
-              <span>outcome pending</span>
-            )}
+            <span className={councilStatus(session).className}>{councilStatus(session).label}</span>
           </div>
         </div>
         <button

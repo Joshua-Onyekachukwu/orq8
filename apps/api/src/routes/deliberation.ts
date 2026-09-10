@@ -77,6 +77,7 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
         rationale: d.rationale,
         expectedOutcome: d.expectedOutcome,
         actualOutcome: d.actualOutcome,
+        predictionAccuracy: d.predictionAccuracy,
         decidedAt: d.decidedAt,
         createdAt: d.createdAt,
       })),
