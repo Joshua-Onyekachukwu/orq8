@@ -69,7 +69,8 @@ beforeAll(async () => {
     const body = res.json();
     contexts.push({ token: body.data.token, orgId: body.data.org.id, userId: body.data.user.id });
   }
-  [a, b] = contexts;
+  a = contexts[0]!;
+  b = contexts[1]!;
 
   // Track created rows for cleanup.
   for (const c of contexts) {
@@ -205,7 +206,7 @@ run('Decision Council API (§47)', () => {
       .toBeLessThan(rows.findIndex((r) => r.title === 'Older council decision (ordering check)'));
 
     // Exact field set the Council page consumes — no more, no less.
-    const fields = Object.keys(rows[0]).sort();
+    const fields = Object.keys(rows[0]!).sort();
     expect(fields).toEqual(
       [
         'actualOutcome',
