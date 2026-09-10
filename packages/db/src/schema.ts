@@ -1760,6 +1760,9 @@ export const decisions = pgTable(
     expectedOutcome: text('expected_outcome'),
     actualOutcome: text('actual_outcome'),
     outcomeFiledAt: timestamp('outcome_filed_at', { withTimezone: true }),
+    // Structured verdict from the §20 outcome review (migration 0028):
+    // accurate | partially_accurate | inaccurate. Null until filed.
+    predictionAccuracy: text('prediction_accuracy'),
     reversalConditions: jsonb('reversal_conditions').notNull().default([]),
     lessonsLearned: text('lessons_learned'),
     // Full Decision Council session (§11/§47, migration 0027): participants,

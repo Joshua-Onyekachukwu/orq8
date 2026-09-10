@@ -14,6 +14,7 @@ import { requireAuth } from '../plugins/auth.js';
 import {
   createDecision, listDecisions, getDecision, updateDecision, getDecisionSummary,
 } from '../services/decision-memory.js';
+import { signalSummary } from '../services/decision-signals.js';
 import type { AppDeps } from '../types.js';
 
 const createDecisionBody = z.object({
@@ -75,6 +76,13 @@ export function registerDecisionRoutes(app: FastifyInstance, deps: AppDeps): voi
   app.get('/v1/decisions/summary', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     return getDecisionSummary(db, ctx.orgId);
+  });
+
+  /** GET /v1/decisions/signals — §20 phase 2: model/agent performance signals
+   * derived from filed outcome reviews (measured data, explicit when thin). */
+  app.get('/v1/decisions/signals', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    return signalSummary(db, ctx.orgId);
   });
 
   /** GET /v1/decisions/:id — Get a single decision */

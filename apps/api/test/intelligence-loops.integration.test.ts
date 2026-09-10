@@ -1,5 +1,5 @@
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, users, memberships, decisions, tasks, llmPerformance } from '@orq8/db';
+import { createDb, organizations, users, memberships, decisions, tasks, llmPerformance, agents } from '@orq8/db';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
@@ -10,6 +10,7 @@ import {
   reviewDecisionOutcome,
   runOutcomeFeedbackLoop,
 } from '../src/services/decision-feedback.js';
+import { runSignalSync, signalSummary, MIN_CALLS_FOR_SIGNAL } from '../src/services/decision-signals.js';
 import type { AppDeps } from '../src/types.js';
 
 /**
@@ -78,6 +79,7 @@ afterAll(async () => {
     await deps.pool!.query('delete from audit_events where org_id = $1', [orgId]);
     await deps.pool!.query("delete from job_runs where job = 'decision_outcome_review' and started_at > now() - interval '1 hour'");
     await deps.pool!.query('delete from memberships where org_id = $1', [orgId]);
+    await deps.pool!.query('delete from agents where org_id = $1', [orgId]);
     await deps.pool!.query('delete from organizations where id = $1', [orgId]);
     await deps.db.delete(users).where(eq(users.id, userId));
   }
@@ -212,5 +214,57 @@ run('Decision outcome feedback loop (§20)', () => {
       [orgId],
     );
     expect(after.rows[0].n).toBe(before.rows[0].n);
+  });
+
+  it('persists a structured prediction verdict when filing (§20 phase 2)', async () => {
+    const filed = await deps.pool!.query(
+      "select id, prediction_accuracy from decisions where org_id = $1 and outcome_filed_at is not null",
+      [orgId],
+    );
+    expect(filed.rows.length).toBeGreaterThanOrEqual(1);
+    const withSupport = filed.rows.find((r) => r.prediction_accuracy === 'accurate');
+    expect(withSupport).toBeTruthy(); // completed tasks with no failures → accurate
+  });
+
+  it('derives model signals with an explicit insufficient-data verdict below the threshold', async () => {
+    // Signals measure the window SINCE the last filed review — seed calls now
+    // so they fall inside that window (earlier seeds predate the filing).
+    for (let i = 0; i < 3; i++) await seedCall({ model: 'flaky-model', success: false });
+    const signals = await signalSummary(deps.db, orgId);
+    expect(signals.decisionsReviewed).toBeGreaterThanOrEqual(1);
+    // The seeded calls are all successes; the flaky-model rows are failures.
+    const flaky = signals.models.find((m) => m.model === 'flaky-model');
+    expect(flaky).toBeTruthy();
+    if (flaky!.calls < MIN_CALLS_FOR_SIGNAL) {
+      expect(flaky!.reliability).toBe('insufficient_data');
+    } else {
+      expect(flaky!.reliability).toBe('degraded');
+    }
+  });
+
+  it('derives agent signals against the org baseline and runs the cron sync cleanly', async () => {
+    await deps.db.insert(agents).values({
+      orgId,
+      name: 'Signals Agent',
+      role: 'qa_specialist',
+      status: 'active',
+    });
+    const [agent] = await deps.db.select().from(agents).where(eq(agents.orgId, orgId)).limit(1);
+    await deps.db.insert(tasks).values({
+      orgId,
+      title: 'Agent-executed completed task',
+      status: 'completed',
+      agentId: agent!.id,
+    });
+
+    const signals = await signalSummary(deps.db, orgId);
+    const sig = signals.agents.find((a) => a.agentId === agent!.id);
+    expect(sig).toBeTruthy();
+    expect(sig!.tasksCompleted).toBeGreaterThanOrEqual(1);
+    expect(sig!.verdict).toBe('insufficient_data'); // 1 task < MIN_TASKS_FOR_SIGNAL
+
+    const sync = await runSignalSync(deps.db);
+    expect(sync.orgsSynced).toBeGreaterThanOrEqual(1);
+    expect(sync.agentSignals).toBeGreaterThanOrEqual(1);
   });
 });

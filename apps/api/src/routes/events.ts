@@ -36,6 +36,7 @@ import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-me
 import { scanOrgAnomalies } from '../services/anomaly-detector.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
 import { runOutcomeFeedbackLoop } from '../services/decision-feedback.js';
+import { runSignalSync } from '../services/decision-signals.js';
 import { latestJobRuns, trackJobRun } from '../services/job-runs.js';
 import { runOpsCheck } from '../services/ops-check.js';
 import type { AppDeps } from '../types.js';
@@ -464,6 +465,21 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
       return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
     }
     const result = await trackJobRun(db, 'decision_outcome_review', () => runOutcomeFeedbackLoop(db), {
+      summarize: (r) => ({
+        detail: { ...r },
+      }),
+    });
+    return { data: result };
+  });
+
+  /** Recompute §20 model/agent performance signals after outcome filings
+   * (cron: daily 07:30 UTC, right after the outcome review). */
+  app.post('/v1/internal/decisions/signal-sync', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const result = await trackJobRun(db, 'decision_signal_sync', () => runSignalSync(db), {
       summarize: (r) => ({
         detail: { ...r },
       }),

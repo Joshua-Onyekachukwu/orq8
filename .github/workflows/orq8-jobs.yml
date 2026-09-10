@@ -126,6 +126,19 @@ jobs:
           cat /tmp/outcome.json; echo
           if [ "$status" != "200" ]; then exit 1; fi
 
+      - name: Recompute model/agent performance signals (§20 phase 2)
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/signals.json -w "%{http_code}" -m 120 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/decisions/signal-sync")
+          echo "signal-sync HTTP $status"
+          cat /tmp/signals.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
   monthly-briefing:
     name: Monthly executive briefing (1st of month)
     runs-on: ubuntu-latest

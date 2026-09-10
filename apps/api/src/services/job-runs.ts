@@ -21,7 +21,8 @@ export type JobKey =
   | 'briefing_daily'
   | 'briefing_weekly'
   | 'briefing_monthly'
-  | 'decision_outcome_review';
+  | 'decision_outcome_review'
+  | 'decision_signal_sync';
 
 export interface JobRunMeta {
   /** Number of orgs (or events) the pass touched. */

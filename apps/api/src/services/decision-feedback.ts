@@ -210,6 +210,7 @@ export async function runOutcomeFeedbackLoop(db: Db): Promise<{
       .set({
         actualOutcome: review.actualOutcomeSummary,
         lessonsLearned: review.lessons,
+        predictionAccuracy: review.predictionAccuracy, // §20 phase 2: structured verdict (migration 0028)
         outcomeFiledAt: new Date(),
         updatedAt: new Date(),
       })
