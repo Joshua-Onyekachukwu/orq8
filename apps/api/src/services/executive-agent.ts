@@ -410,8 +410,10 @@ function validateContext(ctx: ExecutiveContext): string | null {
 
 /**
  * Validate that an intent analysis result is complete and sane.
+ * Exported for tests — this is the guard that keeps hallucinated/junk tool
+ * params (e.g. `name: "."`) out of the execution path.
  */
-function validateIntent(intent: IntentAnalysis): string | null {
+export function validateIntent(intent: IntentAnalysis): string | null {
   if (!intent.intent) return 'Missing intent description';
   if (!intent.category || intent.category === 'unknown') return 'Could not determine command category';
   // A detected organizational tool IS the complete intent — the action happens
@@ -427,6 +429,26 @@ function validateIntent(intent: IntentAnalysis): string | null {
   for (const task of intent.taskDecomposition) {
     if (!task.title) return 'Task missing title';
     if (!task.suggestedAgentRole) return `Task "${task.title}" missing agent role`;
+  }
+
+  // Validate tool-call params: hallucinated/junk params (e.g. `name: "."`,
+  // whitespace-only strings) must never reach tool execution — the tool would
+  // fail anyway, but with a cryptic approval message in the meantime.
+  if (hasToolAction && Array.isArray(intent.toolCalls)) {
+    for (const tc of intent.toolCalls) {
+      if (!tc?.tool || typeof tc.tool !== 'string') return 'Tool call missing tool name';
+      if (tc.params == null || typeof tc.params !== 'object' || Array.isArray(tc.params)) {
+        return `Tool call "${tc.tool}" params must be an object`;
+      }
+      for (const [key, value] of Object.entries(tc.params)) {
+        if (value === null || value === undefined) continue;
+        // Empty, whitespace-only, or punctuation-only strings (e.g. ".") are
+        // hallucinated junk — no legitimate name/role/slug lacks a letter or digit.
+        if (typeof value === 'string' && (!value.trim() || !/[\p{L}\p{N}]/u.test(value))) {
+          return `Tool call "${tc.tool}" has a junk "${key}" param: ${JSON.stringify(value.slice(0, 20))}`;
+        }
+      }
+    }
   }
 
   return null;
@@ -913,8 +935,8 @@ function detectToolCalls(
   const agentCreateMatch = lower.match(/\b(?:hire|create|add|recruit|onboard)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:agent|employee|member|specialist)?$/i)
     ?? lower.match(/\b(?:hire|create|add)\b.*\bagent\b\s*(?:called|named|for)?\s*\b(.+?)$/i);
   if (agentCreateMatch && agentCreateMatch[1] && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/)) {
-    const roleDesc = agentCreateMatch[1].trim();
-    if (roleDesc.length > 0 && roleDesc.length < 100) {
+    const roleDesc = agentCreateMatch[1].trim().replace(/[^\p{L}\p{N}][^\p{L}\p{N}]*$/u, '');
+    if (roleDesc.length > 1 && roleDesc.length < 100 && /[a-z0-9]/i.test(roleDesc)) {
       const name = roleDesc.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       const role = roleDesc.toLowerCase().replace(/\s+/g, '_');
       return [{ tool: 'create_agent', params: { name, role } }];
@@ -1063,10 +1085,37 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
     const approvalTools = ['create_department', 'create_team', 'create_agent', 'activate_department'];
     const needsToolApproval = approvalTools.includes(toolName);
     const toolLabel = toolName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    const paramSummary = Object.entries(tool.params)
-      .filter(([k]) => k !== 'agentId')
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(', ');
+    // Human-readable summary of what will happen — never raw JSON keys
+    // ("(name: ., role: .)" is not something a founder should ever see).
+    const humanValue = (v: unknown): string => {
+      const s = typeof v === 'string' ? v : String(v ?? '');
+      return s.length > 60 ? `${s.slice(0, 57)}…` : s;
+    };
+    const summarize = (): string => {
+      const p = tool.params as Record<string, unknown>;
+      if (toolName === 'create_agent' && typeof p.name === 'string' && p.name.trim()) {
+        return typeof p.role === 'string' && p.role.trim()
+          ? `hire "${humanValue(p.name)}" (${humanValue(p.role).replace(/_/g, ' ')})`
+          : `hire "${humanValue(p.name)}"`;
+      }
+      if (toolName === 'create_department' && typeof p.name === 'string' && p.name.trim()) {
+        return `create the "${humanValue(p.name)}" department`;
+      }
+      if (toolName === 'create_team' && typeof p.name === 'string' && p.name.trim()) {
+        return `create the "${humanValue(p.name)}" team`;
+      }
+      if (toolName === 'activate_department' && typeof p.slug === 'string' && p.slug.trim()) {
+        return `activate the "${humanValue(p.slug).replace(/-/g, ' ')}" department from the catalog`;
+      }
+      if (toolName === 'recommend_org_stage') {
+        const stage = typeof p.companyDescription === 'string' && p.companyDescription.trim()
+          ? humanValue(p.companyDescription)
+          : 'your company';
+        return `recommend the right organizational stage for ${stage}`;
+      }
+      return toolLabel.toLowerCase();
+    };
+    const planSummary = summarize();
     return {
       intent: command,
       category: 'manage',
@@ -1080,8 +1129,8 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
       taskDecomposition: [],
       toolCalls: detectedTools,
       response: needsToolApproval
-        ? `I'll ${toolLabel.toLowerCase()} (${paramSummary}). This requires your approval.`
-        : `I'll ${toolLabel.toLowerCase()} (${paramSummary}). Executing now.`,
+        ? `I'll ${planSummary}. This requires your approval.`
+        : `I'll ${planSummary}. Executing now.`,
     };
   }
 
