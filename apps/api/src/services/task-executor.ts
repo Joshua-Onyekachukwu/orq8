@@ -5,7 +5,8 @@ import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { broadcastToOrg } from './realtime.js';
 import { startTrace, endTrace, persistTrace, getTraceById } from './llm-tracer.js';
-import { classifyTask, selectTierModel } from './model-intelligence.js';
+import { classifyTask } from './model-intelligence.js';
+import { selectMeasuredModel } from './model-selector.js';
 import type { AppConfig } from '@orq8/core';
 
 /**
@@ -228,15 +229,17 @@ export async function executeTask(
 
       // Model routing (§31): classify the work, then use the cheapest model
       // tier that is SUFFICIENT (risk floors apply — critical work never
-      // routes to a cheap tier). Falls back to the provider default when no
-      // registry model satisfies the tier.
+      // routes to a cheap tier). §7 feedback: the final pick also consults
+      // this org's measured llm_performance history, so a model that is
+      // failing on real traffic gets routed away from and a proven one gets
+      // preferred — without ever inventing performance for unmeasured models.
       const routing = classifyTask({
         title: task.title,
         description: task.description,
         agentRole,
         priority: task.priority ?? null,
       });
-      const routedModel = selectTierModel(routing);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing);
 
       const llmResponse = await chat(config, systemPrompt, taskPrompt, {
         model: routedModel,
