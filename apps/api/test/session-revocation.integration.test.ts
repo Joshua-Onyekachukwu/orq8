@@ -120,7 +120,7 @@ run('session revocation contract (P0 regression)', () => {
 
     // DB row is revoked…
     const [row] = await deps.db.select().from(sessions).where(eq(sessions.orgId, orgId));
-    expect(row.revokedAt).not.toBeNull();
+    expect(row?.revokedAt != null).toBe(true); // row exists AND revocation is stamped
 
     // …and the token no longer authenticates: cache evicted, DB says revoked.
     expect(redis.__store.get('session:v3:' + (await import('@orq8/auth')).hashSessionToken(token))).toBeUndefined();

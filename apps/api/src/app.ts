@@ -69,6 +69,7 @@ import { registerStrategyRoutes } from './routes/strategy.js';
 import { registerWorkforceROIRoutes } from './routes/workforce-roi.js';
 import { registerDecisionRoutes } from './routes/decisions.js';
 import { registerLineageRoutes } from './routes/lineage.js';
+import { registerDeliberationRoutes } from './routes/deliberation.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
 import { csrfPlugin } from './plugins/csrf.js';
@@ -307,6 +308,7 @@ export async function buildApp(
   registerDecisionRoutes(app, deps);
   registerLineageRoutes(app, deps);
   registerRecommendationRoutes(app, deps);
+  registerDeliberationRoutes(app, deps);
 
   // Register all built-in tools for the AI workforce
   registerBuiltinTools();
