@@ -207,6 +207,7 @@ export async function executeTask(
   let llmAttempted = false;
 
   // Start LLM trace for this task execution
+  let lastLlmError: string | undefined;
   const trace = startTrace({
     orgId,
     phase: 'task_execution',
@@ -261,8 +262,11 @@ export async function executeTask(
         if (completedTrace) await persistTrace(db, completedTrace);
         break;
       }
-    } catch {
-      // Continue to next attempt or fallback
+    } catch (err) {
+      // Record the real reason — a swallowed error here is exactly how an
+      // "executive_agent failed (no error)" appears in production with no
+      // diagnosable cause. Continue to next attempt or fallback.
+      lastLlmError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -270,7 +274,7 @@ export async function executeTask(
     result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
     endTrace(trace.traceId, {
       success: false,
-      error: 'LLM unavailable after 2 attempts',
+      error: lastLlmError ?? 'LLM unavailable after 2 attempts',
     });
     const failedTrace = getTraceById(trace.traceId);
     if (failedTrace) await persistTrace(db, failedTrace);
@@ -293,8 +297,13 @@ export async function executeTask(
   }
 
   const durationMs = Date.now() - startTime;
-  const cost = Math.max(1, Math.ceil(tokensUsed / 1000)); // 1 credit per 1K tokens
   const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
+  // Credits measure WORK DONE. A task that never reached an LLM consumed no
+  // model capacity — charging 1 credit for a hard infrastructure failure made
+  // the founder pay for our outage. Fallback-executed tasks still cost 1
+  // (structured output was produced); zero-cost only applies when no output
+  // beyond the placeholder was generated.
+  const cost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1000)) : 0; // 1 credit per 1K tokens
 
   // 6. Mark task as completed or failed
   await db
@@ -311,7 +320,7 @@ export async function executeTask(
   if (taskSucceeded) {
     broadcastToOrg(orgId, { type: 'task.completed', taskId: task.id, agentId: task.agentId ?? '', agentName, result: result.slice(0, 200) });
   } else {
-    broadcastToOrg(orgId, { type: 'task.failed', taskId: task.id, agentId: task.agentId ?? '', agentName, error: result.slice(0, 200) });
+    broadcastToOrg(orgId, { type: 'task.failed', taskId: task.id, agentId: task.agentId ?? '', agentName, error: (lastLlmError ?? result).slice(0, 200) });
   }
 
   // 7. Update agent stats

@@ -524,9 +524,14 @@ export async function chatCompletion(
     const endpoint = chatCompletionsEndpoint(provider.baseUrl);
     const keys = provider.apiKeys.length > 0 ? provider.apiKeys : [''];
     // Models tried for this provider: the default first, then NVIDIA fallbacks.
-    // An explicitly requested model is used as-is (no silent substitution).
+    // An explicitly requested model (e.g. a capability-tier pick) is tried
+    // FIRST, but is followed by the provider's entitled defaults — a registry
+    // model the account isn't entitled to must degrade to a working model, not
+    // hard-fail the whole chain (production bug: every tier-routed task 404'd
+    // because the key lacked access to the requested model and no fallback ran).
+    // The substitution is observable: traces/warnings record which model served.
     const models = explicitModel
-      ? [explicitModel]
+      ? [explicitModel, provider.defaultModel, ...(provider.modelFallbacks ?? [])]
       : [provider.defaultModel, ...(provider.modelFallbacks ?? [])];
     // Round-robin start index for multi-key providers (spreads concurrent load)
     const startIdx =
