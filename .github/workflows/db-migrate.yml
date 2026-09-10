@@ -38,5 +38,9 @@ jobs:
       - name: Migrate
         run: pnpm --filter @orq8/db migrate:supabase
 
-      - name: Seed (idempotent — provider catalog only)
-        run: pnpm --filter @orq8/db seed
+      - name: Seed (idempotent — provider catalog + demo-org plan)
+        env:
+          DEMO_ORG_EMAIL: demo@orq8.test
+        run: |
+          pnpm --filter @orq8/db seed
+          pnpm --filter @orq8/db seed:demo
