@@ -216,6 +216,7 @@ run('Decision Council API (§47)', () => {
         'decisionType',
         'expectedOutcome',
         'id',
+        'predictionAccuracy',
         'rationale',
         'status',
         'title',

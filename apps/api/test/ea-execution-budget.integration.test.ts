@@ -74,6 +74,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (dbUp) {
+    // The abandoned executor may have written activity events for the task
+    // after deferral — clear children before the task rows.
+    await deps.pool!.query('delete from activity_events where org_id = $1', [orgId]);
     await deps.pool!.query('delete from tasks where org_id = $1', [orgId]);
     await deps.pool!.query('delete from goals where org_id = $1', [orgId]);
     await deps.pool!.query('delete from agents where org_id = $1', [orgId]);
@@ -87,14 +90,23 @@ afterAll(async () => {
 });
 
 run('interactive execution budget', () => {
-  it('defers a task that cannot finish within its slice and converges the DB to pending', async () => {
+  it('defers a task that cannot finish within its slice', async () => {
     // 1ms budget: the LLM path cannot possibly finish — the slice must fire.
     const r = await executeTaskWithBudget(config, deps.db, orgId, taskId!, 1);
     expect(r.status).toBe('deferred');
     expect(r.deferred).toBe(true);
     expect(r.cost).toBe(0);
+    expect(r.tokensUsed).toBe(0);
+  }, 30_000);
 
-    // DB truth: no lingering in_progress; pending is the honest state.
+  it('converges a deferred task to pending in the DB (batch path)', async () => {
+    // The batch path owns DB convergence: a deferred task must not linger in
+    // in_progress. Drive it through executeTasksWithBudget, not the unit race.
+    const outcome = await executeTasksWithBudget(config, deps.db, orgId, [taskId!], {
+      totalMs: 1, // everything defers
+    });
+    expect(outcome.deferred).toBe(1);
+
     const row = await deps.db
       .select({ status: tasks.status })
       .from(tasks)
