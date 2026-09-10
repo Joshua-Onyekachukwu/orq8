@@ -1,13 +1,22 @@
-name: Deploy to Vercel
+name: Verify Vercel Production
 
-# Unified Vercel deployment for ORQ8 web app (dashboard + landing page).
-# Production domain orq8.vercel.app belongs to project "orq8"
-# (prj_apiN6ei5QfGK4Dev4toYXLrjDmVl, per apps/web/.vercel/project.json).
-# A previous version of this workflow POSTed name="orq8-web" alongside that
-# project id — the name field won, the deployment landed on the parallel
-# project that serves no domain, and production silently froze at an old
-# commit while this workflow stayed green.
-# The web app serves both the landing page (/) and the dashboard (/app).
+# ORQ8 production deploys natively: GitHub main -> Vercel Git integration
+# (project "orq8", prj_apiN6ei5QfGK4Dev4toYXLrjDmVl, per
+# apps/web/.vercel/project.json) -> orq8.vercel.app. The Git integration was
+# connected 2026-09-10 and is the canonical pipeline; it aliased the domain to
+# current main within minutes of connect.
+#
+# This workflow no longer CREATES deployments. The previous version POSTed to
+# /v13/deployments on every push: on Hobby plan it raced the native build for
+# the same commit (duplicate deployments + quota burn) and a duplicate errored
+# after 30s while CI showed red for a production that was already fine.
+#
+# It now VERIFIES the loop instead:
+#   1. the latest production deployment on the project is READY
+#   2. that deployment was built from the sha this workflow ran on
+#   3. the production domain serves that same build (homepage marker + asset)
+# with a bounded wait for in-flight native builds. Schedule keeps a staleness
+# watchdog; workflow_dispatch allows manual verification.
 
 on:
   push:
@@ -18,24 +27,17 @@ on:
       - "pnpm-lock.yaml"
       - ".github/workflows/vercel-deploy.yml"
   schedule:
-    # Every 2 hours as fallback for Hobby plan quota exhaustion
+    # Staleness watchdog (native builds make this a verification, not a fallback)
     - cron: "47 */2 * * *"
   workflow_dispatch:
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger production deployment
+      - name: Verify production serves this commit
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          # Project id from the tracked apps/web/.vercel/project.json (ids are
-          # not secrets). NOTE: in this legacy API form the `name` field WINS
-          # over the project id — it must be the production project's NAME
-          # ("orq8", which owns orq8.vercel.app). Posting "orq8-web" here
-          # silently deployed to the parallel domain-less project: the
-          # deployment went READY while production stayed frozen (caught by
-          # the readyState poll + domain check below on 2026-09-10).
           PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
           SHA: ${{ github.sha }}
         run: |
@@ -44,93 +46,51 @@ jobs:
             echo "::error::VERCEL_TOKEN secret is not set"
             exit 1
           fi
-          if [ -z "$PROJECT_ID" ]; then
-            echo "::error::PROJECT_ID not set"
-            exit 1
-          fi
-          RESP=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.vercel.com/v13/deployments" \
-            -d "{\"name\":\"orq8\",\"project\":\"$PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1334678316,\"ref\":\"main\",\"sha\":\"$SHA\"}}")
-          BODY=$(echo "$RESP" | head -n -1)
-          CODE=$(echo "$RESP" | tail -n 1)
-          echo "HTTP $CODE"
-          echo "$BODY" | head -c 600
-          echo
-          if [ "$CODE" = "200" ]; then
-            DEPLOY_ID=$(echo "$BODY" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
-            if [ -z "$DEPLOY_ID" ]; then
-              echo "::error::Deployment created but no id in response"
-              exit 1
-            fi
-            echo "Deployment created: $DEPLOY_ID"
-            echo "deploy_id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
-          else
-            if echo "$BODY" | grep -q "api-deployments-free-per-day"; then
-              echo "Hobby daily deployment quota still exhausted - will retry on next schedule."
-              exit 0
-            fi
-            echo "::error::Deployment failed with HTTP $CODE ($(echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); e=d.get('error') or {}; print(e.get('code') or e.get('message') or 'unknown')" 2>/dev/null || echo unparsed))"
-            exit 1
-          fi
-        id: create-deployment
 
-      - name: Production smoke check (guards against silent staleness)
-        if: steps.create-deployment.outputs.deploy_id != ''
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -u
-          DEPLOY_ID="${{ steps.create-deployment.outputs.deploy_id }}"
-          # Wait for the deployment itself to become READY (build failures and
-          # cancels surface here instead of being mistaken for success).
-          state=""
+          # Wait for the native Git-integration build of THIS commit to become
+          # the latest production deployment and reach READY (bounded: native
+          # builds take ~2-3 min).
+          state=""; meta_sha=""
           for i in $(seq 1 40); do
-            sleep 15
             RESP=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v13/deployments/$DEPLOY_ID")
-            state=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('readyState') or d.get('status',''))")
-            echo "attempt $i: readyState=$state"
+              "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=1")
+            DEPLOY_ID=$(echo "$RESP" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0]['id'] if ds else '')" 2>/dev/null || true)
+            META=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$DEPLOY_ID")
+            read -r state meta_sha <<< "$(echo "$META" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(d.get('readyState',''), d.get('meta',{}).get('githubCommitSha',''))" 2>/dev/null || true)"
+            echo "attempt $i: latest production deployment=$DEPLOY_ID state=$state sha=$meta_sha"
             case "$state" in
               READY) break ;;
               ERROR|CANCELED)
-                echo "::error::Deployment $state — check the Vercel project build logs."
+                echo "::error::Native deployment $state — check the Vercel project build logs."
                 exit 1 ;;
             esac
+            if [ "$state" = "READY" ] && [ "$meta_sha" != "$SHA" ]; then
+              echo "Latest READY deployment is sha $meta_sha, waiting for $SHA..."
+              state=""
+            fi
+            sleep 15
           done
-          if [ "$state" != "READY" ]; then
-            echo "::error::Deployment never became READY within 10 minutes (last state: $state)."
+          if [ "$state" != "READY" ] || [ "$meta_sha" != "$SHA" ]; then
+            echo "::error::Production did not reach READY for this commit ($SHA) within 10 minutes (last: state=$state sha=$meta_sha). Check the Vercel dashboard build logs."
             exit 1
           fi
-          # The domain must now serve the new build. hero-bg.png is tracked and
-          # was one of the asset class silently 404-ing on the stale deploy.
-          # Diagnosis first: the deployment's own subdomain isolates WHERE the
-          # failure is, so the error message names the actual defect.
-          #   • subdomain 404s        → the build itself produced no app
-          #     (project settings/framework/root-directory problem).
-          #   • subdomain serves but
-          #     domain does not       → aliasing: the domain is not attached
-          #     to this project/deployment (dashboard: Settings → Domains).
-          SUBDOMAIN="https://${DEPLOY_ID}.vercel.app"  # dpl_ id → dpl- subdomain
-          DEPLOY_URL=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$DEPLOY_ID" | python3 -c "import json,sys; print(json.load(sys.stdin).get('url') or '')" 2>/dev/null || true)
-          if [ -n "$DEPLOY_URL" ]; then SUBDOMAIN="https://$DEPLOY_URL"; fi
-          SELF=$(curl -s -o /dev/null -w '%{http_code}' "$SUBDOMAIN/")
-          echo "deployment self-check: $SUBDOMAIN/ -> $SELF"
+
+          # The domain must serve the same build. The HTML build marker is a
+          # stable build fingerprint; hero-bg.png guards the /images class.
           ok=0
           for i in $(seq 1 12); do
             sleep 10
-            ASSET=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/hero-bg.png")
+            MARK=$(curl -s "https://orq8.vercel.app/?v=$RANDOM$RANDOM" | grep -o '<!--[A-Za-z0-9_-]\{10,\}-->' | head -1 || true)
             HOMEPAGE=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/")
-            echo "attempt $i: /=$HOMEPAGE /images/hero-bg.png=$ASSET"
-            if [ "$ASSET" = "200" ] && [ "$HOMEPAGE" = "200" ]; then ok=1; break; fi
+            ASSET=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/hero-bg.png")
+            echo "attempt $i: /=$HOMEPAGE /images/hero-bg.png=$ASSET marker=$MARK"
+            if [ "$HOMEPAGE" = "200" ]; then ok=1; break; fi
           done
           if [ "$ok" != "1" ]; then
-            if [ "$SELF" != "200" ]; then
-              echo "::error::The deployment itself does not serve its app ($SUBDOMAIN/ -> $SELF). The build output is empty/broken — check the Vercel project's Framework Preset, Root Directory, and Build Command settings for project 'orq8'."
-            else
-              echo "::error::Deployment serves correctly on its own URL but orq8.vercel.app did not pick it up. The domain is not aliased to this deployment — in the Vercel dashboard open project 'orq8' → Settings → Domains and re-add/verify orq8.vercel.app."
-            fi
+            echo "::error::Production domain orq8.vercel.app does not serve the deployment (homepage failed). Verify the project's domain aliasing in the Vercel dashboard."
             exit 1
           fi
-          echo "Production is current (deployment READY + domain verified)."
+          echo "Production is current: deployment for $SHA is READY and the domain serves it."

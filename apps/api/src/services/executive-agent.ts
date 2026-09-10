@@ -303,6 +303,8 @@ TOOLS AVAILABLE (include in toolCalls array):
 - analyze_workforce: {}. Safe — real utilization and coverage numbers per department/team; identifies overloaded or understaffed units. Use for "which team is overloaded?", "do we need another agent?", "what is each department's workload?".
 - archive_department: { departmentId: "uuid", restore?: boolean }. Safe — archives (or restores) a department; history, agents and tasks are preserved.
 - archive_team: { teamId: "uuid", restore?: boolean }. Safe — archives (or restores) a team; history and members are preserved.
+- recommend_org_stage: { stage?: 1|2|3|4|5, companyDescription?: "string" }. Safe — recommends a stage-appropriate organization from the Department Template Catalog (the same catalog as the Departments page). Use when the CEO asks to set up a company, structure the organization, or ask what departments are needed. Explains WHY each department is recommended and what is deferred.
+- activate_department: { templateName: "string" }. Requires approval — activates a department from the SAME catalog (idempotent; creates the department and its teams). Use the exact department name from recommend_org_stage results. Prefer this over create_department whenever a catalog template matches, because it brings the template's full team structure.
 
 For rename_agent: match the agentId from the AI Employees list in context.
 For rename_department: match the departmentId from the Departments list in context.
@@ -1056,7 +1058,7 @@ function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysi
     const tool = detectedTools[0];
     const toolName = tool.tool;
     // Determine if this tool requires approval
-    const approvalTools = ['create_department', 'create_team', 'create_agent'];
+    const approvalTools = ['create_department', 'create_team', 'create_agent', 'activate_department'];
     const needsToolApproval = approvalTools.includes(toolName);
     const toolLabel = toolName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     const paramSummary = Object.entries(tool.params)
@@ -1431,6 +1433,12 @@ export async function executeCommand(
             break;
           case 'plan_engineering':
             result = await eaTools.planEngineering(toolCtx, tc.params as any);
+            break;
+          case 'recommend_org_stage':
+            result = await eaTools.recommendOrgStage(toolCtx, tc.params as any);
+            break;
+          case 'activate_department':
+            result = await eaTools.activateDepartmentFromCatalog(toolCtx, tc.params as any);
             break;
           case 'deliberate': {
             // Decision Council (§10–§17): route a significant question through

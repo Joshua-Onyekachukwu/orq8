@@ -9,6 +9,12 @@ import { enforceResourceLimit } from '../services/entitlements.js';
 import { appendAudit } from '../services/audit.js';
 import * as deptService from '../services/departments.js';
 import * as teamService from '../services/teams.js';
+import {
+  activateDepartmentTemplate,
+  getStageAppropriateCatalog,
+  recommendOrgForStage,
+  parseTemplateStage,
+} from '../services/org-recommendation.js';
 import type { AppDeps } from '../types.js';
 
 /**
@@ -100,77 +106,30 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
     const ctx = await requireAuth(request, deps);
     const { id } = request.params as { id: string };
 
-    const [template] = await db
-      .select()
-      .from(departmentTemplates)
-      .where(
-        and(
-          eq(departmentTemplates.id, id),
-          or(
-            eq(departmentTemplates.isSystem, true),
-            eq(departmentTemplates.orgId, ctx.orgId),
-          ),
-        ),
-      )
-      .limit(1);
-    if (!template) {
+    // §15: one activation behavior, shared with the EA tool and the builder.
+    const outcome = await activateDepartmentTemplate(db, ctx, id);
+    if (!outcome.ok) {
       reply.code(404);
       return { error: { code: 'not_found', message: 'Template not found' } };
     }
 
-    const activated: { departments: string[]; teams: string[]; reused: string[] } = {
-      departments: [], teams: [], reused: [],
-    };
+    return { data: { departmentId: outcome.result.departmentId, ...outcome.result.activated } };
+  });
 
-    // 1. Department — reuse by name so re-activation never duplicates.
-    const existingDept = await deptService.findByName(db, ctx.orgId, template.name);
-    let departmentId: string;
-    if (existingDept) {
-      departmentId = existingDept.id;
-      activated.reused.push(template.name);
-    } else {
-      await enforceResourceLimit(db, ctx.orgId, 'departments');
-      const created = await deptService.createDepartment(db, {
-        orgId: ctx.orgId,
-        name: template.name,
-        description: template.mission ?? template.description ?? undefined,
-      });
-      departmentId = created.id;
-      activated.departments.push(template.name);
+  /** Stage-aware catalog view (§13): templates filtered to the org's stage. */
+  app.get('/v1/department-templates/stage/:stage', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const stageNum = Number.parseInt((request.params as { stage: string }).stage, 10);
+    if (!Number.isFinite(stageNum) || stageNum < 1 || stageNum > 5) {
+      reply.code(400);
+      return { error: { code: 'validation_error', message: 'stage must be an integer 1-5' } }; 
     }
-
-    // 2. Teams from the template's team rows (names only — the template's
-    //    team_templates catalog is a separate system; these are the
-    //    department-specific team entries embedded in the department template).
-    const teamDefs = Array.isArray(template.teams) ? (template.teams as Array<{ name: string; description?: string }>) : [];
-    for (const t of teamDefs) {
-      if (!t?.name) continue;
-      const existingTeam = await teamService.findByName(db, ctx.orgId, t.name);
-      if (existingTeam) {
-        activated.reused.push(t.name);
-        continue;
-      }
-      await enforceResourceLimit(db, ctx.orgId, 'teams');
-      const team = await teamService.createTeam(db, {
-        orgId: ctx.orgId,
-        name: t.name,
-        description: t.description,
-        departmentId,
-      });
-      activated.teams.push(team.name);
-    }
-
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: 'user',
-      actorId: ctx.userId,
-      action: 'department.activated_from_template',
-      inputRef: JSON.stringify({ templateId: template.id, templateSlug: template.slug }),
-      resultRef: JSON.stringify({ departmentId, ...activated }),
-      outcome: 'success',
-    });
-
-    return { data: { departmentId, ...activated } };
+    const stage = stageNum as 1 | 2 | 3 | 4 | 5;
+    const [catalog, recommendation] = await Promise.all([
+      getStageAppropriateCatalog(db, ctx.orgId, stage),
+      recommendOrgForStage(db, ctx.orgId, stage),
+    ]);
+    return { data: recommendation };
   });
 
   // ─── Team Templates ──────────────────────────────────────────────────

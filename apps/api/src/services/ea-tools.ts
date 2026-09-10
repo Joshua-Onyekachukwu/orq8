@@ -25,6 +25,88 @@ import { enforceResourceLimit } from './entitlements.js';
 
 // ─── Tool Types ──────────────────────────────────────────────────────────
 
+/**
+ * §15: recommend an organization from the Department Template Catalog for the
+ * given workforce stage (1 idea … 5 enterprise). Reads the SAME catalog the
+ * Departments page and company builder use — never a parallel definition.
+ * Read-only: the founder decides what to actually activate.
+ */
+export async function recommendOrgStage(
+  ctx: ToolContext,
+  params: { stage?: number; companyDescription?: string },
+): Promise<ToolResult> {
+  const { recommendOrgForStage, parseTemplateStage } = await import('./org-recommendation.js');
+  const stageInput = params?.stage;
+  let stage: number;
+  if (Number.isFinite(stageInput) && (stageInput as number) >= 1 && (stageInput as number) <= 5) {
+    stage = stageInput as number;
+  } else {
+    // Infer from the org's current shape — the honest default when the founder
+    // didn't specify a stage: count departments (a Stage-1 company has few).
+    const deptRows = await ctx.db.select({ id: departments.id }).from(departments).where(eq(departments.orgId, ctx.orgId));
+    stage = Math.min(5, Math.max(1, Math.ceil((deptRows.length || 0) / 5)));
+  }
+  const rec = await recommendOrgForStage(ctx.db, ctx.orgId, stage as 1 | 2 | 3 | 4 | 5);
+  return {
+    success: true,
+    tool: 'recommend_org_stage',
+    message: `Stage ${rec.stage}: recommend ${rec.recommended.map((t) => t.name).join(', ')} (${rec.recommended.length} departments; ${rec.deferred.length} deferred). ${rec.rationale}`,
+    data: {
+      stage: rec.stage,
+      recommended: rec.recommended.map((t) => ({ id: t.id, name: t.name, slug: t.slug, stage: t.stage })),
+      deferred: rec.deferred.map((t) => ({ name: t.name, stage: t.stage })),
+      rationale: rec.rationale,
+    },
+  };
+}
+
+/**
+ * §15: activate one department from the SAME catalog as the Departments page.
+ * Same idempotent activation path the founder's one-click uses. Creates the
+ * department + its teams (real entities the architecture supports); does NOT
+ * fabricate employees/goals/budgets the architecture doesn't seed here.
+ */
+export async function activateDepartmentFromCatalog(
+  ctx: ToolContext,
+  params: { templateName?: string; templateId?: string },
+): Promise<ToolResult> {
+  const { activateDepartmentTemplate, getCatalog } = await import('./org-recommendation.js');
+  const catalog = await getCatalog(ctx.db, ctx.orgId);
+  let template = null;
+  if (params?.templateId) {
+    template = catalog.find((t) => t.id === params.templateId) ?? null;
+  } else if (params?.templateName) {
+    const wanted = params.templateName.trim().toLowerCase();
+    template =
+      catalog.find((t) => t.name.toLowerCase() === wanted) ??
+      catalog.find((t) => t.slug === wanted) ??
+      catalog.find((t) => t.name.toLowerCase().includes(wanted)) ??
+      null;
+  }
+  if (!template) {
+    return {
+      success: false,
+      tool: 'activate_department',
+      message: `No catalog department matches ${params?.templateName ?? params?.templateId ?? '(none given)'}. Available: ${catalog.map((t) => t.name).join(', ')}.`,
+      error: 'not_found',
+    };
+  }
+  const outcome = await activateDepartmentTemplate(ctx.db, { orgId: ctx.orgId, userId: ctx.userId }, template.id);
+  if (!outcome.ok) {
+    return { success: false, tool: 'activate_department', message: 'Template not found.', error: 'not_found' };
+  }
+  const { departmentId, activated } = outcome.result;
+  const parts: string[] = [];
+  parts.push(activated.departments.length ? `created department "${activated.departments[0]}"` : `department "${template.name}" already existed`);
+  if (activated.teams.length) parts.push(`teams: ${activated.teams.join(', ')}`);
+  return {
+    success: true,
+    tool: 'activate_department',
+    message: `Activated "${template.name}" from the catalog — ${parts.join('; ')}.`,
+    data: { departmentId, activated, stage: template.stage, stageLabel: template.stageLabel },
+  };
+}
+
 export interface ToolResult {
   success: boolean;
   tool: string;
