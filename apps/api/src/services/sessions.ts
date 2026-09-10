@@ -26,11 +26,21 @@ interface CachedSession {
   platformRole: string;
   revokedAt: string | null;
   expiresAt: string;
+  /** Epoch ms when this cache entry was written from the DB — bounds trust. */
+  cachedAt: number;
 }
+
+/**
+ * How long a cache-hit may be trusted WITHOUT re-verifying against the DB.
+ * Bounds the worst case where a revocation's cache eviction silently failed:
+ * after this window the entry is re-checked against the sessions table, so a
+ * logged-out token stops authenticating within minutes regardless.
+ */
+const SESSION_CACHE_TRUST_WINDOW_MS = 5 * 60 * 1000;
 
 // v2: includes platformRole. Bumped so pre-flag cache entries (no platformRole)
 // are treated as misses and re-resolved from the DB instead of guessing 'user'.
-const SESSION_CACHE_PREFIX = 'session:v2:';
+const SESSION_CACHE_PREFIX = 'session:v3:';
 
 export async function createSession(
   db: Db,
@@ -47,11 +57,17 @@ export async function createSession(
     expiresAt,
     ip: input.ip ?? null,
     userAgent: input.userAgent ?? null,
-  });
-
-  return { token, expiresAt };
+  });  return { token, expiresAt };
 }
 
+/**
+ * Resolve a session token to its live DB row + user, with a bounded-trust Redis
+ * cache in front. Cache entries are trusted for at most
+ * SESSION_CACHE_TRUST_WINDOW_MS; after that the DB is re-checked, so a revocation
+ * whose cache eviction failed still takes effect within minutes, not 30 days.
+ *
+ * Returns null for revoked/expired/unknown tokens.
+ */
 export async function findSessionByToken(
   db: Db,
   token: string,
@@ -76,6 +92,14 @@ export async function findSessionByToken(
           return null;
         }
 
+        // Bounded trust: if the entry is older than the trust window, re-verify
+        // against the DB before honouring it. This bounds the damage of a missed
+        // cache eviction (logout revokes the DB row; a stale cache entry would
+        // otherwise authenticate the dead token for the full 30-day TTL).
+        if (!parsed.cachedAt || Date.now() - parsed.cachedAt > SESSION_CACHE_TRUST_WINDOW_MS) {
+          await redis.del(cacheKey);
+          // fall through to the database re-check below
+        } else {
         const sessionRecord = {
           id: parsed.sessionId,
           userId: parsed.userId,
@@ -99,6 +123,7 @@ export async function findSessionByToken(
           role: parsed.role,
           platformRole: parsed.platformRole ?? 'user',
         };
+        }
       }
     } catch {
       // Cache read failed — fall through to database
@@ -135,6 +160,7 @@ export async function findSessionByToken(
         platformRole: row.user.platformRole,
         revokedAt: (row.session.revokedAt as Date | null)?.toISOString() ?? null,
         expiresAt: row.session.expiresAt.toISOString(),
+        cachedAt: Date.now(),
       };
 
       // Cache until session expires
@@ -157,10 +183,18 @@ export async function findSessionByToken(
   };
 }
 
+/**
+ * Revoke a session server-side AND evict its auth cache entry.
+ *
+ * `redis` is REQUIRED (compiler-enforced): revocation without cache eviction is
+ * the bug class where a logged-out token keeps authenticating for the full
+ * 30-day cache TTL. If Redis is unavailable the DB revocation still applies and
+ * the cache self-heals via `verifySessionAt`'s revokedAt re-check.
+ */
 export async function revokeSession(
   db: Db,
   sessionId: string,
-  redis?: RedisClient | null,
+  redis: RedisClient | null,
 ): Promise<void> {
   // Update database
   await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.id, sessionId));
@@ -184,26 +218,41 @@ export async function revokeSession(
 }
 
 /**
- * Invalidate all cached sessions for a user (e.g., on password change).
+ * Invalidate all cached + DB sessions for a user (password change, forced logout).
+ *
+ * Deletes the Redis cache for every session the user owns (including already-revoked
+ * rows — the cache must never outlive trust), then revokes all unexpired sessions
+ * server-side so old tokens fail even if Redis was down at revocation time.
  */
 export async function invalidateUserSessions(
   db: Db,
   userId: string,
-  redis?: RedisClient | null,
-): Promise<void> {
-  if (!redis?.isConnected()) return;
-
+  redis: RedisClient | null,
+): Promise<number> {
   try {
     const userSessions = await db
-      .select({ tokenHash: sessions.tokenHash })
+      .select({ id: sessions.id, tokenHash: sessions.tokenHash, revokedAt: sessions.revokedAt, expiresAt: sessions.expiresAt })
       .from(sessions)
       .where(eq(sessions.userId, userId));
 
-    if (userSessions.length > 0) {
+    if (redis?.isConnected() && userSessions.length > 0) {
       const keys = userSessions.map(s => `${SESSION_CACHE_PREFIX}${s.tokenHash}`);
       await redis.del(...keys);
     }
+
+    const now = new Date();
+    let revokedCount = 0;
+    for (const s of userSessions) {
+      const unrevoked = !s.revokedAt || s.revokedAt.getTime() > now.getTime();
+      const unexpired = s.expiresAt.getTime() > now.getTime();
+      if (unrevoked && unexpired) {
+        await revokeSession(db, s.id, redis);
+        revokedCount++;
+      }
+    }
+    return revokedCount;
   } catch {
-    // Cache invalidation failed — not critical
+    // Cache invalidation failed — revocation below still applies via the DB
+    return 0;
   }
 }

@@ -81671,28 +81671,32 @@ async function findSessionByToken(db, token, redis) {
           await redis.del(cacheKey);
           return null;
         }
-        const sessionRecord = {
-          id: parsed.sessionId,
-          userId: parsed.userId,
-          orgId: parsed.orgId,
-          tokenHash,
-          expiresAt: new Date(parsed.expiresAt),
-          revokedAt: null,
-          createdAt: /* @__PURE__ */ new Date(),
-          ip: null,
-          userAgent: null
-        };
-        return {
-          session: sessionRecord,
-          user: {
-            id: parsed.userId,
-            email: parsed.email,
-            name: null,
+        if (!parsed.cachedAt || Date.now() - parsed.cachedAt > SESSION_CACHE_TRUST_WINDOW_MS) {
+          await redis.del(cacheKey);
+        } else {
+          const sessionRecord = {
+            id: parsed.sessionId,
+            userId: parsed.userId,
+            orgId: parsed.orgId,
+            tokenHash,
+            expiresAt: new Date(parsed.expiresAt),
+            revokedAt: null,
+            createdAt: /* @__PURE__ */ new Date(),
+            ip: null,
+            userAgent: null
+          };
+          return {
+            session: sessionRecord,
+            user: {
+              id: parsed.userId,
+              email: parsed.email,
+              name: null,
+              platformRole: parsed.platformRole ?? "user"
+            },
+            role: parsed.role,
             platformRole: parsed.platformRole ?? "user"
-          },
-          role: parsed.role,
-          platformRole: parsed.platformRole ?? "user"
-        };
+          };
+        }
       }
     } catch {
     }
@@ -81716,7 +81720,8 @@ async function findSessionByToken(db, token, redis) {
         email: row.user.email,
         platformRole: row.user.platformRole,
         revokedAt: row.session.revokedAt?.toISOString() ?? null,
-        expiresAt: row.session.expiresAt.toISOString()
+        expiresAt: row.session.expiresAt.toISOString(),
+        cachedAt: Date.now()
       };
       const ttlSeconds = Math.max(
         60,
@@ -81745,7 +81750,29 @@ async function revokeSession(db, sessionId, redis) {
     }
   }
 }
-var SESSION_CACHE_TTL_SECONDS, SESSION_CACHE_PREFIX;
+async function invalidateUserSessions(db, userId, redis) {
+  try {
+    const userSessions = await db.select({ id: sessions.id, tokenHash: sessions.tokenHash, revokedAt: sessions.revokedAt, expiresAt: sessions.expiresAt }).from(sessions).where(eq(sessions.userId, userId));
+    if (redis?.isConnected() && userSessions.length > 0) {
+      const keys2 = userSessions.map((s) => `${SESSION_CACHE_PREFIX}${s.tokenHash}`);
+      await redis.del(...keys2);
+    }
+    const now = /* @__PURE__ */ new Date();
+    let revokedCount = 0;
+    for (const s of userSessions) {
+      const unrevoked = !s.revokedAt || s.revokedAt.getTime() > now.getTime();
+      const unexpired = s.expiresAt.getTime() > now.getTime();
+      if (unrevoked && unexpired) {
+        await revokeSession(db, s.id, redis);
+        revokedCount++;
+      }
+    }
+    return revokedCount;
+  } catch {
+    return 0;
+  }
+}
+var SESSION_CACHE_TTL_SECONDS, SESSION_CACHE_TRUST_WINDOW_MS, SESSION_CACHE_PREFIX;
 var init_sessions = __esm({
   "src/services/sessions.ts"() {
     "use strict";
@@ -81753,7 +81780,8 @@ var init_sessions = __esm({
     init_src3();
     init_src2();
     SESSION_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
-    SESSION_CACHE_PREFIX = "session:v2:";
+    SESSION_CACHE_TRUST_WINDOW_MS = 5 * 60 * 1e3;
+    SESSION_CACHE_PREFIX = "session:v3:";
   }
 });
 
@@ -105560,7 +105588,7 @@ function registerAuthRoutes(app, deps) {
   });
   app.post("/v1/auth/logout", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    await revokeSession(db, ctx.sessionId);
+    await revokeSession(db, ctx.sessionId, deps.redis ?? null);
     await appendAudit(db, { orgId: ctx.orgId, actorType: "user", actorId: ctx.userId, action: "auth.logout", outcome: "success" });
     reply.code(204);
     return reply.send();
@@ -105579,8 +105607,9 @@ function registerAuthRoutes(app, deps) {
     if (!ok) throw unauthorized("Current password is incorrect");
     const newHash = await hashPassword(new_password);
     await db.update(users).set({ passwordHash: newHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, ctx.userId));
-    await appendAudit(db, { orgId: ctx.orgId, actorType: "user", actorId: ctx.userId, action: "auth.password_changed", outcome: "success" });
-    return { data: { ok: true } };
+    const revoked = await invalidateUserSessions(db, ctx.userId, deps.redis ?? null);
+    await appendAudit(db, { orgId: ctx.orgId, actorType: "user", actorId: ctx.userId, action: "auth.password_changed", outcome: "success", resultRef: `sessions_revoked:${revoked}` });
+    return { data: { ok: true, sessions_revoked: revoked } };
   });
   app.post("/v1/auth/forgot-password", async (request) => {
     const parsed = external_exports.object({ email: external_exports.string().email() }).safeParse(request.body);

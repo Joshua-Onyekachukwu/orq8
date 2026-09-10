@@ -158,7 +158,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.post('/v1/auth/logout', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    await sessions.revokeSession(db, ctx.sessionId);
+    // redis is REQUIRED: revocation must also evict the cached session, or the
+    // logged-out token keeps authenticating from cache for the full 30-day TTL.
+    await sessions.revokeSession(db, ctx.sessionId, deps.redis ?? null);
     await appendAudit(db, { orgId: ctx.orgId, actorType: 'user', actorId: ctx.userId, action: 'auth.logout', outcome: 'success' });
     reply.code(204);
     return reply.send();
@@ -181,9 +183,12 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     const newHash = await hashPassword(new_password);
     await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, ctx.userId));
-    await appendAudit(db, { orgId: ctx.orgId, actorType: 'user', actorId: ctx.userId, action: 'auth.password_changed', outcome: 'success' });
+    // Password changed: every existing session is untrusted. Revoke them all
+    // (DB + cache) so stolen tokens die with the password.
+    const revoked = await sessions.invalidateUserSessions(db, ctx.userId, deps.redis ?? null);
+    await appendAudit(db, { orgId: ctx.orgId, actorType: 'user', actorId: ctx.userId, action: 'auth.password_changed', outcome: 'success', resultRef: `sessions_revoked:${revoked}` });
 
-    return { data: { ok: true } };
+    return { data: { ok: true, sessions_revoked: revoked } };
   });
 
   // ── Password Reset ──
