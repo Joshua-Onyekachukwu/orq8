@@ -104,6 +104,19 @@ export function registerCommandStreamRoutes(app: FastifyInstance, deps: AppDeps)
       }
     };
 
+    // SSE heartbeat every 15s: keeps intermediate proxies from silently
+    // buffering/stalling a long stream during slow LLM stages, and lets the
+    // client distinguish "working" from "gone".
+    const heartbeat = setInterval(() => {
+      if (!closed) {
+        try {
+          reply.raw.write(': hb\n\n');
+        } catch {
+          closed = true;
+        }
+      }
+    }, 15_000);
+
     try {
       // The pipeline's own trace instrumentation emits the first `stage`
       // event (context_building started) synchronously at pipeline start.
@@ -135,6 +148,13 @@ export function registerCommandStreamRoutes(app: FastifyInstance, deps: AppDeps)
               status: 'skipped',
               ...(ev.reason ? { reason: ev.reason } : {}),
             });
+          } else if (ev.type === 'step_detail' && ev.detail && typeof ev.detail === 'object') {
+            // Per-task progress inside task_execution — the console shows which
+            // piece of work finished instead of an undifferentiated spinner.
+            const d = ev.detail as { taskId?: string; taskStatus?: string };
+            if (d.taskId) {
+              send({ type: 'task', taskId: d.taskId, status: d.taskStatus ?? 'unknown' });
+            }
           }
         },
       });
@@ -158,6 +178,7 @@ export function registerCommandStreamRoutes(app: FastifyInstance, deps: AppDeps)
         },
       });
     } finally {
+      clearInterval(heartbeat);
       closed = true;
       reply.raw.end();
     }

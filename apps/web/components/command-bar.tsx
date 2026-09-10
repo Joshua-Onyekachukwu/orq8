@@ -106,6 +106,22 @@ export function CommandBar({ context }: { context?: CommandContext }) {
               next.push({ stage: ev.stage, label: ev.label, status: ev.status });
               return next;
             }),
+          onTask: (ev) =>
+            setStages((prev) => {
+              // Live per-task progress inside the execution stage — the console
+              // shows real work finishing instead of an undifferentiated bar.
+              const done = (ev.status === "completed" ? 1 : 0) + (prev.find((s) => s.stage === "task_execution")?.done ?? 0);
+              const next = prev.filter((s) => s.stage !== "task_execution");
+              const base = prev.find((s) => s.stage === "task_execution");
+              next.push({
+                stage: "task_execution",
+                label: "Executing tasks",
+                status: "in_progress",
+                done,
+                total: base?.total ?? prev.length,
+              });
+              return next;
+            }),
         });
       } catch (err) {
         // Fall back to the buffered POST ONLY when the stream never got far

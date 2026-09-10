@@ -10,7 +10,10 @@ import { Check, Loader2, Minus, XCircle } from "lucide-react";
 export interface EAProgressStage {
   stage: string;
   label: string;
-  status: "started" | "completed" | "skipped" | "failed";
+  status: "started" | "completed" | "skipped" | "failed" | "in_progress";
+  /** Live per-task tally inside task_execution (from `task` stream events). */
+  done?: number;
+  total?: number;
 }
 
 export function ExecutiveAgentProgress({
@@ -35,7 +38,7 @@ export function ExecutiveAgentProgress({
           )}
           <span
             className={
-              s.status === "started"
+              s.status === "started" || s.status === "in_progress"
                 ? "font-medium text-gray-800"
                 : s.status === "failed"
                   ? "text-red-600"
@@ -43,6 +46,9 @@ export function ExecutiveAgentProgress({
             }
           >
             {s.label}
+            {s.status === "in_progress" && typeof s.done === "number" && typeof s.total === "number" && s.total > 0
+              ? ` — ${s.done}/${s.total} finished`
+              : ""}
           </span>
         </div>
       ))}

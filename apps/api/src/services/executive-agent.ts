@@ -6,6 +6,7 @@ import { retrieveSemanticForContext } from './memory.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
+import { executeTasksWithBudget, type BudgetedExecution } from './ea-execution-budget.js';
 import { broadcastToOrg } from './realtime.js';
 import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
 import { getDecisionContext } from './decision-memory.js';
@@ -174,7 +175,8 @@ export type EAProgressEvent =
   | { type: 'step_started'; step: string }
   | { type: 'step_completed'; step: string; detail?: Record<string, unknown> }
   | { type: 'step_failed'; step: string; error: string }
-  | { type: 'step_skipped'; step: string; reason?: string };
+  | { type: 'step_skipped'; step: string; reason?: string }
+  | { type: 'step_detail'; step: string; detail: Record<string, unknown> };
 
 export type EAProgressSink = (event: EAProgressEvent) => void;
 
@@ -1224,8 +1226,7 @@ export async function createApprovalIfNeeded(
 
   return created?.id;
 }
-
-// ─── Error Recovery ─────────────────────────────────────────────────────────
+// --- Error Recovery (kept for non-interactive callers; interactive runs use ea-execution-budget) ---
 
 /**
  * Execute a single task with error recovery (retry + fallback).
@@ -1526,19 +1527,45 @@ export async function executeCommand(
     // Approval creation failure is non-fatal — continue without approval
   }
 
-  // ── Step 6: Execute Tasks (with error recovery) ──
+  // ── Step 6: Execute Tasks (wall-clock bounded — never hangs on camera) ──
   const execStep = startStep(trace, 'task_execution');
   const taskExecutionResults: TaskExecutionResult[] = [];
 
   if (!intent.requiresApproval && taskIds.length > 0) {
-    for (const taskId of taskIds) {
-      const result = await executeTaskWithRecovery(config, db, orgId, taskId, trace);
-      taskExecutionResults.push(result);
+    const budgeted = await executeTasksWithBudget(config, db, orgId, taskIds, {
+      // Interactive ceiling: the founder watches this stage live.
+      totalMs: 120_000,
+      onTaskDone: (r: BudgetedExecution) => {
+        emitTraceProgress(trace, {
+          type: 'step_detail',
+          step: 'task_execution',
+          detail: { taskId: r.taskId, taskStatus: r.status },
+        });
+      },
+    });
+    for (const r of budgeted.results) {
+      taskExecutionResults.push({
+        taskId: r.taskId,
+        status: r.status === 'deferred' ? 'failed' : r.status,
+        result: r.result,
+        cost: r.cost,
+        tokensUsed: r.tokensUsed,
+        llmUsed: r.llmUsed,
+      });
+      if (r.deferred) {
+        // Deferred tasks are honest pending work, not failures — surface it.
+        broadcastToOrg(orgId, {
+          type: 'task.deferred',
+          taskId: r.taskId,
+          message: 'Task deferred: execution budget reached. It remains pending and can be re-run.',
+        });
+      }
     }
     completeStep(execStep, {
-      completed: taskExecutionResults.filter(r => r.status === 'completed').length,
-      failed: taskExecutionResults.filter(r => r.status === 'failed').length,
-      total: taskExecutionResults.length,
+      completed: budgeted.completed,
+      failed: budgeted.failed,
+      deferred: budgeted.deferred,
+      total: budgeted.results.length,
     });
   } else {
     completeStep(execStep, { skipped: true, reason: intent.requiresApproval ? 'awaiting_approval' : 'no_tasks' });

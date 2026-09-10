@@ -25,12 +25,24 @@ export interface StreamStageEvent {
   error?: string;
 }
 
-export type CommandStreamEvent = StreamStageEvent | { type: "done"; result: unknown; completedStages: string[] } | { type: "error"; error: { code: string; message: string } };
+export interface StreamTaskEvent {
+  type: "task";
+  taskId: string;
+  status: string;
+}
+
+export type CommandStreamEvent =
+  | StreamStageEvent
+  | StreamTaskEvent
+  | { type: "done"; result: unknown; completedStages: string[] }
+  | { type: "error"; error: { code: string; message: string } };
 
 export interface CommandStreamOptions {
   command: string;
   /** Same shape as POST /api/commands `context` — sent as a JSON param. */
   context?: Record<string, unknown>;
+  /** Per-task completion events emitted inside the task_execution stage. */
+  onTask?: (event: StreamTaskEvent) => void;
   /** Free-form founder context note (e.g. the agent panel's page context). */
   contextNote?: string;
   onStage?: (event: StreamStageEvent) => void;
@@ -103,6 +115,9 @@ export async function runCommandStream(options: CommandStreamOptions): Promise<a
     if (event.type === "stage") {
       pipelineStarted = true;
       options.onStage?.(event);
+    } else if (event.type === "task") {
+      pipelineStarted = true;
+      options.onTask?.(event);
     } else if (event.type === "done") {
       pipelineStarted = true;
       finalResult = event.result;

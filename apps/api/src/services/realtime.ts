@@ -22,6 +22,7 @@ export type RealtimeEvent =
   | { type: 'task.started'; taskId: string; agentId: string; agentName: string }
   | { type: 'task.completed'; taskId: string; agentId: string; agentName: string; result: string }
   | { type: 'task.failed'; taskId: string; agentId: string; agentName: string; error: string }
+  | { type: 'task.deferred'; taskId: string; message: string }
   | { type: 'approval.created'; approvalId: string; action: string }
   | { type: 'approval.decided'; approvalId: string; status: string }
   | { type: 'approval.required'; approvalId?: string; agentName: string; toolName: string; riskLevel: string }
