@@ -21,6 +21,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { classifyFounderOutcome } from '../src/services/decision-feedback.js';
 import { updateDecision } from '../src/services/decision-memory.js';
+import { deleteOrg } from './helpers/delete-org.js';
 
 const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
 
@@ -70,11 +71,13 @@ run('updateDecision files and classifies founder outcomes (§20)', () => {
   const suffix = randomUUID().slice(0, 8);
 
   afterAll(async () => {
-    // FK-safe order: children first (decisions→org, memberships→org+user),
-    // then the org, then the user.
-    await db.delete(decisions).where(eqDec(orgId));
+    // Suite-canonical org cleanup (see helpers/delete-org.ts): disables FK
+    // triggers for the session so audit_events and other children the service
+    // layer wrote never break teardown, then removes the org and its rows.
+    // decisions is not in the helper's org-scoped list, so it goes first.
+    await db.delete(decisions).where(eq(decisions.orgId, orgId));
+    await deleteOrg(dbPool, orgId);
     await db.delete(memberships).where(eqMem(ownerId));
-    await db.delete(organizations).where(eq(organizations.id, orgId));
     await db.delete(users).where(eqUser(ownerId));
     await dbPool.end();
   });
@@ -111,9 +114,6 @@ run('updateDecision files and classifies founder outcomes (§20)', () => {
 
 // Small helpers keep the cleanup readable.
 import { eq } from 'drizzle-orm';
-function eqDec(orgId: string) {
-  return eq(decisions.orgId, orgId);
-}
 function eqMem(userId: string) {
   return eq(memberships.userId, userId);
 }
