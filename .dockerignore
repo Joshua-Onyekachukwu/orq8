@@ -30,10 +30,10 @@ coverage
 .env
 .env.*
 
-# Assets not needed at build/run time
+# NOTE: never ignore asset extensions (*.png, *.jpg, *.svg, ...) here. The web
+# app statically imports images (e.g. the navbar logo) and serves
+# apps/web/public/images at runtime, so next build inside the container
+# REQUIRES them — a previous version ignored them and broke docker builds the
+# same way .vercelignore once stripped png/svg from Vercel deployments.
 *.pdf
-*.png
-*.jpg
-*.jpeg
-*.svg
 *.log
