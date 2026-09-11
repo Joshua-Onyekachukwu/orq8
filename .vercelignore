@@ -1,4 +1,10 @@
-# Only ignore large files/dirs Vercel doesn't need
+# Only ignore large files/dirs Vercel doesn't need.
+#
+# NOTE: never ignore asset extensions (*.png, *.svg, etc.) here. A previous
+# version ignored *.png and *.svg, which silently stripped every png/svg from
+# apps/web/public/images — the production logo, testimonial quote icon, and
+# all banner/hero art 404'd while jpgs kept serving. See .gitattributes-free
+# verification: git ls-files 'apps/web/public/images/*.png' | wc -l > 0.
 node_modules
 apps/api
 infra
@@ -12,5 +18,3 @@ tools
 .git
 .github
 *.pdf
-*.png
-*.svg

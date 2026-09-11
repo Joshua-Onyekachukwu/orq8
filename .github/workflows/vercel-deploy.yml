@@ -83,18 +83,22 @@ print(d.get('readyState',''), d.get('meta',{}).get('githubCommitSha',''))" 2>/de
           fi
 
           # The domain must serve the same build. The HTML build marker is a
-          # stable build fingerprint; hero-bg.png guards the /images class.
+          # stable build fingerprint; hero-bg.png / icons/quote.svg guard the
+          # png and svg asset classes (a previous .vercelignore stripped
+          # *.png/*.svg from deployments and CI could not catch it because
+          # only the homepage was asserted — asset 404s are fatal now).
           ok=0
           for i in $(seq 1 12); do
             sleep 10
             MARK=$(curl -s "https://orq8.vercel.app/?v=$RANDOM$RANDOM" | grep -o '<!--[A-Za-z0-9_-]\{10,\}-->' | head -1 || true)
             HOMEPAGE=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/")
-            ASSET=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/hero-bg.png")
-            echo "attempt $i: /=$HOMEPAGE /images/hero-bg.png=$ASSET marker=$MARK"
-            if [ "$HOMEPAGE" = "200" ]; then ok=1; break; fi
+            PNG=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/hero-bg.png")
+            SVG=$(curl -s -o /dev/null -w '%{http_code}' "https://orq8.vercel.app/images/icons/quote.svg")
+            echo "attempt $i: /=$HOMEPAGE hero-bg.png=$PNG quote.svg=$SVG marker=$MARK"
+            if [ "$HOMEPAGE" = "200" ] && [ "$PNG" = "200" ] && [ "$SVG" = "200" ]; then ok=1; break; fi
           done
           if [ "$ok" != "1" ]; then
-            echo "::error::Production domain orq8.vercel.app does not serve the deployment (homepage failed). Verify the project's domain aliasing in the Vercel dashboard."
+            echo "::error::Production domain orq8.vercel.app does not serve the deployment (homepage=$HOMEPAGE hero-bg.png=$PNG quote.svg=$SVG). Check domain aliasing AND .vercelignore — ignoring *.png/*.svg strips public assets and 404s the logo."
             exit 1
           fi
-          echo "Production is current: deployment for $SHA is READY and the domain serves it."
+          echo "Production is current: deployment for $SHA is READY, domain serves it, png/svg assets resolve."
