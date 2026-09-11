@@ -12,8 +12,8 @@
  */
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { eq } from 'drizzle-orm';
-import { organizations, users, memberships, subscriptions } from './schema.js';
+import { and, eq, sql } from 'drizzle-orm';
+import { agents, organizations, users, memberships, subscriptions } from './schema.js';
 
 const databaseUrl =
   process.env.DATABASE_URL ?? 'postgres://orq8:orq8_dev_only_change_me@localhost:5432/orq8';
@@ -75,6 +75,27 @@ async function main() {
         currentPeriodEnd: periodEnd,
       });
       console.log(`Created Company plan subscription for org ${orgId}.`);
+    }
+
+    // Demo janitor (§9 camera quality): archive legacy junk agents created by
+    // the pre-fix EA param bug (names with no alphanumeric character — '.',
+    // '..', empty after trim). Lifecycle-preserving — rows are archived, never
+    // deleted, so audit history stays intact. Idempotent: archived rows no
+    // longer match the predicate on re-run.
+    const junk = await db
+      .update(agents)
+      .set({ status: 'archived', retiredAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(agents.orgId, orgId),
+          eq(agents.status, 'active'),
+          // Name contains no letter/digit anywhere → junk.
+          sql`${agents.name} !~ '[[:alnum:]]'`,
+        ),
+      )
+      .returning({ id: agents.id });
+    if (junk.length > 0) {
+      console.log(`Archived ${junk.length} junk agent(s) in demo org (pre-fix EA param bug legacy).`);
     }
   } finally {
     await pool.end();

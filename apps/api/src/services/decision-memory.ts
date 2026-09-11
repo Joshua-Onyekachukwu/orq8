@@ -12,9 +12,10 @@
  *   - "Last time we did X, the outcome was Y — I recommend Z."
  */
 
-import { eq, and, desc, sql, count as countFn, gte } from 'drizzle-orm';
-import { decisions, type Db, type Decision, type NewDecision } from '@orq8/db';
+import { and, eq, desc, sql, count as countFn, gte } from 'drizzle-orm';
+import { decisions, tasks, type Db, type Decision, type NewDecision } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { classifyFounderOutcome } from './decision-feedback.js';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +155,31 @@ export async function updateDecision(
   const updateData: Record<string, unknown> = { ...data };
   if (data.actualOutcome) {
     updateData.outcomeFiledAt = new Date();
+    // §20 phase 2: a founder-filed outcome is classified NOW, not left for the
+    // scheduled reviewer (which only visits rows older than OUTCOME_REVIEW_DAYS
+    // — a fresh filing would otherwise sit with prediction_accuracy null and
+    // the org's accuracy mix stuck on 'unclassified'). The founder's narrative
+    // is ground truth for WHAT happened; the classifier derives the structured
+    // verdict from their words plus measured execution counts since the
+    // decision was made.
+    const [existing] = await db
+      .select({ decidedAt: decisions.decidedAt, createdAt: decisions.createdAt })
+      .from(decisions)
+      .where(and(eq(decisions.id, id), eq(decisions.orgId, orgId)))
+      .limit(1);
+    const anchor = existing?.decidedAt ?? existing?.createdAt ?? new Date(0);
+    const [stats] = await db
+      .select({
+        completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+        failed: sql<number>`count(*) filter (where ${tasks.status} = 'failed')::int`,
+      })
+      .from(tasks)
+      .where(and(eq(tasks.orgId, orgId), gte(tasks.createdAt, anchor)));
+    updateData.predictionAccuracy = classifyFounderOutcome(
+      data.actualOutcome,
+      stats?.completed ?? 0,
+      stats?.failed ?? 0,
+    );
   }
 
   const [row] = await db.update(decisions)

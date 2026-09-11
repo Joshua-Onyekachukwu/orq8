@@ -157,7 +157,39 @@ export async function reviewDecisionOutcome(
   };
 }
 
-/** Find decisions whose outcome review is due and not yet filed. */
+/**
+ * Classify a decision's prediction accuracy from the founder's own words.
+ *
+ * A founder filing an outcome IS the ground-truth signal — the scheduled
+ * reviewer must never overwrite their narrative, so this derives the verdict
+ * inline (§20): the founder's story and the org's measured execution are
+ * combined rather than one silently replacing the other. Narrative kept
+ * lowercase-safe and punctuation-insensitive; measured counts break ties.
+ */
+export function classifyFounderOutcome(
+  actualOutcome: string,
+  completed: number,
+  failed: number,
+): OutcomeReview['predictionAccuracy'] {
+  const text = actualOutcome.toLowerCase();
+  const negatives = [/(^|[^a-z])fail(ed|ure|ing)?([^a-z]|$)/, /missed target/, /fell short/, /underperformed/, /did not achieve/, /didn't achieve/, /worse than expected/, /churn (rose|spiked|increased)/, /revers(ed|al)/, /regress(ed|ion)/, /(activation|adoption) dropped/];
+  const positives = [/exceed(ed|s)?/, /beat target/, /ahead of (schedule|expectations?)/, /validat(ed|ion)/, /better than expected/, /held (steady|flat)/, /on track/, /improvement/, /success(ful|fully)?/];
+  const negCount = negatives.filter((r) => r.test(text)).length;
+  const posCount = positives.filter((r) => r.test(text)).length;
+  // Measured execution is the tie-breaker when the narrative is neutral.
+  if (posCount > negCount) return 'accurate';
+  if (negCount > posCount) return 'inaccurate';
+  if (failed > completed && completed + failed > 0) return 'inaccurate';
+  if (failed > 0 && completed > 0) return 'partially_accurate';
+  if (completed > 0) return 'accurate';
+  return 'partially_accurate';
+}
+
+/** Find decisions whose outcome review is due and not yet filed, plus filed
+ * outcomes still lacking a structured verdict (e.g. founder-filed via PATCH
+ * before the scheduled reviewer ran — §20 phase 2 must classify these too,
+ * not leave prediction_accuracy null with the accuracy mix stuck on
+ * 'unclassified'). Already-classified rows are left alone. */
 export async function findDecisionsDueForReview(db: Db, limit = BATCH_LIMIT) {
   const cutoff = new Date(Date.now() - OUTCOME_REVIEW_DAYS * 24 * 60 * 60 * 1000);
   return db
@@ -170,12 +202,17 @@ export async function findDecisionsDueForReview(db: Db, limit = BATCH_LIMIT) {
       createdAt: decisions.createdAt,
       expectedOutcome: decisions.expectedOutcome,
       actualOutcome: decisions.actualOutcome,
+      outcomeFiledAt: decisions.outcomeFiledAt,
       status: decisions.status,
     })
     .from(decisions)
     .where(
       and(
-        sql`${decisions.outcomeFiledAt} is null`,
+        or(
+          sql`${decisions.outcomeFiledAt} is null`,
+          // Filed but never classified (founder-filed outcomes).
+          sql`${decisions.predictionAccuracy} is null`,
+        ),
         lt(decisions.createdAt, cutoff),
         // Live decisions only — archived/reversed rows are historical record.
         or(eq(decisions.status, 'active'), eq(decisions.status, 'validated')),
@@ -203,6 +240,28 @@ export async function runOutcomeFeedbackLoop(db: Db): Promise<{
     if (review.predictionAccuracy === 'insufficient_data') {
       skipped += 1;
       continue; // leave outcome_filed_at null — retried next run
+    }
+
+    // Founder-filed outcome (PATCH): the founder's narrative is ground truth
+    // for WHAT happened — recompute only the structured verdict, never the
+    // story or the filing timestamp.
+    const founderFiled = decision.outcomeFiledAt != null && decision.actualOutcome != null;
+    if (founderFiled) {
+      const [stats] = await db
+        .select({
+          completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+          failed: sql<number>`count(*) filter (where ${tasks.status} = 'failed')::int`,
+        })
+        .from(tasks)
+        .where(and(eq(tasks.orgId, decision.orgId), gte(tasks.createdAt, decision.decidedAt ?? decision.createdAt)));
+      await db
+        .update(decisions)
+        .set({
+          predictionAccuracy: classifyFounderOutcome(decision.actualOutcome as string, stats?.completed ?? 0, stats?.failed ?? 0),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(decisions.id, decision.id), eq(decisions.orgId, decision.orgId)));
+      continue;
     }
 
     await db
