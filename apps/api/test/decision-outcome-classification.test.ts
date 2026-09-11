@@ -70,8 +70,11 @@ run('updateDecision files and classifies founder outcomes (§20)', () => {
   const suffix = randomUUID().slice(0, 8);
 
   afterAll(async () => {
-    await db.delete(decisions).where(eqOrg(orgId));
+    // FK-safe order: children first (decisions→org, memberships→org+user),
+    // then the org, then the user.
+    await db.delete(decisions).where(eqDec(orgId));
     await db.delete(memberships).where(eqMem(ownerId));
+    await db.delete(organizations).where(eq(organizations.id, orgId));
     await db.delete(users).where(eqUser(ownerId));
     await dbPool.end();
   });
@@ -108,8 +111,8 @@ run('updateDecision files and classifies founder outcomes (§20)', () => {
 
 // Small helpers keep the cleanup readable.
 import { eq } from 'drizzle-orm';
-function eqOrg(orgId: string) {
-  return eq(organizations.id, orgId);
+function eqDec(orgId: string) {
+  return eq(decisions.orgId, orgId);
 }
 function eqMem(userId: string) {
   return eq(memberships.userId, userId);
