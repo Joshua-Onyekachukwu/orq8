@@ -58,10 +58,7 @@ jobs:
               "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=3")
             DEPLOY_ID=$(echo "$RESP" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0]['id'] if ds else '')" 2>/dev/null || true)
             META=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$DEPLOY_ID")
-            read -r state meta_sha <<< "$(echo "$META" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print(d.get('readyState',''), d.get('meta',{}).get('githubCommitSha',''))" 2>/dev/null || true)"
+            read -r state meta_sha <<< "$(echo "$META" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('readyState',''), d.get('meta',{}).get('githubCommitSha',''))" 2>/dev/null || true)"
             echo "attempt $i: latest production deployment=$DEPLOY_ID state=$state sha=$meta_sha"
             if [ "$meta_sha" = "$SHA" ]; then built_for_this_push="yes"; fi
             case "$state" in
