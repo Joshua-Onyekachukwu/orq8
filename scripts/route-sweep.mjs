@@ -50,6 +50,9 @@ page.on("requestfailed", (r) => {
 page.on("response", (r) => {
   if (r.status() >= 500) failedRequests.push(`${r.status()} ${r.url().slice(0, 140)}`);
   if (r.status() === 404) failedRequests.push(`404 ${r.url().slice(0, 140)}`);
+  if (r.status() === 429) {
+    r.text().then((t) => failedRequests.push(`429 ${r.url().slice(0, 140)} body=${t.slice(0, 120)}`)).catch(() => failedRequests.push(`429 ${r.url().slice(0, 140)}`));
+  }
 });
 
 try {
