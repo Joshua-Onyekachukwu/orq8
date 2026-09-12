@@ -133,7 +133,8 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function loadState() {
       try {
-        const res = await fetch("/api/company-builder/state");
+        // The proxy route serves state via GET /api/company-builder (no action param).
+        const res = await fetch("/api/company-builder");
         if (res.ok) {
           const json = await res.json();
           const state = json?.data;

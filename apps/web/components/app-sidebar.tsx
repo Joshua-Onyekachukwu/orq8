@@ -17,6 +17,7 @@ import {
   FileText,
 
   Globe,
+  Newspaper,
   GraduationCap,
   Code2,
   GitBranch,
@@ -99,6 +100,7 @@ const navGroups: NavGroup[] = [
       { label: "Constitution", href: "/app/constitution", icon: ScrollText },
       { label: "Quality & Learning", href: "/app/quality", icon: Shield },
       { label: "Learning", href: "/app/learning", icon: GraduationCap },
+      { label: "Briefings", href: "/app/briefings", icon: Newspaper },
     ],
   },
 ];
