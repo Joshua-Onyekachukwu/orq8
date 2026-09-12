@@ -59,7 +59,9 @@ jobs:
             http_code=$(echo "$RESP" | tail -1)
             RESP_BODY=$(echo "$RESP" | sed '$d')
             [ -z "$first_body" ] && first_body=$(echo "$RESP_BODY" | head -c 160)
-            DEPLOY_ID=$(echo "$RESP_BODY" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0]['id'] if ds else '')" 2>/dev/null || true)
+            # v6 list entries carry the deployment id as 'uid' (not 'id') —
+            # reading 'id' here made the verifier see no deployments forever.
+            DEPLOY_ID=$(echo "$RESP_BODY" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print((ds[0].get('uid') or ds[0].get('id') or '') if ds else '')" 2>/dev/null || true)
             if [ -z "$DEPLOY_ID" ]; then
               empty=$((empty+1))
               if [ "$empty" -ge 3 ]; then
