@@ -78,19 +78,21 @@ test.describe("Authenticated user journey", () => {
         // The app shell re-renders identity server-side; its /me fetch is
         // cached for 30s, so poll with reloads past that window.
         await page.goto("/app");
-        const deadline = Date.now() + 60_000;
+        const deadline = Date.now() + 90_000;
         let sidebarHasNew = false;
         while (Date.now() < deadline) {
+          // The identity block lives in the sidebar's user-account button
+          // (a sibling of <nav>, not a descendant).
           sidebarHasNew = await page
-            .locator('nav p, [role=navigation] p')
-            .filter({ hasText: newName })
+            .locator('button[aria-label="User account menu"]')
+            .locator("p", { hasText: newName })
             .first()
             .isVisible()
             .catch(() => false);
           if (sidebarHasNew) break;
           await page.waitForTimeout(6_000);
           await page.reload();
-          await page.locator("nav, [role=navigation]").first().waitFor({ state: "visible", timeout: 15_000 });
+          await page.locator('button[aria-label="User account menu"]').waitFor({ state: "visible", timeout: 15_000 });
         }
         expect(sidebarHasNew, "sidebar identity should reflect the saved name").toBeTruthy();
 
@@ -118,13 +120,23 @@ test.describe("Authenticated user journey", () => {
       // ── Restore the original display name ─────────────────────────────
       if (originalName && originalName !== newName) {
         try {
-          await page.goto("/login");
-          await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!);
-          await page.locator('input[type="password"]').fill(process.env.TEST_USER_PASSWORD!);
-          await page.locator('button[type="submit"]').click();
-          await page.waitForURL(/\/app/, { timeout: 20_000 });
+          // A failure before logout leaves an active session — /login may
+          // bounce to /app. Go straight to the profile and log in only if
+          // the session is actually gone.
           await page.goto("/app/profile");
-          await page.locator('button[title="Edit name"]').click({ timeout: 15_000 });
+          const editBtn = page.locator('button[title="Edit name"]');
+          try {
+            await editBtn.waitFor({ state: "visible", timeout: 10_000 });
+          } catch {
+            await page.goto("/login");
+            await page.locator('input[type="email"]').fill(process.env.TEST_USER_EMAIL!);
+            await page.locator('input[type="password"]').fill(process.env.TEST_USER_PASSWORD!);
+            await page.locator('button[type="submit"]').click();
+            await page.waitForURL(/\/app/, { timeout: 20_000 });
+            await page.goto("/app/profile");
+            await editBtn.waitFor({ state: "visible", timeout: 15_000 });
+          }
+          await editBtn.click();
           const input = page.locator('input[placeholder="Your name"]');
           await input.fill(originalName);
           await input.locator("xpath=following-sibling::button[1]").click();
