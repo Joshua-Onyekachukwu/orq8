@@ -70,6 +70,48 @@ const DEFAULT_AGENT_PROMPT = `You are an AI employee of ORQ8. Complete the assig
  * 6. Updates agent stats
  * 7. Stores result in company memory
  */
+/**
+ * §16/§17 — pre-execution governance blocks (paused/archived agent, authority
+ * denial, autonomy level) previously returned a failed result WITHOUT touching
+ * the task row: the API said "failed" while the founder's task list showed
+ * "pending" forever. Persist the block so the org record is honest, record an
+ * activity event, broadcast to realtime clients, and charge nothing (no work
+ * was done).
+ */
+async function persistPreExecutionBlock(
+  db: Db,
+  orgId: string,
+  task: { id: string; agentId: string | null; title: string },
+  reason: string,
+  agentName: string,
+): Promise<TaskExecutionResult> {
+  await db
+    .update(tasks)
+    .set({ status: 'failed', result: reason.slice(0, 2000), cost: 0, updatedAt: new Date() })
+    .where(eq(tasks.id, task.id));
+
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: 'failed',
+    summary: `Execution blocked: ${reason}`,
+    reason: 'Pre-execution governance check (agent state, authority, or autonomy level)',
+    cost: 0,
+    department: null,
+  });
+
+  broadcastToOrg(orgId, {
+    type: 'task.failed',
+    taskId: task.id,
+    agentId: task.agentId ?? '',
+    agentName,
+    error: reason.slice(0, 200),
+  });
+
+  return { taskId: task.id, status: 'failed', result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
+}
+
 export async function executeTask(
   config: AppConfig,
   db: Db,
@@ -90,34 +132,28 @@ export async function executeTask(
   // 2. Enforce pause: if assigned agent is paused, reject execution
   if (task.agentId) {
     const [agent] = await db
-      .select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel })
+      .select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel, name: agents.name })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
     if (agent && (agent.status === 'paused' || agent.status === 'archived')) {
       const verb = agent.status === 'archived' ? 'archived' : 'paused';
-      return {
-        taskId,
-        status: 'failed',
-        result: `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
-        cost: 0,
-        tokensUsed: 0,
-        llmUsed: false,
-      };
+      return persistPreExecutionBlock(
+        db, orgId, task,
+        `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
+        agent.name,
+      );
     }
 
     // 2b. Enforce authority: check agent's authority profile
     if (agent?.authority && typeof agent.authority === 'object') {
       const auth = agent.authority as Record<string, unknown>;
       if (auth.canExecuteTasks === false) {
-        return {
-          taskId,
-          status: 'failed',
-          result: `Execution blocked: agent does not have permission to execute tasks.`,
-          cost: 0,
-          tokensUsed: 0,
-          llmUsed: false,
-        };
+        return persistPreExecutionBlock(
+          db, orgId, task,
+          'Execution blocked: agent does not have permission to execute tasks.',
+          agent.name,
+        );
       }
     }
 
@@ -126,14 +162,11 @@ export async function executeTask(
       const level = normalizeAutonomyLevel(agent.autonomyLevel);
       const decision = enforceAutonomy(level, 'task_execute');
       if (!decision.allowed) {
-        return {
-          taskId,
-          status: 'failed',
-          result: `Execution blocked by autonomy level: ${decision.reason}`,
-          cost: 0,
-          tokensUsed: 0,
-          llmUsed: false,
-        };
+        return persistPreExecutionBlock(
+          db, orgId, task,
+          `Execution blocked by autonomy level: ${decision.reason}`,
+          agent.name,
+        );
       }
     }
   }
