@@ -144,7 +144,10 @@ export async function buildApp(
   // many users from a single IP without tripping limits.
   const rateLimitEnabled = deps.config.NODE_ENV !== 'test';
   if (rateLimitEnabled && redis.isConnected()) {
-    rateLimitHookRedis(app, redis, { windowMs: 60_000, max: 60, prefix: 'rl:global' });
+    // 120/min: the authenticated app fires several API calls per page (dashboard,
+    // council, health…); 60/min made fast founder navigation 429 mid-session.
+    // Sensitive routes keep their own tighter buckets below.
+    rateLimitHookRedis(app, redis, { windowMs: 60_000, max: 120, prefix: 'rl:global' });
   } else if (rateLimitEnabled) {
     const globalRL = new Map<string, { count: number; windowStart: number }>();
     app.addHook('onRequest', async (request, reply) => {

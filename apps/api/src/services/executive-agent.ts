@@ -88,7 +88,10 @@ export interface ExecutiveContext {
 
 export interface IntentAnalysis {
   intent: string;
-  category: 'research' | 'write' | 'communicate' | 'plan' | 'analyze' | 'execute' | 'report' | 'manage' | 'unknown';
+  category: 'research' | 'write' | 'communicate' | 'plan' | 'analyze' | 'execute' | 'report' | 'manage' | 'inquiry' | 'unknown';
+  /** §3: informational questions are answered from live org context and must
+   * never be decomposed into tasks. answerOnly=true short-circuits execution. */
+  answerOnly?: boolean;
   requiresApproval: boolean;
   approvalReason?: string;
   riskLevel: 'low' | 'medium' | 'high';
@@ -239,7 +242,8 @@ APPROVAL RULES:
 RESPOND IN THIS EXACT JSON FORMAT:
 {
   "intent": "clear one-sentence description of what the CEO wants",
-  "category": "one of: research, write, communicate, plan, analyze, execute, report, manage",
+  "category": "one of: research, write, communicate, plan, analyze, execute, report, manage, inquiry",
+  "answerOnly": true/false,
   "requiresApproval": true/false,
   "approvalReason": "why approval is needed (if applicable)",
   "riskLevel": "low/medium/high",
@@ -283,7 +287,7 @@ EXECUTIVE TOOLS — YOU CAN EXECUTE ACTIONS DIRECTLY:
 WHEN TO USE TOOLS vs TASKS:
 - If the CEO asks to CREATE, RENAME, or MODIFY an organizational entity (department, team, agent, goal), use a TOOL directly.
 - If the CEO asks to DO WORK (research, write, analyze, build), create TASKS for AI employees.
-- If the CEO asks a QUESTION, just answer with analysis and recommendations.
+- If the CEO asks FOR INFORMATION (What needs my approval? Why is Engineering blocked? How are we performing? What should we work on next?), set "answerOnly": true, "category": "inquiry", "taskDecomposition": [] and answer directly in "response" using the REAL state in the context above (pending approvals count, active/blocked tasks, goal progress, departments). NEVER invent numbers that are not in the context. NEVER create tasks for an informational question — a question answered is work completed.
 - NEVER create tasks describing an action when a tool can execute it directly.
 
 TOOLS AVAILABLE (include in toolCalls array):
@@ -420,7 +424,10 @@ export function validateIntent(intent: IntentAnalysis): string | null {
   // in tool execution, so no task decomposition is required for it. (Engineering
   // delegation, rename, create-department etc. all route through here.)
   const hasToolAction = Array.isArray(intent.toolCalls) && intent.toolCalls.length > 0;
-  if (!hasToolAction && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
+  // §3: an informational question answered from live context is also a complete
+  // intent — no tasks, no tools, no fabricated work.
+  const isAnswerOnly = intent.answerOnly === true;
+  if (!hasToolAction && !isAnswerOnly && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
     return 'No tasks decomposed from command';
   }
   if (intent.estimatedCost < 0) return 'Invalid cost estimate';
@@ -1035,8 +1042,60 @@ function detectToolCalls(
  * Rule-based fallback analysis when the LLM is not available.
  * Creates multi-step task decompositions based on keyword analysis.
  */
-function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysis {
+/** Exported for tests — the §3 inquiry short-circuit lives here. */
+export function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysis {
   const lower = command.toLowerCase();
+
+  // ── §3: pure informational questions are answered, never taskified ──
+  // A question that only asks FOR STATE (approvals, performance, blockers,
+  // what's next) is complete when it is answered from live context. Only
+  // questions that request NEW WORK (research/analyze/build X for me) spawn
+  // tasks. Grounded counts come from the ExecutiveContext — never invented.
+  const asksForState = /\b(what|which|how|why|where)\b|\bstatus\b|\bupdate me\b/.test(lower);
+  const requestsNewWork = /\b(research|analyze|write|draft|build|create|make|prepare|design|plan|find|generate|produce)\b/.test(lower);
+  const isPureQuestion = /\?\s*$/.test(command.trim()) && asksForState && !requestsNewWork;
+  if (isPureQuestion) {
+    const c = ctx.orgStructure?.counts;
+    // Aggregate live work state from team-level data (active/blocked/overdue).
+    const teams = ctx.orgStructure?.teams ?? [];
+    const w = {
+      activeTasks: teams.reduce((n, t) => n + (t.work?.activeTasks ?? 0), 0),
+      blockedTasks: teams.reduce((n, t) => n + (t.work?.blockedTasks ?? 0), 0),
+      overdueTasks: teams.reduce((n, t) => n + (t.work?.overdueTasks ?? 0), 0),
+    };
+    const lines: string[] = [];
+    if (/approv/.test(lower)) {
+      lines.push(
+        ctx.pendingApprovals > 0
+          ? `**${ctx.pendingApprovals} approval${ctx.pendingApprovals === 1 ? '' : 's'} waiting for your decision** in the Command Center.`
+          : 'Nothing is waiting for your approval right now.'
+      );
+    }
+    if (/block/.test(lower)) {
+      lines.push(w.blockedTasks > 0 ? `**${w.blockedTasks} blocked task${w.blockedTasks === 1 ? '' : 's'}** need attention.` : 'No blocked tasks — nothing is stuck.');
+    }
+    if (/perform|week|progress|going/.test(lower)) {
+      lines.push(`Active tasks: ${w.activeTasks}. Blocked: ${w.blockedTasks}. Overdue: ${w.overdueTasks}. Active goals: ${ctx.activeGoals.length}${c ? `. AI employees active: ${c.activeAgents}/${c.agents}.` : '.'}`);
+    }
+    if (/next|should we|priorit/.test(lower)) {
+      const top = ctx.activeGoals.slice(0, 2).map(g => `"${g.title}" (${g.progress}%)`);
+      lines.push(top.length ? `Highest-priority goals: ${top.join(', ')}.` : 'No active goals — define one to focus the organization.');
+    }
+    if (lines.length === 0) {
+      lines.push(`Company snapshot: ${c ? `${c.departments} departments, ${c.teams} teams, ${c.activeAgents}/${c.agents} AI employees active` : 'organization loaded'}. Active tasks: ${w.activeTasks}, blocked: ${w.blockedTasks}, pending approvals: ${ctx.pendingApprovals}.`);
+    }
+    return {
+      intent: command,
+      category: 'inquiry',
+      answerOnly: true,
+      requiresApproval: false,
+      riskLevel: 'low',
+      estimatedCost: 0,
+      suggestedAgentRole: 'executive_agent',
+      taskDecomposition: [],
+      response: lines.join('\n'),
+    };
+  }
 
   // Determine category
   let category: IntentAnalysis['category'] = 'plan';
@@ -1399,6 +1458,46 @@ export async function executeCommand(
   // Collect any NVIDIA 404 diagnostics surfaced during intent analysis so
   // the command response can carry actionable warnings (e.g. scope missing).
   const nvidiaWarnings = popNvidiaDiagnostics(orgId);
+
+  // ── §3 answerOnly short-circuit: informational questions are answered, ──
+  // audited, remembered — and never taskified, executed or billed as work.
+  if (intent.answerOnly === true) {
+    try {
+      await appendAudit(db, {
+        orgId,
+        actorType: 'user',
+        actorId: userId,
+        action: 'command.answered',
+        tool: 'executive_agent',
+        inputRef: command.slice(0, 500),
+        resultRef: JSON.stringify({ category: 'inquiry' }),
+        outcome: 'success',
+      });
+      await db.insert(companyMemory).values({
+        orgId,
+        category: 'context',
+        content: `CEO question answered: "${command.slice(0, 200)}" | answerOnly`,
+        source: 'executive_agent',
+        agentId: null,
+        taskId: null,
+        importance: 2,
+      });
+    } catch {
+      // Audit/memory failures are non-fatal — the answer still returns.
+    }
+    completeStep(intentStep, { category: 'inquiry', answerOnly: true });
+    trace.status = 'completed';
+    return {
+      commandId,
+      intent,
+      taskIds: [],
+      status: 'completed',
+      message: intent.response,
+      agentResults: [],
+      creditsConsumed: 0,
+      workflowTrace: finalizeTrace(trace, startTime),
+    };
+  }
 
   // ── Step 3: Check Credits ──
   const creditStep = startStep(trace, 'credit_check');
