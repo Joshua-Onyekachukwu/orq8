@@ -4,7 +4,6 @@ import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { broadcastToOrg } from './realtime.js';
-import { startTrace, endTrace, persistTrace, getTraceById } from './llm-tracer.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import type { AppConfig } from '@orq8/core';
@@ -26,12 +25,15 @@ import type { AppConfig } from '@orq8/core';
 
 export interface TaskExecutionResult {
   taskId: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'deferred';
   result: string;
   cost: number;
   tokensUsed: number;
   // True when the result came from a real LLM call; false when structured fallback was used
   llmUsed: boolean;
+  // True when the task was deferred (budget exhausted) — honest pending work,
+  // NOT a failure. The EA aggregation must count it separately from failed.
+  deferred?: boolean;
 }
 
 // ─── Agent System Prompts ───────────────────────────────────────────────────
@@ -240,17 +242,10 @@ export async function executeTask(
   let tokensUsed = 0;
   let llmAttempted = false;
 
-  // Start LLM trace for this task execution
+  // Trace + persistence happen inside chat() via _trace (records the actually
+  // served model and real provider usage). Failure attribution for the
+  // structured-fallback path is recorded in the task result and activity.
   let lastLlmError: string | undefined;
-  const trace = startTrace({
-    orgId,
-    phase: 'task_execution',
-    taskId: task.id,
-    agentId: task.agentId ?? undefined,
-    temperature: 0.7,
-    maxTokens: 2048,
-    maxRetries: 2,
-  });
 
   // Try up to 2 times for the LLM call
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -279,23 +274,23 @@ export async function executeTask(
         temperature: 0.7,
         max_tokens: 2048,
         retries: 0, // We handle retries at this level
+        // Trace + persist inside chat() so the row records the ACTUALLY
+        // served model (incl. 404 fallback substitutions) and real provider
+        // usage — the previous manual trace always wrote model 'unknown'
+        // with estimated tokens, corrupting model stats and routing data.
+        _trace: {
+          orgId,
+          phase: 'task_execution',
+          taskId: task.id,
+          agentId: task.agentId ?? undefined,
+          db,
+        },
       });
 
       if (llmResponse) {
         result = llmResponse;
         llmAttempted = true;
         tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
-
-        // Record successful trace
-        endTrace(trace.traceId, {
-          success: true,
-          promptTokens: Math.ceil(systemPrompt.length / 4),
-          completionTokens: Math.ceil(llmResponse.length / 4),
-          totalTokens: tokensUsed,
-          responsePreview: llmResponse.slice(0, 200),
-        });
-        const completedTrace = getTraceById(trace.traceId);
-        if (completedTrace) await persistTrace(db, completedTrace);
         break;
       }
     } catch (err) {
@@ -308,12 +303,6 @@ export async function executeTask(
 
   if (!llmAttempted) {
     result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
-    endTrace(trace.traceId, {
-      success: false,
-      error: lastLlmError ?? 'LLM unavailable after 2 attempts',
-    });
-    const failedTrace = getTraceById(trace.traceId);
-    if (failedTrace) await persistTrace(db, failedTrace);
 
     // Notify: agent encountered an error (LLM unavailable)
     try {

@@ -122,7 +122,7 @@ export interface ExecutionResult {
   agentResults?: Array<{
     agentName: string;
     taskTitle: string;
-    status: 'pending' | 'completed' | 'failed';
+    status: 'pending' | 'completed' | 'failed' | 'deferred';
     result?: string;
     llmUsed?: boolean;
   }>;
@@ -1708,11 +1708,16 @@ export async function executeCommand(
     for (const r of budgeted.results) {
       taskExecutionResults.push({
         taskId: r.taskId,
-        status: r.status === 'deferred' ? 'failed' : r.status,
+        // Deferred (budget exhausted) is honest pending work — carry it through
+        // as its own status instead of miscounting it as a failure (§58: the
+        // summary once claimed "3 tasks failed" when reality was 1 completed,
+        // 1 deferred-pending, 1 failed).
+        status: r.status === 'deferred' ? 'deferred' : r.status,
         result: r.result,
         cost: r.cost,
         tokensUsed: r.tokensUsed,
         llmUsed: r.llmUsed,
+        deferred: r.deferred === true,
       });
       if (r.deferred) {
         // Deferred tasks are honest pending work, not failures — surface it.
@@ -1813,6 +1818,7 @@ export async function executeCommand(
   // ── Step 9: Build Response ──
   const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
   const failedCount = taskExecutionResults.filter(r => r.status === 'failed').length;
+  const deferredCount = taskExecutionResults.filter(r => r.status === 'deferred').length;
   const totalCount = taskExecutionResults.length;
 
   let status: ExecutionResult['status'];
@@ -1850,6 +1856,11 @@ export async function executeCommand(
     if (failedCount > 0) {
       parts.push(`${failedCount} task${failedCount > 1 ? 's' : ''} failed.`);
     }
+    if (deferredCount > 0) {
+      parts.push(
+        `${deferredCount} task${deferredCount > 1 ? 's' : ''} deferred (execution budget reached — still pending and re-runnable).`,
+      );
+    }
     if (totalCost > 0) {
       parts.push(`${totalCost} credits consumed.`);
     }
@@ -1863,6 +1874,7 @@ export async function executeCommand(
     `Tasks created: ${taskIds.length}`,
     `Completed: ${completedCount}`,
     failedCount > 0 ? `Failed: ${failedCount}` : null,
+    deferredCount > 0 ? `Deferred (still pending): ${deferredCount}` : null,
     `Credits consumed: ${creditsConsumed}`,
     `Duration: ${Date.now() - startTime}ms`,
   ].filter(Boolean).join(' | ');
@@ -1887,7 +1899,7 @@ export async function executeCommand(
     return {
       agentName: task.suggestedAgentRole,
       taskTitle: task.title,
-      status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed',
+      status: executionResult?.status ?? (taskIds[i] ? 'pending' : 'failed') as 'pending' | 'completed' | 'failed' | 'deferred',
       result: executionResult?.result,
       llmUsed: executionResult?.llmUsed ?? false,
     };
