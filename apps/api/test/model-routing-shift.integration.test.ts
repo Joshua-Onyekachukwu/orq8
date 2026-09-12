@@ -147,6 +147,10 @@ run('routing shift aggregation', () => {
         provider: 'test',
         success: true,
         routingSource: 'static',
+        // Explicit past timestamp: defaultNow() races the aggregation's
+        // app-clock upper bound (createdAt < now) — a millisecond of CI
+        // clock skew between runner and DB must not decide this test.
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
       });
       const shift = await getRoutingShift(db, org!.id);
       expect(shift.measuredShare).toBe(0);
