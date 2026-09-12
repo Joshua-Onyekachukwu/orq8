@@ -541,6 +541,10 @@ function DecisionCouncilPage() {
   const [sessions, setSessions] = useState<CouncilListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openSession, setOpenSession] = useState<string | null>(null);
+  const [question, setQuestion] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -558,6 +562,51 @@ function DecisionCouncilPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Start a council session and poll until the background deliberation
+  // promotes the pending record (proxy-safe: no long-lived POST).
+  const askCouncil = useCallback(async () => {
+    const q = question.trim();
+    if (q.length < 8 || asking) return;
+    setAsking(true);
+    setAskError(null);
+    setProgressLabel("Convening the council…");
+    try {
+      const res = await fetch("/api/deliberations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      const json = await res.json().catch(() => null);
+      const sessionId: string | undefined = json?.data?.sessionId;
+      if (!res.ok || !sessionId) {
+        throw new Error(typeof json?.error === "string" ? json.error : `Could not start the session (status ${res.status})`);
+      }
+      const deadline = Date.now() + 8 * 60_000;
+      let done = false;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5_000));
+        const elapsedS = Math.round((8 * 60_000 - (deadline - Date.now())) / 1000);
+        setProgressLabel(`Council deliberating… ${elapsedS}s elapsed (typically 2–4 minutes)`);
+        const prog = await fetch(`/api/deliberations/progress?ids=${sessionId}`);
+        if (prog.ok) {
+          const pj = await prog.json().catch(() => null);
+          if (pj?.data?.sessions?.[0]?.completed) { done = true; break; }
+        }
+      }
+      if (!done) {
+        // Honest: the council may still be running — it will appear when done.
+        throw new Error("The council is still deliberating — the session will appear here once recorded.");
+      }
+      setQuestion("");
+      await load();
+    } catch (e) {
+      setAskError(e instanceof Error ? e.message : "Could not start the session");
+    } finally {
+      setAsking(false);
+      setProgressLabel(null);
+    }
+  }, [question, asking, load]);
 
   return (
     <PageErrorBoundary pageName="Decision Council" backHref="/app">
@@ -577,6 +626,31 @@ function DecisionCouncilPage() {
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex gap-2">
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askCouncil(); } }}
+              placeholder={'Ask the council something significant — e.g. "Should we launch at $399 or run a two-week beta first?"'}
+              className="min-w-0 flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-purple-400"
+              maxLength={1000}
+              disabled={asking}
+              aria-label="Question for the decision council"
+            />
+            <button
+              onClick={askCouncil}
+              disabled={asking || question.trim().length < 8}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {asking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Scale className="h-3.5 w-3.5" />}
+              {asking ? "Deliberating…" : "Convene council"}
+            </button>
+          </div>
+          {progressLabel && <p className="mt-1.5 text-2xs text-muted" role="status">{progressLabel}</p>}
+          {askError && <p className="mt-1.5 text-2xs text-red-600" role="alert">{askError}</p>}
         </div>
 
         <div className="mt-6 space-y-3">

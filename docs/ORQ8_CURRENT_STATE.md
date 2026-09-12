@@ -759,3 +759,61 @@ state, Engineering approval→merge gate rehearsed end-to-end, CI green, both de
 
 **Remaining**: `orq8.app`/`orq8.com` registrar recovery (external); rotate the shared
 Vercel token; router-learning consumer work continues as data accumulates.
+
+## 13. Session record — 2026-09-12 (enterprise demo validation + honesty hardening)
+
+**Verified live on production** (orq8.vercel.app / orq8api-production.up.railway.app):
+
+- **Phase A route sweep: 33/33 app routes clean** (console + network + hydration
+  capture per route). The earlier 429 storm was root-caused twice: (1) all proxied
+  traffic shared one Vercel-egress IP bucket → global + commands limiters now key by
+  session-or-IP at 300/min; (2) the remaining 429s were the SSE **concurrent-connection
+  cap**, which leaked dead connections across page navigations → heartbeats now reap
+  dead SSE connections and hitting the cap evicts the user's oldest (zombie) connection.
+  Verified: paced sweep clean; API-level burst saw zero 429s.
+- **Council launch-plan CTA rehearsed end-to-end** (real deliberation → founder
+  approval PATCH → CTA click → streamed EA run): EA delegated 3 real tasks, agents
+  executed with real LLM calls + QA (incl. one QA-revision round), Decision Memory
+  marker recorded with the real task count, CTA does not re-offer. Fixes shipped:
+  CTA treats actual task creation as completed delegation (honest partial execution
+  surfaced), demo org's Atlas + Support Agent promoted from observe-mode via the
+  real audited agent API, `agents.findByOrg` now exposes `autonomyLevel` (it was
+  never selectable — founders could not see why tasks governance-blocked).
+- **Demo-data labeling live**: `isDemo` org flag (owner-only PATCH, audited
+  `org.demo_flag_changed`) set on the demo org; dashboard renders a persistent
+  "Demo organization — staged content" badge.
+- **Scheduled jobs verified producing real output**: briefing_daily ×2,
+  briefing_weekly ×2, briefing_monthly ×22, memory_consolidate scanned 317,
+  decision_signal_sync synced agent+model signals (all 19:40 UTC 2026-09-12).
+- **Orphaned-execution reaper shipped + verified**: Railway proxy timeouts had left
+  a task stuck `in_progress` forever; reaper at API boot marks dead executions
+  failed; live org now has 0 `in_progress` tasks.
+- **§58 truthfulness fix**: a deliberation synthesis model's chain-of-thought was
+  persisted as `whatWasDecided`; synthesis parser now strips `<think>`/CoT wrappers
+  and refuses to store reasoning text as a decision.
+- **Deliberation now proxy-safe (async)**: POST /v1/deliberations returns **202 +
+  sessionId** immediately, creates a `pending` council row, runs the council in the
+  background, and promotes the row in place on completion (deletes it on
+  llm_unavailable/failure). New `GET /v1/deliberations/progress?ids=` probe (org-
+  scoped). Council page gained an "Ask the council" composer that polls progress and
+  surfaces honest elapsed-time status. Verified live: two sync-mode 502s completed
+  server-side and persisted — motivating the async contract.
+- **90-second real-only demo script**: `scripts/demo-script-90s.md` — timed script
+  where every step was executed live today, with per-step real/seeded flags
+  (⚠️ seeded moments: pre-09-10 tasks, credits/usage baseline, budgets, scratch
+  Journey Hire agents, older council sessions).
+- **§30 department rehearsal**: Product full real pass; Marketing governance
+  enforcement verified persisted; Finance honestly blocked by plan limit
+  ("Custom plan allows 2 departments") — enforcement works; plan raise is a
+  business action, not a code change.
+
+**Known limitations (honest)**: deliberation councils take 2–5 min (async path makes
+this visible rather than lossy); plan cap blocks a 3rd demo department; sync-POST
+clients (if any remain) still risk Railway's proxy timeout — the UI + rehearsal
+scripts now use the async contract.
+
+**Blocked on user**: `git push` requires an interactive credential prompt
+(Windows credential manager no longer yields tokens non-interactively; no SSH key,
+no `gh`). Local-only commits: `7fb5eb2` (sweep diagnostics), `fa14377` (autonomyLevel
+exposure + reasoning-leak guard + demo script), and this session's async-deliberation
+commit. Run `git push origin main` once interactively.

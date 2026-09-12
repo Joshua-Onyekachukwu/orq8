@@ -103,6 +103,80 @@ export async function createDecision(
   return row;
 }
 
+/**
+ * Create a PENDING council session placeholder (§48: deliberation never
+ * mutates org state, but recording that a deliberation STARTED is bookkeeping
+ * — it lets clients poll for completion instead of holding a long-lived HTTP
+ * request open past proxy timeouts).
+ */
+export async function createPendingCouncilSession(
+  db: Db,
+  orgId: string,
+  userId: string,
+  data: { title: string; councilDetail: Record<string, unknown> },
+): Promise<Decision> {
+  const rows = await db
+    .insert(decisions)
+    .values({
+      orgId,
+      title: data.title,
+      decisionType: 'strategic',
+      status: 'pending',
+      confidence: 'low',
+      decisionMakerType: 'ai_council',
+      whatWasDecided: '(council session in progress)',
+      councilDetail: data.councilDetail as never,
+      decidedAt: new Date(),
+    })
+    .returning();
+  const row = rows[0];
+  if (!row) throw new Error('Failed to create pending council session');
+  return row;
+}
+
+/**
+ * Promote a pending council session to its completed decision record
+ * (fields + full session detail). Used by the background deliberation path —
+ * the row the client is polling becomes the real Decision Memory entry.
+ */
+export async function completePendingCouncilSession(
+  db: Db,
+  orgId: string,
+  id: string,
+  data: {
+    confidence: Confidence;
+    whatWasDecided: string;
+    rationale?: string;
+    alternatives?: Array<{ name: string; reasonRejected: string }>;
+    evidence?: Array<{ source: string; type: string; summary: string }>;
+    assumptions?: string[];
+    expectedOutcome?: string;
+    councilDetail: Record<string, unknown>;
+  },
+): Promise<void> {
+  await db
+    .update(decisions)
+    .set({
+      status: 'active',
+      confidence: data.confidence,
+      whatWasDecided: data.whatWasDecided.slice(0, 2000),
+      rationale: data.rationale ?? null,
+      alternatives: (data.alternatives ?? []) as never,
+      evidence: (data.evidence ?? []) as never,
+      assumptions: (data.assumptions ?? []) as never,
+      expectedOutcome: data.expectedOutcome ?? null,
+      councilDetail: data.councilDetail as never,
+    })
+    .where(and(eq(decisions.id, id), eq(decisions.orgId, orgId)));
+}
+
+/** Delete a pending council session row that never completed (best-effort). */
+export async function deletePendingCouncilSession(db: Db, orgId: string, id: string): Promise<void> {
+  await db
+    .delete(decisions)
+    .where(and(eq(decisions.id, id), eq(decisions.orgId, orgId), eq(decisions.status, 'pending')));
+}
+
 export async function listDecisions(
   db: Db,
   orgId: string,

@@ -93,15 +93,29 @@ const delib = await api("/v1/deliberations", {
   method: "POST", token: TOKEN,
   body: { question: QUESTION, context: "Demo org is Stage 1 with Product, Engineering, Marketing, Sales and Executive Office departments." },
 });
-ok("deliberation completed", delib.status === 200, `HTTP ${delib.status}`);
-const d = delib.json?.data ?? {};
-const dr = d.result ?? d;
+// Async contract (202 + poll): the council runs in the background so proxy
+// timeouts can never kill the client UX. Poll until promoted or timeout.
+ok("deliberation accepted (202)", delib.status === 202 && !!delib.json?.data?.sessionId, `HTTP ${delib.status}`);
+const sessionId = delib.json?.data?.sessionId;
+let dr = null;
+if (sessionId) {
+  for (let i = 0; i < 72; i++) {
+    await new Promise((r) => setTimeout(r, 5_000));
+    const prog = await api(`/v1/deliberations/progress?ids=${sessionId}`, H);
+    const s = prog.json?.data?.sessions?.[0];
+    if (s?.completed) break;
+  }
+  const detail = await api(`/v1/deliberations/${sessionId}`, H);
+  dr = detail.json?.data ?? null;
+  ok("deliberation completed", !!dr && dr.status !== "pending", `status=${dr?.status ?? "missing"}`);
+}
 if (dr) {
-  ok("session has rounds", Array.isArray(dr.rounds) ? dr.rounds.length >= 1 : false,
-    `${dr.rounds?.length ?? 0} rounds`);
-  ok("session has participants", (dr.participants?.length ?? 0) >= 1, `${dr.participants?.length ?? 0} participants`);
-  ok("synthesis exists", !!dr.synthesis, `confidence=${dr.synthesis?.confidence ?? "n/a"}`);
-  ok("decisionId returned", !!dr.decisionId, dr.decisionId ?? "none");
+  const cd = dr.councilDetail ?? {};
+  ok("session has rounds", Array.isArray(cd.rounds) ? cd.rounds.length >= 1 : false,
+    `${cd.rounds?.length ?? 0} rounds`);
+  ok("session has participants", (cd.participants?.length ?? 0) >= 1, `${cd.participants?.length ?? 0} participants`);
+  ok("synthesis recorded", typeof dr.whatWasDecided === "string" && dr.whatWasDecided.length > 0, `confidence=${dr.confidence ?? "n/a"}`);
+  ok("decisionId returned", !!sessionId, sessionId ?? "none");
 }
 
 console.log("=== D. council list shows the session (§23/§24 data) ===");

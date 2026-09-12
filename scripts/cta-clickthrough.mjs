@@ -67,16 +67,31 @@ try {
   }
 
   if (!decisionId) {
-    console.log("  no reusable session — running a fresh deliberation (2-5 min)…");
+    console.log("  no reusable session — starting a fresh deliberation (async, polls up to 6 min)…");
     const QUESTION = "Should we launch the new AI workflow product for SMB customers at $299, $399, or $499 per month? Weigh marketing positioning, sales pipeline impact, and finance unit economics before recommending a price point.";
     const del = await api("/v1/deliberations", { method: "POST", body: JSON.stringify({ question: QUESTION, context: "Seed-stage B2B AI/SaaS preparing its first paid launch. Marketing wants low acquisition friction, finance wants defensible unit economics, sales wants enterprise-grade perceived value." }) }, token);
-    ok("deliberation ran", del.status === 200, `status ${del.status}, stoppedReason=${del.json?.data?.stoppedReason}`);
-    const d = del.json?.data;
-    if (!d?.decisionId) throw new Error(`deliberation failed: ${JSON.stringify(del.json).slice(0, 200)}`);
-    decisionId = d.decisionId;
-    recommendation = d.synthesis?.recommendation ?? null;
-    sessionMeta = d;
-    console.log(`  escalation=${d.escalation?.level} rounds=${d.rounds?.length} participants=${d.participants?.length} confidence=${d.synthesis?.confidence} tokens=${d.totalTokensUsed}`);
+    // 202 + sessionId (async contract, §7 progress visibility): the session
+    // row is created immediately and the council runs in the background.
+    const started = del.json?.data?.sessionId;
+    ok("deliberation accepted (202)", del.status === 202 && !!started, `status ${del.status} sessionId=${started ?? "none"}`);
+    if (!started) throw new Error(`deliberation failed to start: ${JSON.stringify(del.json).slice(0, 200)}`);
+    // Poll the completion probe — proxy-safe by construction.
+    let completed = null;
+    for (let i = 0; i < 72; i++) {
+      await new Promise((r) => setTimeout(r, 5_000));
+      const prog = await api(`/v1/deliberations/progress?ids=${started}`, {}, token);
+      const s = prog.json?.data?.sessions?.[0];
+      if (s && s.completed) { completed = s; break; }
+      if (i % 6 === 5) console.log(`  … still deliberating (${((i + 1) * 5) / 60} min)`);
+    }
+    ok("deliberation completed", !!completed, completed ? "session promoted" : "timed out after 6 min");
+    if (!completed) throw new Error("deliberation did not complete in 6 min");
+    decisionId = completed.id;
+    const detail = await api(`/v1/deliberations/${decisionId}`, {}, token);
+    const cd = detail.json?.data?.councilDetail ?? {};
+    recommendation = detail.json?.data?.whatWasDecided ?? null;
+    sessionMeta = cd;
+    console.log(`  confidence=${detail.json?.data?.confidence} participants=${cd.participants?.length ?? "?"} rounds=${cd.rounds?.length ?? "?"}`);
   }
   ok("approved non-delegated session available", !!decisionId, decisionId);
 

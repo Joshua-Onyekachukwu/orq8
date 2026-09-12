@@ -289,4 +289,50 @@ run('Decision Council API (§47)', () => {
     const detail = await app.inject({ method: 'GET', url: `/v1/deliberations/${councilA}` });
     expect(detail.statusCode).toBe(401);
   });
+
+  it('POST starts a background session (202 + sessionId) and the probe reports completion', async () => {
+    // Async contract (proxy-safe councils): the POST returns immediately with
+    // a session id; the actual deliberation runs detached. In CI there is no
+    // live LLM, so the run completes as llm_unavailable and the pending row is
+    // removed — either way the probe must answer honestly and the LIST must
+    // never contain a permanently pending row.
+    const start = await app.inject({
+      method: 'POST',
+      url: '/v1/deliberations',
+      headers: { authorization: `Bearer ${a.token}`, 'content-type': 'application/json' },
+      payload: { question: 'Async contract probe: should we open the Berlin office this quarter?' },
+    });
+    expect(start.statusCode).toBe(202);
+    const { sessionId, poll } = start.json().data as { sessionId: string; poll: string };
+    expect(sessionId).toBeTruthy();
+    expect(poll).toContain('progress');
+
+    // Probe reports the session, org-scoped, with an honest completed flag.
+    const probe = await app.inject({
+      method: 'GET',
+      url: `/v1/deliberations/progress?ids=${sessionId}`,
+      headers: { authorization: `Bearer ${a.token}` },
+    });
+    expect(probe.statusCode).toBe(200);
+    const sessions = probe.json().data.sessions as Array<{ id: string; completed: boolean }>;
+    expect(sessions.some((s) => s.id === sessionId)).toBe(true);
+
+    // The other org's probe must not see it.
+    const probeB = await app.inject({
+      method: 'GET',
+      url: `/v1/deliberations/progress?ids=${sessionId}`,
+      headers: { authorization: `Bearer ${b.token}` },
+    });
+    expect(probeB.statusCode).toBe(200);
+    expect((probeB.json().data.sessions as unknown[]).length).toBe(0);
+
+    // Validation still applies synchronously.
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/v1/deliberations',
+      headers: { authorization: `Bearer ${a.token}`, 'content-type': 'application/json' },
+      payload: { question: 'short' },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
 });

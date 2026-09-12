@@ -187,6 +187,10 @@ export interface RunDeliberationInput {
   participants?: Array<{ name: string; role: string; department: string }>;
   /** Called between rounds for progress reporting (fire-and-forget). */
   onProgress?: (update: { round: number; stage: string }) => void;
+  /** When false, the engine skips its own Decision Memory persistence — the
+   * caller records the outcome (used by the background route path, which
+   * promotes a pre-created pending session row instead). Default true. */
+  persistDecision?: boolean;
 }
 
 /**
@@ -433,7 +437,10 @@ export async function runDeliberation(
   result.totalTokensUsed = tokensUsed + Math.ceil((synthesisRaw.length + 3000) / 4);
 
   // ── Persist significant outcomes into Decision Memory (§19) ──
-  if (escalation.level === 'department_council' || escalation.level === 'executive_deliberation') {
+  if (
+    input.persistDecision !== false &&
+    (escalation.level === 'department_council' || escalation.level === 'executive_deliberation')
+  ) {
     try {
       const decision = await createDecision(db, orgId, userId, {
         title: input.question.slice(0, 200),
