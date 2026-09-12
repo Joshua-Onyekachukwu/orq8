@@ -149,7 +149,23 @@ export async function buildApp(
     // 120/min: the authenticated app fires several API calls per page (dashboard,
     // council, health…); 60/min made fast founder navigation 429 mid-session.
     // Sensitive routes keep their own tighter buckets below.
-    rateLimitHookRedis(app, redis, { windowMs: 60_000, max: 120, prefix: 'rl:global' });
+    // The SSE realtime handshake gets its own bounded lane (30 handshakes/min is
+    // far above legitimate use — reconnect storms are bounded client-side too):
+    // page navigation opens one handshake per load, and letting it share the
+    // data-API bucket starved real calls during fast founder navigation.
+    rateLimitHookRedis(app, redis, {
+      windowMs: 60_000,
+      max: 120,
+      prefix: 'rl:global',
+      skip: (req) => req.method === 'GET' && req.url.startsWith('/v1/events'),
+    });
+    rateLimitRouteRedis(app, redis, {
+      path: '/v1/events',
+      windowMs: 60_000,
+      max: 30,
+      label: 'sse-handshake',
+      methods: ['GET'],
+    });
   } else if (rateLimitEnabled) {
     const globalRL = new Map<string, { count: number; windowStart: number }>();
     app.addHook('onRequest', async (request, reply) => {

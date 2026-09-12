@@ -385,10 +385,17 @@ export async function requestPrMergeApproval(
   if (pr.status === 'merged') return { error: { code: 'already_merged', message: 'This PR is already merged', status: 409 } };
 
   // Idempotency: the PR already carries a linked approval (or an earlier
-  // request left a pending/resolved approval mentioning this PR).
+  // request left a pending approval mentioning this PR). A REJECTED approval
+  // must not dead-end the workflow: the founder's rejection is final for that
+  // request, but the team may address the feedback and re-request — so a new
+  // approval is created and linked, and the stale one is superseded.
   if (pr.approvalId) {
     const existing = await findApprovalById(db, orgId, pr.approvalId);
-    if (existing) return { pr, approval: existing, created: false };
+    if (existing && existing.status === 'rejected') {
+      // fall through to fresh-creation below
+    } else if (existing) {
+      return { pr, approval: existing, created: false };
+    }
   }
   const pendingForPr = await findMergeApprovalForPr(db, orgId, prId);
   if (pendingForPr) {
@@ -431,7 +438,7 @@ export async function requestPrMergeApproval(
     orgId,
     actorType: 'user',
     actorId: userId,
-    action: 'pr.approval_requested',
+    action: pr.approvalId ? 'pr.approval_re_requested' : 'pr.approval_requested',
     outcome: 'success',
     resultRef: `${pr.id} → approval:${approval.id}`,
   });

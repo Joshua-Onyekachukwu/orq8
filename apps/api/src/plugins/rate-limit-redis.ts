@@ -23,6 +23,8 @@ interface RateLimitOptions {
   keyFn?: (request: FastifyRequest) => string;
   /** Key prefix for Redis (default: 'rl') */
   prefix?: string;
+  /** Skip these requests entirely (e.g. to route them to a dedicated bucket). */
+  skip?: (request: FastifyRequest) => boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function rateLimitHookRedis(
   const keyFn = opts.keyFn ?? ((req: FastifyRequest) => req.ip ?? 'unknown');
 
   app.addHook('onRequest', async (request, reply) => {
+    if (opts.skip?.(request)) return;
     const key = `${prefix}:${keyFn(request)}`;
     const now = Date.now();
     const windowStart = now - windowMs;
@@ -89,15 +92,16 @@ export function rateLimitHookRedis(
 export function rateLimitRouteRedis(
   app: FastifyInstance,
   redis: RedisClient,
-  opts: { path: string; windowMs?: number; max?: number; label?: string; prefix?: string },
+  opts: { path: string; windowMs?: number; max?: number; label?: string; prefix?: string; methods?: Array<'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'> },
 ): void {
   const windowMs = opts.windowMs ?? 60_000;
   const max = opts.max ?? 5;
   const label = opts.label ?? opts.path;
   const prefix = opts.prefix ?? 'rl:route';
+  const methods = opts.methods ?? ['POST'];
 
   app.addHook('onRequest', async (request, reply) => {
-    if (request.method !== 'POST' || !request.url.startsWith(opts.path)) return;
+    if (!methods.includes(request.method as 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE') || !request.url.startsWith(opts.path)) return;
 
     const ip = request.ip ?? 'unknown';
     const key = `${prefix}:${opts.path}:${ip}`;
