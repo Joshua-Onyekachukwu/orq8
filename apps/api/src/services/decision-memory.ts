@@ -150,9 +150,20 @@ export async function updateDecision(
     confidence: Confidence;
     rationale: string;
     reversalConditions: string[];
+    founderVerdict: 'approved' | 'rejected';
+    founderVerdictNote: string;
   }>,
 ): Promise<Decision | undefined> {
   const updateData: Record<string, unknown> = { ...data };
+
+  // §24 founder-verdict beat: recording the founder's approve/reject decision
+  // stamps WHO decided WHEN, alongside the verdict itself. The optional note
+  // travels with the verdict so the council record preserves the founder's
+  // reasoning, not just the outcome of their button press.
+  if (data.founderVerdict) {
+    updateData.founderVerdictAt = new Date();
+    if (!data.founderVerdictNote) delete updateData.founderVerdictNote;
+  }
   if (data.actualOutcome) {
     updateData.outcomeFiledAt = new Date();
     // §20 phase 2: a founder-filed outcome is classified NOW, not left for the
@@ -192,8 +203,12 @@ export async function updateDecision(
       orgId,
       actorType: 'user',
       actorId: userId,
-      action: 'decision.updated',
-      inputRef: JSON.stringify({ id, changes: Object.keys(data) }),
+      action: data.founderVerdict ? 'decision.founder_verdict' : 'decision.updated',
+      inputRef: JSON.stringify({
+        id,
+        changes: Object.keys(data),
+        ...(data.founderVerdict ? { verdict: data.founderVerdict } : {}),
+      }),
       outcome: 'success',
     });
   }

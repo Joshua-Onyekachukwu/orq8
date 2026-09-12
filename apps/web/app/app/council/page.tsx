@@ -40,6 +40,9 @@ interface CouncilListItem {
   expectedOutcome: string | null;
   actualOutcome: string | null;
   predictionAccuracy?: string | null;
+  founderVerdict?: string | null;
+  founderVerdictNote?: string | null;
+  founderVerdictAt?: string | null;
   decidedAt: string | null;
   createdAt: string;
 }
@@ -145,7 +148,136 @@ function Chips({ items, tone }: { items: string[]; tone: "risk" | "unknown" | "n
   );
 }
 
-function SessionCard({ session, onOpen }: { session: CouncilListItem; onOpen: (id: string) => void }) {
+/**
+ * Founder decision (§24) — the founder records their verdict on the council
+ * recommendation (approve / reject + optional note). PATCHes /api/decisions/:id
+ * (the real Decision Memory endpoint), shows the recorded verdict afterwards.
+ * A local override renders the recorded state immediately, so the 15s proxy
+ * cache on the list endpoint can never make a confirmed decision look lost.
+ */
+function FounderVerdictPanel({
+  session,
+  onRecorded,
+}: {
+  session: Pick<CouncilListItem, "id" | "founderVerdict" | "founderVerdictNote" | "founderVerdictAt">;
+  onRecorded: () => void;
+}) {
+  const [mode, setMode] = useState<"idle" | "editing">("idle");
+  const [verdict, setVerdict] = useState<"approved" | "rejected" | null>(null);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [local, setLocal] = useState<{ verdict: "approved" | "rejected"; note: string; at: string } | null>(null);
+
+  const shownVerdict = session.founderVerdict ?? local?.verdict ?? null;
+  const shownNote = session.founderVerdictNote ?? local?.note ?? null;
+  const shownAt = session.founderVerdictAt ?? local?.at ?? null;
+
+  const record = async () => {
+    if (!verdict) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/decisions/${session.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ founderVerdict: verdict, ...(note.trim() ? { founderVerdictNote: note.trim() } : {}) }),
+      });
+      if (!res.ok) throw new Error("failed");
+      setLocal({ verdict, note: note.trim(), at: new Date().toISOString() });
+      setMode("idle");
+      onRecorded();
+    } catch {
+      setError("Could not record your decision. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (shownVerdict) {
+    return (
+      <div className="rounded-lg border border-hairline bg-muted/5 p-3">
+        <span className="text-2xs font-semibold text-muted uppercase tracking-wide">Founder decision</span>
+        <p className="mt-1 text-xs">
+          <span className={shownVerdict === "approved" ? "font-semibold text-orq8-green" : "font-semibold text-red-500"}>
+            {shownVerdict === "approved" ? "Approved" : "Rejected"}
+          </span>
+          {shownAt && <span className="text-muted"> · {formatTimeAgo(shownAt)}</span>}
+        </p>
+        {shownNote && <p className="mt-1 text-2xs text-ink">{shownNote}</p>}
+      </div>
+    );
+  }
+
+  if (mode === "idle") {
+    return (
+      <div className="rounded-lg border border-hairline bg-muted/5 p-3">
+        <span className="text-2xs font-semibold text-muted uppercase tracking-wide">Founder decision</span>
+        <p className="mt-1 text-2xs text-muted">
+          Record your decision on this recommendation — it is written to Decision Memory with your name and timestamp.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={() => { setVerdict("approved"); setMode("editing"); }}
+            className="rounded-lg bg-orq8-green px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 transition-opacity"
+          >
+            Approve
+          </button>
+          <button
+            onClick={() => { setVerdict("rejected"); setMode("editing"); }}
+            className="rounded-lg border border-red-200 px-3 py-1.5 text-2xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Reject
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-hairline bg-muted/5 p-3">
+      <span className="text-2xs font-semibold text-muted uppercase tracking-wide">
+        {verdict === "approved" ? "Approving this recommendation" : "Rejecting this recommendation"}
+      </span>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        maxLength={2000}
+        placeholder="Optional note — why you decided this (recorded in Decision Memory)"
+        className="mt-2 w-full rounded-lg border border-hairline px-2.5 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-orq8-green/50"
+      />
+      {error && <p className="mt-1 text-2xs text-red-500">{error}</p>}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={record}
+          disabled={saving}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-orq8-dark px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+          {verdict === "approved" ? "Confirm approval" : "Confirm rejection"}
+        </button>
+        <button
+          onClick={() => { setMode("idle"); setVerdict(null); setError(null); }}
+          disabled={saving}
+          className="rounded-lg px-2.5 py-1.5 text-2xs text-muted hover:text-ink transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SessionCard({
+  session,
+  onOpen,
+  onVerdictRecorded,
+}: {
+  session: CouncilListItem;
+  onOpen: (id: string) => void;
+  onVerdictRecorded: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -199,6 +331,8 @@ function SessionCard({ session, onOpen }: { session: CouncilListItem; onOpen: (i
               </p>
             </div>
           </div>
+
+          <FounderVerdictPanel session={session} onRecorded={onVerdictRecorded} />
         </div>
       )}
     </div>
@@ -448,7 +582,7 @@ function DecisionCouncilPage() {
               </p>
             </div>
           ) : (
-            sessions.map((s) => <SessionCard key={s.id} session={s} onOpen={setOpenSession} />)
+            sessions.map((s) => <SessionCard key={s.id} session={s} onOpen={setOpenSession} onVerdictRecorded={load} />)
           )}
         </div>
 

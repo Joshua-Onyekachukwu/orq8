@@ -44,6 +44,10 @@ const updateDecisionBody = z.object({
   confidence: z.enum(['high', 'medium', 'low']).optional(),
   rationale: z.string().max(5000).optional(),
   reversalConditions: z.array(z.string()).optional(),
+  // §24 founder-verdict beat: the founder's explicit decision on a council
+  // recommendation. Both fields travel together; the note is optional.
+  founderVerdict: z.enum(['approved', 'rejected']).optional(),
+  founderVerdictNote: z.string().max(2000).optional(),
 });
 
 export function registerDecisionRoutes(app: FastifyInstance, deps: AppDeps): void {

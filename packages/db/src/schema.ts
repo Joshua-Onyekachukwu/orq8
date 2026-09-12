@@ -1763,6 +1763,12 @@ export const decisions = pgTable(
     // Structured verdict from the §20 outcome review (migration 0028):
     // accurate | partially_accurate | inaccurate. Null until filed.
     predictionAccuracy: text('prediction_accuracy'),
+    // Founder verdict on a council recommendation (migration 0030, §24):
+    // 'approved' | 'rejected', with optional note + timestamp. Null until the
+    // founder records their decision from the Decision Council page.
+    founderVerdict: text('founder_verdict'),
+    founderVerdictNote: text('founder_verdict_note'),
+    founderVerdictAt: timestamp('founder_verdict_at', { withTimezone: true }),
     reversalConditions: jsonb('reversal_conditions').notNull().default([]),
     lessonsLearned: text('lessons_learned'),
     // Full Decision Council session (§11/§47, migration 0027): participants,
