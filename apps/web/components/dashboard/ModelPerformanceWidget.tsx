@@ -18,6 +18,20 @@ interface ModelStat {
   avgDurationMs: number;
 }
 
+interface RoutingShiftEntry {
+  source: 'measured' | 'static' | 'default';
+  calls: number;
+}
+
+interface RoutingShift {
+  week: RoutingShiftEntry[];
+  previousWeek: RoutingShiftEntry[];
+  measuredShare: number | null;
+  previousMeasuredShare: number | null;
+  shiftPct: number | null;
+  totalCalls: number;
+}
+
 interface ModelsData {
   stats: {
     totalCalls: number;
@@ -29,6 +43,7 @@ interface ModelsData {
     title: string;
     detail: string;
   }[];
+  routingShift: RoutingShift;
 }
 
 export function ModelPerformanceWidget() {
@@ -45,6 +60,23 @@ export function ModelPerformanceWidget() {
 
   const models = data?.stats.models ?? [];
   const topInsight = data?.insights.find((i) => i.kind !== "insufficient_data") ?? data?.insights[0];
+  const shift = data?.routingShift;
+  const weekCalls = shift?.week.reduce((a, e) => a + e.calls, 0) ?? 0;
+
+  const shiftLine = (() => {
+    if (!shift || weekCalls === 0) {
+      return "Routing shift: no measured calls in the last 7 days yet — the share of model choices informed by real history appears here as your organization works.";
+    }
+    const pct = Math.round((shift.measuredShare ?? 0) * 100);
+    const prev = shift.shiftPct;
+    const direction =
+      prev === null || prev === 0
+        ? "steady vs last week"
+        : prev > 0
+          ? `up ${Math.round(prev * 100)} pts vs last week`
+          : `down ${Math.abs(Math.round(prev * 100))} pts vs last week`;
+    return `Routing shift: ${pct}% of this week's ${weekCalls} LLM calls were routed from measured history (${direction}).`;
+  })();
 
   return (
     <section className="rounded-xl border border-hairline bg-white p-5">
@@ -99,6 +131,7 @@ export function ModelPerformanceWidget() {
               <span className="font-medium text-ink">{topInsight.title}</span> — {topInsight.detail}
             </p>
           )}
+          <p className="mt-2 rounded-lg bg-canvas px-3 py-2 text-xs leading-relaxed text-muted">{shiftLine}</p>
           <p className="mt-2 text-3xs text-muted">
             Rolling 30 days · {data?.stats.totalCalls ?? 0} measured calls
             {data?.stats.sufficientData === false && " · accumulating (insufficient data for recommendations yet)"}

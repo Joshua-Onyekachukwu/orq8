@@ -9,7 +9,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
-import { getModelStats, getCostOptimizationInsights } from '../services/model-insights.js';
+import { getModelStats, getCostOptimizationInsights, getRoutingShift } from '../services/model-insights.js';
 import type { AppDeps } from '../types.js';
 
 export function registerModelRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -18,10 +18,11 @@ export function registerModelRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** GET /v1/models — measured model stats (rolling 30d) + honest insights. */
   app.get('/v1/models', async (request) => {
     const ctx = await requireAuth(request, deps);
-    const [stats, insights] = await Promise.all([
+    const [stats, insights, routingShift] = await Promise.all([
       getModelStats(db, ctx.orgId),
       getCostOptimizationInsights(db, ctx.orgId),
+      getRoutingShift(db, ctx.orgId),
     ]);
-    return { data: { stats, insights } };
+    return { data: { stats, insights, routingShift } };
   });
 }

@@ -64,6 +64,73 @@ export async function getModelStats(db: Db, orgId: string): Promise<ModelInsight
   return { windowDays: WINDOW_DAYS, totalCalls, models, sufficientData: totalCalls >= MIN_CALLS_FOR_RECOMMENDATION };
 }
 
+export interface RoutingShiftEntry {
+  source: 'measured' | 'static' | 'default';
+  calls: number;
+}
+
+export interface RoutingShift {
+  /** Calls in the trailing 7 days, grouped by how their model was chosen. */
+  week: RoutingShiftEntry[];
+  /** Calls in the preceding 7 days (week-1) for the same grouping. */
+  previousWeek: RoutingShiftEntry[];
+  /** Measured share of routed calls this week (0..1), null when no calls. */
+  measuredShare: number | null;
+  previousMeasuredShare: number | null;
+  /** Absolute change in measured share (percentage points). */
+  shiftPct: number | null;
+  /** Total calls across both weeks — context for the share numbers. */
+  totalCalls: number;
+}
+
+/**
+ * §31 feedback-loop visibility: is the router actually consuming measured
+ * history? Groups the llm_performance routing_source label by week — a rising
+ * 'measured' share means more calls are being chosen from real per-org model
+ * history rather than static defaults. 'default' calls are un-routed pass-
+ * throughs (no model specified); 'static' calls were deliberately pinned
+ * (e.g. deliberation participants, capability tiers).
+ */
+export async function getRoutingShift(db: Db, orgId: string): Promise<RoutingShift> {
+  const now = Date.now();
+  const weekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const prevStart = new Date(now - 14 * 24 * 60 * 60 * 1000);
+
+  const weeklyGroup = async (from: Date, to: Date): Promise<RoutingShiftEntry[]> => {
+    const rows = await db
+      .select({
+        source: llmPerformance.routingSource,
+        calls: sql<number>`count(*)::int`,
+      })
+      .from(llmPerformance)
+      .where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, from), sql`${llmPerformance.createdAt} < ${to}`))
+      .groupBy(llmPerformance.routingSource);
+    return rows.map((r) => ({ source: r.source as RoutingShiftEntry['source'], calls: r.calls }));
+  };
+
+  const [week, previousWeek] = await Promise.all([weeklyGroup(weekStart, new Date(now)), weeklyGroup(prevStart, weekStart)]);
+
+  const shareOf = (entries: RoutingShiftEntry[]): number | null => {
+    const total = entries.reduce((a, e) => a + e.calls, 0);
+    if (total === 0) return null;
+    const measured = entries.find((e) => e.source === 'measured')?.calls ?? 0;
+    return measured / total;
+  };
+
+  const measuredShare = shareOf(week);
+  const previousMeasuredShare = shareOf(previousWeek);
+  const shiftPct = measuredShare !== null && previousMeasuredShare !== null ? measuredShare - previousMeasuredShare : null;
+
+  return {
+    week,
+    previousWeek,
+    measuredShare,
+    previousMeasuredShare,
+    shiftPct,
+    totalCalls: [...week, ...previousWeek].reduce((a, e) => a + e.calls, 0),
+  };
+}
+
 export type InsightKind =
   | 'redundant_reliability' // an expensive model does work a cheaper one does equally well
   | 'high_failure_rate' // a model is failing too often on real traffic
