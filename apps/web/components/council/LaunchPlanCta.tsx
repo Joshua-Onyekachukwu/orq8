@@ -54,6 +54,8 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
   const [taskIds, setTaskIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [markerRecorded, setMarkerRecorded] = useState(false);
+  // The EA's own honest execution summary (may include governance blocks).
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   const upsertStage = useCallback((stage: string, label: string, status: EAProgressStage["status"]) => {
     setStages((prev) => {
@@ -88,10 +90,15 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
       // (task events may be sparse); fall back to the streamed tally.
       const resultTaskIds: string[] = Array.isArray(result?.taskIds) ? result.taskIds : taskIds;
       setTaskIds(resultTaskIds);
+      // Honest execution status: the EA may report partial results (e.g. a
+      // task blocked by governance) — delegation succeeded either way, and
+      // the founder sees the real status rather than a blanket success.
+      const resultMessage: string = typeof result?.message === "string" ? result.message : "";
+      setResultMessage(resultMessage);
       setPhase("delegated");
 
-      // Record the delegation marker in Decision Memory. The execution itself
-      // succeeded; a marker-write failure is surfaced honestly, not hidden.
+      // Record the delegation marker in Decision Memory. Delegation happened
+      // (tasks exist); a marker-write failure is surfaced honestly, not hidden.
       try {
         const res = await fetch(`/api/decisions/${decisionId}`, {
           method: "PATCH",
@@ -104,6 +111,26 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
         setMarkerRecorded(false);
       }
     } catch (err) {
+      // Even when the pipeline errors AFTER starting, tasks may already exist
+      // (e.g. delegation succeeded, then a governance block hit one task).
+      // That is a completed delegation with honest partial execution — record
+      // the marker and say exactly what happened, never a blanket failure.
+      if (taskIds.length > 0) {
+        setPhase("delegated");
+        try {
+          const res = await fetch(`/api/decisions/${decisionId}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ founderVerdictNote: buildDelegationMarkerNote(taskIds.length) }),
+          });
+          setMarkerRecorded(res.ok);
+          if (res.ok) onDelegated?.();
+        } catch {
+          setMarkerRecorded(false);
+        }
+        setError(err instanceof CommandStreamError ? err.message : "The delegation stream ended unexpectedly.");
+        return;
+      }
       if (err instanceof CommandStreamError && !err.pipelineStarted) {
         // Stream never started — safe to offer retry.
         setError(err.message);
@@ -170,6 +197,12 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
             ? "Recorded in Decision Memory — the verdict now shows the org acted on it."
             : "Delegation could not be recorded in Decision Memory — the execution itself succeeded."}
         </p>
+        {error && (
+          <p className="mt-1 text-2xs text-amber-600">Execution status from the EA: {error}</p>
+        )}
+        {resultMessage && (
+          <p className="mt-1 whitespace-pre-line text-2xs text-muted">{resultMessage.slice(0, 400)}</p>
+        )}
         <a
           href="/app/goals"
           className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-orq8-green/40 px-3 py-1.5 text-2xs font-semibold text-orq8-green hover:bg-orq8-green/10 transition-colors"
