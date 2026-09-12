@@ -7,6 +7,7 @@ import {
   Users,
   AlertCircle,
   RefreshCw,
+  Search,
   Settings,
   X,
   Loader2,
@@ -137,6 +138,14 @@ export default function DepartmentsPage() {
   const [hireName, setHireName] = useState("");
   const [hiring, setHiring] = useState(false);
 
+  // §22 scale: server-side pagination + name search (100+ departments stay fast).
+  // Browsing pages 24 at a time; searching fetches up to the server's match cap.
+  const DEPT_PAGE_SIZE = 24;
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+
   const fetchDeptTemplates = useCallback(async () => {
     setDeptTemplatesLoading(true);
     try {
@@ -221,14 +230,20 @@ export default function DepartmentsPage() {
     setLoading(true);
     setError(null);
     try {
+      // Searching → ask the server for name matches (up to its cap); browsing →
+      // one page. Teams stay bounded at the server cap for per-card counts.
+      const deptQs = debouncedSearch.trim()
+        ? `limit=200&q=${encodeURIComponent(debouncedSearch.trim())}`
+        : `limit=${DEPT_PAGE_SIZE}&offset=${offset}`;
       const [res, teamsRes, workforceRes] = await Promise.all([
-        fetch("/api/departments?all=true"),
-        fetch("/api/teams?all=true"),
+        fetch(`/api/departments?${deptQs}`),
+        fetch("/api/teams?limit=1000"),
         fetch("/api/workforce"),
       ]);
       if (!res.ok) throw new Error("Failed to fetch departments");
       const json = await res.json();
       setDepartments((json.data ?? []).filter((d: Department) => d.id !== null));
+      setTotal(json.meta?.total ?? (json.data ?? []).length);
       if (teamsRes.ok) {
         const teamsJson = await teamsRes.json();
         setTeams(teamsJson.data ?? []);
@@ -242,9 +257,18 @@ export default function DepartmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, offset]);
 
   useEffect(() => { fetchDepartments(); }, [fetchDepartments]);
+
+  // Debounce search input so typing doesn't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setOffset(0); // new search → back to the first page
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     if (showTemplateModal) {
@@ -453,6 +477,43 @@ export default function DepartmentsPage() {
         </div>
       )}
 
+      {/* §22 scale controls — server-side search + pagination */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search departments…"
+            aria-label="Search departments"
+            className="w-full rounded-full border border-hairline bg-white py-2 pl-9 pr-3 text-xs text-ink outline-none transition-colors focus:border-orq8-green"
+          />
+        </div>
+        {!loading && (
+          <p className="text-xs text-muted" aria-live="polite">
+            {debouncedSearch.trim()
+              ? `${total} match${total !== 1 ? "es" : ""} for “${debouncedSearch.trim()}”${total > 200 ? " — showing the first 200" : ""}`
+              : total > 0
+                ? `${total} department${total !== 1 ? "s" : ""}`
+                : ""}
+          </p>
+        )}
+      </div>
+
+      {!loading && departments.length === 0 && debouncedSearch.trim() && (
+        <div className="mt-6 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
+          <p className="text-sm font-medium text-ink">No departments match “{debouncedSearch.trim()}”</p>
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="mt-2 text-xs font-medium text-orq8-green hover:underline"
+          >
+            Clear search
+          </button>
+        </div>
+      )}
+
       {!loading && departments.length > 0 && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {departments.map((dept) => (
@@ -582,6 +643,31 @@ export default function DepartmentsPage() {
             </article>
           ))}
         </div>
+      )}
+
+      {/* Pagination — only when browsing (not searching) and more pages exist */}
+      {!loading && !debouncedSearch.trim() && total > DEPT_PAGE_SIZE && (
+        <nav className="mt-6 flex items-center justify-between" aria-label="Departments pagination">
+          <button
+            type="button"
+            onClick={() => setOffset(Math.max(0, offset - DEPT_PAGE_SIZE))}
+            disabled={offset === 0}
+            className="rounded-full border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-40"
+          >
+            ← Previous
+          </button>
+          <span className="font-mono text-2xs tabular-nums text-muted">
+            {offset + 1}–{Math.min(offset + DEPT_PAGE_SIZE, total)} of {total}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOffset(offset + DEPT_PAGE_SIZE)}
+            disabled={offset + DEPT_PAGE_SIZE >= total}
+            className="rounded-full border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </nav>
       )}
 
       {/* Create Modal */}

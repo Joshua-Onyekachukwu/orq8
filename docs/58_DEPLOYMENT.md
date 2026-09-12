@@ -90,7 +90,7 @@ No other services needed. Ollama/LiteLLM stay **local-only** (dev stack, docs/42
 
 ### Optional — custom domain + CORS
 - Point your domain at the web project (Vercel does DNS for you).
-- Set the API's `ALLOWED_ORIGINS` to the web origin(s), comma-separated, e.g. `https://orq8.app,https://www.orq8.app`. The CORS plugin (apps/api/src/app.ts) uses it with `credentials: true`.
+- Set the API's `ALLOWED_ORIGINS` to the web origin(s), comma-separated, e.g. `https://orq8.vercel.app` (current production origin — see §58.11), or later `https://<new-domain>,https://www.<new-domain>` once a custom domain is secured. The CORS plugin (apps/api/src/app.ts) uses it with `credentials: true`.
 
 ---
 
@@ -258,7 +258,7 @@ successful response wins. Set these on the Railway API service once the keys are
 ## 58.11 What's intentionally NOT here (yet)
 
 - **No auth on Vercel** — we use our own session auth (ADR-007); Supabase Auth is not used.
-- **No custom domain / DNS** — add once the brand is confirmed.
+- **No custom domain / DNS** — **decision (2026-09-12): we run on the Vercel domain `https://orq8.vercel.app` for now.** The previously registered `orq8.app` remains unrecoverable at the registry (see `60_DOMAIN_RECOVERY_RUNBOOK.md`); when the founder secures a new domain, add it in Vercel → Project → Settings → Domains, set `ALLOWED_ORIGINS` on the API to include it, and update the references below — until then `orq8.vercel.app` is the single production origin.
 - **No staging DB** — beta scale doesn't need it; the PR-preview Vercel apps share the same API. When the first paying tier lands, add a `staging` Supabase project + a `staging` branch protection rule.
 - **No rate limiting / abuse protection** on the public waitlist endpoint — the waitlist is Phase 1 bait; add honeypot + simple IP throttle when the beta opens (docs/37).
 - **No observability SaaS** — pino logs to Vercel's function logs; OTel collector stays local (docs/39) until paid tier.

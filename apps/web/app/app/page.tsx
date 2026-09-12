@@ -14,6 +14,7 @@ import {
 import { CommandBar } from "../../components/command-bar";
 import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget";
 import { ModelPerformanceWidget } from "../../components/dashboard/ModelPerformanceWidget";
+import { DepartmentActivityWidget } from "../../components/dashboard/DepartmentActivityWidget";
 
 import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
@@ -453,6 +454,9 @@ export default async function AppPage() {
 
       {/* Agent Reliability */}
       <ReliabilityWidget />
+
+      {/* Live department activity — real events, SSE primary + 60s poll fallback */}
+      <DepartmentActivityWidget />
 
       {/* Model performance — measured signals from the §20/§7 pipeline */}
       <ModelPerformanceWidget />
