@@ -91,7 +91,7 @@ export default function OrgPage() {
       const [agentsRes, goalsRes, teamsRes] = await Promise.all([
         fetch("/api/agents"),
         fetch("/api/goals"),
-        fetch("/api/teams"),
+        fetch("/api/teams?all=true"),
       ]);
 
       const agentsJson = agentsRes.ok ? await agentsRes.json() : { data: [] };

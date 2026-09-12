@@ -68,6 +68,8 @@ import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerStrategyRoutes } from './routes/strategy.js';
 import { registerWorkforceROIRoutes } from './routes/workforce-roi.js';
 import { registerDecisionRoutes } from './routes/decisions.js';
+import { registerModelRoutes } from './routes/models.js';
+import { registerBriefingRoutes } from './routes/briefings.js';
 import { registerLineageRoutes } from './routes/lineage.js';
 import { registerDeliberationRoutes } from './routes/deliberation.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
@@ -309,6 +311,8 @@ export async function buildApp(
   registerStrategyRoutes(app, deps);
   registerWorkforceROIRoutes(app, deps);
   registerDecisionRoutes(app, deps);
+  registerModelRoutes(app, deps);
+  registerBriefingRoutes(app, deps);
   registerLineageRoutes(app, deps);
   registerRecommendationRoutes(app, deps);
   registerDeliberationRoutes(app, deps);

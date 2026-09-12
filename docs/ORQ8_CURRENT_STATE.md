@@ -713,3 +713,49 @@ bundle + Next production builds clean.**
 **Remaining**: the Vercel dashboard action (§13 diagnosis, pending table in README);
 router-learning consumer for `llm_performance` (data now flowing); expected-vs-actual
 comparison job for filed decisions (§20 phase 2); connector/provider live creds.
+
+---
+
+## 16. Session record — 2026-09-12 (founder Learning page, scale audit, jobs
+### visibility, model-signal surfacing, repo hygiene)
+
+All items verified live against production (`orq8.vercel.app` + Railway API) where the
+claim is a runtime behavior; code-only items are labeled.
+
+1. **Founder-facing Learning page (`/app/learning`)** — surfaces the organizational
+   intelligence loop in one place: decision prediction accuracy (learning score,
+   accuracy mix from filed outcomes, per-decision prediction verdicts), agent
+   reliability vs the org baseline (§20 signals), measured model performance (§7
+   stats + honest cost insights), organizational learning events (company memory),
+   and the latest scheduled briefing's real content. Explicit "insufficient data"
+   states everywhere data is thin — no invented metrics. Wired entirely to existing
+   data sources; sidebar entry added under Governance.
+2. **Org scale audit (100+ departments / 10k+ employees)** — verified: agents, tasks,
+   goals, decisions, llm_performance are paginated with `{limit, offset, total}` meta
+   and composite org indexes; departments/teams aggregate in single grouped queries
+   (no N+1). Gaps closed: departments/teams gained a server-side pagination + name
+   search contract (`?limit ≤1000&offset&q&all=true` — UI consumers opt into `all`),
+   and migration `0031` adds the four missing composite org indexes (departments,
+   teams, decisions-outcome anchor, company-memory learning feed).
+3. **Scheduled-job output made founder-visible** — the briefing job persisted real
+   content to the `briefings` table but no read API existed. Added `GET /v1/briefings`
+   (paginated, org-scoped) + web proxy; the Learning page renders the latest
+   briefing's sections. Job-run health was already visible at `/app/jobs`; content
+   now is too.
+4. **Model signals visible in the dashboard** — `model-insights.ts` was built and
+   tested but never exposed via a route. Added `GET /v1/models` (+ web proxy) and a
+   `ModelPerformanceWidget` on the dashboard: per-model success rates (rolling 30d),
+   measured call volume, and cost-optimization insights — routing improvements become
+   visible as real decisions accumulate.
+5. **Repo hygiene** — production rehearsal scripts moved from `apps/web/` to
+   `e2e/tools/` (now a pnpm workspace member so `@playwright/test` resolves; README
+   documents setup/run; credential `.env.*.local` files moved alongside and remain
+   gitignored). The `account-journey.spec.ts` tweak was already committed (`45d3ea5`).
+
+**Tests/live verification**: rate-limit burst (90 concurrent authed requests, 0×429),
+founder-verdict round-trip on the live council decision, EA inquiry answered from live
+state, Engineering approval→merge gate rehearsed end-to-end, CI green, both deploys at
+`e7e6901`. Learning page + new endpoints typechecked; DB-gated suites run in CI.
+
+**Remaining**: `orq8.app`/`orq8.com` registrar recovery (external); rotate the shared
+Vercel token; router-learning consumer work continues as data accumulates.

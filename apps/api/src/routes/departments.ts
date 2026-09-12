@@ -12,9 +12,22 @@ import type { AppDeps } from '../types.js';
 export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db, logger } = deps;
 
-  /** List all departments for the org with agent counts. */
+  /** List departments for the org with agent counts.
+   *
+   * Scale contract (org-scale audit): paginated ?limit (default 200, cap 1000)
+   * + ?offset with a { limit, offset, total } meta block, plus ?q name search.
+   * `all=true` opts out for UI surfaces that genuinely need the whole list.
+   * Filtering happens server-side before slicing; the grouped aggregate is a
+   * single query (no N+1).
+   */
   app.get('/v1/departments', async (request) => {
     const ctx = await requireAuth(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const all = url.searchParams.get('all') === 'true';
+    const limit = all ? Number.MAX_SAFE_INTEGER : Math.min(Math.max(parseInt(url.searchParams.get('limit') ?? '200', 10) || 200, 1), 1000);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10) || 0, 0);
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
     const depts = await deptService.findByOrg(db, ctx.orgId);
 
     // Get unassigned agents count (where department_id IS NULL)
@@ -55,7 +68,10 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       });
     }
 
-    return { data: result };
+    // Server-side name search, then paginate (bounded per-org scale).
+    const filtered = q ? result.filter((d) => d.name.toLowerCase().includes(q)) : result;
+    const page = filtered.slice(offset, offset + limit);
+    return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
   });
 
   /** Create a new department. */

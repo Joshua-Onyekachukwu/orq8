@@ -222,8 +222,8 @@ export default function DepartmentsPage() {
     setError(null);
     try {
       const [res, teamsRes, workforceRes] = await Promise.all([
-        fetch("/api/departments"),
-        fetch("/api/teams"),
+        fetch("/api/departments?all=true"),
+        fetch("/api/teams?all=true"),
         fetch("/api/workforce"),
       ]);
       if (!res.ok) throw new Error("Failed to fetch departments");

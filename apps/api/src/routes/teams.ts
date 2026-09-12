@@ -11,13 +11,25 @@ import type { AppDeps } from '../types.js';
 export function registerTeamRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
 
-  /** List all teams for the org with member counts. */
+  /** List teams for the org with member counts.
+   *
+   * Scale contract (org-scale audit): paginated ?limit (default 200, cap 1000)
+   * + ?offset with a { limit, offset, total } meta block, plus ?q name search.
+   * `all=true` opts out for UI surfaces that genuinely need the whole list.
+   */
   app.get('/v1/teams', async (request) => {
     const ctx = await requireAuth(request, deps);
     const url = new URL(request.url, 'http://localhost');
     const includeArchived = url.searchParams.get('include_archived') === 'true';
+    const all = url.searchParams.get('all') === 'true';
+    const limit = all ? Number.MAX_SAFE_INTEGER : Math.min(Math.max(parseInt(url.searchParams.get('limit') ?? '200', 10) || 200, 1), 1000);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10) || 0, 0);
+    const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
     const teams = await teamService.findByOrg(db, ctx.orgId, includeArchived);
-    return { data: teams };
+    const filtered = q ? teams.filter((t) => t.name.toLowerCase().includes(q)) : teams;
+    const page = filtered.slice(offset, offset + limit);
+    return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
   });
 
   /** Get a single team. */

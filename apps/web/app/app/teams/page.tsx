@@ -123,8 +123,8 @@ export default function TeamsPage() {
     setError(null);
     try {
       const [teamsRes, deptsRes] = await Promise.all([
-        fetch("/api/teams"),
-        fetch("/api/departments"),
+        fetch("/api/teams?all=true"),
+        fetch("/api/departments?all=true"),
       ]);
       if (!teamsRes.ok) throw new Error("Failed to fetch teams");
       const teamsJson = await teamsRes.json();

@@ -257,3 +257,34 @@ Then by hand, in a browser:
 | §8 Smoke test | Blocked by §2 (verification email) — the rest is runnable today |
 
 Minimum path to launch: **§1.1 → §1.2 → §2 → §3 → §4 → §5 → §8** (≈ 1–2 hours of dashboard work + DNS propagation).
+
+---
+
+## Verified session state (2026-09-12)
+
+Live-verified against production (`orq8.vercel.app` + Railway API at commit `e7e6901`),
+not assumed from code:
+
+- **Deployment pipeline**: GitHub `main` → CI (5 checks green) → Vercel production READY
+  at current `main` SHA; Railway API auto-deploy confirmed by behavioral probes.
+- **Auth**: login, protected routes, logout all pass in a real browser; founder-verdict
+  round-trip on the Decision Council persisted to Decision Memory and re-rendered.
+- **Engineering workbench**: full pipeline rehearsed live — repo → branch → task → EM
+  plan → PR → **merge blocked until Command-Center approval** → merge allowed → real
+  sandbox execution (`exit=0`); cross-org protection confirmed (404 on wrong org).
+- **Rate limits**: authenticated burst of 90 concurrent requests → zero 429s after the
+  120/min stabilization; sensitive routes keep dedicated tighter buckets.
+- **EA inquiry path**: "What needs my approval right now?" returns a grounded answer
+  from live state (`taskIds: []`) instead of taskifying into failures.
+- **Scheduled jobs**: GitHub Actions `orq8-jobs.yml` fires daily/weekly/monthly
+  briefings, memory consolidation, decision outcome review + signal sync against the
+  `INTERNAL_TOKEN`-gated hooks; every run is logged to `job_runs` and founder-visible
+  at `/app/jobs`; generated briefing content is founder-visible at `/app/learning`.
+- **Domain**: `orq8.vercel.app` fully healthy; `orq8.app`/`orq8.com` still parked —
+  registrar action required (§5 + `docs/60_DOMAIN_RECOVERY_RUNBOOK.md`).
+- **Secrets**: `INTERNAL_TOKEN`, `SESSION_SECRET`, `ENCRYPTION_KEY` confirmed set on
+  Railway (job hooks authenticate); **rotate the Vercel token** that was shared in chat
+  (stored as the `VERCEL_TOKEN` Actions secret) and confirm §1.1/§1.2 values in the
+  dashboards when convenient.
+- **Verification toolkit**: production rehearsal scripts now live in `e2e/tools/`
+  (see its README); run `journey-loop.mjs` / `smoke-live.mjs` before demo recordings.

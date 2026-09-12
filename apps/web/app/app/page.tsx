@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CommandBar } from "../../components/command-bar";
 import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget";
+import { ModelPerformanceWidget } from "../../components/dashboard/ModelPerformanceWidget";
 
 import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
@@ -452,6 +453,9 @@ export default async function AppPage() {
 
       {/* Agent Reliability */}
       <ReliabilityWidget />
+
+      {/* Model performance — measured signals from the §20/§7 pipeline */}
+      <ModelPerformanceWidget />
 
       {/* Two-column layout: Executive Agent + Activity Feed */}
       <div className="grid gap-6 lg:grid-cols-5">

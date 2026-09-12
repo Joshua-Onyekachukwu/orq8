@@ -1,0 +1,9 @@
+{
+  "name": "@orq8/e2e-tools",
+  "private": true,
+  "type": "module",
+  "description": "Live production verification scripts (rehearsals, journeys, smoke passes). Run: node e2e/tools/<script>.mjs",
+  "dependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
