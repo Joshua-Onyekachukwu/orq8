@@ -4,27 +4,27 @@ test.describe("Landing Page", () => {
   test("loads the homepage", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/ORQ8/);
-    await expect(page.locator("text=ORQ8")).toBeVisible();
+    await expect(page.locator('img[alt="ORQ8"]').first()).toBeVisible();
   });
 
   test("has navigation links", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator('a[href="/#features"]')).toBeVisible();
-    await expect(page.locator('a[href="/pricing"]')).toBeVisible();
+    await expect(page.locator('a[href="/#features"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/pricing"]').first()).toBeVisible();
   });
 
   test("has waitlist signup", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('button:has-text("Join the waitlist")')).toBeVisible();
+    await expect(page.locator('input[type="email"]').first()).toBeVisible();
+    await expect(page.locator('button:has-text("Join the waitlist")').first()).toBeVisible();
   });
 
   test("footer has legal links", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator('a[href="/privacy"]')).toBeVisible();
-    await expect(page.locator('a[href="/terms"]')).toBeVisible();
-    await expect(page.locator('a[href="/security"]')).toBeVisible();
-    await expect(page.locator('a[href="/ai-disclosure"]')).toBeVisible();
+    await expect(page.locator('a[href="/privacy"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/terms"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/security"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/ai-disclosure"]').first()).toBeVisible();
   });
 });
 
@@ -56,16 +56,16 @@ test.describe("Legal Pages", () => {
 
   test("Privacy Policy has required sections", async ({ page }) => {
     await page.goto("/privacy");
-    await expect(page.locator("text=Data We Collect")).toBeVisible();
-    await expect(page.locator("text=Your Rights")).toBeVisible();
-    await expect(page.locator("text=Contact Us")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Data We Collect" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your Rights" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Contact Us" })).toBeVisible();
   });
 
   test("Terms page has required sections", async ({ page }) => {
     await page.goto("/terms");
-    await expect(page.locator("text=Acceptable Use")).toBeVisible();
-    await expect(page.locator("text=Your Data")).toBeVisible();
-    await expect(page.locator("text=Termination")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Acceptable Use" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your Data" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Termination" })).toBeVisible();
   });
 });
 

@@ -10,8 +10,8 @@ test.describe("Authentication", () => {
 
   test("register page loads", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.locator("input[type=\"email\"]")).toBeVisible();
-    await expect(page.locator("input[type=\"password\"]")).toBeVisible();
+    await expect(page.locator('input[type="email"]').first()).toBeVisible();
+    await expect(page.locator('input[type="password"]').first()).toBeVisible();
   });
 
   test("shows error for invalid credentials", async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe("Authentication", () => {
     await page.locator('input[type="password"]').fill("wrongpassword123");
     await page.locator('button[type="submit"]').click();
     // Should show an error message (exact text depends on implementation)
-    await expect(page.locator('[role="alert"], text=Invalid, text=error, text=failed')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/invalid|incorrect|wrong|failed|error/i).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("protected routes redirect to login", async ({ page }) => {
