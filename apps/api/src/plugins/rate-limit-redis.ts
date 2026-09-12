@@ -1,5 +1,30 @@
+import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { RedisClient } from '../services/redis.js';
+
+/**
+ * Rate-limit key: the authenticated session identity when the request carries
+ * one (bearer token or the orq8_session cookie), otherwise the client IP.
+ *
+ * Why: the web app proxies every browser call server-side, so in production ALL
+ * users share Vercel's egress IP. IP-keyed buckets on authenticated routes make
+ * the limit global across users — one fast founder (or two concurrent ones)
+ * starved everyone's session with 429s mid-navigation. Keying by a hash of the
+ * session token restores per-user limits while remaining unspoofable (the token
+ * IS the credential). Pre-auth routes (login, register, reset) have no token and
+ * naturally fall back to per-IP keying, which is correct for abuse control there.
+ */
+export function sessionOrIpKey(request: FastifyRequest): string {
+  const auth = request.headers.authorization;
+  const token =
+    (auth && auth.startsWith('Bearer ') ? auth.slice(7).trim() : '') ||
+    request.cookies?.orq8_session ||
+    '';
+  if (token) {
+    return `sess:${createHash('sha256').update(token).digest('hex').slice(0, 16)}`;
+  }
+  return `ip:${request.ip ?? 'unknown'}`;
+}
 
 /**
  * Redis-backed sliding-window rate limiter.
@@ -92,19 +117,19 @@ export function rateLimitHookRedis(
 export function rateLimitRouteRedis(
   app: FastifyInstance,
   redis: RedisClient,
-  opts: { path: string; windowMs?: number; max?: number; label?: string; prefix?: string; methods?: Array<'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'> },
+  opts: { path: string; windowMs?: number; max?: number; label?: string; prefix?: string; methods?: Array<'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'>; keyFn?: (request: FastifyRequest) => string },
 ): void {
   const windowMs = opts.windowMs ?? 60_000;
   const max = opts.max ?? 5;
   const label = opts.label ?? opts.path;
   const prefix = opts.prefix ?? 'rl:route';
   const methods = opts.methods ?? ['POST'];
+  const keyFn = opts.keyFn ?? ((req: FastifyRequest) => req.ip ?? 'unknown');
 
   app.addHook('onRequest', async (request, reply) => {
     if (!methods.includes(request.method as 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE') || !request.url.startsWith(opts.path)) return;
 
-    const ip = request.ip ?? 'unknown';
-    const key = `${prefix}:${opts.path}:${ip}`;
+    const key = `${prefix}:${opts.path}:${keyFn(request)}`;
     const now = Date.now();
     const windowStart = now - windowMs;
     const requestId = `${now}:${Math.random().toString(36).slice(2, 8)}`;

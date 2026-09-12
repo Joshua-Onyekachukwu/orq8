@@ -11,7 +11,7 @@ import {
   type IdempotencyStore,
 } from '@orq8/core';
 import { getRedis } from './services/redis.js';
-import { rateLimitHookRedis, rateLimitLoginRedis, rateLimitRouteRedis } from './plugins/rate-limit-redis.js';
+import { rateLimitHookRedis, rateLimitLoginRedis, rateLimitRouteRedis, sessionOrIpKey } from './plugins/rate-limit-redis.js';
 import { RedisIdempotencyStore } from '@orq8/core';
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
@@ -157,6 +157,10 @@ export async function buildApp(
       windowMs: 60_000,
       max: 120,
       prefix: 'rl:global',
+      // Key by session identity when authenticated: behind the web proxy all
+      // users share one egress IP, so an IP-keyed bucket was effectively a
+      // global limit across users and 429'd mid-navigation (§1 Phase A).
+      keyFn: sessionOrIpKey,
       skip: (req) => req.method === 'GET' && req.url.startsWith('/v1/events'),
     });
     rateLimitRouteRedis(app, redis, {
@@ -198,13 +202,13 @@ export async function buildApp(
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
-    rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands', keyFn: sessionOrIpKey });
   } else if (rateLimitEnabled) {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRoute(app, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
     rateLimitRoute(app, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
-    rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' });
+    rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' }); // in-memory fallback path
   }
 
   // Security headers on every response (including CSRF cookie + HSTS)
