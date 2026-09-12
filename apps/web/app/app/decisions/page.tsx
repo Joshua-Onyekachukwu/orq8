@@ -44,6 +44,22 @@ interface Decision {
   createdAt: string;
 }
 
+interface CalibrationBandStats {
+  band: "high" | "medium" | "low";
+  resolved: number;
+  validated: number;
+  reversed: number;
+  accuracyPct: number | null;
+}
+
+interface ConfidenceCalibration {
+  bands: CalibrationBandStats[];
+  fullyCalibrated: boolean;
+  calibrationGapPct: number | null;
+  totalResolved: number;
+  unresolvedBandCount: number;
+}
+
 interface DecisionSummary {
   totalDecisions: number;
   activeDecisions: number;
@@ -52,6 +68,7 @@ interface DecisionSummary {
   learningScore: number;
   byType: Array<{ type: string; count: number }>;
   recentDecisions: Decision[];
+  calibration?: ConfidenceCalibration;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -283,6 +300,91 @@ function DecisionCard({ decision, onUpdate }: { decision: Decision; onUpdate: (i
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 
+// Minimum sample before a band's accuracy is reported (kept in sync with the
+// API's MIN_RESOLVED_FOR_ACCURACY).
+const MIN_RESOLVED_FOR_ACCURACY_UI = 3;
+
+/**
+ * §29 Confidence Calibration card — does the council actually know what it
+ * knows? Renders accuracy per declared confidence band from real filed
+ * outcomes, with an explicit insufficient-data state (never invented numbers).
+ * The headline insight: only trust high-confidence recommendations more than
+ * low ones if the measured accuracy gap says so.
+ */
+function ConfidenceCalibrationCard({ calibration }: { calibration: ConfidenceCalibration }) {
+  const gap = calibration.calibrationGapPct;
+  const anyData = calibration.totalResolved > 0;
+
+  return (
+    <div className="rounded-xl border border-hairline bg-white p-5">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">Confidence calibration</h3>
+          <p className="text-2xs text-muted mt-0.5">
+            Are high-confidence predictions actually more accurate than low-confidence ones? Computed from filed
+            outcomes only — no invented numbers.
+          </p>
+        </div>
+        {anyData && (
+          <span className="shrink-0 text-2xs text-muted whitespace-nowrap">
+            {calibration.totalResolved} resolved
+          </span>
+        )}
+      </div>
+      {!anyData ? (
+        <p className="mt-3 text-xs text-muted italic">
+          No outcomes have been filed yet. Calibration appears as the outcome feedback loop resolves decisions.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {calibration.bands.map((b) => (
+            <div key={b.band} className="flex items-center gap-3">
+              <span className="w-14 text-2xs font-semibold uppercase text-muted">{b.band}</span>
+              <div className="h-2 flex-1 rounded-full bg-muted/10 overflow-hidden">
+                <div
+                  className={
+                    b.accuracyPct === null
+                      ? "h-full bg-muted/30"
+                      : b.accuracyPct >= 70
+                        ? "h-full rounded-full bg-orq8-green"
+                        : b.accuracyPct >= 40
+                          ? "h-full rounded-full bg-amber-500"
+                          : "h-full rounded-full bg-red-500"
+                    }
+                  style={{ width: b.accuracyPct === null ? "0%" : `${b.accuracyPct}%` }}
+                />
+              </div>
+              <span className="w-28 text-right text-2xs text-ink font-mono">
+                {b.accuracyPct === null ? `n=${b.resolved} — need ${MIN_RESOLVED_FOR_ACCURACY_UI}+` : `${b.accuracyPct}% (${b.validated}/${b.resolved})`}
+              </span>
+            </div>
+          ))}
+          <p className="text-2xs text-muted">
+            {gap === null ? (
+              "Not enough resolved decisions in both high and low bands yet — the trust gap cannot honestly be computed."
+            ) : gap > 0 ? (
+              <span className="text-orq8-green">
+                High-confidence predictions are outperforming low-confidence ones by {gap} points — confidence is calibrated so far.
+              </span>
+            ) : gap === 0 ? (
+              "High and low confidence are equally accurate so far — declared confidence is not yet predictive."
+            ) : (
+              <span className="text-red-500">
+                Low-confidence predictions are outperforming high-confidence ones by {Math.abs(gap)} points — treat high-confidence claims with extra scrutiny.
+              </span>
+            )}
+          </p>
+          {calibration.unresolvedBandCount > 0 && (
+            <p className="text-2xs text-muted">
+              {calibration.unresolvedBandCount} resolved decision{calibration.unresolvedBandCount === 1 ? "" : "s"} outside the standard bands excluded from calibration.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DecisionsPage() {
   const [summary, setSummary] = useState<DecisionSummary | null>(null);
   const [decisions, setDecisions] = useState<Decision[]>([]);
@@ -386,6 +488,13 @@ export default function DecisionsPage() {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* §29 Confidence calibration — accuracy per declared confidence band */}
+        {summary?.calibration && (
+          <div className="mt-4">
+            <ConfidenceCalibrationCard calibration={summary.calibration} />
           </div>
         )}
 

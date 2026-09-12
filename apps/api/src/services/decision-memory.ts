@@ -16,6 +16,7 @@ import { and, eq, desc, sql, count as countFn, gte } from 'drizzle-orm';
 import { decisions, tasks, type Db, type Decision, type NewDecision } from '@orq8/db';
 import { appendAudit } from './audit.js';
 import { classifyFounderOutcome } from './decision-feedback.js';
+import { computeConfidenceCalibration, type ConfidenceCalibration } from './decision-calibration.js';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,8 @@ export interface DecisionSummary {
   learningScore: number; // % of resolved decisions that were validated
   byType: Array<{ type: string; count: number }>;
   recentDecisions: Decision[];
+  /** §29 calibration: accuracy per declared confidence band, from filed outcomes. */
+  calibration: ConfidenceCalibration;
 }
 
 // ── CRUD ────────────────────────────────────────────────────────────────────
@@ -239,6 +242,10 @@ export async function getDecisionSummary(db: Db, orgId: string): Promise<Decisio
     .map(([type, count]) => ({ type, count }))
     .sort((a, b) => b.count - a.count);
 
+  // §29: does declared confidence predict actual accuracy? Computed over ALL
+  // resolved decisions (not just the recent slice) from real filed outcomes.
+  const calibration = computeConfidenceCalibration(allDecisions);
+
   return {
     totalDecisions: total,
     activeDecisions: active,
@@ -247,6 +254,7 @@ export async function getDecisionSummary(db: Db, orgId: string): Promise<Decisio
     learningScore,
     byType,
     recentDecisions: allDecisions.slice(0, 10),
+    calibration,
   };
 }
 
