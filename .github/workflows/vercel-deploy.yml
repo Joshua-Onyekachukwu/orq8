@@ -52,15 +52,18 @@ jobs:
           # latest deployment is legitimately an older web-affecting commit —
           # that is reported, not failed (the API deploys to Railway
           # separately; a monorepo push need not produce a new web build).
-          state=""; meta_sha=""; built_for_this_push="no"; empty=0
+          state=""; meta_sha=""; built_for_this_push="no"; empty=0; http_code=""; first_body=""
           for i in $(seq 1 40); do
-            RESP=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            RESP=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $VERCEL_TOKEN" \
               "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=3")
-            DEPLOY_ID=$(echo "$RESP" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0]['id'] if ds else '')" 2>/dev/null || true)
+            http_code=$(echo "$RESP" | tail -1)
+            RESP_BODY=$(echo "$RESP" | sed '$d')
+            [ -z "$first_body" ] && first_body=$(echo "$RESP_BODY" | head -c 160)
+            DEPLOY_ID=$(echo "$RESP_BODY" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0]['id'] if ds else '')" 2>/dev/null || true)
             if [ -z "$DEPLOY_ID" ]; then
               empty=$((empty+1))
               if [ "$empty" -ge 3 ]; then
-                echo "::error::Vercel API returned no deployments 3x in a row — VERCEL_TOKEN is invalid, expired, or lacks access to project $PROJECT_ID. Update the repo secret (Settings → Secrets and variables → Actions), then re-run."
+                echo "::error::Vercel API gave no deployments 3x in a row (http=$http_code, body: $first_body). If http=401 the VERCEL_TOKEN secret is wrong; if 200 with empty list the token lacks this team/project. Update the secret (Settings → Secrets and variables → Actions), then re-run."
                 exit 1
               fi
             else
