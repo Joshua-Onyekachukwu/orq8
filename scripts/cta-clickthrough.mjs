@@ -137,14 +137,17 @@ try {
 
   const taskCountBefore = (await api("/v1/tasks?limit=1", {}, token)).json?.data?.total ?? null;
   await cta.click();
-  // Wait for the CTA to leave its idle state (button disables / progress appears) up to 150s.
+  // Wait for the CTA's true terminal state. Running state renders "Executive
+  // Agent is working"; terminal renders "Execution delegated". (The earlier
+  // /executing/i probe matched the *running* spinner text and exited early.)
   const started = Date.now();
   let pipelineDone = false;
-  while (Date.now() - started < 150_000) {
+  while (Date.now() - started < 300_000) {
     await page.waitForTimeout(5_000);
-    const stillIdle = await cta.isVisible().catch(() => false) && (await cta.isEnabled().catch(() => false));
-    const doneText = /delegated|view in goals|executing/i.test(await page.locator("body").innerText().catch(() => ""));
-    if (doneText && !stillIdle) { pipelineDone = true; break; }
+    const bodyText = await page.locator("body").innerText().catch(() => "");
+    if (/Execution delegated/i.test(bodyText)) { pipelineDone = true; break; }
+    const running = /Executive Agent is working/i.test(bodyText);
+    if (!running && Date.now() - started > 20_000) break; // left running without terminal state
   }
   const elapsedS = Math.round((Date.now() - started) / 1000);
   console.log(`  CTA pipeline observed for ${elapsedS}s; stages seen: ${stages.length}`);
@@ -152,10 +155,16 @@ try {
 
   // ── 5. Verify downstream: tasks created + marker recorded ──
   console.log("=== downstream verification ===");
-  const tasksAfter = await api("/v1/tasks?limit=10&sort=created_desc", {}, token);
-  const tasks = tasksAfter.json?.data?.tasks ?? tasksAfter.json?.data ?? [];
-  const fresh = (Array.isArray(tasks) ? tasks : []).filter((t) => /launch plan|council|approved/i.test(`${t.title ?? ""} ${t.description ?? ""}`));
-  ok("fresh tasks exist for the delegation", fresh.length > 0, `${fresh.length} matching of ${Array.isArray(tasks) ? tasks.length : 0}`);
+  // Default sort is createdAt ASC — fetch the newest page via meta.total.
+  const first = await api("/v1/tasks?limit=1", {}, token);
+  const total = first.json?.meta?.total ?? 0;
+  const offset = Math.max(0, total - 10);
+  const tasksAfter = await api(`/v1/tasks?limit=10&offset=${offset}`, {}, token);
+  const taskList = Array.isArray(tasksAfter.json?.data) ? tasksAfter.json.data : [];
+  // CTA delegation titles: "Plan execution: …", "Execute implementation",
+  // "Verify results" (also match any launch-phrased variants).
+  const fresh = taskList.filter((t) => /plan execution|execute implementation|verify results|launch plan|council|approved/i.test(`${t.title ?? ""} ${t.description ?? ""}`));
+  ok("fresh tasks exist for the delegation", fresh.length > 0, `${fresh.length} matching of ${taskList.length} (newest page of ${total})`);
   for (const t of fresh.slice(0, 5)) console.log(`  task: [${t.status}] ${t.title?.slice(0, 90)}`);
 
   const decAfter = await api(`/v1/decisions/${decisionId}`, {}, token);

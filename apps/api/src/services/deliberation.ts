@@ -139,12 +139,25 @@ Hard rules:
 - Never present an assumption as fact. Unknowns must be listed.
 - Recommend ONE course of action only if consensus exists.`;
 
+/**
+ * Strip common reasoning wrappers (<think>…</think>, "Here's a thinking
+ * process:" preambles) from model output before parsing. Reasoning must never
+ * leak into a persisted decision record (§58 no-fake-success).
+ */
+function stripReasoningWrapper(raw: string): string {
+  let out = raw.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  const cotIdx = out.search(/here'?s? (a |the )?thinking process|let'?s think step by step|analyzing (the )?user input/i);
+  if (cotIdx > 0) out = out.slice(cotIdx); // cannot recover text before reasoning begins
+  return out.trim();
+}
+
 function parseSynthesisJson(raw: string): DeliberationResult['synthesis'] | null {
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
+  const cleaned = stripReasoningWrapper(raw);
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
   if (start === -1 || end <= start) return null;
   try {
-    const parsed = JSON.parse(raw.slice(start, end + 1)) as Partial<DeliberationResult['synthesis']>;
+    const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Partial<DeliberationResult['synthesis']>;
     if (typeof parsed.recommendation !== 'string') return null;
     return {
       recommendation: parsed.recommendation,
@@ -400,13 +413,20 @@ export async function runDeliberation(
   }
 
   const parsed = parseSynthesisJson(synthesisRaw);
+  const cleanedRaw = stripReasoningWrapper(synthesisRaw);
+  // Unstructured fallback: never persist reasoning text as a decision. If the
+  // output is (or looks like) chain-of-thought, record it honestly as an
+  // unparseable synthesis rather than storing thought process as "what was decided".
+  const looksLikeReasoning = /here'?s? (a |the )?thinking process|analyzing (the )?user input|<think>/i.test(cleanedRaw);
   result.synthesis = parsed ?? {
-    recommendation: synthesisRaw.slice(0, 2000),
+    recommendation: looksLikeReasoning ? '' : cleanedRaw.slice(0, 2000),
     confidence: 'low',
     consensusReached: false,
     disagreements: [],
     risks: [],
-    unknowns: ['Synthesis output could not be parsed as structured JSON — raw text preserved'],
+    unknowns: [looksLikeReasoning
+      ? 'Synthesis output contained model reasoning instead of a decision — no recommendation recorded'
+      : 'Synthesis output could not be parsed as structured JSON — cleaned text preserved'],
     alternatives: [],
     verdictText: 'Synthesis returned unstructured output',
   };

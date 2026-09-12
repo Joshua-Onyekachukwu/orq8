@@ -62,6 +62,9 @@ async function getColumns(db: Db) {
       departmentId: agents.departmentId,
       authority: agents.authority,
       capabilities: agents.capabilities,
+      // Governance transparency (§9): founders must be able to SEE an agent's
+      // autonomy level — it decides whether their tasks execute or block.
+      autonomyLevel: agents.autonomyLevel,
       ...(hasTeam ? { teamId: agents.teamId } : {}),
     };
   }
