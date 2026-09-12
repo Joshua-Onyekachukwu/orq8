@@ -45,11 +45,19 @@ interface ClientConnection {
   orgId: string;
   userId: string;
   connectedAt: Date;
+  /** Flips false the first time a write fails — dead connection, pending cleanup. */
+  alive: boolean;
 }
 
 // In-memory connection store (per-org)
 // In multi-instance deployments, this would use Redis pub/sub
 const connections = new Map<string, Set<ClientConnection>>();
+
+/** Max concurrent SSE streams per user. Live tabs need only a few; anything
+ * beyond the cap is almost certainly a leaked/zombie connection from a
+ * navigated-away page (proxy chains can swallow the close event), so the
+ * eviction policy below treats overflow as staleness, not abuse. */
+const MAX_CONNECTIONS_PER_USER = 8;
 
 /**
  * Register SSE endpoint on the Fastify app.
@@ -66,20 +74,30 @@ export function registerRealtimeEndpoint(app: FastifyInstance, deps: AppDeps): v
     const { requireAuth } = await import('../plugins/auth.js');
     const ctx = await requireAuth(request, deps);
 
-    // Limit per-user concurrent SSE connections to prevent memory exhaustion.
-    // The web app shares ONE stream per tab (lib/realtime-client) but a user
-    // legitimately has several tabs + the dev server reconnects, so the cap
-    // must allow more than one stream per tab.
-    const MAX_CONNECTIONS_PER_USER = 8;
-    let userCount = 0;
+    // Collect this user's existing connections across all orgs (oldest first).
+    const mine: ClientConnection[] = [];
     for (const clients of connections.values()) {
       for (const c of clients) {
-        if (c.userId === ctx.userId) userCount++;
+        if (c.userId === ctx.userId) mine.push(c);
       }
     }
-    if (userCount >= MAX_CONNECTIONS_PER_USER) {
-      reply.code(429).send({ error: { code: 'too_many_connections', message: 'Maximum concurrent connections reached' } });
-      return reply;
+    mine.sort((a, b) => a.connectedAt.getTime() - b.connectedAt.getTime());
+
+    // Self-healing eviction: when at cap, drop the user's OLDEST connections —
+    // a live tab always opens its connection after the zombies it left behind
+    // on navigated-away pages (proxies often never fire the close event, and
+    // failed heartbeats used to leave those rows registered forever — the cap
+    // then 429'd every subsequent page load). Evicting oldest guarantees a
+    // fresh page always gets its stream.
+    if (mine.length >= MAX_CONNECTIONS_PER_USER) {
+      const evictCount = mine.length - MAX_CONNECTIONS_PER_USER + 1;
+      for (const dead of mine.slice(0, evictCount)) {
+        dead.alive = false;
+        for (const clients of connections.values()) clients.delete(dead);
+      }
+      for (const [orgId, clients] of connections) {
+        if (clients.size === 0) connections.delete(orgId);
+      }
     }
 
     // Set SSE headers
@@ -90,42 +108,55 @@ export function registerRealtimeEndpoint(app: FastifyInstance, deps: AppDeps): v
       'X-Accel-Buffering': 'no', // Disable nginx buffering
     });
 
-    // Send initial connection event
-    const sendEvent = (event: RealtimeEvent) => {
-      try {
-        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
-      } catch {
-        // Client disconnected
-      }
-    };
-
-    sendEvent({ type: 'heartbeat', timestamp: Date.now() });
-
     // Track connection
     const client: ClientConnection = {
       reply,
       orgId: ctx.orgId,
       userId: ctx.userId,
       connectedAt: new Date(),
+      alive: true,
     };
 
     const orgClients = connections.get(ctx.orgId) ?? new Set<ClientConnection>();
     orgClients.add(client);
     connections.set(ctx.orgId, orgClients);
 
-    // Heartbeat every 30s to keep connection alive
-    const heartbeatInterval = setInterval(() => {
-      sendEvent({ type: 'heartbeat', timestamp: Date.now() });
-    }, 30_000);
-
-    // Cleanup on disconnect
-    request.raw.on('close', () => {
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
       clearInterval(heartbeatInterval);
       orgClients.delete(client);
       if (orgClients.size === 0) {
         connections.delete(ctx.orgId);
       }
-    });
+    };
+
+    // Send initial connection event
+    const sendEvent = (event: RealtimeEvent) => {
+      if (!client.alive) return;
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch {
+        // Write failure = dead connection (navigated-away tab whose close
+        // event never propagated through the proxy chain). Mark and clean up
+        // — swallowing this used to leak the connection permanently.
+        client.alive = false;
+        cleanup();
+      }
+    };
+
+    sendEvent({ type: 'heartbeat', timestamp: Date.now() });
+
+    // Heartbeat every 30s to keep connection alive; doubles as liveness probe —
+    // a connection whose writes fail is removed instead of leaking.
+    const heartbeatInterval = setInterval(() => {
+      sendEvent({ type: 'heartbeat', timestamp: Date.now() });
+    }, 30_000);
+
+    // Cleanup on disconnect (idempotent — also fires via sendEvent failure).
+    request.raw.on('close', cleanup);
+    reply.raw.on('error', cleanup);
   });
 }
 
@@ -139,11 +170,15 @@ export function broadcastToOrg(orgId: string, event: RealtimeEvent): void {
 
   const payload = `data: ${JSON.stringify(event)}\n\n`;
 
-  for (const client of orgClients) {
+  for (const client of [...orgClients]) {
+    if (!client.alive) continue;
     try {
       client.reply.raw.write(payload);
     } catch {
-      // Client disconnected — will be cleaned up on 'close' event
+      // Dead connection (close event may never fire through proxy chains) —
+      // mark it; the next connection handshake or heartbeat reaps it.
+      client.alive = false;
+      orgClients.delete(client);
     }
   }
 }
