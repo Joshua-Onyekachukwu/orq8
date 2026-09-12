@@ -459,6 +459,17 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
 
       const next = parsed.data.status;
 
+      // Central-approval gate FIRST for merges: its reasons (no request /
+      // awaiting decision / rejected) are specific and honest; the generic
+      // state-machine message would mask WHY the merge is blocked (§16).
+      if (next === 'merged') {
+        const mergeGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
+        if (!mergeGate.ok) {
+          reply.code(mergeGate.status);
+          return { error: { code: 'pr_merge_blocked', message: mergeGate.reason } };
+        }
+      }
+
       // Server-side approval gate: merging requires an explicit prior approval.
       const gate = canTransitionPrStatus(pr.status, next);
       if (!gate.ok) {
@@ -475,13 +486,6 @@ export function registerEngineeringRoutes(app: FastifyInstance, deps: AppDeps): 
         if (!approveGate.ok) {
           reply.code(approveGate.status);
           return { error: { code: 'pr_approval_blocked', message: `${approveGate.reason} — request approval via POST /v1/prs/:id/request-approval, then decide it in Command Center.` } };
-        }
-      }
-      if (next === 'merged') {
-        const mergeGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
-        if (!mergeGate.ok) {
-          reply.code(mergeGate.status);
-          return { error: { code: 'pr_merge_blocked', message: mergeGate.reason } };
         }
       }
 
