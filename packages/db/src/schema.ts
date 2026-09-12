@@ -514,11 +514,14 @@ export const llmPerformance = pgTable(
     completionTokens: integer('completion_tokens').notNull().default(0),
     totalTokens: integer('total_tokens').notNull().default(0),
     retryAttempt: integer('retry_attempt').notNull().default(0),
+    /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
+    routingSource: text('routing_source').notNull().default('default'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('llm_performance_org_model_idx').on(t.orgId, t.model, t.createdAt),
     index('llm_performance_org_created_idx').on(t.orgId, t.createdAt),
+    index('llm_performance_routing_idx').on(t.orgId, t.routingSource, t.createdAt),
   ],
 );
 

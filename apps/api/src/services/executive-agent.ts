@@ -1,6 +1,8 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
+import { classifyTask } from './model-intelligence.js';
+import { selectMeasuredModel } from './model-selector.js';
 import { appendAudit } from './audit.js';
 import { retrieveSemanticForContext } from './memory.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
@@ -836,6 +838,7 @@ export async function analyzeIntent(
   command: string,
   commandId?: string,
   contextNote?: string,
+  db?: Db,
 ): Promise<IntentAnalysis> {
   const contextPrompt = buildContextPrompt(ctx);
   const fullSystemPrompt = `${EXECUTIVE_AGENT_SYSTEM_PROMPT}\n\n${contextPrompt}`;
@@ -846,14 +849,25 @@ export async function analyzeIntent(
     ? `[Current founder context: ${contextNote}]\n\nCommand: ${command}`
     : command;
 
-  // Try LLM with tracing
+  // Route with measured history (§31) and persist the call so routing learns
+  // from intent traffic too — previously intent calls were invisible to the
+  // llm_performance feedback loop.
+  const routing = classifyTask({ title: 'Executive Agent intent analysis', description: command.slice(0, 500), agentRole: 'executive' });
+  const { modelId, source } = db
+    ? await selectMeasuredModel(db, ctx.orgId, routing)
+    : { modelId: undefined, source: 'default' as const };
+
+  // Try LLM with tracing + routing + persistence
   const llmResult = await chatJson<IntentAnalysis>(config, fullSystemPrompt, userMessage, {
+    model: modelId,
     temperature: 0.3,
     max_tokens: 1024,
     _trace: {
       orgId: ctx.orgId,
       phase: 'intent_analysis',
       commandId,
+      routingSource: source,
+      ...(db ? { db } : {}),
     },
   });
 
@@ -1439,7 +1453,7 @@ export async function executeCommand(
   const intentStep = startStep(trace, 'intent_analysis');
   let intent: IntentAnalysis;
   try {
-    intent = await analyzeIntent(config, ctx, command, commandId, contextNote);
+    intent = await analyzeIntent(config, ctx, command, commandId, contextNote, db);
 
     const intentError = validateIntent(intent);
     if (intentError) {

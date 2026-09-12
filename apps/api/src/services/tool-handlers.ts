@@ -24,6 +24,7 @@ import {
   type GithubActionName,
 } from './connector-actions.js';
 import { dispatchGmailAction } from './connector-gmail.js';
+import { routedToolChat, routedToolChatJson } from './routed-chat.js';
 import { dispatchLinearAction } from './connector-linear.js';
 import { chat, chatJson } from './llm.js';
 import { appendAudit } from './audit.js';
@@ -168,9 +169,10 @@ Format your response as:
 ## Summary
 Brief summary of the most important information.`;
 
-  const result = await chat(config, 'You are a knowledgeable research assistant. Provide accurate, current information.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a knowledgeable research assistant. Provide accurate, current information.', prompt, {
     temperature: 0.3,
     max_tokens: 2048,
+    tool: 'web_search',
   });
 
   // Store as memory
@@ -217,9 +219,10 @@ Provide a structured analysis covering:
 9. **Opportunities** — Where we can differentiate
 10. **Recommendations** — How to respond to this competitor`;
 
-  const result = await chat(config, 'You are a competitive intelligence analyst. Provide thorough, actionable competitive analysis.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a competitive intelligence analyst. Provide thorough, actionable competitive analysis.', prompt, {
     temperature: 0.3,
     max_tokens: 3000,
+    tool: 'analyze_competitor',
   });
 
   // Store as memory
@@ -266,9 +269,10 @@ Also cover:
 
 Provide specific data points where possible. Be thorough but actionable.`;
 
-  const result = await chat(config, 'You are a market research analyst. Provide data-driven, actionable market intelligence.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a market research analyst. Provide data-driven, actionable market intelligence.', prompt, {
     temperature: 0.3,
     max_tokens: 4000,
+    tool: 'research_market',
   });
 
   // Store as memory
@@ -318,9 +322,10 @@ Structure:
 Write in a ${tone} tone. Be engaging, informative, and purposeful.
 Use specific examples and actionable advice where possible.`;
 
-  const result = await chat(config, 'You are an expert content writer. Create engaging, high-quality content.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are an expert content writer. Create engaging, high-quality content.', prompt, {
     temperature: 0.7,
     max_tokens: 4096,
+    tool: 'write_blog_post',
   });
 
   return {
@@ -357,9 +362,10 @@ Structure:
 
 Keep it concise and ${tone} in tone.`;
 
-  const result = await chat(config, 'You are a professional communications specialist. Write clear, effective emails.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a professional communications specialist. Write clear, effective emails.', prompt, {
     temperature: 0.5,
     max_tokens: 2048,
+    tool: 'write_email',
   });
 
   return {
@@ -398,9 +404,10 @@ Structure the report with:
 ${format === 'executive' ? 'Keep it concise — focus on key insights and decisions.' : ''}
 ${format === 'detailed' ? 'Be thorough — include supporting evidence and methodology.' : ''}`;
 
-  const result = await chat(config, 'You are a senior analyst. Create clear, actionable reports.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a senior analyst. Create clear, actionable reports.', prompt, {
     temperature: 0.3,
     max_tokens: 4096,
+    tool: 'write_report',
   });
 
   return {
@@ -437,9 +444,10 @@ Provide:
 5. Confidence level in findings
 6. Additional data that would strengthen the analysis`;
 
-  const result = await chat(config, 'You are a data analyst. Provide thorough, evidence-based analysis.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a data analyst. Provide thorough, evidence-based analysis.', prompt, {
     temperature: 0.3,
     max_tokens: 3000,
+    tool: 'analyze_data',
   });
 
   return {
@@ -473,9 +481,10 @@ Provide:
 
 Be precise with numbers. Clearly state any assumptions.`;
 
-  const result = await chat(config, 'You are a financial analyst. Provide precise, actionable financial analysis.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a financial analyst. Provide precise, actionable financial analysis.', prompt, {
     temperature: 0.2,
     max_tokens: 3000,
+    tool: 'financial_analysis',
   });
 
   return {
@@ -519,9 +528,10 @@ Structure the plan as:
 6. **Success Metrics** — How we'll know we succeeded
 7. **Next Steps** — Immediate actions`;
 
-  const result = await chat(config, 'You are a strategic planner. Create clear, actionable plans.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a strategic planner. Create clear, actionable plans.', prompt, {
     temperature: 0.3,
     max_tokens: 4096,
+    tool: 'create_plan',
   });
 
   return {
@@ -568,9 +578,10 @@ For each task, provide:
 
 Keep tasks specific and actionable. Each task should be completable independently where possible.`;
 
-  const result = await chatJson(config, 'You are an operations manager. Decompose complex objectives into clear, actionable tasks.', prompt, {
+  const result = await routedToolChatJson(config, db, ctx, 'You are an operations manager. Decompose complex objectives into clear, actionable tasks.', prompt, {
     temperature: 0.3,
     max_tokens: 3000,
+    tool: 'decompose_task',
   });
 
   return {
@@ -609,9 +620,10 @@ Provide:
 
 Be specific with line references and concrete suggestions.`;
 
-  const result = await chat(config, 'You are a senior software engineer performing a code review. Be thorough and specific.', prompt, {
+  const result = await routedToolChat(config, db, ctx, 'You are a senior software engineer performing a code review. Be thorough and specific.', prompt, {
     temperature: 0.2,
     max_tokens: 4096,
+    tool: 'review_code',
   });
 
   return {
@@ -645,9 +657,10 @@ Requirements:
 
 Provide the complete implementation with:\n- The code in a code block\n- Brief explanation of the approach\n- Usage example\n- Any important notes or caveats`;
 
-  const result = await chat(config, `You are an expert ${language} developer. Write clean, production-quality code.`, prompt, {
+  const result = await routedToolChat(config, db, ctx, `You are an expert ${language} developer. Write clean, production-quality code.`, prompt, {
     temperature: 0.3,
     max_tokens: 4096,
+    tool: 'write_code',
   });
 
   return {

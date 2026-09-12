@@ -18,7 +18,7 @@ export interface LLMTraceEntry {
   commandId?: string;
   taskId?: string;
   agentId?: string;
-  phase: 'intent_analysis' | 'task_execution' | 'context_build' | 'memory_retrieval' | 'fallback';
+  phase: 'intent_analysis' | 'task_execution' | 'context_build' | 'memory_retrieval' | 'fallback' | 'deliberation' | 'deliberation_synthesis';
   model: string;
   provider: string;
   startedAt: Date;
@@ -34,6 +34,8 @@ export interface LLMTraceEntry {
   temperature: number;
   maxTokens: number;
   responsePreview?: string;
+  /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
+  routingSource: 'static' | 'measured' | 'default';
 }
 
 export interface LLMTraceSummary {
@@ -81,10 +83,10 @@ export function startTrace(params: {
   maxTokens?: number;
   commandId?: string;
   taskId?: string;
-  agentId?: string;
-  retryAttempt?: number;
-  maxRetries?: number;
-}): { traceId: string; startedAt: Date } {
+  agentId?: string;    retryAttempt?: number;
+    maxRetries?: number;
+    routingSource?: 'static' | 'measured' | 'default';
+  }): { traceId: string; startedAt: Date } {
   const id = traceId();
   const startedAt = new Date();
 
@@ -106,6 +108,7 @@ export function startTrace(params: {
     maxRetries: params.maxRetries ?? 2,
     temperature: params.temperature ?? 0.7,
     maxTokens: params.maxTokens ?? 2048,
+    routingSource: params.routingSource ?? 'default',
   };
 
   recentTraces.push(entry);
@@ -195,6 +198,7 @@ export async function persistTrace(
       completionTokens: trace.completionTokens,
       totalTokens: trace.totalTokens,
       retryAttempt: trace.retryAttempt,
+      routingSource: trace.routingSource ?? 'default',
     });
   } catch {
     // Table may not exist on stale databases; insights degrade gracefully.

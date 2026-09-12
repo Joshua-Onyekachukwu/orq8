@@ -214,11 +214,13 @@ export interface LLMOptions {
   // Tracing context — connects this LLM call to the pipeline
   _trace?: {
     orgId: string;
-    phase: 'intent_analysis' | 'task_execution' | 'context_build' | 'memory_retrieval' | 'fallback';
+    phase: 'intent_analysis' | 'task_execution' | 'context_build' | 'memory_retrieval' | 'fallback' | 'deliberation' | 'deliberation_synthesis';
     commandId?: string;
     taskId?: string;
     agentId?: string;
     db?: Db;
+    /** §31: selection path that chose the model — persisted to llm_performance. */
+    routingSource?: 'static' | 'measured' | 'default';
   };
 }
 
@@ -552,6 +554,7 @@ export async function chatCompletion(
         taskId: traceCtx.taskId,
         agentId: traceCtx.agentId,
         maxRetries,
+        routingSource: traceCtx.routingSource,
       });
       traceId = trace.traceId;
     }
@@ -829,6 +832,7 @@ function recentTrace(id: string): LLMTraceEntry {
     success: false,
     retryAttempt: 0,
     maxRetries: 0,
+    routingSource: 'default',
     temperature: 0,
     maxTokens: 0,
   };

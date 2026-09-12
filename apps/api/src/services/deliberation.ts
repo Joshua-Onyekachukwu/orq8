@@ -255,7 +255,12 @@ export async function runDeliberation(
       config,
       `${ANALYSIS_SYSTEM}\n\nYou represent the ${p.department} function.`,
       buildContextBlock(),
-      { model: p.model ?? undefined, max_tokens: ANALYSIS_MAX_TOKENS, temperature: 0.4 },
+      {
+        model: p.model ?? undefined,
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: 0.4,
+        _trace: { orgId, phase: 'deliberation', routingSource: 'static', db },
+      },
     );
     if (!text) {
       result.stoppedReason = 'llm_unavailable';
@@ -299,7 +304,12 @@ export async function runDeliberation(
       config,
       `${CROSS_SYSTEM}\n\nYou represent the ${p.department} function.`,
       `${buildContextBlock()}\n\nALL ROUND-1 ANALYSES:\n${round1Digest}`,
-      { model: p.model ?? undefined, max_tokens: ANALYSIS_MAX_TOKENS, temperature: 0.4 },
+      {
+        model: p.model ?? undefined,
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: 0.4,
+        _trace: { orgId, phase: 'deliberation', routingSource: 'static', db },
+      },
     );
     if (!text) continue;
     const analysis: DeliberationAnalysis = {
@@ -336,7 +346,12 @@ export async function runDeliberation(
       config,
       `${REANALYSIS_SYSTEM}\n\nYou represent the ${p.department} function.`,
       `${buildContextBlock()}\n\nYOUR ROUND-1 POSITION:\n${round1.find((a) => a.participant === p.name)?.analysis ?? '(unavailable)'}\n\nCROSS-EXAMINATION TRANSCRIPT:\n${crossDigest}`,
-      { model: p.model ?? undefined, max_tokens: 768, temperature: 0.3 },
+      {
+        model: p.model ?? undefined,
+        max_tokens: 768,
+        temperature: 0.3,
+        _trace: { orgId, phase: 'deliberation', routingSource: 'static', db },
+      },
     );
     if (!text) continue;
     const analysis: DeliberationAnalysis = {
@@ -370,7 +385,12 @@ export async function runDeliberation(
     config,
     SYNTHESIS_SYSTEM,
     `${buildContextBlock()}\n\nFINAL POSITIONS:\n${finalPositions.join('\n\n').slice(0, 9000)}`,
-    { model: models[0] ?? undefined, max_tokens: SYNTHESIS_MAX_TOKENS, temperature: 0.2 },
+    {
+      model: models[0] ?? undefined,
+      max_tokens: SYNTHESIS_MAX_TOKENS,
+      temperature: 0.2,
+      _trace: { orgId, phase: 'deliberation_synthesis', routingSource: 'static', db },
+    },
   );
 
   if (!synthesisRaw) {
