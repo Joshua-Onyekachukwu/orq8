@@ -14,6 +14,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { LaunchPlanCta } from "../../../components/council/LaunchPlanCta";
+import { hasDelegationMarker } from "../../../lib/council-delegation";
 import {
   Scale,
   ChevronDown,
@@ -333,6 +335,15 @@ function SessionCard({
           </div>
 
           <FounderVerdictPanel session={session} onRecorded={onVerdictRecorded} />
+
+          {session.founderVerdict === "approved" && !hasDelegationMarker(session.founderVerdictNote) && (
+            <LaunchPlanCta
+              decisionId={session.id}
+              recommendation={session.whatWasDecided ?? session.title}
+              confidence={session.confidence}
+              onDelegated={onVerdictRecorded}
+            />
+          )}
         </div>
       )}
     </div>
