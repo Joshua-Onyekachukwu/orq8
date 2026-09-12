@@ -188,8 +188,8 @@ export function CommandResultDisplay({
             </div>
           )}
 
-          {/* Task Decomposition */}
-          {result.plan.taskDecomposition && result.plan.taskDecomposition.length > 1 && (
+          {/* Task Decomposition — plan can be absent on streamed approval-gated results */}
+          {result.plan?.taskDecomposition && result.plan.taskDecomposition.length > 1 && (
             <div className="mt-3 rounded-lg bg-gray-50 p-4">
               <div className="flex items-center gap-2 mb-2">                  <ListTodo className="h-4 w-4 text-gray-500" />
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Task Breakdown</p>
@@ -204,7 +204,7 @@ export function CommandResultDisplay({
             </div>
           )}
 
-          {/* Plan Summary */}
+          {/* Plan Summary — guard plan too: streamed results may omit it */}
           {result.plan && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-full bg-orq8-green/5 px-2.5 py-1 text-xs font-medium text-orq8-green">

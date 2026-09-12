@@ -37,7 +37,36 @@ interface DeptTemplate {
   roles: string[];
   teams: Array<{ name: string; description?: string }>;
   isSystem: boolean;
+  orgSize?: string | null;
 }
+
+/**
+ * Minimum org stage at which a template is appropriate — mirrors the API's
+ * parseTemplateStage ("Stage N+ (…)"); unparseable values are Stage 3
+ * (conservative: never pollute the lean Stage-1 view).
+ */
+function templateStage(t: DeptTemplate): number {
+  const m = (t.orgSize ?? "").match(/Stage\s+(\d)/i);
+  const n = m ? Number.parseInt(m[1] ?? "", 10) : NaN;
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : 3;
+}
+
+/** §12 catalog search + stage filter predicate (shared by list and empty-state). */
+function matchesCatalogFilter(t: DeptTemplate, query: string, stage: number): boolean {
+  const q = query.trim().toLowerCase();
+  const matchesQuery = !q || [t.name, t.mission, t.description, ...t.functions].some((s) => (s ?? "").toLowerCase().includes(q));
+  const matchesStage = stage === 0 || templateStage(t) <= stage;
+  return matchesQuery && matchesStage;
+}
+
+const STAGE_FILTERS: Array<{ value: number; label: string }> = [
+  { value: 0, label: "All stages" },
+  { value: 1, label: "Stage 1 · Idea" },
+  { value: 2, label: "Stage 2 · Early startup" },
+  { value: 3, label: "Stage 3 · Growing" },
+  { value: 4, label: "Stage 4 · Scaling" },
+  { value: 5, label: "Stage 5 · Enterprise" },
+];
 
 interface WorkforceCoverage {
   departmentId: string;
@@ -95,6 +124,9 @@ export default function DepartmentsPage() {
   const [deptTemplatesLoading, setDeptTemplatesLoading] = useState(false);
   const [activatingTemplateId, setActivatingTemplateId] = useState<string | null>(null);
   const [justActivated, setJustActivated] = useState<string | null>(null);
+  // §12 catalog UX: search + stage filter over the template's own metadata.
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogStage, setCatalogStage] = useState(0);
 
   // Hire from Template state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -656,8 +688,31 @@ export default function DepartmentsPage() {
                   <p className="text-sm text-muted">No department templates available yet.</p>
                 </div>
               ) : (
-                <div className="max-h-[420px] space-y-2 overflow-y-auto">
-                  {deptTemplates.map((t) => {
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <input
+                      type="search"
+                      value={catalogQuery}
+                      onChange={(e) => setCatalogQuery(e.target.value)}
+                      placeholder="Search departments…"
+                      aria-label="Search department templates"
+                      className="min-w-0 flex-1 rounded-lg border border-hairline px-3 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-orq8-green/50"
+                    />
+                    <select
+                      value={catalogStage}
+                      onChange={(e) => setCatalogStage(Number(e.target.value))}
+                      aria-label="Filter by company stage"
+                      className="rounded-lg border border-hairline px-2.5 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-orq8-green/50"
+                    >
+                      {STAGE_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="max-h-[420px] space-y-2 overflow-y-auto">
+                  {deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted">No departments match your search or stage filter.</p>
+                  ) : deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).map((t) => {
                     const teamCount = Array.isArray(t.teams) ? t.teams.length : 0;
                     const busy = activatingTemplateId === t.id;
                     const active = justActivated === t.name;
@@ -665,7 +720,10 @@ export default function DepartmentsPage() {
                       <div key={t.id} className="rounded-lg border border-hairline p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-ink">{t.name}</p>
+                            <p className="text-sm font-medium text-ink">
+                              {t.name}
+                              <span className="ml-2 rounded-full bg-muted/10 px-2 py-0.5 text-3xs font-semibold text-muted">Stage {templateStage(t)}+</span>
+                            </p>
                             <p className="mt-0.5 line-clamp-2 text-xs text-muted">{t.mission ?? t.description ?? ""}</p>
                             {teamCount > 0 && (
                               <p className="mt-1 text-2xs text-muted">Includes {teamCount} team{teamCount === 1 ? "" : "s"}: {(t.teams.map((x) => x.name)).join(", ")}</p>
@@ -683,6 +741,7 @@ export default function DepartmentsPage() {
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               )}
             </div>
