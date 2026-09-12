@@ -48,7 +48,7 @@ interface Agent {
 }
 
 const fetchGoals = async () => (await fetchWithAuth<Goal[]>("/v1/goals")) ?? [];
-const fetchTasks = async () => (await fetchWithAuth<Task[]>("/v1/tasks")) ?? [];
+const fetchTasks = async () => (await fetchWithAuth<Task[]>("/v1/tasks?order=desc")) ?? [];
 
 function priorityBadge(priority: string) {
   switch (priority) {

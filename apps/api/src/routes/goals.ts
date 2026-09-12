@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -238,12 +238,16 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (status) conditions.push(eq(tasks.status, status));
     if (priority) conditions.push(eq(tasks.priority, priority));
 
-    // Sort: priority order is urgent > high > normal > low; dueDate sorts NULLS LAST
+    // Sort: priority order is urgent > high > normal > low; dueDate sorts NULLS LAST.
+    // `order` (asc|desc) applies to createdAt/dueDate; tasks lists are founder-
+    // visibility surfaces (§7) — the UI asks for newest-first so the work the EA
+    // just created is never buried under the org's oldest rows.
+    const order = url.searchParams.get('order') === 'asc' ? asc : desc;
     const orderClause = sortBy === 'priority'
       ? tasks.priority
       : sortBy === 'dueDate'
-      ? tasks.dueDate
-      : tasks.createdAt;
+      ? order(tasks.dueDate)
+      : order(tasks.createdAt);
 
     const [totalRow] = await db
       .select({ count: sql<number>`count(*)::int` })

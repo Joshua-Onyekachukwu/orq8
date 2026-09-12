@@ -161,8 +161,8 @@ try {
     await page.waitForTimeout(5_000);
     const bodyText = await page.locator("body").innerText().catch(() => "");
     if (/Execution delegated/i.test(bodyText)) { pipelineDone = true; break; }
-    const running = /Executive Agent is working/i.test(bodyText);
-    if (!running && Date.now() - started > 20_000) break; // left running without terminal state
+    // No early-exit: transient render gaps can drop the running label while
+    // the pipeline is mid-flight — the timeout above is the honest bound.
   }
   const elapsedS = Math.round((Date.now() - started) / 1000);
   console.log(`  CTA pipeline observed for ${elapsedS}s; stages seen: ${stages.length}`);
