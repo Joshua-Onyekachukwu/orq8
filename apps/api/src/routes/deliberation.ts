@@ -40,6 +40,19 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
       context: parsed.data.context ?? null,
     });
 
+    // §33 observability: escalation level + persistence outcome are the two
+    // things that silently decide whether a council session is founder-visible.
+    request.log.info(
+      {
+        orgId: ctx.orgId,
+        escalation: result.escalation.level,
+        stoppedReason: result.stoppedReason,
+        rounds: result.rounds.length,
+        decisionId: result.decisionId,
+      },
+      'deliberation completed',
+    );
+
     // llm_unavailable is a 503 — the deliberation did not run; never pretend
     // it produced a recommendation.
     if (result.stoppedReason === 'llm_unavailable') {

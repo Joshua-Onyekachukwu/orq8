@@ -432,8 +432,13 @@ export async function runDeliberation(
         },
       });
       result.decisionId = decision.id;
-    } catch {
-      // Decision persistence is best-effort; the deliberation result stands on its own.
+    } catch (err) {
+      // Decision persistence is best-effort; the deliberation result stands on
+      // its own. But a silent failure here would make council sessions
+      // invisible on the Decision Council page — never swallow it quietly.
+      console.error(
+        `[deliberation] decision persistence failed (org=${orgId}): ${err instanceof Error ? err.message : String(err)}`,
+      );
       result.decisionId = null;
     }
   }

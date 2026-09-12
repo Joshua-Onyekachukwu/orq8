@@ -287,8 +287,15 @@ export function evaluateEscalation(input: { question: string; context?: string |
   const legal = /\b(legal|lawsuit|regulat|complian)\b/i.test(text);
   const strategic = /\b(strategy|strategic|pivot|roadmap|positioning)\b/i.test(text);
   const financial = amount !== null || /\b(budget|spend|invest|pay)\b/i.test(text);
+  // A question that draws in multiple departments is by definition a
+  // cross-department decision — it should never be answered by one agent,
+  // and the deliberation session must be preserved in Decision Memory.
+  const departmentCount = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text)).length;
 
   const dimensions = [irreversible, security, legal, strategic, financial].filter(Boolean).length;
+  // Multi-department questions count toward escalation (a 4-department
+  // "should we launch" question is council-level even without a $ figure).
+  const effectiveDimensions = dimensions + (departmentCount >= 3 ? 1 : 0);
 
   // Budget ceilings per level (§45). Deliberation cost accounting uses real
   // provider usage tokens — these are caps, not estimates presented as costs.
@@ -296,13 +303,13 @@ export function evaluateEscalation(input: { question: string; context?: string |
 
   let level: EscalationLevel;
   let requiresFounderApproval = false;
-  if (dimensions >= 4 || (amount !== null && amount >= 10000) || (irreversible && financial)) {
+  if (effectiveDimensions >= 4 || (amount !== null && amount >= 10000) || (irreversible && financial)) {
     level = 'executive_deliberation';
     requiresFounderApproval = true;
-  } else if (dimensions >= 2 || (amount !== null && amount >= 1000)) {
+  } else if (effectiveDimensions >= 2 || departmentCount >= 3 || (amount !== null && amount >= 1000)) {
     level = 'department_council';
     requiresFounderApproval = amount !== null && amount >= 1000;
-  } else if (dimensions === 1 || (amount !== null && amount >= 100)) {
+  } else if (effectiveDimensions === 1 || (amount !== null && amount >= 100)) {
     level = 'dual_review';
   } else {
     level = 'single_agent';
