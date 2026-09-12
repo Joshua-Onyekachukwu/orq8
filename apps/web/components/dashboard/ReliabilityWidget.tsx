@@ -74,8 +74,10 @@ export function ReliabilityWidget() {
           // Get reliability for each agent
           return Promise.all(
             d.data.map((agent: { id: string }) =>
-              fetch(`/api/quality/reliability/${agent.id}`)
-                .then((r) => r.json())
+              // The proxy exposes per-agent fetches via ?agent_id= (no path
+              // param route exists — a path-segment URL here 404s every time).
+              fetch(`/api/quality/reliability?agent_id=${agent.id}`)
+                .then((r) => (r.ok ? r.json() : null))
                 .then((d) => d?.data)
                 .catch(() => null)
             )
