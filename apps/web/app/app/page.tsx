@@ -115,7 +115,7 @@ const fetchDashboardData = () => fetchWithAuth<DashboardData>("/v1/dashboard");
 const fetchAgents = () => fetchWithAuth<Agent[]>("/v1/agents");
 const fetchApprovals = () => fetchWithAuth<Approval[]>("/v1/approvals?status=pending");
 const fetchCompanyProgress = () => fetchWithAuth<CompanyProgressData>("/v1/company-progress");
-const fetchOrgInfo = () => fetchWithAuth<{ memberships: { org: { id: string; name: string; slug: string; plan: string }; role: string }[]; active_org_id: string | null }>("/v1/auth/me");
+const fetchOrgInfo = () => fetchWithAuth<{ memberships: { org: { id: string; name: string; slug: string; plan: string; isDemo?: boolean }; role: string }[]; active_org_id: string | null }>("/v1/auth/me");
 
 function StatCard({
   label,
@@ -252,7 +252,17 @@ export default async function AppPage() {
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-lime" />
               System Online
             </p>
-            <p className="text-2xl font-bold tracking-tight">{orgInfo?.memberships?.find((m: { org: { id: string }; role: string }) => m.org.id === orgInfo?.active_org_id)?.org?.name ?? "My Company"}</p>
+            <p className="text-2xl font-bold tracking-tight">
+              {orgInfo?.memberships?.find((m: { org: { id: string }; role: string }) => m.org.id === orgInfo?.active_org_id)?.org?.name ?? "My Company"}
+              {orgInfo?.memberships?.find((m: { org: { id: string; isDemo?: boolean }; role: string }) => m.org.id === orgInfo?.active_org_id)?.org?.isDemo && (
+                <span
+                  title="This organization contains staged demo content — its history is illustrative, not a record of live execution."
+                  className="ml-2 inline-flex items-center rounded-full border border-amber-300/40 bg-amber-400/15 px-2 py-0.5 align-middle font-sans text-3xs font-semibold uppercase tracking-wider text-amber-200"
+                >
+                  Demo data
+                </span>
+              )}
+            </p>
             <p className="text-xs text-white/50">{orgInfo?.memberships?.find((m: { org: { id: string }; role: string }) => m.org.id === orgInfo?.active_org_id)?.role === "owner" ? "Founder & CEO" : "Team Member"}</p>
           </div>
         </div>

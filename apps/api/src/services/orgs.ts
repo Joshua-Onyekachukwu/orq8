@@ -30,9 +30,18 @@ export async function createMembership(
     .values({ orgId: input.orgId, userId: input.userId, role: input.role, status: 'active' });
 }
 
-export async function updateOrg(db: Db, orgId: string, input: { name?: string }) {
+export async function updateOrg(db: Db, orgId: string, input: { name?: string; isDemo?: boolean }) {
   const updates: Record<string, unknown> = {};
   if (input.name !== undefined) updates.name = input.name.trim();
+  // Demo labeling (§58 no-fake-success): an org flagged isDemo presents its
+  // staged content as demo data in the UI. Stored in the org's settings JSONB.
+  if (input.isDemo !== undefined) {
+    const [current] = await db
+      .select({ settings: organizations.settings })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    updates.settings = { ...(current?.settings ?? {}), isDemo: input.isDemo };
+  }
   const [row] = await db
     .update(organizations)
     .set(updates)
@@ -51,6 +60,7 @@ export async function findMembershipsByUser(db: Db, userId: string) {
         name: organizations.name,
         slug: organizations.slug,
         plan: organizations.plan,
+        settings: organizations.settings,
       },
     })
     .from(memberships)

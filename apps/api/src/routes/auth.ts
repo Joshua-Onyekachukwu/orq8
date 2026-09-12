@@ -337,7 +337,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
           avatarUrl: user.avatarUrl ?? null,
           emailVerified: !!user.emailVerifiedAt,
         },
-        memberships: memberships.map((m) => ({ org: m.org, role: m.membership.role })),
+        memberships: memberships.map((m) => ({
+          org: { ...m.org, isDemo: (m.org.settings as { isDemo?: boolean } | null)?.isDemo === true },
+          role: m.membership.role,
+        })),
         active_org_id: ctx.orgId,
         platformRole: isPlatformAdmin ? 'admin' : 'user',
       },
@@ -362,7 +365,12 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.patch('/v1/org', async (request) => {
     const ctx = await requireAuth(request, deps);
     const parsed = z.object({
-      name: z.string().trim().min(1).max(200),
+      name: z.string().trim().min(1).max(200).optional(),
+      // Demo labeling (§58): owner-controlled flag that marks the org's staged
+      // content as demo data. Audited like any consequential org change.
+      isDemo: z.boolean().optional(),
+    }).refine((v) => v.name !== undefined || v.isDemo !== undefined, {
+      message: 'Nothing to update',
     }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -373,13 +381,14 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       throw forbidden('Only owners and admins can update organization details');
     }
 
-    const updated = await orgs.updateOrg(db, ctx.orgId, { name: parsed.data.name });
+    const updated = await orgs.updateOrg(db, ctx.orgId, { name: parsed.data.name, isDemo: parsed.data.isDemo });
     await appendAudit(db, {
       orgId: ctx.orgId,
       actorType: 'user',
       actorId: ctx.userId,
-      action: 'org.renamed',
+      action: parsed.data.isDemo !== undefined ? 'org.demo_flag_changed' : 'org.renamed',
       outcome: 'success',
+      inputRef: parsed.data.isDemo !== undefined ? `isDemo=${parsed.data.isDemo}` : null,
     });
 
     return {
