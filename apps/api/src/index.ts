@@ -3,6 +3,7 @@ import { createLogger, initTracing, loadConfig } from '@orq8/core';
 import { createDb } from '@orq8/db';
 import { buildApp } from './app.js';
 import { getRedis } from './services/redis.js';
+import { startOrphanReaper } from './services/orphaned-executions.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -15,8 +16,14 @@ async function main(): Promise<void> {
   const address = await app.listen({ port: config.PORT, host: '0.0.0.0' });
   logger.info({ address }, 'orq8-api listening');
 
+  // §17 data integrity: tasks stuck in_progress from a previous crashed
+  // process are reaped (marked failed with an honest reason) at boot and
+  // every 10 minutes — no founder-visible task can run forever.
+  const reaperTimer = startOrphanReaper(db, config);
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
+    clearInterval(reaperTimer);
     await app.close();
     await redis.close();
     await pool.end();
