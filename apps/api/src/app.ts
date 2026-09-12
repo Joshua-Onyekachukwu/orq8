@@ -155,7 +155,13 @@ export async function buildApp(
     // data-API bucket starved real calls during fast founder navigation.
     rateLimitHookRedis(app, redis, {
       windowMs: 60_000,
-      max: 120,
+      // 300/min per session: a data-dense dashboard fires 4-10 API calls per
+      // page (page data + notifications + realtime + widgets), so a founder
+      // clicking quickly bursts well past 120 — the old cap 429'd real
+      // navigation mid-session (§1 Phase A sweep). 300/min still bounds a
+      // runaway session to ~5 req/s; abuse-sensitive routes keep their own
+      // tighter buckets (commands 10/min, login 5/min, register 3/min).
+      max: 300,
       prefix: 'rl:global',
       // Key by session identity when authenticated: behind the web proxy all
       // users share one egress IP, so an IP-keyed bucket was effectively a
