@@ -6,6 +6,7 @@ import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { broadcastToOrg } from './realtime.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
+import { getCalibrationAdvice } from './calibration-routing.js';
 import type { AppConfig } from '@orq8/core';
 
 /**
@@ -267,7 +268,8 @@ export async function executeTask(
         agentRole,
         priority: task.priority ?? null,
       });
-      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing);
+      const calibrationAdvice = await getCalibrationAdvice(db, orgId);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
 
       const llmResponse = await chat(config, systemPrompt, taskPrompt, {
         model: routedModel,

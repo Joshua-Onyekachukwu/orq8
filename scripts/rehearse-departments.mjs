@@ -103,6 +103,9 @@ async function main() {
     { key: "marketing", task: { title: "[Rehearsal] Draft launch positioning for ORQ8 v2", description: "Produce a short positioning statement (2 sentences) and 3 headline options for the ORQ8 v2 launch. Keep it under 120 words total." } },
     { key: "product", task: { title: "[Rehearsal] Write a one-paragraph spec for task history", description: "Write a concise product requirement paragraph for a task-history view (what it shows, who uses it, one success metric). Under 100 words." } },
     { key: "finance", task: { title: "[Rehearsal] Analyze Q4 inference spend scenario", description: "Given monthly AI inference spend of $4,000 growing 15% month over month, produce a 3-sentence summary with the 3-month projection and one cost-control recommendation." } },
+    { key: "sales", task: { title: "[Rehearsal] Qualify an inbound SMB lead", description: "An inbound lead from a 40-person logistics company asks about AI workflow automation. Write a 3-sentence qualification summary (fit, likely budget band, first next step). Under 90 words." } },
+    { key: "operations", task: { title: "[Rehearsal] Draft a weekly ops checklist", description: "Draft a 5-item weekly operations checklist for a seed-stage SaaS company (each item one line, with the metric to watch). Under 100 words." } },
+    { key: "legal", task: { title: "[Rehearsal] Flag risks in a draft NDA clause", description: "A draft NDA clause allows unlimited liability for data breaches. Write a 3-sentence risk note (risk, why it matters, what to negotiate) and add: 'Not legal advice — internal analysis only.'" } },
   ];
 
   for (const dept of DEPARTMENTS) {
@@ -146,10 +149,20 @@ async function main() {
       ok(`${dept.key}: department-scoped active agent`, true, agent.name);
     }
 
-    // Execution capability: autonomy level must permit task execution.
-    const level = agent.autonomyLevel ?? "execute_with_approval"; // server normalizes unknown to this
+    // Execution capability: the rehearsal validates REAL execution, so the
+    // agent must not sit in observe mode. Self-heal via the audited autonomy
+    // PATCH (the same control the founder uses in the UI), then re-read.
+    const detail = await api(`/v1/agents/${agent.id}`, { token });
+    const level = detail.json?.data?.autonomyLevel ?? agent.autonomyLevel ?? "execute_with_approval";
     if (level === "observe") {
-      console.log(`  NOTE ${dept.key}: agent is in observe mode — exercising the governance block path instead (§10).`);
+      const patched = await api(`/v1/agents/${agent.id}`, {
+        method: "PATCH", token, body: { autonomyLevel: "execute_with_approval" },
+      });
+      ok(`${dept.key}: agent autonomy self-healed (observe → execute_with_approval)`, patched.status === 200,
+        patched.status === 200 ? agent.name : JSON.stringify(patched.json).slice(0, 100));
+      if (patched.status !== 200) {
+        console.log(`  NOTE ${dept.key}: keeping observe-mode agent — exercising the governance block path instead (§10).`);
+      }
     }
 
     // ── Create a real task assigned to that agent ────────────────────────

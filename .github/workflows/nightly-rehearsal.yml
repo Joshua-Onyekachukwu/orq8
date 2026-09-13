@@ -1,0 +1,106 @@
+name: ORQ8 nightly production rehearsal
+
+on:
+  schedule:
+    # Nightly rehearsal against PRODUCTION — 03:30 UTC (after the deploy
+    # window; deliberately before the 06:30 consolidation jobs).
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: nightly-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearsal:
+    name: Production verification suite (scripts/run.mjs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright (browsers for the browser-based suites)
+        run: |
+          cd scripts
+          npm install --no-fund --no-audit
+          npx playwright install --with-deps chromium
+
+      - name: Materialize rehearsal credentials from secrets
+        env:
+          E2E_ENV: ${{ secrets.E2E_ENV_LOCAL }}
+          DEMO_ENV: ${{ secrets.DEMO_ENV_LOCAL }}
+        run: |
+          # Each suite reads its own scripts/.env.*.local (gitignored). The
+          # secrets hold the same file contents (KEY=VALUE lines) as local dev.
+          if [ -n "$E2E_ENV" ]; then printf '%s\n' "$E2E_ENV" > scripts/.env.e2e.local; else echo "::warning::E2E_ENV_LOCAL secret not set — suites needing it will fail"; fi
+          if [ -n "$DEMO_ENV" ]; then printf '%s\n' "$DEMO_ENV" > scripts/.env.demo.local; else echo "::warning::DEMO_ENV_LOCAL secret not set — demo-org suites will fail"; fi
+          ls -la scripts/.env.*.local 2>/dev/null || true
+
+      - name: Run the verification suite
+        working-directory: scripts
+        env:
+          API_URL: ${{ secrets.API_URL }}
+        run: node run.mjs
+
+      - name: Open/update an issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const run = process.env.GITHUB_RUN_ID ? `run ${process.env.GITHUB_RUN_ID}` : 'run';
+            const url = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const title = '🔴 Nightly production rehearsal failed';
+            const body = [
+              'The nightly production rehearsal suite (`scripts/run.mjs`) failed against production.',
+              '',
+              `**Failed run:** ${url}`,
+              `**Date:** ${new Date().toISOString()}`,
+              '',
+              '### What this means',
+              'At least one rehearsal suite (smoke / journey / outcome / departments / demo-org departments / rehearsal-56)',
+              'reported a failure against the live system. Every failure in these suites is a real user-visible or',
+              'data-integrity regression — they run through the same APIs and browsers a founder uses.',
+              '',
+              '### Checklist',
+              '- [ ] Identify which suite(s) failed from the run log',
+              '- [ ] Reproduce locally (`node scripts/run.mjs <suite>` with local env files)',
+              '- [ ] Root-cause and fix (never hide the failure in the script)',
+              '- [ ] Re-run the suite to confirm green',
+              '',
+              '_Auto-opened by the nightly rehearsal workflow. Close when green._',
+            ].join('\n');
+
+            // Find an OPEN issue with the exact title (avoid duplicates).
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const dup = existing.data.find((i) => i.title === title);
+            if (dup) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: dup.number,
+                body: `Failed again — ${url}\n\n${body.split('### Checklist')[0]}`,
+              });
+              console.log(`Commented on existing issue #${dup.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['ci', 'production', 'rehearsal'],
+              });
+              console.log(`Opened issue #${created.data.number}`);
+            }

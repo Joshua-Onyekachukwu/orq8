@@ -28,6 +28,8 @@
 
 import type { Db } from '@orq8/db';
 import type { AppConfig } from '@orq8/core';
+import { getCalibrationAdvice } from './calibration-routing.js';
+import { strongestModelId } from './model-intelligence.js';
 import { chat } from './llm.js';
 import { createDecision } from './decision-memory.js';
 import {
@@ -241,6 +243,15 @@ export async function runDeliberation(
   const models = diverseModelsFor(roster.length, {
     allowExpensive: escalation.level === 'executive_deliberation' || escalation.level === 'department_council',
   });
+
+  // §29→§31 calibration feedback: when the org's measured calibration is
+  // weak/inverted, the council stops trusting its own confidence — synthesis
+  // runs on the strongest registry model and recommendations always require
+  // founder approval. Honest data-driven governance, not decoration.
+  const calibrationAdvice = await getCalibrationAdvice(db, orgId);
+  if (calibrationAdvice.active) {
+    result.requiresFounderApproval = true;
+  }
   result.participants = roster.map((p, i) => ({
     name: p.name,
     role: p.role,
@@ -403,10 +414,15 @@ export async function runDeliberation(
     SYNTHESIS_SYSTEM,
     `${buildContextBlock()}\n\nFINAL POSITIONS:\n${finalPositions.join('\n\n').slice(0, 9000)}`,
     {
-      model: models[0] ?? undefined,
+      model: calibrationAdvice.active ? strongestModelId() : (models[0] ?? undefined),
       max_tokens: SYNTHESIS_MAX_TOKENS,
       temperature: 0.2,
-      _trace: { orgId, phase: 'deliberation_synthesis', routingSource: 'static', db },
+      _trace: {
+        orgId,
+        phase: 'deliberation_synthesis',
+        routingSource: calibrationAdvice.active ? 'calibration' : 'static',
+        db,
+      },
     },
   );
 

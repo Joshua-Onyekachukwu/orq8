@@ -35,7 +35,7 @@ export interface LLMTraceEntry {
   maxTokens: number;
   responsePreview?: string;
   /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
-  routingSource: 'static' | 'measured' | 'default';
+  routingSource: 'static' | 'measured' | 'default' | 'calibration';
 }
 
 export interface LLMTraceSummary {
@@ -85,7 +85,7 @@ export function startTrace(params: {
   taskId?: string;
   agentId?: string;    retryAttempt?: number;
     maxRetries?: number;
-    routingSource?: 'static' | 'measured' | 'default';
+    routingSource?: 'static' | 'measured' | 'default' | 'calibration';
   }): { traceId: string; startedAt: Date } {
   const id = traceId();
   const startedAt = new Date();

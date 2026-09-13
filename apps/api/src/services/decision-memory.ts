@@ -17,6 +17,7 @@ import { decisions, tasks, type Db, type Decision, type NewDecision } from '@orq
 import { appendAudit } from './audit.js';
 import { classifyFounderOutcome } from './decision-feedback.js';
 import { computeConfidenceCalibration, type ConfidenceCalibration } from './decision-calibration.js';
+import { calibrationRoutingAdvice, type CalibrationRoutingAdvice } from './calibration-routing.js';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,8 @@ export interface DecisionSummary {
   recentDecisions: Decision[];
   /** §29 calibration: accuracy per declared confidence band, from filed outcomes. */
   calibration: ConfidenceCalibration;
+  /** §29→§31: the routing consequence of the measured calibration. */
+  routingConsequence: CalibrationRoutingAdvice;
 }
 
 // ── CRUD ────────────────────────────────────────────────────────────────────
@@ -320,6 +323,11 @@ export async function getDecisionSummary(db: Db, orgId: string): Promise<Decisio
   // resolved decisions (not just the recent slice) from real filed outcomes.
   const calibration = computeConfidenceCalibration(allDecisions);
 
+  // §29→§31: the calibration card shows the ROUTING CONSEQUENCE — when
+  // measured calibration is weak, the org visibly stops trusting its own
+  // confidence (consequential routing floor + council approval gate).
+  const routingConsequence = calibrationRoutingAdvice(calibration);
+
   return {
     totalDecisions: total,
     activeDecisions: active,
@@ -328,6 +336,7 @@ export async function getDecisionSummary(db: Db, orgId: string): Promise<Decisio
     learningScore,
     byType,
     recentDecisions: allDecisions.slice(0, 10),
+    routingConsequence,
     calibration,
   };
 }

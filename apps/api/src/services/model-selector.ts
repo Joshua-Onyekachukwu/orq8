@@ -20,6 +20,7 @@ import { and, eq, gte, sql } from 'drizzle-orm';
 import { llmPerformance } from '@orq8/db';
 import type { Db } from '@orq8/db';
 import { modelsByTier, type ModelTier } from './model-intelligence.js';
+import { calibrationRoutingAdvice, type CalibrationRoutingAdvice } from './calibration-routing.js';
 
 /** Minimum successful calls before a model may be preferred over the default. */
 export const MIN_CALLS_FOR_ROUTING_SUCCESS = 8;
@@ -87,11 +88,22 @@ export async function selectMeasuredModel(
   db: Db,
   orgId: string,
   routing: Parameters<typeof import('./model-intelligence.js').selectTierModel>[0],
+  /** Calibration advice (§29→§31): when the org's measured confidence
+   * calibration is inverted/weak, consequential routing is floored to the
+   * strongest tier. Optional — callers without DB-decision access omit it. */
+  calibration?: CalibrationRoutingAdvice | null,
 ): Promise<{ modelId: string | undefined; source: 'measured' | 'static'; reason?: string }> {
   const tiers = modelsByTier();
 
-  const minTier: ModelTier =
+  let minTier: ModelTier =
     routing.risk === 'critical' || routing.complexity >= 4 ? 2 : routing.complexity >= 3 || routing.reasoning !== 'low' ? 1 : 0;
+  // Calibration consequence: a consequential (consequential-risk or complex)
+  // task never routes below the advice's floor. Pure cost/complexity tasks
+  // are untouched — the consequence targets decisions, not busywork.
+  const consequential = routing.risk === 'critical' || routing.complexity >= 3;
+  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && minTier < calibration.minConsequentialTier) {
+    minTier = calibration.minConsequentialTier;
+  }
 
   // Static order of tier-sufficient candidates (cheapest first).
   const candidates: string[] = [];

@@ -20,7 +20,8 @@ const SUITES = [
   { name: "smoke", script: "smoke-live.mjs", blurb: "authenticated browser smoke pass" },
   { name: "journey", script: "journey-loop.mjs", blurb: "org journey: templates → hire → council → outcome" },
   { name: "outcome", script: "journey-outcome.mjs", blurb: "decision-outcome feedback loop" },
-  { name: "departments", script: "rehearse-departments.mjs", blurb: "Marketing/Product/Finance LLM+QA deep rehearsal" },
+  { name: "departments", script: "rehearse-departments.mjs", blurb: "six-department LLM+QA deep rehearsal (e2e org)" },
+  { name: "departments-demo", script: "rehearse-departments.mjs", args: ["--env", ".env.demo.local"], blurb: "six-department deep rehearsal against the demo org" },
   { name: "rehearsal-56", script: "rehearsal-56.mjs", blurb: "§56 full-company journey" },
 ];
 
@@ -44,7 +45,7 @@ if (requested.length > 0) {
 function runSuite(suite) {
   return new Promise((resolve) => {
     console.log(`\n▶ ${suite.name} — ${suite.blurb}`);
-    const child = spawn(process.execPath, [path.join(here, suite.script)], {
+    const child = spawn(process.execPath, [path.join(here, suite.script), ...(suite.args ?? [])], {
       stdio: "inherit",
       env: process.env,
     });

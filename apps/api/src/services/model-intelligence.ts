@@ -202,6 +202,22 @@ export function diverseModelsFor(count: number, opts: { allowExpensive: boolean 
   return chosen.slice(0, count).map((m) => m.id);
 }
 
+/**
+ * The strongest registry model (highest tier, most capable member). Used by
+ * the calibration feedback path (§29→§31): when the org's measured confidence
+ * calibration is weak, council synthesis runs on the strongest model.
+ */
+export function strongestModelId(): string | undefined {
+  const tiers = modelsByTier();
+  const flagship = tiers[3] ?? [];
+  if (flagship.length > 0) return flagship[flagship.length - 1]!.id; // cost-ascending → most capable
+  for (const tier of [2, 1, 0] as ModelTier[]) {
+ const pool = tiers[tier] ?? [];
+    if (pool.length > 0) return pool[pool.length - 1]!.id;
+  }
+  return undefined;
+}
+
 /** Map a classification to router requirements (§6: cheapest SUFFICIENT model). */
 export function requirementsForTask(c: TaskComplexity): TaskRequirements {
   // Risk floor: critical-risk work never routes below Tier 2.

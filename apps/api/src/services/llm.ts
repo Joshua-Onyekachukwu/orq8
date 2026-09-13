@@ -220,7 +220,7 @@ export interface LLMOptions {
     agentId?: string;
     db?: Db;
     /** §31: selection path that chose the model — persisted to llm_performance. */
-    routingSource?: 'static' | 'measured' | 'default';
+    routingSource?: 'static' | 'measured' | 'default' | 'calibration';
   };
 }
 

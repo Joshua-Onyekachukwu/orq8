@@ -19,6 +19,7 @@ import type { Db } from '@orq8/db';
 import { chat, chatJson } from './llm.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
+import { getCalibrationAdvice } from './calibration-routing.js';
 import type { ToolExecutionContext } from './tool-registry.js';
 
 interface RoutedOptions {
@@ -39,7 +40,8 @@ async function resolveRoutedModel(
     description: `${ctx.agentName ?? ''} ${options.tool ?? ''}`.slice(0, 500),
     agentRole: ctx.agentRole,
   });
-  const { modelId, source } = await selectMeasuredModel(db, ctx.orgId, routing);
+  const calibrationAdvice = await getCalibrationAdvice(db, ctx.orgId);
+  const { modelId, source } = await selectMeasuredModel(db, ctx.orgId, routing, calibrationAdvice);
   return { modelId, source };
 }
 

@@ -52,6 +52,13 @@ interface CalibrationBandStats {
   accuracyPct: number | null;
 }
 
+interface CalibrationRoutingAdvice {
+  active: boolean;
+  reason: string;
+  minConsequentialTier: number | null;
+  councilRequiresFounderApproval: boolean;
+}
+
 interface ConfidenceCalibration {
   bands: CalibrationBandStats[];
   fullyCalibrated: boolean;
@@ -64,6 +71,7 @@ interface DecisionSummary {
   totalDecisions: number;
   activeDecisions: number;
   validatedDecisions: number;
+  routingConsequence?: CalibrationRoutingAdvice;
   reversedDecisions: number;
   learningScore: number;
   byType: Array<{ type: string; count: number }>;
@@ -311,9 +319,16 @@ const MIN_RESOLVED_FOR_ACCURACY_UI = 3;
  * The headline insight: only trust high-confidence recommendations more than
  * low ones if the measured accuracy gap says so.
  */
-function ConfidenceCalibrationCard({ calibration }: { calibration: ConfidenceCalibration }) {
+function ConfidenceCalibrationCard({
+  calibration,
+  routing,
+}: {
+  calibration: ConfidenceCalibration;
+  routing?: CalibrationRoutingAdvice;
+}) {
   const gap = calibration.calibrationGapPct;
   const anyData = calibration.totalResolved > 0;
+  const summary_routing = routing;
 
   return (
     <div className="rounded-xl border border-hairline bg-white p-5">
@@ -377,6 +392,11 @@ function ConfidenceCalibrationCard({ calibration }: { calibration: ConfidenceCal
           {calibration.unresolvedBandCount > 0 && (
             <p className="text-2xs text-muted">
               {calibration.unresolvedBandCount} resolved decision{calibration.unresolvedBandCount === 1 ? "" : "s"} outside the standard bands excluded from calibration.
+            </p>
+          )}
+          {summary_routing && (
+            <p className={`text-2xs ${summary_routing.active ? "font-semibold text-orq8-orange" : "text-muted"}`}>
+              Routing consequence: {summary_routing.reason}
             </p>
           )}
         </div>
@@ -494,7 +514,7 @@ export default function DecisionsPage() {
         {/* §29 Confidence calibration — accuracy per declared confidence band */}
         {summary?.calibration && (
           <div className="mt-4">
-            <ConfidenceCalibrationCard calibration={summary.calibration} />
+            <ConfidenceCalibrationCard calibration={summary.calibration} routing={summary.routingConsequence} />
           </div>
         )}
 
