@@ -78,6 +78,10 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('ORQ8 <founder@orq8.ai>'),
 
+  // Executive Agent brand name — used in the EA system prompt so the agent
+  // introduces itself consistently. Change without a code change.
+  EA_DISPLAY_NAME: z.string().trim().min(1).max(60).default('Atlas'),
+
   // Redis — session cache, rate limiting, idempotency (docs/42)
   REDIS_URL: z.string().optional(),
 

@@ -10,7 +10,13 @@ import { ExecutiveAgentShell } from "../../components/executive-agent-shell";
 
 
 type MeData = {
-  user: { id: string; email: string; name: string | null; avatarUrl?: string | null };
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    avatarUrl?: string | null;
+    emailVerified?: boolean;
+  };
   memberships: {
     org: { id: string; name: string; slug: string; plan: string };
     role: string;
@@ -44,10 +50,10 @@ export default async function AppLayout({
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: { authorization: `Bearer ${token}` },
-      // Cache auth check for 30s to avoid 700ms latency on every navigation.
-      // The cookie still gates access; this just prevents redundant API calls
-      // when the user navigates between dashboard pages rapidly.
-      next: { revalidate: 30 },
+      // No caching: this response now gates authorization (session validity and
+      // email confirmation). A stale payload could serve the app to a revoked
+      // session or trap a just-verified founder on the confirmation page.
+      cache: "no-store",
     });
 
     if (res.ok) {
@@ -93,6 +99,13 @@ export default async function AppLayout({
     redirect("/login?next=/app");
   }
 
+  // Email confirmation gate: a session is valid but its email is unconfirmed
+  // (the registration flow mints one) — that session may only reach
+  // /check-email. The API applies the same rule at login, so both paths agree.
+  if (me?.user?.emailVerified === false) {
+    redirect("/check-email?next=/app");
+  }
+
   const active =
     me?.memberships.find((m) => m.org.id === me.active_org_id) ??
     me?.memberships[0];
@@ -107,7 +120,8 @@ export default async function AppLayout({
   const platformRole = me?.platformRole ?? "user";
 
   return (
-    <div id="main" className="min-h-screen bg-canvas">
+    <ExecutiveAgentShell userId={me?.user.id ?? null}>
+      <div id="main" className="min-h-screen bg-canvas">
       <IdentifyUser
         userId={me?.user.id}
         orgId={active?.org.id}
@@ -136,9 +150,7 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
-
-      {/* Executive Agent — persistent assistant, available on every page */}
-      <ExecutiveAgentShell />
-    </div>
+      </div>
+    </ExecutiveAgentShell>
   );
 }

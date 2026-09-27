@@ -18,12 +18,12 @@ import {
   Bot,
   User,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 import { useExecutiveAgent, type PageContext } from "./executive-agent-context";
 import { ExecutiveAgentProgress, type EAProgressStage } from "./ea-progress";
 import { runCommandStream, CommandStreamError } from "../lib/command-stream";
 import { FloatingLauncher } from "./floating-launcher";
+import { EA_NAME } from "../lib/ea";
 
 interface ChatMessage {
   id: string;
@@ -85,8 +85,16 @@ function suggestedQuestion(ctx: PageContext | null): string {
 }
 
 export function ExecutiveAgentPanel() {
-  const { pageContext, panelOpen, setPanelOpen, togglePanel } =
-    useExecutiveAgent();
+  const {
+    pageContext,
+    panelOpen,
+    setPanelOpen,
+    togglePanel,
+    userId,
+    founderStage,
+    pendingPrompt,
+    setPendingPrompt,
+  } = useExecutiveAgent();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,6 +103,54 @@ export function ExecutiveAgentPanel() {
   const [stages, setStages] = useState<EAProgressStage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Restore the persisted thread for this user (best-effort: a missing or
+  // corrupt entry simply starts a fresh conversation).
+  const storageKey = userId ? `orq8:ea:thread:${userId}` : null;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!storageKey) {
+      setHydrated(true);
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(
+            parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })),
+          );
+        }
+      }
+    } catch {
+      // Unreadable storage — start fresh.
+    }
+    setHydrated(true);
+  }, [storageKey]);
+
+  // Persist as the conversation grows; cap the thread so storage stays bounded.
+  useEffect(() => {
+    if (!hydrated || !storageKey) return;
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify(messages.slice(-40)),
+      );
+    } catch {
+      // Quota exceeded — persistence is best-effort.
+    }
+  }, [messages, hydrated, storageKey]);
+
+  // A page action queued a prompt (e.g. the dashboard's "Tell the EA" action):
+  // pre-fill the input when the panel opens, then consume it.
+  useEffect(() => {
+    if (panelOpen && pendingPrompt) {
+      setInput(pendingPrompt);
+      setPendingPrompt(null);
+      setTimeout(() => inputRef.current?.focus(), 200);
+    }
+  }, [panelOpen, pendingPrompt, setPendingPrompt]);
 
   // Auto-scroll to bottom on new messages.
   useEffect(() => {
@@ -165,8 +221,15 @@ export function ExecutiveAgentPanel() {
           id: crypto.randomUUID(),
           role: "assistant",
           content:
-            data.data?.message ??
-            data.data?.intent?.response ??
+            // Streaming endpoint: the `done` event's result IS the execution
+            // result, so the message sits at the top level. The buffered POST
+            // fallback wraps it in a `{ data }` envelope. Handle both — the
+            // stream shape must win or every streamed reply degrades to the
+            // generic "I processed your request..." line.
+            data?.message ??
+            data?.data?.message ??
+            data?.data?.intent?.response ??
+            data?.intent?.response ??
             "I processed your request. Check the results in the relevant pages.",
           timestamp: new Date(),
         };
@@ -200,12 +263,18 @@ export function ExecutiveAgentPanel() {
 
   return (
     <>
-      {/* Floating trigger — collision-aware, draggable, snap-to-edge */}
-      <FloatingLauncher
-        onClick={togglePanel}
-        icon={<MessageSquare className="h-5 w-5" />}
-        label="Executive Agent"
-      />
+      {/* Floating trigger — collision-aware, draggable, snap-to-edge. Hidden
+          while the panel is open: the panel owns the screen then, and the
+          collision engine would otherwise fling the launcher to the opposite
+          corner (over the sidebar) for as long as the panel stays open. */}
+      {!panelOpen && (
+        <FloatingLauncher
+          onClick={togglePanel}
+          icon={<MessageSquare className="h-5 w-5" />}
+          label={EA_NAME}
+          floatingId="ea"
+        />
+      )}
 
       {/* Panel overlay */}
       {panelOpen && (
@@ -222,17 +291,16 @@ export function ExecutiveAgentPanel() {
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-dark">
-                  <Sparkles className="h-4 w-4 text-orq8-lime" />
+                  <Bot className="h-4 w-4 text-orq8-orange" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Executive Agent
+                    {EA_NAME}
                   </h3>
-                  {pageContext && (
-                    <p className="text-xs text-gray-500">
-                      Context: {pageContext.pageName}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500">
+                    Executive Agent
+                    {pageContext ? ` · ${pageContext.pageName}` : ""}
+                  </p>
                 </div>
               </div>
               <button
@@ -246,13 +314,47 @@ export function ExecutiveAgentPanel() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {messages.length === 0 && (
+              {messages.length === 0 && founderStage === "new" && (
+                <div className="flex gap-3 justify-start">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
+                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                  </div>
+                  <div className="max-w-[85%] rounded-xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+                    <p className="whitespace-pre-wrap">
+                      {`Welcome. I'm ${EA_NAME}, your Executive Agent. I help you turn your direction into an operating company: structure the organization, identify what needs to be done, coordinate your teams, and keep you informed as work moves forward.`}
+                    </p>
+                    <p className="mt-3 whitespace-pre-wrap">
+                      Before I start organizing work, I need to understand what
+                      you're building. What are you building, and what would you
+                      like to accomplish with it?
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {messages.length === 0 && founderStage === "in_progress" && (
+                <div className="flex gap-3 justify-start">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
+                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                  </div>
+                  <div className="max-w-[85%] rounded-xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+                    <p className="whitespace-pre-wrap">
+                      We're partway through setting up your company. Finish
+                      onboarding and I'll start organizing work. You can also
+                      tell me what you're building here and I'll keep it as
+                      context.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {messages.length === 0 && founderStage !== "new" && founderStage !== "in_progress" && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-50">
                     <Bot className="h-8 w-8 text-gray-400" />
                   </div>
                   <p className="text-sm font-medium text-gray-700">
-                    Ask me anything about your organization
+                    Ask me anything about your company
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
                     I understand the current page and your company context
@@ -273,7 +375,7 @@ export function ExecutiveAgentPanel() {
                 >
                   {msg.role === "assistant" && (
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                      <Bot className="h-3.5 w-3.5 text-orq8-lime" />
+                      <Bot className="h-3.5 w-3.5 text-orq8-orange" />
                     </div>
                   )}
                   <div
@@ -301,7 +403,7 @@ export function ExecutiveAgentPanel() {
               {loading && (
                 <div className="flex gap-3 justify-start">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                    <Bot className="h-3.5 w-3.5 text-orq8-lime" />
+                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
                   </div>
                   <div className="rounded-xl bg-gray-100 px-4 py-3">
                     {stages.length > 0 ? (
@@ -332,11 +434,24 @@ export function ExecutiveAgentPanel() {
                   Quick questions:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {[
-                    "How is the company doing?",
-                    "What needs my attention?",
-                    "Explain agent performance",
-                  ].map((q) => (
+                  {(founderStage === "new"
+                    ? [
+                        "I'm building a new product",
+                        "I have an existing business",
+                        "What can you do for me?",
+                      ]
+                    : founderStage === "in_progress"
+                      ? [
+                          "What remains to set up?",
+                          "I'm building a new product",
+                          "How does onboarding work?",
+                        ]
+                      : [
+                          "How is the company doing?",
+                          "What needs my attention?",
+                          "Explain AI employee performance",
+                        ]
+                  ).map((q) => (
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}

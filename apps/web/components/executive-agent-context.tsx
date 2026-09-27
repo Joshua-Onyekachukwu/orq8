@@ -30,6 +30,9 @@ export interface PageContext {
   extra?: Record<string, unknown>;
 }
 
+/** Onboarding stage, reported by the dashboard from persisted backend state. */
+export type FounderStage = "new" | "in_progress" | "active";
+
 export interface ExecutiveAgentContextValue {
   /** Current page context registered by the active page. */
   pageContext: PageContext | null;
@@ -40,14 +43,39 @@ export interface ExecutiveAgentContextValue {
   setPanelOpen: (open: boolean) => void;
   /** Toggle the panel. */
   togglePanel: () => void;
+  /** Authenticated user id — keys the persisted conversation thread. */
+  userId: string | null;
+  /** Onboarding stage from the dashboard (null on pages that don't report it). */
+  founderStage: FounderStage | null;
+  setFounderStage: (stage: FounderStage | null) => void;
+  /** Prompt queued by a page action; consumed by the panel when it opens. */
+  pendingPrompt: string | null;
+  setPendingPrompt: (prompt: string | null) => void;
+  /** Open the panel, optionally pre-filling the input with a prompt. */
+  openPanel: (prompt?: string) => void;
 }
 
 const ExecutiveAgentCtx = createContext<ExecutiveAgentContextValue | null>(null);
 
-export function ExecutiveAgentProvider({ children }: { children: ReactNode }) {
+export function ExecutiveAgentProvider({
+  userId,
+  children,
+}: {
+  userId: string | null;
+  children: ReactNode;
+}) {
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const togglePanel = useCallback(() => setPanelOpen((p) => !p), []);
+  const [founderStage, setFounderStage] = useState<FounderStage | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const togglePanel = useCallback(() => {
+    setPendingPrompt(null);
+    setPanelOpen((p) => !p);
+  }, []);
+  const openPanel = useCallback((prompt?: string) => {
+    setPendingPrompt(prompt ?? null);
+    setPanelOpen(true);
+  }, []);
 
   // Global keyboard shortcut: Cmd/Ctrl + Shift + E opens/closes the panel.
   useEffect(() => {
@@ -63,7 +91,19 @@ export function ExecutiveAgentProvider({ children }: { children: ReactNode }) {
 
   return (
     <ExecutiveAgentCtx.Provider
-      value={{ pageContext, setPageContext, panelOpen, setPanelOpen, togglePanel }}
+      value={{
+        pageContext,
+        setPageContext,
+        panelOpen,
+        setPanelOpen,
+        togglePanel,
+        userId,
+        founderStage,
+        setFounderStage,
+        pendingPrompt,
+        setPendingPrompt,
+        openPanel,
+      }}
     >
       {children}
     </ExecutiveAgentCtx.Provider>

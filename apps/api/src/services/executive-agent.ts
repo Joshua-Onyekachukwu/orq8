@@ -1,5 +1,5 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, type Db } from '@orq8/db';
+import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, onboardingStates, type Db } from '@orq8/db';
 import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
@@ -57,6 +57,23 @@ export interface ExecutiveContext {
   activeTasks: Array<{ id: string; title: string; status: string; agentId: string | null }>;
   pendingApprovals: number;
   recentMemory: Array<{ content: string; category: string }>;
+  // Founder context from onboarding/company-builder — what the founder has
+  // told the EA so far, before (and after) the company is activated.
+  founderContext?: {
+    step: string;
+    // Drizzle returns a Date; a serialized onboarding state can hand back an
+    // ISO string. Both mean "onboarding finished", so both are accepted.
+    completedAt: Date | string | null;
+    analysis: {
+      companyName?: string;
+      description?: string;
+      stage?: string;
+      industry?: string;
+      sourceType?: string;
+      priorities?: string[];
+      rawInput?: string;
+    } | null;
+  };
   // Workforce coverage — real capacity/utilization data for staffing intelligence.
   workforceCoverage?: Array<{
     departmentName: string;
@@ -206,7 +223,8 @@ function emitTraceProgress(trace: WorkflowTrace, event: EAProgressEvent): void {
 
 // ─── System Prompts ─────────────────────────────────────────────────────────
 
-const EXECUTIVE_AGENT_SYSTEM_PROMPT = `You are the Executive Agent of ORQ8 — an AI executive operating system for founders and CEOs.
+function buildSystemPrompt(eaName: string): string {
+  return `You are ${eaName}, the Executive Agent of ORQ8, an AI executive operating system for founders and CEOs.
 
 Your role is to understand the CEO's commands, analyze their intent, and orchestrate work across the AI employee organization.
 
@@ -338,7 +356,22 @@ Set taskDecomposition to [] when using tools — the tool IS the action.
 
 IMPORTANT: Tools are executed server-side with full authorization and limit checks.
 
-Be decisive, clear, and professional. You are the CEO's chief of staff.`;
+Be decisive, clear, and professional. You are the CEO's chief of staff.
+
+PERSONALITY AND LANGUAGE:
+- Speak like an executive talking to a founder: direct, specific, calm, sentence case.
+- Never use marketing language: no "supercharge", "unlock your potential", "AI-powered journey", "the future", "copilot". No exclamation marks.
+- Say "company" rather than "workspace" or "organization" when replying to the founder.
+- Introduce yourself as ${eaName} when the founder asks who you are.
+
+FIRST-RUN CONVERSATION (the Founder Context section shows onboarding is not complete):
+- Your first job is to understand what the founder is building. Do not organize anything yet.
+- Ask exactly ONE question at a time. Adapt the next question to their previous answer. Never send a list of questions.
+- Accept any starting point: an idea, an existing company, a product, a business problem, or an existing operation.
+- Between questions, offer short observations grounded only in what the founder told you and the real company state, for example: "I would prioritize customer validation before expanding the engineering team."
+- When you have enough context, recommend a small initial structure and explain why each part is needed.
+- Never activate departments, hire agents, or create structure silently. Clearly separate what you recommend, what you would like to do, what needs the founder's approval, and what has actually happened.`;
+}
 
 // ─── Workflow Verification ──────────────────────────────────────────────────
 
@@ -713,6 +746,39 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
     // Recommendation engine not available — degrade gracefully.
   }
 
+  // Founder onboarding context — keyed by org; degrades silently when the
+  // table or stored JSON is absent so the EA still works without it.
+  try {
+    const rows = await db
+      .select()
+      .from(onboardingStates)
+      .where(eq(onboardingStates.orgId, orgId))
+      .orderBy(desc(onboardingStates.updatedAt))
+      .limit(1);
+    const row = rows[0];
+    if (row) {
+      const org = (row.organization ?? {}) as Record<string, unknown>;
+      const raw = (org.analysis ?? null) as Record<string, unknown> | null;
+      ctx.founderContext = {
+        step: row.step,
+        completedAt: row.completedAt ?? null,
+        analysis: raw
+          ? {
+              companyName: raw.companyName as string | undefined,
+              description: raw.description as string | undefined,
+              stage: raw.stage as string | undefined,
+              industry: raw.industry as string | undefined,
+              sourceType: raw.sourceType as string | undefined,
+              priorities: Array.isArray(raw.priorities) ? (raw.priorities as string[]) : [],
+              rawInput: raw.rawInput as string | undefined,
+            }
+          : null,
+      };
+    }
+  } catch {
+    // Onboarding state unavailable — context degrades gracefully.
+  }
+
   return ctx;
 }
 
@@ -804,7 +870,34 @@ function buildContextPrompt(ctx: ExecutiveContext): string {
     strategyBlock = lines.join('\n');
   }
 
+  // Founder context — what the founder has told the EA so far. Rendered first
+  // because every first-run conversation depends on it.
+  let founderBlock = '';
+  if (ctx.founderContext) {
+    const fc = ctx.founderContext;
+    const status = fc.completedAt
+      ? 'complete'
+      : fc.step === 'organization'
+        ? 'not started'
+        : `in progress (step: ${fc.step})`;
+    const lines = [`- Status: ${status}`];
+    if (fc.analysis) {
+      if (fc.analysis.companyName) lines.push(`- Company name: ${fc.analysis.companyName}`);
+      if (fc.analysis.description) lines.push(`- What the founder is building: ${fc.analysis.description}`);
+      if (fc.analysis.stage) lines.push(`- Stage: ${fc.analysis.stage}`);
+      if (fc.analysis.industry) lines.push(`- Industry: ${fc.analysis.industry}`);
+      if (fc.analysis.sourceType) lines.push(`- Source type: ${fc.analysis.sourceType}`);
+      if (fc.analysis.priorities && fc.analysis.priorities.length > 0) {
+        lines.push(`- Stated priorities: ${fc.analysis.priorities.join(', ')}`);
+      }
+    } else if (status !== 'complete') {
+      lines.push('- No company context collected yet.');
+    }
+    founderBlock = '### Founder Context (onboarding)\n' + lines.join('\n') + '\n\n';
+  }
+
   return '## ORGANIZATION CONTEXT\n\n' +
+    founderBlock +
     '### AI Employees\n' + agentList + '\n\n' +
     structureBlock + '\n\n' +
     (strategyBlock ? strategyBlock + '\n\n' : '') +
@@ -841,7 +934,7 @@ export async function analyzeIntent(
   db?: Db,
 ): Promise<IntentAnalysis> {
   const contextPrompt = buildContextPrompt(ctx);
-  const fullSystemPrompt = `${EXECUTIVE_AGENT_SYSTEM_PROMPT}\n\n${contextPrompt}`;
+  const fullSystemPrompt = `${buildSystemPrompt(config.EA_DISPLAY_NAME)}\n\n${contextPrompt}`;
 
   // Context-aware commands: if the founder is viewing a goal/agent/page, make
   // the intent analysis aware of it so "break this down" resolves correctly.
@@ -1059,6 +1152,42 @@ function detectToolCalls(
 /** Exported for tests — the §3 inquiry short-circuit lives here. */
 export function fallbackAnalysis(command: string, ctx: ExecutiveContext): IntentAnalysis {
   const lower = command.toLowerCase();
+
+  // ── First-run discovery: the founder answering the EA's opening question. ──
+  // While onboarding is incomplete, "I'm building X" / "my company does X" is a
+  // context answer, not a request to build software — the old rule-based path
+  // read "building" + "platform" as an engineering delegation and spawned
+  // tasks. Reply conversationally (answerOnly), acknowledge what was heard,
+  // ask ONE adaptive follow-up, and point at onboarding for the full setup.
+  const completedAt = ctx.founderContext?.completedAt;
+  const onboardingIncomplete = !(completedAt instanceof Date || typeof completedAt === 'string');
+  // Matched against the ORIGINAL command (i flag) so the echoed detail keeps
+  // the founder's own casing — an executive repeats what you said, not a
+  // lowercased copy.
+  const discoveryMatch = command.match(/^\s*(?:hi|hello|hey)?\s*(?:i(?:'m| am| am currently)|we(?:'re| are)|my company|our company|the company)\s+(?:building|am building|'m building|currently building|working on|developing|starting|launching|planning|creating|running)?\s*(.*)$/i)
+    ?? command.match(/^\s*(?:i have|we have|we run|my company runs)\s+an?\s+(.+)$/i)
+    ?? command.match(/^\s*(?:i want to|we want to|i would like to|we would like to)\s+(build|create|start|launch)\s+(.+)$/i);
+  if (onboardingIncomplete && discoveryMatch) {
+    const rawDetail = (discoveryMatch[1] ?? discoveryMatch[2] ?? '').trim();
+    const hasSignal = rawDetail.length >= 8;
+    const observation = hasSignal
+      ? `That gives me the product direction: ${rawDetail.length > 120 ? `${rawDetail.slice(0, 117)}...` : rawDetail}.`
+      : 'Tell me a little more about what it does and who it serves.';
+    const followUp = hasSignal
+      ? 'Are you still validating the idea, or do you already have something customers can use?'
+      : 'Are you describing an idea, or an existing company that is already operating?';
+    return {
+      intent: command,
+      category: 'inquiry',
+      answerOnly: true,
+      requiresApproval: false,
+      riskLevel: 'low',
+      estimatedCost: 0,
+      suggestedAgentRole: 'executive_agent',
+      taskDecomposition: [],
+      response: `${observation} ${followUp} Continue onboarding when you are ready and I will use this as context to recommend your first structure.`,
+    };
+  }
 
   // ── §3: pure informational questions are answered, never taskified ──
   // A question that only asks FOR STATE (approvals, performance, blockers,
