@@ -153,8 +153,8 @@ export function useCollisionDetection(
 
     const current = positionRef.current;
     const id = selfIdRef.current;
-    // Measure our own node (offsetWidth ignores hover/scale transforms) so the
-    // wider 56px quick-actions FAB is not tested as a 48px box.
+    // Measure our own node (offsetWidth ignores hover/scale transforms) so a
+    // launcher wider than the default 48px box is measured at its real size.
     const selfEl = id
       ? [...document.querySelectorAll<HTMLElement>("[data-launcher-id]")].find(
           (el) => el.dataset.launcherId === id,

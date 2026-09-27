@@ -17,7 +17,6 @@ import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget"
 import { ModelPerformanceWidget } from "../../components/dashboard/ModelPerformanceWidget";
 import { DepartmentActivityWidget } from "../../components/dashboard/DepartmentActivityWidget";
 
-import { QuickActionsHub } from "../../components/dashboard/QuickActionsHub";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
 import { HealthScore } from "../../components/dashboard/HealthScore";
@@ -991,8 +990,6 @@ export default async function AppPage() {
         </div>
       </div>
 
-      {/* Quick Actions FAB */}
-      <QuickActionsHub />
 
       {/* Dev-only contrast diagnostic — renders nothing in production */}
       <ContrastSelfCheck />

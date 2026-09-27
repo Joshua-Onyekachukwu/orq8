@@ -3,10 +3,10 @@
 import { useState, useCallback, useEffect } from "react";
 
 /**
- * Saved launcher corner, keyed per floating control id. The EA trigger and
- * the quick-actions FAB must NOT share one key: a shared key makes both
- * launchers read (and drag-write) the same corner, so they stack and drag
- * each other around. Each floatingId gets its own persisted preference.
+ * Saved launcher corner, keyed per floating control id. Two launchers must
+ * NOT share one key: a shared key makes both read (and drag-write) the same
+ * corner, so they stack and drag each other around. Each floatingId gets its
+ * own persisted preference.
  */
 
 export type LauncherSide = "right" | "left";

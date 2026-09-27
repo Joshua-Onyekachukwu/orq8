@@ -14,8 +14,7 @@
  *
  * When the collision disappears, the launcher returns to the saved preference.
  *
- * Multiple launchers (the Executive Agent trigger + the dashboard's
- * quick-actions FAB) coordinate through the collision engine: every launcher
+ * Multiple launchers coordinate through the collision engine: every launcher
  * is a collision source for the others, and each instance persists its own
  * saved corner under a floatingId-keyed storage key. Instances must pass
  * distinct floatingIds — a shared id means a shared corner, and they stack.

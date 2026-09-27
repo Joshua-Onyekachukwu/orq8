@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Check, CheckCheck, X, FlaskConical, Zap } from "lucide-react";
+import Link from "next/link";
+import { Bell, Check, CheckCheck, X, Zap } from "lucide-react";
 import { useRealtimeNotifications } from "../hooks/use-realtime-notifications";
 import { useNotificationSound } from "../hooks/use-notification-sound";
 import { useBrowserPush } from "../hooks/use-browser-push";
@@ -217,25 +218,17 @@ export function NotificationsBell() {
               )}
             </div>
 
-            <div className="border-t border-gray-100 px-4 py-2.5">
-              {notifications.length > 0 ? (
-                <p className="font-mono text-3xs uppercase tracking-wide text-gray-500">
-                  {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await fetch("/api/notifications/seed", { method: "POST" });
-                      fetchNotifications();
-                    } catch { /* silent */ }
-                  }}
-                  className="inline-flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-600 transition-colors hover:text-gray-900"
-                >
-                  <FlaskConical className="h-3 w-3" /> Seed sample notifications
-                </button>
-              )}
+            <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-2.5">
+              <p className="font-mono text-3xs uppercase tracking-wide text-gray-500">
+                {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
+              </p>
+              <Link
+                href="/app/notifications"
+                onClick={() => setOpen(false)}
+                className="text-xs font-medium text-orq8-orange transition-colors hover:text-orq8-orange-bright"
+              >
+                View all notifications
+              </Link>
             </div>
           </div>
         </>
