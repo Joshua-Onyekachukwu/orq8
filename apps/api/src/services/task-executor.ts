@@ -4,6 +4,7 @@ import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { broadcastToOrg } from './realtime.js';
+import { notifyAttentionChanged } from './attention.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import { getCalibrationAdvice } from './calibration-routing.js';
@@ -111,6 +112,7 @@ async function persistPreExecutionBlock(
     agentName,
     error: reason.slice(0, 200),
   });
+  notifyAttentionChanged(orgId, 'task.failed');
 
   return { taskId: task.id, status: 'failed', result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
 }
@@ -348,6 +350,7 @@ export async function executeTask(
     broadcastToOrg(orgId, { type: 'task.completed', taskId: task.id, agentId: task.agentId ?? '', agentName, result: result.slice(0, 200) });
   } else {
     broadcastToOrg(orgId, { type: 'task.failed', taskId: task.id, agentId: task.agentId ?? '', agentName, error: (lastLlmError ?? result).slice(0, 200) });
+    notifyAttentionChanged(orgId, 'task.failed');
   }
 
   // 7. Update agent stats

@@ -8,6 +8,7 @@ import { appendAudit } from '../services/audit.js';
 import { broadcastToOrg } from '../services/realtime.js';
 import * as approvals from '../services/approvals.js';
 import { createNotification } from '../routes/notifications.js';
+import { notifyAttentionChanged } from '../services/attention.js';
 import type { AppDeps } from '../types.js';
 
 const decideBody = z.object({
@@ -64,6 +65,9 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         );
       }
     } catch { /* notification failure is non-fatal */ }
+
+    // The founder's attention queue gained an item.
+    notifyAttentionChanged(ctx.orgId, 'approval.created');
 
     reply.code(201);
     return { data: approval };
@@ -155,6 +159,7 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
 
       // Broadcast approval decision
       broadcastToOrg(ctx.orgId, { type: 'approval.decided', approvalId: request.params.id, status: parsed.data.status });
+      notifyAttentionChanged(ctx.orgId, 'approval.decided');
 
       // Create in-app notification for the decision
       try {

@@ -33,6 +33,11 @@ export type RealtimeEvent =
   | { type: 'tool.completed'; toolId: string; toolName: string; agentName: string; durationMs: number; creditsConsumed: number }
   | { type: 'tool.failed'; toolId: string; toolName: string; agentName: string; durationMs: number; creditsConsumed: number }
   | { type: 'emergency_stop'; scope: string; agentId?: string }
+  // Founder's Attention: the queue changed (an approval arrived or was decided,
+  // work failed or was re-queued, a credit alert fired, a council escalation
+  // was filed). The badge and the attention page refetch on this event, so the
+  // reason is informational only.
+  | { type: 'attention.changed'; reason: string }
   | { type: 'heartbeat'; timestamp: number }
   | { type: 'task.qa_passed'; taskId: string; summary: string }
   | { type: 'task.qa_failed'; taskId: string; summary: string }

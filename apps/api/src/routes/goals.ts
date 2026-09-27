@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { getGoalDrillDown } from '../services/goal-intelligence.js';
+import { notifyAttentionChanged } from '../services/attention.js';
 import type { AppDeps } from '../types.js';
 import { goals, tasks, teams, agents, type Db } from '@orq8/db';
 
@@ -364,6 +365,20 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     // Auto-update goal progress when task status changes
     const updatedTask = result[0]!;
+
+    // Audited: a status change moves real work, and it can add or clear an
+    // attention item (failure, retry, cancellation).
+    if (parsed.data.status !== undefined) {
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'user',
+        actorId: ctx.userId,
+        action: 'task.status_changed',
+        outcome: 'success',
+        resultRef: `${updatedTask.id} → ${updatedTask.status}`,
+      });
+      notifyAttentionChanged(ctx.orgId, 'task.updated');
+    }
     if (updatedTask.goalId && parsed.data.status) {
       try {
         const [totalRow, completedRow] = await Promise.all([

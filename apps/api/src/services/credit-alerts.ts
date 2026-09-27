@@ -2,6 +2,7 @@ import { eq, and, desc, gte, isNull, sql } from 'drizzle-orm';
 import { creditAlerts, organizations, type Db } from '@orq8/db';
 import type { CreditBalanceInfo } from './credits.js';
 import { notifyWithPrefs } from './notification-preferences.js';
+import { notifyAttentionChanged } from './attention.js';
 
 /**
  * Credit Usage Alerts Service
@@ -162,6 +163,9 @@ export async function checkAndAlert(
       daysRemaining: balance.daysRemaining,
     },
   );
+
+  // The founder's attention queue gained a credit alert.
+  notifyAttentionChanged(orgId, 'credits.alert');
 
   // Create in-app notification gated by user preferences
   try {

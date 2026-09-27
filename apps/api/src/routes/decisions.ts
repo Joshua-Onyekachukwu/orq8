@@ -15,6 +15,7 @@ import {
   createDecision, listDecisions, getDecision, updateDecision, getDecisionSummary,
 } from '../services/decision-memory.js';
 import { signalSummary } from '../services/decision-signals.js';
+import { notifyAttentionChanged } from '../services/attention.js';
 import type { AppDeps } from '../types.js';
 
 const createDecisionBody = z.object({
@@ -105,6 +106,8 @@ export function registerDecisionRoutes(app: FastifyInstance, deps: AppDeps): voi
     const body = updateDecisionBody.parse(request.body);
     const decision = await updateDecision(db, ctx.orgId, ctx.userId, id, body as any);
     if (!decision) { reply.code(404); return { error: { code: 'not_found', message: 'Decision not found' } }; }
+    // A recorded verdict clears a council escalation from the attention queue.
+    if (body.founderVerdict) notifyAttentionChanged(ctx.orgId, 'decision.verdict');
     return decision;
   });
 }
