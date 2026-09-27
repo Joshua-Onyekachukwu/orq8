@@ -15219,6 +15219,9 @@ var init_config = __esm({
       SMTP_USER: external_exports.string().optional(),
       SMTP_PASS: external_exports.string().optional(),
       EMAIL_FROM: external_exports.string().default("ORQ8 <founder@orq8.ai>"),
+      // Executive Agent brand name — used in the EA system prompt so the agent
+      // introduces itself consistently. Change without a code change.
+      EA_DISPLAY_NAME: external_exports.string().trim().min(1).max(60).default("Atlas"),
       // Redis — session cache, rate limiting, idempotency (docs/42)
       REDIS_URL: external_exports.string().optional(),
       // Stripe — billing and subscriptions
@@ -28661,11 +28664,14 @@ var init_schema2 = __esm({
         completionTokens: integer2("completion_tokens").notNull().default(0),
         totalTokens: integer2("total_tokens").notNull().default(0),
         retryAttempt: integer2("retry_attempt").notNull().default(0),
+        /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
+        routingSource: text("routing_source").notNull().default("default"),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
       },
       (t) => [
         index("llm_performance_org_model_idx").on(t.orgId, t.model, t.createdAt),
-        index("llm_performance_org_created_idx").on(t.orgId, t.createdAt)
+        index("llm_performance_org_created_idx").on(t.orgId, t.createdAt),
+        index("llm_performance_routing_idx").on(t.orgId, t.routingSource, t.createdAt)
       ]
     );
     waitlistEmails = pgTable(
@@ -29669,6 +29675,15 @@ var init_schema2 = __esm({
         expectedOutcome: text("expected_outcome"),
         actualOutcome: text("actual_outcome"),
         outcomeFiledAt: timestamp("outcome_filed_at", { withTimezone: true }),
+        // Structured verdict from the §20 outcome review (migration 0028):
+        // accurate | partially_accurate | inaccurate. Null until filed.
+        predictionAccuracy: text("prediction_accuracy"),
+        // Founder verdict on a council recommendation (migration 0030, §24):
+        // 'approved' | 'rejected', with optional note + timestamp. Null until the
+        // founder records their decision from the Decision Council page.
+        founderVerdict: text("founder_verdict"),
+        founderVerdictNote: text("founder_verdict_note"),
+        founderVerdictAt: timestamp("founder_verdict_at", { withTimezone: true }),
         reversalConditions: jsonb("reversal_conditions").notNull().default([]),
         lessonsLearned: text("lessons_learned"),
         // Full Decision Council session (§11/§47, migration 0027): participants,
@@ -73165,8 +73180,8 @@ var require_gte = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.5/node_modules/semver/functions/gte.js"(exports2, module2) {
     "use strict";
     var compare = require_compare();
-    var gte3 = (a, b, loose) => compare(a, b, loose) >= 0;
-    module2.exports = gte3;
+    var gte2 = (a, b, loose) => compare(a, b, loose) >= 0;
+    module2.exports = gte2;
   }
 });
 
@@ -73187,7 +73202,7 @@ var require_cmp = __commonJS({
     var eq2 = require_eq();
     var neq = require_neq();
     var gt3 = require_gt();
-    var gte3 = require_gte();
+    var gte2 = require_gte();
     var lt2 = require_lt();
     var lte3 = require_lte();
     var cmp = (a, op, b, loose) => {
@@ -73217,7 +73232,7 @@ var require_cmp = __commonJS({
         case ">":
           return gt3(a, b, loose);
         case ">=":
-          return gte3(a, b, loose);
+          return gte2(a, b, loose);
         case "<":
           return lt2(a, b, loose);
         case "<=":
@@ -74025,7 +74040,7 @@ var require_outside = __commonJS({
     var gt3 = require_gt();
     var lt2 = require_lt();
     var lte3 = require_lte();
-    var gte3 = require_gte();
+    var gte2 = require_gte();
     var outside = (version3, range, hilo, options) => {
       version3 = new SemVer(version3, options);
       range = new Range(range, options);
@@ -74040,7 +74055,7 @@ var require_outside = __commonJS({
           break;
         case "<":
           gtfn = lt2;
-          ltefn = gte3;
+          ltefn = gte2;
           ltfn = gt3;
           comp = "<";
           ecomp = "<=";
@@ -74355,7 +74370,7 @@ var require_semver2 = __commonJS({
     var lt2 = require_lt();
     var eq2 = require_eq();
     var neq = require_neq();
-    var gte3 = require_gte();
+    var gte2 = require_gte();
     var lte3 = require_lte();
     var cmp = require_cmp();
     var coerce = require_coerce();
@@ -74394,7 +74409,7 @@ var require_semver2 = __commonJS({
       lt: lt2,
       eq: eq2,
       neq,
-      gte: gte3,
+      gte: gte2,
       lte: lte3,
       cmp,
       coerce,
@@ -78995,7 +79010,7 @@ var require_parse_url = __commonJS({
 var require_form_data = __commonJS({
   "../../node_modules/.pnpm/light-my-request@6.6.0/node_modules/light-my-request/lib/form-data.js"(exports2, module2) {
     "use strict";
-    var { randomUUID: randomUUID8 } = require("node:crypto");
+    var { randomUUID: randomUUID9 } = require("node:crypto");
     var { Readable } = require("node:stream");
     var textEncoder;
     function isFormDataLike(payload) {
@@ -79003,7 +79018,7 @@ var require_form_data = __commonJS({
     }
     function formDataToStream(formdata) {
       textEncoder = textEncoder ?? new TextEncoder();
-      const boundary = `----formdata-${randomUUID8()}`;
+      const boundary = `----formdata-${randomUUID9()}`;
       const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
       const escape = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
@@ -81612,10 +81627,10 @@ var init_password = __esm({
 
 // ../../packages/auth/src/session.ts
 function generateSessionToken() {
-  return (0, import_node_crypto2.randomBytes)(32).toString("base64url");
+  return (0, import_node_crypto3.randomBytes)(32).toString("base64url");
 }
 function hashSessionToken(token) {
-  return (0, import_node_crypto2.createHash)("sha256").update(token).digest("hex");
+  return (0, import_node_crypto3.createHash)("sha256").update(token).digest("hex");
 }
 function sessionExpiry(now = Date.now()) {
   return new Date(now + SESSION_TTL_MS);
@@ -81625,11 +81640,11 @@ function extractBearer(authorization) {
   const match = /^Bearer\s+(.+)$/i.exec(authorization);
   return match?.[1] ?? null;
 }
-var import_node_crypto2, SESSION_TTL_MS;
+var import_node_crypto3, SESSION_TTL_MS;
 var init_session3 = __esm({
   "../../packages/auth/src/session.ts"() {
     "use strict";
-    import_node_crypto2 = require("node:crypto");
+    import_node_crypto3 = require("node:crypto");
     SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1e3;
   }
 });
@@ -81691,7 +81706,10 @@ async function findSessionByToken(db, token, redis) {
               id: parsed.userId,
               email: parsed.email,
               name: null,
-              platformRole: parsed.platformRole ?? "user"
+              platformRole: parsed.platformRole ?? "user",
+              // Truthy stand-in for "confirmed as of the cache write": the value
+              // itself is never displayed, only checked for presence.
+              emailVerifiedAt: parsed.emailVerified ? new Date(parsed.cachedAt) : null
             },
             role: parsed.role,
             platformRole: parsed.platformRole ?? "user"
@@ -81703,7 +81721,13 @@ async function findSessionByToken(db, token, redis) {
   }
   const [row] = await db.select({
     session: sessions,
-    user: { id: users.id, email: users.email, name: users.name, platformRole: users.platformRole },
+    user: {
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      platformRole: users.platformRole,
+      emailVerifiedAt: users.emailVerifiedAt
+    },
     role: memberships.role
   }).from(sessions).innerJoin(users, eq(sessions.userId, users.id)).innerJoin(
     memberships,
@@ -81719,6 +81743,7 @@ async function findSessionByToken(db, token, redis) {
         role: row.role,
         email: row.user.email,
         platformRole: row.user.platformRole,
+        emailVerified: row.user.emailVerifiedAt !== null,
         revokedAt: row.session.revokedAt?.toISOString() ?? null,
         expiresAt: row.session.expiresAt.toISOString(),
         cachedAt: Date.now()
@@ -81781,7 +81806,7 @@ var init_sessions = __esm({
     init_src2();
     SESSION_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
     SESSION_CACHE_TRUST_WINDOW_MS = 5 * 60 * 1e3;
-    SESSION_CACHE_PREFIX = "session:v3:";
+    SESSION_CACHE_PREFIX = "session:v4:";
   }
 });
 
@@ -81790,6 +81815,10 @@ var auth_exports = {};
 __export(auth_exports, {
   requireAuth: () => requireAuth
 });
+function isUnconfirmedAllowed(url2) {
+  const path2 = url2.split("?")[0] ?? "";
+  return UNCONFIRMED_ALLOWED_PATHS.some((p3) => path2 === p3 || path2.startsWith(`${p3}/`));
+}
 async function requireAuth(request, deps) {
   const token = extractBearer(request.headers.authorization) ?? request.cookies?.orq8_session ?? null;
   if (!token) throw unauthorized();
@@ -81798,6 +81827,13 @@ async function requireAuth(request, deps) {
   const { session, user, role, platformRole } = found;
   if (session.revokedAt) throw unauthorized("Session has been revoked");
   if (session.expiresAt.getTime() < Date.now()) throw sessionExpired();
+  if (!user.emailVerifiedAt && !isUnconfirmedAllowed(request.url)) {
+    throw new AppError(
+      403,
+      "email_not_verified",
+      "Confirm your email address to continue. Open the link we emailed you, or request a new one."
+    );
+  }
   return {
     userId: user.id,
     orgId: session.orgId,
@@ -81807,12 +81843,21 @@ async function requireAuth(request, deps) {
     platformRole: platformRole ?? "user"
   };
 }
+var UNCONFIRMED_ALLOWED_PATHS;
 var init_auth = __esm({
   "src/plugins/auth.ts"() {
     "use strict";
     init_src3();
     init_src();
     init_sessions();
+    UNCONFIRMED_ALLOWED_PATHS = [
+      "/v1/auth/me",
+      "/v1/auth/logout",
+      "/v1/auth/verify-email",
+      // Account-only maintenance: it touches no company data and requires the
+      // current password, so an unconfirmed founder may still rotate it.
+      "/v1/auth/change-password"
+    ];
   }
 });
 
@@ -81846,6 +81891,9 @@ async function getColumns(db) {
       departmentId: agents.departmentId,
       authority: agents.authority,
       capabilities: agents.capabilities,
+      // Governance transparency (§9): founders must be able to SEE an agent's
+      // autonomy level — it decides whether their tasks execute or block.
+      autonomyLevel: agents.autonomyLevel,
       ...hasTeam ? { teamId: agents.teamId } : {}
     };
   }
@@ -81853,14 +81901,27 @@ async function getColumns(db) {
 }
 async function attachTeamNames(db, rows) {
   const teamIds = Array.from(new Set(rows.map((r) => r.teamId).filter(Boolean)));
-  if (teamIds.length === 0) return rows;
+  const deptIds = Array.from(new Set(rows.map((r) => r.departmentId).filter(Boolean)));
+  if (teamIds.length === 0 && deptIds.length === 0) return rows;
   try {
-    const { teams: teams3 } = await Promise.resolve().then(() => (init_src2(), src_exports));
-    const teamRows = await db.select({ id: teams3.id, name: teams3.name }).from(teams3).where(sql`${teams3.id} = ANY(${teamIds})`);
-    const nameById = new Map(teamRows.map((t) => [t.id, t.name]));
-    return rows.map((r) => ({ ...r, teamName: r.teamId ? nameById.get(r.teamId) ?? null : null }));
+    const { teams: teams3, departments: departments2 } = await Promise.resolve().then(() => (init_src2(), src_exports));
+    let nameById = /* @__PURE__ */ new Map();
+    if (teamIds.length > 0) {
+      const teamRows = await db.select({ id: teams3.id, name: teams3.name }).from(teams3).where(sql`${teams3.id} = ANY(${teamIds})`);
+      nameById = new Map(teamRows.map((t) => [t.id, t.name]));
+    }
+    let deptNameById = /* @__PURE__ */ new Map();
+    if (deptIds.length > 0) {
+      const deptRows = await db.select({ id: departments2.id, name: departments2.name }).from(departments2).where(sql`${departments2.id} = ANY(${deptIds})`);
+      deptNameById = new Map(deptRows.map((d) => [d.id, d.name]));
+    }
+    return rows.map((r) => ({
+      ...r,
+      teamName: r.teamId ? nameById.get(r.teamId) ?? null : null,
+      departmentName: r.departmentId ? deptNameById.get(r.departmentId) ?? null : null
+    }));
   } catch {
-    return rows.map((r) => ({ ...r, teamName: null }));
+    return rows.map((r) => ({ ...r, teamName: r.teamId ? null : null, departmentName: null }));
   }
 }
 async function findByOrg2(db, orgId, opts = {}) {
@@ -82218,7 +82279,7 @@ var init_approvals = __esm({
 
 // src/services/audit.ts
 function sha256(value) {
-  return (0, import_node_crypto3.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto4.createHash)("sha256").update(value).digest("hex");
 }
 function genesisHash(orgId) {
   return sha256(`${orgId}:${GENESIS_SALT}`);
@@ -82292,11 +82353,11 @@ async function appendAudit(db, input) {
     hash: hash3
   });
 }
-var import_node_crypto3, GENESIS_SALT;
+var import_node_crypto4, GENESIS_SALT;
 var init_audit = __esm({
   "src/services/audit.ts"() {
     "use strict";
-    import_node_crypto3 = require("node:crypto");
+    import_node_crypto4 = require("node:crypto");
     init_drizzle_orm();
     init_src2();
     GENESIS_SALT = "orq8-genesis-v1";
@@ -82344,7 +82405,7 @@ function divider() {
   return `<hr style="border:none;border-top:1px solid ${HAIRLINE};margin:20px 0;" />`;
 }
 function verificationEmail(input) {
-  const subject = "Verify your email \u2014 ORQ8";
+  const subject = "Verify your email for ORQ8";
   const text2 = [
     "Welcome to ORQ8.",
     "",
@@ -82388,7 +82449,7 @@ function passwordResetEmail(input) {
     "",
     "If you did not request this, you can safely ignore this email.",
     "",
-    "ORQ8 \u2014 the AI organization operating system."
+    "ORQ8. The AI organization operating system."
   ].join("\n");
   const html = shell(
     "security \xB7 password reset",
@@ -83599,16 +83660,22 @@ function registerRealtimeEndpoint(app, deps) {
   app.get("/v1/events", async (request, reply) => {
     const { requireAuth: requireAuth2 } = await Promise.resolve().then(() => (init_auth(), auth_exports));
     const ctx = await requireAuth2(request, deps);
-    const MAX_CONNECTIONS_PER_USER = 8;
-    let userCount = 0;
+    const mine = [];
     for (const clients of connections.values()) {
       for (const c of clients) {
-        if (c.userId === ctx.userId) userCount++;
+        if (c.userId === ctx.userId) mine.push(c);
       }
     }
-    if (userCount >= MAX_CONNECTIONS_PER_USER) {
-      reply.code(429).send({ error: { code: "too_many_connections", message: "Maximum concurrent connections reached" } });
-      return reply;
+    mine.sort((a, b) => a.connectedAt.getTime() - b.connectedAt.getTime());
+    if (mine.length >= MAX_CONNECTIONS_PER_USER) {
+      const evictCount = mine.length - MAX_CONNECTIONS_PER_USER + 1;
+      for (const dead of mine.slice(0, evictCount)) {
+        dead.alive = false;
+        for (const clients of connections.values()) clients.delete(dead);
+      }
+      for (const [orgId, clients] of connections) {
+        if (clients.size === 0) connections.delete(orgId);
+      }
     }
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -83617,34 +83684,43 @@ function registerRealtimeEndpoint(app, deps) {
       "X-Accel-Buffering": "no"
       // Disable nginx buffering
     });
-    const sendEvent = (event) => {
-      try {
-        reply.raw.write(`data: ${JSON.stringify(event)}
-
-`);
-      } catch {
-      }
-    };
-    sendEvent({ type: "heartbeat", timestamp: Date.now() });
     const client = {
       reply,
       orgId: ctx.orgId,
       userId: ctx.userId,
-      connectedAt: /* @__PURE__ */ new Date()
+      connectedAt: /* @__PURE__ */ new Date(),
+      alive: true
     };
     const orgClients = connections.get(ctx.orgId) ?? /* @__PURE__ */ new Set();
     orgClients.add(client);
     connections.set(ctx.orgId, orgClients);
-    const heartbeatInterval = setInterval(() => {
-      sendEvent({ type: "heartbeat", timestamp: Date.now() });
-    }, 3e4);
-    request.raw.on("close", () => {
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
       clearInterval(heartbeatInterval);
       orgClients.delete(client);
       if (orgClients.size === 0) {
         connections.delete(ctx.orgId);
       }
-    });
+    };
+    const sendEvent = (event) => {
+      if (!client.alive) return;
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}
+
+`);
+      } catch {
+        client.alive = false;
+        cleanup();
+      }
+    };
+    sendEvent({ type: "heartbeat", timestamp: Date.now() });
+    const heartbeatInterval = setInterval(() => {
+      sendEvent({ type: "heartbeat", timestamp: Date.now() });
+    }, 3e4);
+    request.raw.on("close", cleanup);
+    reply.raw.on("error", cleanup);
   });
 }
 function broadcastToOrg(orgId, event) {
@@ -83653,18 +83729,22 @@ function broadcastToOrg(orgId, event) {
   const payload = `data: ${JSON.stringify(event)}
 
 `;
-  for (const client of orgClients) {
+  for (const client of [...orgClients]) {
+    if (!client.alive) continue;
     try {
       client.reply.raw.write(payload);
     } catch {
+      client.alive = false;
+      orgClients.delete(client);
     }
   }
 }
-var connections;
+var connections, MAX_CONNECTIONS_PER_USER;
 var init_realtime = __esm({
   "src/services/realtime.ts"() {
     "use strict";
     connections = /* @__PURE__ */ new Map();
+    MAX_CONNECTIONS_PER_USER = 8;
   }
 });
 
@@ -84224,7 +84304,10 @@ async function requestPrMergeApproval(db, orgId, userId, prId) {
   if (pr.status === "merged") return { error: { code: "already_merged", message: "This PR is already merged", status: 409 } };
   if (pr.approvalId) {
     const existing = await findById2(db, orgId, pr.approvalId);
-    if (existing) return { pr, approval: existing, created: false };
+    if (existing && existing.status === "rejected") {
+    } else if (existing) {
+      return { pr, approval: existing, created: false };
+    }
   }
   const pendingForPr = await findMergeApprovalForPr(db, orgId, prId);
   if (pendingForPr) {
@@ -84257,7 +84340,7 @@ async function requestPrMergeApproval(db, orgId, userId, prId) {
     orgId,
     actorType: "user",
     actorId: userId,
-    action: "pr.approval_requested",
+    action: pr.approvalId ? "pr.approval_re_requested" : "pr.approval_requested",
     outcome: "success",
     resultRef: `${pr.id} \u2192 approval:${approval.id}`
   });
@@ -96573,7 +96656,8 @@ function startTrace(params) {
     retryAttempt: params.retryAttempt ?? 0,
     maxRetries: params.maxRetries ?? 2,
     temperature: params.temperature ?? 0.7,
-    maxTokens: params.maxTokens ?? 2048
+    maxTokens: params.maxTokens ?? 2048,
+    routingSource: params.routingSource ?? "default"
   };
   recentTraces.push(entry);
   if (recentTraces.length > MAX_RECENT_TRACES) {
@@ -96631,7 +96715,8 @@ async function persistTrace(db, trace) {
       promptTokens: trace.promptTokens,
       completionTokens: trace.completionTokens,
       totalTokens: trace.totalTokens,
-      retryAttempt: trace.retryAttempt
+      retryAttempt: trace.retryAttempt,
+      routingSource: trace.routingSource ?? "default"
     });
   } catch {
   }
@@ -98170,7 +98255,7 @@ async function chatCompletion(config2, options) {
     }
     const endpoint = chatCompletionsEndpoint(provider.baseUrl);
     const keys2 = provider.apiKeys.length > 0 ? provider.apiKeys : [""];
-    const models = explicitModel ? [explicitModel] : [provider.defaultModel, ...provider.modelFallbacks ?? []];
+    const models = explicitModel ? [explicitModel, provider.defaultModel, ...provider.modelFallbacks ?? []] : [provider.defaultModel, ...provider.modelFallbacks ?? []];
     const startIdx = provider.id === "nvidia" && keys2.length > 1 ? nvidiaKeyCursor++ % keys2.length : 0;
     let traceId2;
     if (traceCtx) {
@@ -98184,7 +98269,8 @@ async function chatCompletion(config2, options) {
         commandId: traceCtx.commandId,
         taskId: traceCtx.taskId,
         agentId: traceCtx.agentId,
-        maxRetries
+        maxRetries,
+        routingSource: traceCtx.routingSource
       });
       traceId2 = trace.traceId;
     }
@@ -98365,6 +98451,7 @@ function recentTrace(id) {
     success: false,
     retryAttempt: 0,
     maxRetries: 0,
+    routingSource: "default",
     temperature: 0,
     maxTokens: 0
   };
@@ -98484,12 +98571,13 @@ function diverseModelsFor(count4, opts) {
   }
   return chosen.slice(0, count4).map((m) => m.id);
 }
-function selectTierModel(c) {
-  const minTier = c.risk === "critical" || c.complexity >= 4 ? 2 : c.complexity >= 3 || c.reasoning !== "low" ? 1 : 0;
+function strongestModelId() {
   const tiers = modelsByTier();
-  for (let tier = minTier; tier <= 3; tier++) {
-    const candidates = tiers[tier];
-    if (candidates.length > 0) return candidates[0]?.id;
+  const flagship = tiers[3] ?? [];
+  if (flagship.length > 0) return flagship[flagship.length - 1].id;
+  for (const tier of [2, 1, 0]) {
+    const pool = tiers[tier] ?? [];
+    if (pool.length > 0) return pool[pool.length - 1].id;
   }
   return void 0;
 }
@@ -98515,17 +98603,19 @@ function evaluateEscalation(input) {
   const legal = /\b(legal|lawsuit|regulat|complian)\b/i.test(text2);
   const strategic = /\b(strategy|strategic|pivot|roadmap|positioning)\b/i.test(text2);
   const financial = amount !== null || /\b(budget|spend|invest|pay)\b/i.test(text2);
+  const departmentCount = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text2)).length;
   const dimensions = [irreversible, security, legal, strategic, financial].filter(Boolean).length;
+  const effectiveDimensions = dimensions + (departmentCount >= 3 ? 1 : 0);
   const budgets = { none: 0, single_agent: 0.05, dual_review: 0.25, department_council: 1, executive_deliberation: 5 };
   let level;
   let requiresFounderApproval = false;
-  if (dimensions >= 4 || amount !== null && amount >= 1e4 || irreversible && financial) {
+  if (effectiveDimensions >= 4 || amount !== null && amount >= 1e4 || irreversible && financial) {
     level = "executive_deliberation";
     requiresFounderApproval = true;
-  } else if (dimensions >= 2 || amount !== null && amount >= 1e3) {
+  } else if (effectiveDimensions >= 2 || departmentCount >= 3 || amount !== null && amount >= 1e3) {
     level = "department_council";
     requiresFounderApproval = amount !== null && amount >= 1e3;
-  } else if (dimensions === 1 || amount !== null && amount >= 100) {
+  } else if (effectiveDimensions === 1 || amount !== null && amount >= 100) {
     level = "dual_review";
   } else {
     level = "single_agent";
@@ -98583,6 +98673,121 @@ var init_model_intelligence = __esm({
   }
 });
 
+// src/services/decision-calibration.ts
+function computeConfidenceCalibration(decisionRows) {
+  const byBand = /* @__PURE__ */ new Map();
+  for (const band of BANDS) byBand.set(band, { resolved: 0, validated: 0, reversed: 0 });
+  let unresolvedBandCount = 0;
+  for (const d of decisionRows) {
+    if (!d.outcomeFiledAt || !d.predictionAccuracy) continue;
+    const band = d.confidence;
+    const bucket = byBand.get(band);
+    if (!bucket) {
+      unresolvedBandCount += 1;
+      continue;
+    }
+    bucket.resolved += 1;
+    if (d.predictionAccuracy === "accurate") bucket.validated += 1;
+    else if (d.predictionAccuracy === "inaccurate") bucket.reversed += 1;
+  }
+  const bands = BANDS.map((band) => {
+    const bucket = byBand.get(band);
+    const accuracyPct = bucket.resolved >= MIN_RESOLVED_FOR_ACCURACY ? Math.round(bucket.validated / bucket.resolved * 100) : null;
+    return { band, ...bucket, accuracyPct };
+  });
+  const high = bands.find((b) => b.band === "high");
+  const low = bands.find((b) => b.band === "low");
+  const calibrationGapPct = high.accuracyPct !== null && low.accuracyPct !== null ? high.accuracyPct - low.accuracyPct : null;
+  return {
+    bands,
+    fullyCalibrated: bands.every((b) => b.accuracyPct !== null),
+    calibrationGapPct,
+    totalResolved: bands.reduce((sum2, b) => sum2 + b.resolved, 0),
+    unresolvedBandCount
+  };
+}
+var MIN_RESOLVED_FOR_ACCURACY, BANDS;
+var init_decision_calibration = __esm({
+  "src/services/decision-calibration.ts"() {
+    "use strict";
+    MIN_RESOLVED_FOR_ACCURACY = 3;
+    BANDS = ["high", "medium", "low"];
+  }
+});
+
+// src/services/calibration-routing.ts
+function calibrationRoutingAdvice(calibration) {
+  if (!calibration || calibration.totalResolved === 0) {
+    return {
+      active: false,
+      reason: "No filed outcomes yet \u2014 calibration cannot steer routing.",
+      minConsequentialTier: null,
+      councilRequiresFounderApproval: false
+    };
+  }
+  const high = calibration.bands.find((b) => b.band === "high");
+  const low = calibration.bands.find((b) => b.band === "low");
+  const highMeasurable = !!high && high.accuracyPct !== null;
+  const lowMeasurable = !!low && low.accuracyPct !== null;
+  if (!highMeasurable && !lowMeasurable) {
+    return {
+      active: false,
+      reason: `Calibration has ${calibration.totalResolved} resolved outcome(s) but no band has the minimum sample yet \u2014 routing unchanged.`,
+      minConsequentialTier: null,
+      councilRequiresFounderApproval: false
+    };
+  }
+  if (highMeasurable && lowMeasurable && calibration.calibrationGapPct !== null && calibration.calibrationGapPct < 0) {
+    return {
+      active: true,
+      reason: `Measured calibration is inverted (high ${high.accuracyPct}% vs low ${low.accuracyPct}%) \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
+      minConsequentialTier: 2,
+      councilRequiresFounderApproval: true
+    };
+  }
+  if (highMeasurable && high.accuracyPct !== null && high.accuracyPct < 50) {
+    return {
+      active: true,
+      reason: `High-confidence recommendations validate only ${high.accuracyPct}% of the time \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
+      minConsequentialTier: 2,
+      councilRequiresFounderApproval: true
+    };
+  }
+  return {
+    active: false,
+    reason: highMeasurable ? `High-confidence recommendations validate at ${high.accuracyPct}% \u2014 calibration is healthy; no routing override.` : "Only low-confidence outcomes are measurable so far \u2014 no routing override.",
+    minConsequentialTier: null,
+    councilRequiresFounderApproval: false
+  };
+}
+async function getCalibrationAdvice(db, orgId) {
+  const cached2 = adviceCache.get(orgId);
+  if (cached2 && Date.now() - cached2.at < ADVICE_TTL_MS) return cached2.advice;
+  try {
+    const rows = await db.select({
+      confidence: decisions.confidence,
+      predictionAccuracy: decisions.predictionAccuracy,
+      outcomeFiledAt: decisions.outcomeFiledAt
+    }).from(decisions).where(eq(decisions.orgId, orgId));
+    const advice = calibrationRoutingAdvice(computeConfidenceCalibration(rows));
+    adviceCache.set(orgId, { advice, at: Date.now() });
+    return advice;
+  } catch {
+    return calibrationRoutingAdvice(null);
+  }
+}
+var ADVICE_TTL_MS, adviceCache;
+var init_calibration_routing = __esm({
+  "src/services/calibration-routing.ts"() {
+    "use strict";
+    init_src2();
+    init_drizzle_orm();
+    init_decision_calibration();
+    ADVICE_TTL_MS = 5 * 60 * 1e3;
+    adviceCache = /* @__PURE__ */ new Map();
+  }
+});
+
 // src/services/crypto.ts
 function getKey() {
   const envKey = process.env.ENCRYPTION_KEY ?? process.env.SECRET_KEY ?? "";
@@ -98590,14 +98795,14 @@ function getKey() {
     if (process.env.NODE_ENV !== "test") {
       console.warn("[crypto] ENCRYPTION_KEY not set \u2014 using insecure dev key. Set ENCRYPTION_KEY in production.");
     }
-    return (0, import_node_crypto7.createHash)("sha256").update("orq8-dev-only-insecure-key-do-not-use-in-prod").digest();
+    return (0, import_node_crypto9.createHash)("sha256").update("orq8-dev-only-insecure-key-do-not-use-in-prod").digest();
   }
-  return (0, import_node_crypto7.createHash)("sha256").update(envKey).digest();
+  return (0, import_node_crypto9.createHash)("sha256").update(envKey).digest();
 }
 function encryptSecret(plaintext) {
   const key = getKey();
-  const iv = (0, import_node_crypto7.randomBytes)(12);
-  const cipher = (0, import_node_crypto7.createCipheriv)("aes-256-gcm", key, iv);
+  const iv = (0, import_node_crypto9.randomBytes)(12);
+  const cipher = (0, import_node_crypto9.createCipheriv)("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `v1:${iv.toString("base64")}:${tag.toString("base64")}:${encrypted.toString("base64")}`;
@@ -98607,7 +98812,7 @@ function decryptSecret(payload) {
     const [version3, ivB64, tagB64, dataB64] = payload.split(":");
     if (version3 !== "v1" || !ivB64 || !tagB64 || !dataB64) return null;
     const key = getKey();
-    const decipher = (0, import_node_crypto7.createDecipheriv)("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
+    const decipher = (0, import_node_crypto9.createDecipheriv)("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
     decipher.setAuthTag(Buffer.from(tagB64, "base64"));
     const decrypted = Buffer.concat([
       decipher.update(Buffer.from(dataB64, "base64")),
@@ -98618,11 +98823,11 @@ function decryptSecret(payload) {
     return null;
   }
 }
-var import_node_crypto7;
+var import_node_crypto9;
 var init_crypto2 = __esm({
   "src/services/crypto.ts"() {
     "use strict";
-    import_node_crypto7 = require("node:crypto");
+    import_node_crypto9 = require("node:crypto");
   }
 });
 
@@ -98820,7 +99025,7 @@ async function resolveAgent(db, orgId, agentId) {
   return agent;
 }
 async function githubFetch(db, ctx, capability, method, path2, body, actionName) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto8.randomUUID)();
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto10.randomUUID)();
   const { allowed, requiresApproval, provider } = await canAgentUseCapability(
     db,
     ctx.orgId,
@@ -99139,11 +99344,11 @@ async function dispatchGithubAction(db, ctx, action, params) {
       throw new ConnectorActionError(`Unknown GitHub action: ${String(action)}`, "invalid_params");
   }
 }
-var import_node_crypto8, GITHUB_CAPABILITIES, ConnectorActionError, fetchImpl, GITHUB_API, REQUEST_TIMEOUT_MS;
+var import_node_crypto10, GITHUB_CAPABILITIES, ConnectorActionError, fetchImpl, GITHUB_API, REQUEST_TIMEOUT_MS;
 var init_connector_actions = __esm({
   "src/services/connector-actions.ts"() {
     "use strict";
-    import_node_crypto8 = require("node:crypto");
+    import_node_crypto10 = require("node:crypto");
     init_drizzle_orm();
     init_src2();
     init_audit();
@@ -99190,7 +99395,7 @@ function buildMimeMessage(params) {
   return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
 }
 async function gmailFetch(db, ctx, capability, method, path2, json3) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto9.randomUUID)();
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto11.randomUUID)();
   const { allowed, requiresApproval, provider } = await canAgentUseCapability(
     db,
     ctx.orgId,
@@ -99335,7 +99540,7 @@ async function gmailSendDraft(db, ctx, params) {
       action: "send_draft",
       status: "denied",
       summary: "Denied: agent lacks gmail.email.send capability",
-      correlationId: ctx.correlationId ?? (0, import_node_crypto9.randomUUID)()
+      correlationId: ctx.correlationId ?? (0, import_node_crypto11.randomUUID)()
     });
     throw new ConnectorActionError("Agent is not authorized to send Gmail.", "capability_denied");
   }
@@ -99361,7 +99566,7 @@ async function gmailSendDraft(db, ctx, params) {
       requiresApproval: true,
       approvalId: approval.id,
       summary: `Send queued for founder approval (${approval.id}). Nothing was sent.`,
-      correlationId: ctx.correlationId ?? (0, import_node_crypto9.randomUUID)()
+      correlationId: ctx.correlationId ?? (0, import_node_crypto11.randomUUID)()
     });
     await appendAudit(db, {
       orgId: ctx.orgId,
@@ -99428,11 +99633,11 @@ async function dispatchGmailAction(db, ctx, action, params) {
       throw new ConnectorActionError(`Unknown Gmail action: ${String(action)}`, "invalid_params");
   }
 }
-var import_node_crypto9, GMAIL_CAPABILITIES, GMAIL_API, REQUEST_TIMEOUT_MS2, fetchImpl2, EMAIL_RE;
+var import_node_crypto11, GMAIL_CAPABILITIES, GMAIL_API, REQUEST_TIMEOUT_MS2, fetchImpl2, EMAIL_RE;
 var init_connector_gmail = __esm({
   "src/services/connector-gmail.ts"() {
     "use strict";
-    import_node_crypto9 = require("node:crypto");
+    import_node_crypto11 = require("node:crypto");
     init_audit();
     init_integrations();
     init_approvals();
@@ -99450,7 +99655,7 @@ var init_connector_gmail = __esm({
 
 // src/services/connector-linear.ts
 async function linearGraphql(db, ctx, capability, action, query, variables) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto10.randomUUID)();
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto12.randomUUID)();
   const { allowed, provider } = await canAgentUseCapability(db, ctx.orgId, ctx.agentId, "linear", capability);
   const baseOutcome = {
     orgId: ctx.orgId,
@@ -99695,11 +99900,11 @@ async function dispatchLinearAction(db, ctx, action, params) {
       throw new ConnectorActionError(`Unknown Linear action: ${String(action)}`, "invalid_params");
   }
 }
-var import_node_crypto10, LINEAR_CAPABILITIES, LINEAR_API, REQUEST_TIMEOUT_MS3, fetchImpl3, ISSUE_FRAGMENT;
+var import_node_crypto12, LINEAR_CAPABILITIES, LINEAR_API, REQUEST_TIMEOUT_MS3, fetchImpl3, ISSUE_FRAGMENT;
 var init_connector_linear = __esm({
   "src/services/connector-linear.ts"() {
     "use strict";
-    import_node_crypto10 = require("node:crypto");
+    import_node_crypto12 = require("node:crypto");
     init_audit();
     init_integrations();
     init_connector_actions();
@@ -100928,6 +101133,193 @@ var init_multi_agent = __esm({
   }
 });
 
+// src/services/decision-feedback.ts
+async function reviewDecisionOutcome(db, orgId, decision) {
+  const anchor = decision.decidedAt ?? decision.createdAt;
+  const since = new Date(anchor.getTime());
+  const now = /* @__PURE__ */ new Date();
+  const [taskStats] = await db.select({
+    created: sql`count(*)::int`,
+    completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
+    failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`,
+    open: sql`count(*) filter (where ${tasks.status} not in ('completed','failed','archived'))::int`
+  }).from(tasks).where(and(eq(tasks.orgId, orgId), gte(tasks.createdAt, since)));
+  const [goalStats] = await db.select({
+    active: sql`count(*) filter (where ${goals.status} = 'active')::int`,
+    completed: sql`count(*) filter (where ${goals.status} = 'completed')::int`
+  }).from(goals).where(and(eq(goals.orgId, orgId), gte(goals.createdAt, since)));
+  const completed = taskStats?.completed ?? 0;
+  const failed = taskStats?.failed ?? 0;
+  const open = taskStats?.open ?? 0;
+  const goalsCompleted = goalStats?.completed ?? 0;
+  const supportingEvidence = [];
+  const contradictingEvidence = [];
+  if (completed > 0) {
+    supportingEvidence.push(`${completed} task(s) completed since the decision`);
+  }
+  if (failed > 0) {
+    contradictingEvidence.push(`${failed} task(s) failed since the decision`);
+  }
+  if (goalsCompleted > 0) {
+    supportingEvidence.push(`${goalsCompleted} goal(s) completed since the decision`);
+  }
+  if (completed === 0 && failed === 0 && goalsCompleted === 0) {
+    return {
+      decisionId: decision.id,
+      title: decision.title,
+      decisionType: decision.decisionType ?? "general",
+      decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
+      expectedOutcome: decision.expectedOutcome,
+      actualOutcomeSummary: "Insufficient data: no completed, failed, or goal work has been recorded since this decision. Re-review after execution activity accumulates.",
+      predictionAccuracy: "insufficient_data",
+      supportingEvidence: [],
+      contradictingEvidence: [],
+      lessons: "No measurable outcome yet \u2014 outcome review will be attempted again on the next scheduled run."
+    };
+  }
+  let predictionAccuracy;
+  if (failed > completed) {
+    predictionAccuracy = "inaccurate";
+  } else if (failed > 0) {
+    predictionAccuracy = "partially_accurate";
+  } else {
+    predictionAccuracy = "accurate";
+  }
+  const actualOutcomeSummary = [
+    `${completed} completed / ${failed} failed / ${open} still open task(s) since the decision`,
+    goalsCompleted > 0 ? `${goalsCompleted} goal(s) completed` : null
+  ].filter(Boolean).join("; ");
+  const lessons = [
+    predictionAccuracy === "accurate" ? "Measured execution supported the decision's expectation." : predictionAccuracy === "inaccurate" ? "Measured execution contradicted the decision's expectation \u2014 revisit the assumptions behind it." : "Execution was mixed \u2014 evidence both supported and contradicted the expectation.",
+    `Basis: task/goal outcome counts since ${since.toISOString().slice(0, 10)} (the only measurable proxies currently recorded).`
+  ].join(" ");
+  return {
+    decisionId: decision.id,
+    title: decision.title,
+    decisionType: decision.decisionType ?? "general",
+    decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
+    expectedOutcome: decision.expectedOutcome,
+    actualOutcomeSummary,
+    predictionAccuracy,
+    supportingEvidence,
+    contradictingEvidence,
+    lessons
+  };
+}
+function classifyFounderOutcome(actualOutcome, completed, failed) {
+  const text2 = actualOutcome.toLowerCase();
+  const negatives = [/(^|[^a-z])fail(ed|ure|ing)?([^a-z]|$)/, /missed target/, /fell short/, /underperformed/, /did not achieve/, /didn't achieve/, /worse than expected/, /churn (rose|spiked|increased)/, /revers(ed|al)/, /regress(ed|ion)/, /(activation|adoption) dropped/];
+  const positives = [/exceed(ed|s)?/, /beat target/, /ahead of (schedule|expectations?)/, /validat(ed|ion)/, /better than expected/, /held (steady|flat)/, /on track/, /improvement/, /success(ful|fully)?/];
+  const negCount = negatives.filter((r) => r.test(text2)).length;
+  const posCount = positives.filter((r) => r.test(text2)).length;
+  if (posCount > negCount) return "accurate";
+  if (negCount > posCount) return "inaccurate";
+  if (failed > completed && completed + failed > 0) return "inaccurate";
+  if (failed > 0 && completed > 0) return "partially_accurate";
+  if (completed > 0) return "accurate";
+  return "partially_accurate";
+}
+async function findDecisionsDueForReview(db, limit = BATCH_LIMIT) {
+  const cutoff = new Date(Date.now() - OUTCOME_REVIEW_DAYS * 24 * 60 * 60 * 1e3);
+  return db.select({
+    id: decisions.id,
+    orgId: decisions.orgId,
+    title: decisions.title,
+    decisionType: decisions.decisionType,
+    decidedAt: decisions.decidedAt,
+    createdAt: decisions.createdAt,
+    expectedOutcome: decisions.expectedOutcome,
+    actualOutcome: decisions.actualOutcome,
+    outcomeFiledAt: decisions.outcomeFiledAt,
+    status: decisions.status
+  }).from(decisions).where(
+    and(
+      or(
+        sql`${decisions.outcomeFiledAt} is null`,
+        // Filed but never classified (founder-filed outcomes).
+        sql`${decisions.predictionAccuracy} is null`
+      ),
+      lt(decisions.createdAt, cutoff),
+      // Live decisions only — archived/reversed rows are historical record.
+      or(eq(decisions.status, "active"), eq(decisions.status, "validated"))
+    )
+  ).limit(limit);
+}
+async function runOutcomeFeedbackLoop(db) {
+  const due = await findDecisionsDueForReview(db);
+  let filed = 0;
+  let skipped = 0;
+  for (const decision of due) {
+    const review = await reviewDecisionOutcome(db, decision.orgId, decision);
+    if (review.predictionAccuracy === "insufficient_data") {
+      skipped += 1;
+      continue;
+    }
+    const founderFiled = decision.outcomeFiledAt != null && decision.actualOutcome != null;
+    if (founderFiled) {
+      const [stats] = await db.select({
+        completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
+        failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`
+      }).from(tasks).where(and(eq(tasks.orgId, decision.orgId), gte(tasks.createdAt, decision.decidedAt ?? decision.createdAt)));
+      await db.update(decisions).set({
+        predictionAccuracy: classifyFounderOutcome(decision.actualOutcome, stats?.completed ?? 0, stats?.failed ?? 0),
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(and(eq(decisions.id, decision.id), eq(decisions.orgId, decision.orgId)));
+      continue;
+    }
+    await db.update(decisions).set({
+      actualOutcome: review.actualOutcomeSummary,
+      lessonsLearned: review.lessons,
+      predictionAccuracy: review.predictionAccuracy,
+      // §20 phase 2: structured verdict (migration 0028)
+      outcomeFiledAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(eq(decisions.id, decision.id), eq(decisions.orgId, decision.orgId)));
+    await appendAudit(db, {
+      orgId: decision.orgId,
+      actorType: "system",
+      actorId: null,
+      action: "decision.outcome_reviewed",
+      inputRef: JSON.stringify({ decisionId: decision.id, accuracy: review.predictionAccuracy }),
+      outcome: "success"
+    });
+    try {
+      await db.insert(companyMemory).values({
+        orgId: decision.orgId,
+        category: "lesson",
+        content: `Decision review \u2014 "${decision.title.slice(0, 120)}": ${review.lessons}`,
+        importance: 4,
+        source: "decision_feedback_loop"
+      });
+    } catch {
+    }
+    try {
+      await createNotification(
+        db,
+        decision.orgId,
+        "report",
+        `Outcome review: ${decision.title.slice(0, 80)}`,
+        review.actualOutcomeSummary
+      );
+    } catch {
+    }
+    filed += 1;
+  }
+  return { reviewed: due.length, filed, skippedInsufficientData: skipped };
+}
+var OUTCOME_REVIEW_DAYS, BATCH_LIMIT;
+var init_decision_feedback = __esm({
+  "src/services/decision-feedback.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_audit();
+    init_notifications();
+    OUTCOME_REVIEW_DAYS = 14;
+    BATCH_LIMIT = 20;
+  }
+});
+
 // src/services/decision-memory.ts
 async function createDecision(db, orgId, userId, data) {
   const rows = await db.insert(decisions).values({
@@ -100964,6 +101356,42 @@ async function createDecision(db, orgId, userId, data) {
   });
   return row;
 }
+async function createPendingCouncilSession(db, orgId, userId, data) {
+  const rows = await db.insert(decisions).values({
+    orgId,
+    title: data.title,
+    decisionType: "strategic",
+    status: "pending",
+    confidence: "low",
+    decisionMakerType: "ai_council",
+    whatWasDecided: "(council session in progress)",
+    councilDetail: data.councilDetail,
+    decidedAt: /* @__PURE__ */ new Date()
+  }).returning();
+  const row = rows[0];
+  if (!row) throw new Error("Failed to create pending council session");
+  return row;
+}
+async function completePendingCouncilSession(db, orgId, id, data) {
+  await db.update(decisions).set({
+    status: "active",
+    confidence: data.confidence,
+    whatWasDecided: data.whatWasDecided.slice(0, 2e3),
+    rationale: data.rationale ?? null,
+    alternatives: data.alternatives ?? [],
+    evidence: data.evidence ?? [],
+    assumptions: data.assumptions ?? [],
+    expectedOutcome: data.expectedOutcome ?? null,
+    councilDetail: data.councilDetail
+  }).where(and(eq(decisions.id, id), eq(decisions.orgId, orgId)));
+}
+async function failPendingCouncilSession(db, orgId, id, reason) {
+  await db.update(decisions).set({
+    status: "failed",
+    whatWasDecided: `(council session did not complete: ${reason})`.slice(0, 2e3),
+    councilDetail: { failureReason: reason.slice(0, 500) }
+  }).where(and(eq(decisions.id, id), eq(decisions.orgId, orgId), eq(decisions.status, "pending")));
+}
 async function listDecisions2(db, orgId, opts = {}) {
   const conditions = [eq(decisions.orgId, orgId)];
   if (opts.decisionType) conditions.push(eq(decisions.decisionType, opts.decisionType));
@@ -100979,8 +101407,23 @@ async function getDecision(db, orgId, id) {
 }
 async function updateDecision(db, orgId, userId, id, data) {
   const updateData = { ...data };
+  if (data.founderVerdict) {
+    updateData.founderVerdictAt = /* @__PURE__ */ new Date();
+    if (!data.founderVerdictNote) delete updateData.founderVerdictNote;
+  }
   if (data.actualOutcome) {
     updateData.outcomeFiledAt = /* @__PURE__ */ new Date();
+    const [existing] = await db.select({ decidedAt: decisions.decidedAt, createdAt: decisions.createdAt }).from(decisions).where(and(eq(decisions.id, id), eq(decisions.orgId, orgId))).limit(1);
+    const anchor = existing?.decidedAt ?? existing?.createdAt ?? /* @__PURE__ */ new Date(0);
+    const [stats] = await db.select({
+      completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
+      failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`
+    }).from(tasks).where(and(eq(tasks.orgId, orgId), gte(tasks.createdAt, anchor)));
+    updateData.predictionAccuracy = classifyFounderOutcome(
+      data.actualOutcome,
+      stats?.completed ?? 0,
+      stats?.failed ?? 0
+    );
   }
   const [row] = await db.update(decisions).set(updateData).where(and(eq(decisions.id, id), eq(decisions.orgId, orgId))).returning();
   if (row) {
@@ -100988,8 +101431,12 @@ async function updateDecision(db, orgId, userId, id, data) {
       orgId,
       actorType: "user",
       actorId: userId,
-      action: "decision.updated",
-      inputRef: JSON.stringify({ id, changes: Object.keys(data) }),
+      action: data.founderVerdict ? "decision.founder_verdict" : "decision.updated",
+      inputRef: JSON.stringify({
+        id,
+        changes: Object.keys(data),
+        ...data.founderVerdict ? { verdict: data.founderVerdict } : {}
+      }),
       outcome: "success"
     });
   }
@@ -101008,6 +101455,8 @@ async function getDecisionSummary(db, orgId) {
     typeMap.set(d.decisionType, (typeMap.get(d.decisionType) ?? 0) + 1);
   }
   const byType = Array.from(typeMap.entries()).map(([type, count4]) => ({ type, count: count4 })).sort((a, b) => b.count - a.count);
+  const calibration = computeConfidenceCalibration(allDecisions);
+  const routingConsequence = calibrationRoutingAdvice(calibration);
   return {
     totalDecisions: total,
     activeDecisions: active,
@@ -101015,7 +101464,9 @@ async function getDecisionSummary(db, orgId) {
     reversedDecisions: reversed,
     learningScore,
     byType,
-    recentDecisions: allDecisions.slice(0, 10)
+    recentDecisions: allDecisions.slice(0, 10),
+    routingConsequence,
+    calibration
   };
 }
 async function getDecisionContext(db, orgId, query) {
@@ -101057,6 +101508,9 @@ var init_decision_memory = __esm({
     init_drizzle_orm();
     init_src2();
     init_audit();
+    init_decision_feedback();
+    init_decision_calibration();
+    init_calibration_routing();
   }
 });
 
@@ -101882,6 +102336,124 @@ var init_delegation_orchestrator = __esm({
   }
 });
 
+// src/services/org-recommendation.ts
+var org_recommendation_exports = {};
+__export(org_recommendation_exports, {
+  activateDepartmentTemplate: () => activateDepartmentTemplate,
+  getCatalog: () => getCatalog,
+  getStageAppropriateCatalog: () => getStageAppropriateCatalog,
+  parseTemplateStage: () => parseTemplateStage,
+  recommendOrgForStage: () => recommendOrgForStage
+});
+function parseTemplateStage(orgSize) {
+  const m = (orgSize ?? "").match(/Stage\s+(\d)/i);
+  if (!m) return 3;
+  const n = Number.parseInt(m[1] ?? "", 10);
+  if (!Number.isFinite(n) || n < 1 || n > 5) return 3;
+  return n;
+}
+async function getCatalog(db, orgId) {
+  const rows = await db.select().from(departmentTemplates).where(
+    or(
+      eq(departmentTemplates.isSystem, true),
+      and(eq(departmentTemplates.orgId, orgId), eq(departmentTemplates.isSystem, false)),
+      and(isNull(departmentTemplates.orgId), eq(departmentTemplates.isSystem, true))
+    )
+  );
+  return rows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    description: t.description,
+    mission: t.mission,
+    teams: Array.isArray(t.teams) ? t.teams : [],
+    stage: parseTemplateStage(t.orgSize),
+    stageLabel: t.orgSize,
+    isSystem: t.isSystem
+  }));
+}
+async function getStageAppropriateCatalog(db, orgId, stage) {
+  const catalog = await getCatalog(db, orgId);
+  return catalog.filter((t) => t.stage <= stage);
+}
+async function recommendOrgForStage(db, orgId, stage) {
+  const catalog = await getCatalog(db, orgId);
+  const recommended = catalog.filter((t) => t.stage <= stage).sort((a, b) => a.stage - b.stage);
+  const deferred = catalog.filter((t) => t.stage > stage).map((t) => ({ name: t.name, stage: t.stage, stageLabel: t.stageLabel })).sort((a, b) => a.stage - b.stage);
+  const stageNames = {
+    1: "idea stage",
+    2: "early startup",
+    3: "growing company",
+    4: "scaling company",
+    5: "enterprise"
+  };
+  const rationale = stage === 1 ? `These ${recommended.length} departments are recommended now because they cover the company's current operating requirements without unnecessary organizational overhead: core delivery (engineering), product definition, early demand generation, the first revenue motion, and lean executive support. The remaining ${deferred.length} functions arrive as the company reaches their stage \u2014 adding them now would create empty structure, not capability.` : `For the ${stageNames[stage]} stage, these ${recommended.length} departments match the company's current operating requirements. ${deferred.length} further functions are deferred until their stage arrives.`;
+  return { stage, recommended, deferred, rationale };
+}
+async function activateDepartmentTemplate(db, ctx, templateId) {
+  const [template] = await db.select().from(departmentTemplates).where(
+    and(
+      eq(departmentTemplates.id, templateId),
+      or(eq(departmentTemplates.isSystem, true), eq(departmentTemplates.orgId, ctx.orgId))
+    )
+  ).limit(1);
+  if (!template) return { ok: false, reason: "not_found" };
+  const activated = { departments: [], teams: [], reused: [] };
+  const existingDept = await findByName(db, ctx.orgId, template.name);
+  let departmentId;
+  if (existingDept) {
+    departmentId = existingDept.id;
+    activated.reused.push(template.name);
+  } else {
+    await enforceResourceLimit(db, ctx.orgId, "departments");
+    const created = await createDepartment(db, {
+      orgId: ctx.orgId,
+      name: template.name,
+      description: template.mission ?? template.description ?? void 0
+    });
+    departmentId = created.id;
+    activated.departments.push(template.name);
+  }
+  const teamDefs = Array.isArray(template.teams) ? template.teams : [];
+  for (const t of teamDefs) {
+    if (!t?.name) continue;
+    const existingTeam = await findByName2(db, ctx.orgId, t.name);
+    if (existingTeam) {
+      activated.reused.push(t.name);
+      continue;
+    }
+    await enforceResourceLimit(db, ctx.orgId, "teams");
+    const team = await createTeam(db, {
+      orgId: ctx.orgId,
+      name: t.name,
+      description: t.description,
+      departmentId
+    });
+    activated.teams.push(team.name);
+  }
+  await appendAudit(db, {
+    orgId: ctx.orgId,
+    actorType: "user",
+    actorId: ctx.userId,
+    action: "department.activated_from_template",
+    inputRef: JSON.stringify({ templateId: template.id, templateSlug: template.slug }),
+    resultRef: JSON.stringify({ departmentId, ...activated }),
+    outcome: "success"
+  });
+  return { ok: true, result: { departmentId, activated } };
+}
+var init_org_recommendation = __esm({
+  "src/services/org-recommendation.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_departments();
+    init_teams();
+    init_entitlements();
+    init_audit();
+  }
+});
+
 // src/services/engineering-manager.ts
 var engineering_manager_exports = {};
 __export(engineering_manager_exports, {
@@ -101895,7 +102467,7 @@ __export(engineering_manager_exports, {
 });
 function fingerprintRequest(orgId, input) {
   const key = input.requestId?.trim() || `${input.objective.trim()}|${input.description?.trim() ?? ""}`;
-  return (0, import_node_crypto11.createHash)("sha256").update(`${orgId}:engineering:${key}`).digest("hex").slice(0, 24);
+  return (0, import_node_crypto13.createHash)("sha256").update(`${orgId}:engineering:${key}`).digest("hex").slice(0, 24);
 }
 function selectEngineeringTeam(agents4, objective) {
   const text2 = objective.toLowerCase();
@@ -102095,12 +102667,12 @@ async function recentPlans(db, orgId, limit = 10) {
     }
   });
 }
-var import_node_crypto11, ENGINEERING_ROLE_HINTS;
+var import_node_crypto13, ENGINEERING_ROLE_HINTS;
 var init_engineering_manager = __esm({
   "src/services/engineering-manager.ts"() {
     "use strict";
     init_drizzle_orm();
-    import_node_crypto11 = require("node:crypto");
+    import_node_crypto13 = require("node:crypto");
     init_src2();
     init_agents();
     init_capability_registry();
@@ -102125,6 +102697,7 @@ var init_engineering_manager = __esm({
 // src/services/ea-tools.ts
 var ea_tools_exports = {};
 __export(ea_tools_exports, {
+  activateDepartmentFromCatalog: () => activateDepartmentFromCatalog,
   analyzeWorkforce: () => analyzeWorkforce,
   archiveDepartment: () => archiveDepartment,
   archiveTeam: () => archiveTeam,
@@ -102136,6 +102709,7 @@ __export(ea_tools_exports, {
   findBestAgent: () => findBestAgent,
   getOrganizationSummary: () => getOrganizationSummary,
   planEngineering: () => planEngineering,
+  recommendOrgStage: () => recommendOrgStage,
   renameAgent: () => renameAgent,
   renameDepartment: () => renameDepartment,
   renameOrganization: () => renameOrganization,
@@ -102144,6 +102718,62 @@ __export(ea_tools_exports, {
   updateGoal: () => updateGoal,
   updateTask: () => updateTask
 });
+async function recommendOrgStage(ctx, params) {
+  const { recommendOrgForStage: recommendOrgForStage2, parseTemplateStage: parseTemplateStage3 } = await Promise.resolve().then(() => (init_org_recommendation(), org_recommendation_exports));
+  const stageInput = params?.stage;
+  let stage;
+  if (Number.isFinite(stageInput) && stageInput >= 1 && stageInput <= 5) {
+    stage = stageInput;
+  } else {
+    const deptRows = await ctx.db.select({ id: departments.id }).from(departments).where(eq(departments.orgId, ctx.orgId));
+    stage = Math.min(5, Math.max(1, Math.ceil((deptRows.length || 0) / 5)));
+  }
+  const rec = await recommendOrgForStage2(ctx.db, ctx.orgId, stage);
+  return {
+    success: true,
+    tool: "recommend_org_stage",
+    message: `Stage ${rec.stage}: recommend ${rec.recommended.map((t) => t.name).join(", ")} (${rec.recommended.length} departments; ${rec.deferred.length} deferred). ${rec.rationale}`,
+    data: {
+      stage: rec.stage,
+      recommended: rec.recommended.map((t) => ({ id: t.id, name: t.name, slug: t.slug, stage: t.stage })),
+      deferred: rec.deferred.map((t) => ({ name: t.name, stage: t.stage })),
+      rationale: rec.rationale
+    }
+  };
+}
+async function activateDepartmentFromCatalog(ctx, params) {
+  const { activateDepartmentTemplate: activateDepartmentTemplate2, getCatalog: getCatalog2 } = await Promise.resolve().then(() => (init_org_recommendation(), org_recommendation_exports));
+  const catalog = await getCatalog2(ctx.db, ctx.orgId);
+  let template = null;
+  if (params?.templateId) {
+    template = catalog.find((t) => t.id === params.templateId) ?? null;
+  } else if (params?.templateName) {
+    const wanted = params.templateName.trim().toLowerCase();
+    template = catalog.find((t) => t.name.toLowerCase() === wanted) ?? catalog.find((t) => t.slug === wanted) ?? catalog.find((t) => t.name.toLowerCase().includes(wanted)) ?? null;
+  }
+  if (!template) {
+    return {
+      success: false,
+      tool: "activate_department",
+      message: `No catalog department matches ${params?.templateName ?? params?.templateId ?? "(none given)"}. Available: ${catalog.map((t) => t.name).join(", ")}.`,
+      error: "not_found"
+    };
+  }
+  const outcome = await activateDepartmentTemplate2(ctx.db, { orgId: ctx.orgId, userId: ctx.userId }, template.id);
+  if (!outcome.ok) {
+    return { success: false, tool: "activate_department", message: "Template not found.", error: "not_found" };
+  }
+  const { departmentId, activated } = outcome.result;
+  const parts = [];
+  parts.push(activated.departments.length ? `created department "${activated.departments[0]}"` : `department "${template.name}" already existed`);
+  if (activated.teams.length) parts.push(`teams: ${activated.teams.join(", ")}`);
+  return {
+    success: true,
+    tool: "activate_department",
+    message: `Activated "${template.name}" from the catalog \u2014 ${parts.join("; ")}.`,
+    data: { departmentId, activated, stage: template.stage, stageLabel: template.stageLabel }
+  };
+}
 async function renameAgent(ctx, params) {
   const { agentId, newName } = params;
   if (!newName || newName.trim().length === 0) {
@@ -102816,12 +103446,19 @@ function extractClaims(text2) {
   }
   return claims;
 }
+function stripReasoningWrapper(raw) {
+  let out = raw.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  const cotIdx = out.search(/here'?s? (a |the )?thinking process|let'?s think step by step|analyzing (the )?user input/i);
+  if (cotIdx > 0) out = out.slice(cotIdx);
+  return out.trim();
+}
 function parseSynthesisJson(raw) {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
+  const cleaned = stripReasoningWrapper(raw);
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
   if (start === -1 || end <= start) return null;
   try {
-    const parsed = JSON.parse(raw.slice(start, end + 1));
+    const parsed = JSON.parse(cleaned.slice(start, end + 1));
     if (typeof parsed.recommendation !== "string") return null;
     return {
       recommendation: parsed.recommendation,
@@ -102868,6 +103505,10 @@ async function runDeliberation(config2, db, orgId, userId, input) {
   const models = diverseModelsFor(roster.length, {
     allowExpensive: escalation.level === "executive_deliberation" || escalation.level === "department_council"
   });
+  const calibrationAdvice = await getCalibrationAdvice(db, orgId);
+  if (calibrationAdvice.active) {
+    result.requiresFounderApproval = true;
+  }
   result.participants = roster.map((p3, i) => ({
     name: p3.name,
     role: p3.role,
@@ -102894,7 +103535,12 @@ async function runDeliberation(config2, db, orgId, userId, input) {
 
 You represent the ${p3.department} function.`,
       buildContextBlock(),
-      { model: p3.model ?? void 0, max_tokens: ANALYSIS_MAX_TOKENS, temperature: 0.4 }
+      {
+        model: p3.model ?? void 0,
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: 0.4,
+        _trace: { orgId, phase: "deliberation", routingSource: "static", db }
+      }
     );
     if (!text2) {
       result.stoppedReason = "llm_unavailable";
@@ -102937,7 +103583,12 @@ You represent the ${p3.department} function.`,
 
 ALL ROUND-1 ANALYSES:
 ${round1Digest}`,
-      { model: p3.model ?? void 0, max_tokens: ANALYSIS_MAX_TOKENS, temperature: 0.4 }
+      {
+        model: p3.model ?? void 0,
+        max_tokens: ANALYSIS_MAX_TOKENS,
+        temperature: 0.4,
+        _trace: { orgId, phase: "deliberation", routingSource: "static", db }
+      }
     );
     if (!text2) continue;
     const analysis = {
@@ -102976,7 +103627,12 @@ ${round1.find((a) => a.participant === p3.name)?.analysis ?? "(unavailable)"}
 
 CROSS-EXAMINATION TRANSCRIPT:
 ${crossDigest}`,
-      { model: p3.model ?? void 0, max_tokens: 768, temperature: 0.3 }
+      {
+        model: p3.model ?? void 0,
+        max_tokens: 768,
+        temperature: 0.3,
+        _trace: { orgId, phase: "deliberation", routingSource: "static", db }
+      }
     );
     if (!text2) continue;
     const analysis = {
@@ -103010,7 +103666,17 @@ ${a.analysis}`
 
 FINAL POSITIONS:
 ${finalPositions.join("\n\n").slice(0, 9e3)}`,
-    { model: models[0] ?? void 0, max_tokens: SYNTHESIS_MAX_TOKENS, temperature: 0.2 }
+    {
+      model: calibrationAdvice.active ? strongestModelId() : models[0] ?? void 0,
+      max_tokens: SYNTHESIS_MAX_TOKENS,
+      temperature: 0.2,
+      _trace: {
+        orgId,
+        phase: "deliberation_synthesis",
+        routingSource: calibrationAdvice.active ? "calibration" : "static",
+        db
+      }
+    }
   );
   if (!synthesisRaw) {
     result.stoppedReason = "llm_unavailable";
@@ -103018,18 +103684,20 @@ ${finalPositions.join("\n\n").slice(0, 9e3)}`,
     return result;
   }
   const parsed = parseSynthesisJson(synthesisRaw);
+  const cleanedRaw = stripReasoningWrapper(synthesisRaw);
+  const looksLikeReasoning = /here'?s? (a |the )?thinking process|analyzing (the )?user input|<think>/i.test(cleanedRaw);
   result.synthesis = parsed ?? {
-    recommendation: synthesisRaw.slice(0, 2e3),
+    recommendation: looksLikeReasoning ? "" : cleanedRaw.slice(0, 2e3),
     confidence: "low",
     consensusReached: false,
     disagreements: [],
     risks: [],
-    unknowns: ["Synthesis output could not be parsed as structured JSON \u2014 raw text preserved"],
+    unknowns: [looksLikeReasoning ? "Synthesis output contained model reasoning instead of a decision \u2014 no recommendation recorded" : "Synthesis output could not be parsed as structured JSON \u2014 cleaned text preserved"],
     alternatives: [],
     verdictText: "Synthesis returned unstructured output"
   };
   result.totalTokensUsed = tokensUsed + Math.ceil((synthesisRaw.length + 3e3) / 4);
-  if (escalation.level === "department_council" || escalation.level === "executive_deliberation") {
+  if (input.persistDecision !== false && (escalation.level === "department_council" || escalation.level === "executive_deliberation")) {
     try {
       const decision = await createDecision(db, orgId, userId, {
         title: input.question.slice(0, 200),
@@ -103062,7 +103730,10 @@ ${finalPositions.join("\n\n").slice(0, 9e3)}`,
         }
       });
       result.decisionId = decision.id;
-    } catch {
+    } catch (err) {
+      console.error(
+        `[deliberation] decision persistence failed (org=${orgId}): ${err instanceof Error ? err.message : String(err)}`
+      );
       result.decisionId = null;
     }
   }
@@ -103072,6 +103743,8 @@ var SYNTHESIS_MAX_TOKENS, ANALYSIS_MAX_TOKENS, ANALYSIS_SYSTEM, CROSS_SYSTEM, RE
 var init_deliberation = __esm({
   "src/services/deliberation.ts"() {
     "use strict";
+    init_calibration_routing();
+    init_model_intelligence();
     init_llm();
     init_decision_memory();
     init_model_intelligence();
@@ -103674,12 +104347,22 @@ function getRedis(config2, logger) {
 }
 
 // src/plugins/rate-limit-redis.ts
+var import_node_crypto2 = require("node:crypto");
+function sessionOrIpKey(request) {
+  const auth = request.headers.authorization;
+  const token = (auth && auth.startsWith("Bearer ") ? auth.slice(7).trim() : "") || request.cookies?.orq8_session || "";
+  if (token) {
+    return `sess:${(0, import_node_crypto2.createHash)("sha256").update(token).digest("hex").slice(0, 16)}`;
+  }
+  return `ip:${request.ip ?? "unknown"}`;
+}
 function rateLimitHookRedis(app, redis, opts = {}) {
   const windowMs = opts.windowMs ?? 6e4;
   const max2 = opts.max ?? 5;
   const prefix = opts.prefix ?? "rl";
   const keyFn = opts.keyFn ?? ((req) => req.ip ?? "unknown");
   app.addHook("onRequest", async (request, reply) => {
+    if (opts.skip?.(request)) return;
     const key = `${prefix}:${keyFn(request)}`;
     const now = Date.now();
     const windowStart = now - windowMs;
@@ -103716,10 +104399,11 @@ function rateLimitRouteRedis(app, redis, opts) {
   const max2 = opts.max ?? 5;
   const label = opts.label ?? opts.path;
   const prefix = opts.prefix ?? "rl:route";
+  const methods = opts.methods ?? ["POST"];
+  const keyFn = opts.keyFn ?? ((req) => req.ip ?? "unknown");
   app.addHook("onRequest", async (request, reply) => {
-    if (request.method !== "POST" || !request.url.startsWith(opts.path)) return;
-    const ip = request.ip ?? "unknown";
-    const key = `${prefix}:${opts.path}:${ip}`;
+    if (!methods.includes(request.method) || !request.url.startsWith(opts.path)) return;
+    const key = `${prefix}:${opts.path}:${keyFn(request)}`;
     const now = Date.now();
     const windowStart = now - windowMs;
     const requestId = `${now}:${Math.random().toString(36).slice(2, 8)}`;
@@ -103762,7 +104446,7 @@ function rateLimitLoginRedis(app, redis) {
 
 // src/app.ts
 init_src();
-var import_node_crypto20 = require("node:crypto");
+var import_node_crypto22 = require("node:crypto");
 var import_fastify = __toESM(require_fastify(), 1);
 
 // src/plugins/idempotency.ts
@@ -105034,7 +105718,7 @@ function registerApprovalRoutes(app, deps) {
 // src/routes/auth.ts
 init_src3();
 init_src();
-var import_node_crypto6 = require("node:crypto");
+var import_node_crypto7 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_zod();
@@ -105171,13 +105855,13 @@ init_audit();
 
 // src/services/email-verification.ts
 init_drizzle_orm();
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 init_src2();
 var VERIFICATION_TOKEN_TTL_HOURS = 24;
 var RESEND_WINDOW_MINUTES = 60;
 var RESEND_MAX_PER_WINDOW = 3;
 function sha256hex(value) {
-  return (0, import_node_crypto4.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto5.createHash)("sha256").update(value).digest("hex");
 }
 async function issueVerificationToken(db, userId, email3) {
   const [user] = await db.select({ emailVerifiedAt: users.emailVerifiedAt }).from(users).where(eq(users.id, userId)).limit(1);
@@ -105192,7 +105876,7 @@ async function issueVerificationToken(db, userId, email3) {
     const retryAfterMinutes = oldestAt ? Math.max(1, Math.ceil(RESEND_WINDOW_MINUTES - (Date.now() - oldestAt.getTime()) / 6e4)) : RESEND_WINDOW_MINUTES;
     return { ok: false, reason: "rate_limited", retryAfterMinutes };
   }
-  const plaintextToken = (0, import_node_crypto4.randomBytes)(32).toString("hex");
+  const plaintextToken = (0, import_node_crypto5.randomBytes)(32).toString("hex");
   const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 36e5);
   const rows = await db.insert(emailVerificationTokens).values({ userId, tokenHash: sha256hex(plaintextToken), expiresAt }).returning({ id: emailVerificationTokens.id });
   if (!rows[0]) return { ok: false, reason: "issue_failed" };
@@ -105222,14 +105906,14 @@ init_transport();
 
 // src/services/orgs.ts
 init_drizzle_orm();
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 init_src2();
 function slugify2(name2) {
   const base = name2.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return base || "org";
 }
 async function createOrg(db, input) {
-  const slug = `${slugify2(input.name)}-${(0, import_node_crypto5.randomBytes)(2).toString("hex")}`;
+  const slug = `${slugify2(input.name)}-${(0, import_node_crypto6.randomBytes)(2).toString("hex")}`;
   const [row] = await db.insert(organizations).values({ name: input.name.trim(), slug, plan: input.plan ?? "free" }).returning();
   if (!row) throw new Error("createOrg returned no row");
   return row;
@@ -105240,6 +105924,10 @@ async function createMembership(db, input) {
 async function updateOrg(db, orgId, input) {
   const updates = {};
   if (input.name !== void 0) updates.name = input.name.trim();
+  if (input.isDemo !== void 0) {
+    const [current] = await db.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, orgId));
+    updates.settings = { ...current?.settings ?? {}, isDemo: input.isDemo };
+  }
   const [row] = await db.update(organizations).set(updates).where(eq(organizations.id, orgId)).returning();
   if (!row) throw new Error("updateOrg returned no row");
   return row;
@@ -105251,7 +105939,8 @@ async function findMembershipsByUser(db, userId) {
       id: organizations.id,
       name: organizations.name,
       slug: organizations.slug,
-      plan: organizations.plan
+      plan: organizations.plan,
+      settings: organizations.settings
     }
   }).from(memberships).innerJoin(organizations, eq(memberships.orgId, organizations.id)).where(eq(memberships.userId, userId));
 }
@@ -105473,7 +106162,7 @@ async function resetFailedLogins(redis, email3, db) {
 
 // src/routes/auth.ts
 function sha256hex2(value) {
-  return (0, import_node_crypto6.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto7.createHash)("sha256").update(value).digest("hex");
 }
 function registerAuthRoutes(app, deps) {
   const { db, logger } = deps;
@@ -105513,7 +106202,7 @@ function registerAuthRoutes(app, deps) {
           html: emailContent.html
         });
       } catch (emailErr) {
-        deps.logger.warn({ err: emailErr }, "verification email delivery failed at signup \u2014 user can resend");
+        deps.logger.warn({ err: emailErr }, "verification email delivery failed at signup, user can resend");
       }
     }
     reply.code(201);
@@ -105565,6 +106254,15 @@ function registerAuthRoutes(app, deps) {
         await appendAudit(db, { orgId, actorType: "user", actorId: user.id, action: "auth.login_failed", outcome: "denied" });
       }
       throw unauthorized("Invalid email or password");
+    }
+    if (!user.emailVerifiedAt) {
+      logger.info({ userId: user.id }, "login blocked: email not verified");
+      throw new AppError(
+        403,
+        "email_not_verified",
+        "Confirm your email address to sign in. Use the link we emailed you, or request a new one from the sign-in page.",
+        { email: email3 }
+      );
     }
     await resetFailedLogins(redis, email3, db);
     const memberships2 = await findMembershipsByUser(db, user.id);
@@ -105625,7 +106323,7 @@ function registerAuthRoutes(app, deps) {
         isNull(passwordResetTokens.usedAt)
       )
     );
-    const plaintextToken = (0, import_node_crypto6.randomBytes)(32).toString("hex");
+    const plaintextToken = (0, import_node_crypto7.randomBytes)(32).toString("hex");
     const tokenHash = sha256hex2(plaintextToken);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
     await db.insert(passwordResetTokens).values({
@@ -105677,6 +106375,8 @@ function registerAuthRoutes(app, deps) {
     const newHash = await hashPassword(password);
     await db.update(users).set({ passwordHash: newHash, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, resetToken.userId));
     await db.update(passwordResetTokens).set({ usedAt: /* @__PURE__ */ new Date() }).where(eq(passwordResetTokens.id, resetToken.id));
+    await invalidateUserSessions(db, resetToken.userId, deps.redis ?? null);
+    await db.update(users).set({ emailVerifiedAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(users.id, resetToken.userId), isNull(users.emailVerifiedAt)));
     const user = await findById6(db, resetToken.userId);
     if (user) {
       const memberships2 = await findMembershipsByUser(db, resetToken.userId);
@@ -105710,7 +106410,10 @@ function registerAuthRoutes(app, deps) {
           avatarUrl: user.avatarUrl ?? null,
           emailVerified: !!user.emailVerifiedAt
         },
-        memberships: memberships2.map((m) => ({ org: m.org, role: m.membership.role })),
+        memberships: memberships2.map((m) => ({
+          org: { ...m.org, isDemo: m.org.settings?.isDemo === true },
+          role: m.membership.role
+        })),
         active_org_id: ctx.orgId,
         platformRole: isPlatformAdmin ? "admin" : "user"
       }
@@ -105731,7 +106434,12 @@ function registerAuthRoutes(app, deps) {
   app.patch("/v1/org", async (request) => {
     const ctx = await requireAuth(request, deps);
     const parsed = external_exports.object({
-      name: external_exports.string().trim().min(1).max(200)
+      name: external_exports.string().trim().min(1).max(200).optional(),
+      // Demo labeling (§58): owner-controlled flag that marks the org's staged
+      // content as demo data. Audited like any consequential org change.
+      isDemo: external_exports.boolean().optional()
+    }).refine((v) => v.name !== void 0 || v.isDemo !== void 0, {
+      message: "Nothing to update"
     }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
     const memberships2 = await findMembershipsByUser(db, ctx.userId);
@@ -105740,13 +106448,14 @@ function registerAuthRoutes(app, deps) {
     if (current.membership.role !== "owner" && current.membership.role !== "admin") {
       throw forbidden("Only owners and admins can update organization details");
     }
-    const updated = await updateOrg(db, ctx.orgId, { name: parsed.data.name });
+    const updated = await updateOrg(db, ctx.orgId, { name: parsed.data.name, isDemo: parsed.data.isDemo });
     await appendAudit(db, {
       orgId: ctx.orgId,
       actorType: "user",
       actorId: ctx.userId,
-      action: "org.renamed",
-      outcome: "success"
+      action: parsed.data.isDemo !== void 0 ? "org.demo_flag_changed" : "org.renamed",
+      outcome: "success",
+      inputRef: parsed.data.isDemo !== void 0 ? `isDemo=${parsed.data.isDemo}` : null
     });
     return {
       data: {
@@ -105842,9 +106551,9 @@ function registerAuthRoutes(app, deps) {
     const result = await consumeVerificationToken(db, parsed.data.token);
     if (!result.ok) {
       const messages = {
-        invalid: "This verification link is not valid.",
-        expired: "This verification link has expired. Request a new email from Settings.",
-        already_used: "This verification link was already used \u2014 your email may already be verified.",
+        invalid: "This verification link is not valid. Request a new email from the sign-in page.",
+        expired: "This verification link has expired. Request a new email from the sign-in page.",
+        already_used: "This verification link was already used. Your email may already be verified.",
         already_verified: "This email is already verified."
       };
       reply.code(400);
@@ -105864,6 +106573,402 @@ function registerAuthRoutes(app, deps) {
       });
     }
     return { data: { verified: true } };
+  });
+  app.post("/v1/auth/verify-email/request", async (request) => {
+    const parsed = external_exports.object({ email: external_exports.string().email() }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    const user = await findByEmail(db, parsed.data.email);
+    if (user && !user.emailVerifiedAt) {
+      const result = await issueVerificationToken(db, user.id, user.email);
+      if (result.ok) {
+        const verifyUrl = `${deps.config.ALLOWED_ORIGINS.split(",")[0]?.trim() ?? "http://localhost:3000"}/verify-email?token=${result.plaintextToken}`;
+        const { verificationEmail: verificationEmail2 } = await Promise.resolve().then(() => (init_transactional(), transactional_exports));
+        const emailContent = verificationEmail2({ email: user.email, verifyUrl });
+        const transport = createEmailTransport(deps.config, deps.logger);
+        try {
+          await transport.send({
+            to: user.email,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html
+          });
+        } catch (emailErr) {
+          deps.logger.warn({ err: emailErr }, "public verification resend delivery failed");
+        }
+      }
+    }
+    return { data: { ok: true } };
+  });
+}
+
+// src/routes/oauth.ts
+init_src();
+
+// src/services/oauth-signin.ts
+var import_node_crypto8 = require("node:crypto");
+init_drizzle_orm();
+init_src2();
+init_src();
+init_src3();
+init_sessions();
+init_audit();
+var OAUTH_STATE_TTL_MS = 10 * 60 * 1e3;
+function isOAuthProvider(value) {
+  return value === "github" || value === "google";
+}
+function sentinelPasswordFor(config2, userId) {
+  return (0, import_node_crypto8.createHmac)("sha256", config2.SESSION_SECRET).update(`orq8-oauth-sentinel:${userId}`).digest("base64");
+}
+async function isOAuthSentinelHash(config2, userId, storedHash) {
+  return verifyPassword(storedHash, sentinelPasswordFor(config2, userId));
+}
+async function fetchGithubProfile(accessToken) {
+  const headers = {
+    authorization: `Bearer ${accessToken}`,
+    accept: "application/vnd.github+json",
+    "user-agent": "ORQ8"
+  };
+  const [userRes, emailsRes] = await Promise.all([
+    fetch("https://api.github.com/user", { headers }),
+    fetch("https://api.github.com/user/emails", { headers })
+  ]);
+  if (!userRes.ok) {
+    throw new AppError(
+      502,
+      "oauth_provider_error",
+      "GitHub did not respond to the sign-in request. Try again, or sign in with your email."
+    );
+  }
+  const ghUser = await userRes.json();
+  let email3 = ghUser.email;
+  let emailVerified = false;
+  if (emailsRes.ok) {
+    const emails = await emailsRes.json();
+    const chosen = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
+    if (chosen) {
+      email3 = chosen.email;
+      emailVerified = chosen.verified;
+    }
+  }
+  if (!email3) {
+    throw new AppError(
+      401,
+      "oauth_email_missing",
+      "Your GitHub account has no email ORQ8 can use. Add a verified email on GitHub, then try again."
+    );
+  }
+  return {
+    providerAccountId: String(ghUser.id),
+    email: email3.trim().toLowerCase(),
+    emailVerified,
+    name: ghUser.name ?? ghUser.login
+  };
+}
+async function fetchGoogleProfile(accessToken) {
+  const res = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    headers: { authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) {
+    throw new AppError(
+      502,
+      "oauth_provider_error",
+      "Google did not respond to the sign-in request. Try again, or sign in with your email."
+    );
+  }
+  const gUser = await res.json();
+  if (!gUser.email) {
+    throw new AppError(
+      401,
+      "oauth_email_missing",
+      "Your Google account has no email ORQ8 can use. Sign in with your email instead."
+    );
+  }
+  return {
+    providerAccountId: gUser.sub,
+    email: gUser.email.trim().toLowerCase(),
+    emailVerified: gUser.email_verified === true,
+    name: gUser.name ?? null
+  };
+}
+function stateKey(config2) {
+  return config2.ENCRYPTION_KEY || "oauth-signin-state-dev-fallback-do-not-use-in-prod";
+}
+var STATE_NAMESPACE = "auth-oauth-signin|";
+function signOAuthState(config2, state) {
+  const payload = { ...state, exp: Date.now() + OAUTH_STATE_TTL_MS };
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = (0, import_node_crypto8.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
+  return `${body}.${sig}`;
+}
+function verifyOAuthState(config2, state, provider) {
+  if (!state) return null;
+  try {
+    const [body, sig] = state.split(".");
+    if (!body || !sig) return null;
+    const expected = (0, import_node_crypto8.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
+    const a = Buffer.from(sig, "utf8");
+    const b = Buffer.from(expected, "utf8");
+    if (a.length !== b.length || !(0, import_node_crypto8.timingSafeEqual)(a, b)) return null;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (payload.provider !== provider) return null;
+    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+    if (typeof payload.redirectUri !== "string" || payload.redirectUri.length === 0) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+function safeNextPath(value) {
+  if (typeof value !== "string") return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
+  return value.slice(0, 300);
+}
+function isAllowedSignInRedirectUri(config2, provider, redirectUri) {
+  try {
+    const url2 = new URL(redirectUri);
+    if (url2.pathname !== `/api/auth/oauth/callback/${provider}`) return false;
+    if (url2.search || url2.hash || url2.username || url2.password) return false;
+    if (config2.APP_URL) {
+      const expected = new URL(config2.APP_URL);
+      return url2.protocol === expected.protocol && url2.host === expected.host;
+    }
+    return url2.hostname === "localhost" || url2.hostname === "127.0.0.1" || url2.hostname === "[::1]";
+  } catch {
+    return false;
+  }
+}
+async function oauthSignIn(db, config2, logger, input) {
+  const profile = input.provider === "github" ? await fetchGithubProfile(input.accessToken) : await fetchGoogleProfile(input.accessToken);
+  if (!profile.emailVerified) {
+    throw new AppError(
+      401,
+      "oauth_email_unverified",
+      input.provider === "github" ? "Your GitHub account has no verified email. Verify it on GitHub, then try again." : "Google has not verified this email address. Confirm it with Google, then try again."
+    );
+  }
+  const [existing] = await db.select({ id: users.id, passwordHash: users.passwordHash }).from(users).where(eq(users.email, profile.email)).limit(1);
+  if (existing) {
+    const sentinel = await isOAuthSentinelHash(config2, existing.id, existing.passwordHash);
+    if (!sentinel) {
+      return { outcome: "password_conflict" };
+    }
+    const memberships2 = await findMembershipsByUser(db, existing.id);
+    const active = memberships2[0];
+    if (!active) throw conflict("Account has no organization");
+    const { token, expiresAt } = await createSession(db, {
+      userId: existing.id,
+      orgId: active.org.id,
+      ip: input.ip,
+      userAgent: input.userAgent ?? null
+    });
+    await appendAudit(db, {
+      orgId: active.org.id,
+      actorType: "user",
+      actorId: existing.id,
+      action: "auth.login_succeeded",
+      outcome: "success",
+      resultRef: `oauth:${input.provider}`
+    });
+    return { outcome: "signed_in", token, expiresAt, isNew: false };
+  }
+  const userId = (0, import_node_crypto8.randomUUID)();
+  const passwordHash = await hashPassword(sentinelPasswordFor(config2, userId));
+  const result = await db.transaction(async (tx) => {
+    const user = await createUser(tx, {
+      id: userId,
+      email: profile.email,
+      passwordHash,
+      name: profile.name ?? null,
+      emailVerifiedAt: /* @__PURE__ */ new Date()
+    });
+    const org = await createOrg(tx, { name: deriveOrgName(profile) });
+    await createMembership(tx, { orgId: org.id, userId: user.id, role: "owner" });
+    const { token, expiresAt } = await createSession(tx, {
+      userId: user.id,
+      orgId: org.id,
+      ip: input.ip,
+      userAgent: input.userAgent ?? null
+    });
+    await appendAudit(tx, { orgId: org.id, actorType: "user", actorId: user.id, action: "user.registered", outcome: "success" });
+    await appendAudit(tx, { orgId: org.id, actorType: "user", actorId: user.id, action: "org.created", outcome: "success" });
+    await appendAudit(tx, { orgId: org.id, actorType: "user", actorId: user.id, action: "member.joined", outcome: "success" });
+    return { user, org, token, expiresAt };
+  });
+  logger.info({ email: result.user.email, provider: input.provider }, "oauth: provisioned new account");
+  return { outcome: "signed_in", token: result.token, expiresAt: result.expiresAt, isNew: true };
+}
+function deriveOrgName(profile) {
+  const base = profile.name ?? profile.email.split("@")[0];
+  return `${base}'s company`.slice(0, 120);
+}
+
+// src/routes/oauth.ts
+function providerConfig(config2, provider) {
+  if (provider === "github") {
+    if (!config2.GITHUB_CLIENT_ID || !config2.GITHUB_CLIENT_SECRET) return null;
+    return {
+      clientId: config2.GITHUB_CLIENT_ID,
+      clientSecret: config2.GITHUB_CLIENT_SECRET,
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      scope: "read:user user:email",
+      label: "GitHub"
+    };
+  }
+  if (!config2.GOOGLE_CLIENT_ID || !config2.GOOGLE_CLIENT_SECRET) return null;
+  return {
+    clientId: config2.GOOGLE_CLIENT_ID,
+    clientSecret: config2.GOOGLE_CLIENT_SECRET,
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    scope: "openid email profile",
+    label: "Google"
+  };
+}
+async function exchangeCode(pc, code, redirectUri) {
+  let res;
+  try {
+    res = await fetch(pc.tokenUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "application/json"
+      },
+      body: new URLSearchParams({
+        client_id: pc.clientId,
+        client_secret: pc.clientSecret,
+        code,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code"
+      }),
+      signal: AbortSignal.timeout(2e4)
+    });
+  } catch {
+    throw new AppError(
+      502,
+      "oauth_exchange_failed",
+      `${pc.label} did not respond to the sign-in request. Try again, or sign in with your email.`
+    );
+  }
+  const json3 = await res.json().catch(() => null);
+  if (!res.ok || !json3?.access_token) {
+    throw new AppError(
+      502,
+      "oauth_exchange_failed",
+      `The ${pc.label} sign-in could not be completed. Start again from the sign-in page, or sign in with your email.`
+    );
+  }
+  return json3.access_token;
+}
+function registerOAuthRoutes(app, deps) {
+  const { config: config2, db, logger } = deps;
+  app.get("/v1/auth/oauth/providers", async () => {
+    return {
+      data: {
+        github: providerConfig(config2, "github") !== null,
+        google: providerConfig(config2, "google") !== null
+      }
+    };
+  });
+  app.get("/v1/auth/oauth/:provider/start", async (request) => {
+    const params = request.params;
+    if (!isOAuthProvider(params.provider)) {
+      throw new AppError(404, "not_found", "Unknown sign-in provider");
+    }
+    const provider = params.provider;
+    const pc = providerConfig(config2, provider);
+    if (!pc) {
+      throw new AppError(
+        503,
+        "oauth_not_configured",
+        `${provider === "github" ? "GitHub" : "Google"} sign-in is not configured on this deployment. Sign in with your email instead.`
+      );
+    }
+    const query = request.query;
+    const redirectUri = typeof query.redirect_uri === "string" ? query.redirect_uri : "";
+    if (!isAllowedSignInRedirectUri(config2, provider, redirectUri)) {
+      throw new AppError(
+        400,
+        "oauth_redirect_invalid",
+        "Sign-in could not start because the return address was not recognized. Reload the sign-in page and try again."
+      );
+    }
+    const state = signOAuthState(config2, {
+      provider,
+      redirectUri,
+      next: safeNextPath(query.next)
+    });
+    const url2 = new URL(pc.authorizeUrl);
+    url2.searchParams.set("client_id", pc.clientId);
+    url2.searchParams.set("redirect_uri", redirectUri);
+    url2.searchParams.set("scope", pc.scope);
+    url2.searchParams.set("state", state);
+    url2.searchParams.set("response_type", "code");
+    if (provider === "google") {
+      url2.searchParams.set("access_type", "online");
+      url2.searchParams.set("prompt", "select_account");
+    }
+    return { data: { url: url2.toString() } };
+  });
+  app.post("/v1/auth/oauth/:provider/callback", async (request) => {
+    const params = request.params;
+    if (!isOAuthProvider(params.provider)) {
+      throw new AppError(404, "not_found", "Unknown sign-in provider");
+    }
+    const provider = params.provider;
+    const pc = providerConfig(config2, provider);
+    if (!pc) {
+      throw new AppError(
+        503,
+        "oauth_not_configured",
+        `${provider === "github" ? "GitHub" : "Google"} sign-in is not configured on this deployment. Sign in with your email instead.`
+      );
+    }
+    const body = request.body ?? {};
+    const verified = verifyOAuthState(config2, body.state, provider);
+    if (!verified) {
+      throw new AppError(
+        400,
+        "oauth_state_invalid",
+        "This sign-in link has expired or was already used. Start again from the sign-in page."
+      );
+    }
+    if (body.redirectUri !== verified.redirectUri || !isAllowedSignInRedirectUri(config2, provider, verified.redirectUri)) {
+      throw new AppError(
+        400,
+        "oauth_state_invalid",
+        "This sign-in link has expired or was already used. Start again from the sign-in page."
+      );
+    }
+    if (!body.code) {
+      throw new AppError(
+        400,
+        "oauth_code_missing",
+        `The ${pc.label} sign-in did not return a code. Start again from the sign-in page.`
+      );
+    }
+    const accessToken = await exchangeCode(pc, body.code, verified.redirectUri);
+    const result = await oauthSignIn(db, config2, logger, {
+      provider,
+      accessToken,
+      ip: request.ip,
+      userAgent: request.headers["user-agent"] ?? null
+    });
+    if (result.outcome === "password_conflict") {
+      throw new AppError(
+        409,
+        "oauth_password_conflict",
+        `An ORQ8 company already uses this email with a password. Sign in with your email and password instead.`
+      );
+    }
+    return {
+      data: {
+        token: result.token,
+        expiresAt: result.expiresAt,
+        isNew: result.isNew,
+        next: verified.next
+      }
+    };
   });
 }
 
@@ -106207,6 +107312,91 @@ init_auth();
 init_drizzle_orm();
 init_src2();
 init_llm();
+init_model_intelligence();
+
+// src/services/model-selector.ts
+init_drizzle_orm();
+init_src2();
+init_model_intelligence();
+var MIN_CALLS_FOR_ROUTING_SUCCESS = 8;
+var MIN_CALLS_FOR_ROUTING_FAILURE = 4;
+var SUCCESS_RATE_FLOOR = 0.9;
+var SUCCESS_RATE_CEILING_DEGRADED = 0.7;
+var ROUTING_WINDOW_DAYS = 14;
+async function getRoutingPerformance(db, orgId) {
+  const since = new Date(Date.now() - ROUTING_WINDOW_DAYS * 24 * 60 * 60 * 1e3);
+  const rows = await db.select({
+    model: llmPerformance.model,
+    calls: sql`count(*)::int`,
+    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
+    failures: sql`count(*) filter (where not ${llmPerformance.success})::int`,
+    avgDurationMs: sql`coalesce(avg(${llmPerformance.durationMs}), 0)::int`
+  }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, since))).groupBy(llmPerformance.model);
+  const stats = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    stats.set(r.model, {
+      model: r.model,
+      calls: r.calls,
+      successes: r.successes,
+      failures: r.failures,
+      successRate: r.calls > 0 ? r.successes / r.calls : 0,
+      avgDurationMs: r.avgDurationMs
+    });
+  }
+  const totalCalls = [...stats.values()].reduce((acc, s) => acc + s.calls, 0);
+  return { stats, sufficientData: totalCalls >= MIN_CALLS_FOR_ROUTING_SUCCESS };
+}
+async function selectMeasuredModel(db, orgId, routing, calibration) {
+  const tiers = modelsByTier();
+  let minTier = routing.risk === "critical" || routing.complexity >= 4 ? 2 : routing.complexity >= 3 || routing.reasoning !== "low" ? 1 : 0;
+  const consequential = routing.risk === "critical" || routing.complexity >= 3;
+  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && minTier < calibration.minConsequentialTier) {
+    minTier = calibration.minConsequentialTier;
+  }
+  const candidates = [];
+  for (let tier = minTier; tier <= 3; tier++) {
+    for (const m of tiers[tier]) candidates.push(m.id);
+  }
+  const staticPick = candidates[0];
+  const perf = await getRoutingPerformance(db, orgId);
+  if (candidates.length <= 1) {
+    return { modelId: staticPick, source: "static" };
+  }
+  if (perf.stats.size === 0) {
+    return { modelId: staticPick, source: "static", reason: "insufficient measured history" };
+  }
+  const degraded = new Set(
+    candidates.filter((id) => {
+      const s = perf.stats.get(id);
+      return s !== void 0 && s.failures >= MIN_CALLS_FOR_ROUTING_FAILURE && s.successRate <= SUCCESS_RATE_CEILING_DEGRADED;
+    })
+  );
+  for (const id of candidates) {
+    if (degraded.has(id)) continue;
+    const s = perf.stats.get(id);
+    if (s !== void 0 && s.successes >= MIN_CALLS_FOR_ROUTING_SUCCESS && s.successRate >= SUCCESS_RATE_FLOOR) {
+      if (id === staticPick) {
+        return { modelId: id, source: "static", reason: void 0 };
+      }
+      return {
+        modelId: id,
+        source: "measured",
+        reason: `${id} has ${s.successes} measured successes at ${Math.round(s.successRate * 100)}% over ${ROUTING_WINDOW_DAYS}d \u2014 preferred over the static default`
+      };
+    }
+  }
+  const firstHealthy = candidates.find((id) => !degraded.has(id));
+  if (firstHealthy && firstHealthy !== staticPick) {
+    return {
+      modelId: firstHealthy,
+      source: "measured",
+      reason: `static default is measured-degraded in this org (${[...degraded].join(", ")})`
+    };
+  }
+  return { modelId: staticPick, source: "static", reason: degraded.size > 0 ? "degraded candidate not present in registry candidates" : void 0 };
+}
+
+// src/services/executive-agent.ts
 init_audit();
 init_memory();
 
@@ -106220,8 +107410,8 @@ init_src2();
 init_llm();
 init_audit();
 init_realtime();
-init_llm_tracer();
 init_model_intelligence();
+init_calibration_routing();
 var AGENT_PROMPTS = {
   market_researcher: `You are a Market Researcher AI employee. Your job is to gather, analyze, and synthesize information about markets, competitors, trends, and opportunities. Provide structured, actionable intelligence with clear findings and recommendations. Be specific, cite patterns, and quantify where possible.`,
   content_writer: `You are a Content Writer AI employee. Your job is to create high-quality written content including articles, reports, briefs, marketing copy, and documentation. Match the tone and style to the audience. Be clear, engaging, and purposeful.`,
@@ -106233,49 +107423,67 @@ var AGENT_PROMPTS = {
   executive_agent: `You are the Executive Agent. Your job is to coordinate across all AI employees, manage priorities, break down complex objectives into actionable plans, and ensure organizational goals are met. Think strategically and communicate clearly.`
 };
 var DEFAULT_AGENT_PROMPT = `You are an AI employee of ORQ8. Complete the assigned task to the best of your ability. Be thorough, accurate, and provide clear, actionable output.`;
+async function persistPreExecutionBlock(db, orgId, task, reason, agentName) {
+  await db.update(tasks).set({ status: "failed", result: reason.slice(0, 2e3), cost: 0, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: "failed",
+    summary: `Execution blocked: ${reason}`,
+    reason: "Pre-execution governance check (agent state, authority, or autonomy level)",
+    cost: 0,
+    department: null
+  });
+  broadcastToOrg(orgId, {
+    type: "task.failed",
+    taskId: task.id,
+    agentId: task.agentId ?? "",
+    agentName,
+    error: reason.slice(0, 200)
+  });
+  return { taskId: task.id, status: "failed", result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
+}
 async function executeTask(config2, db, orgId, taskId) {
   const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
   if (!task) {
     return { taskId, status: "failed", result: "Task not found", cost: 0, tokensUsed: 0, llmUsed: false };
   }
   if (task.agentId) {
-    const [agent] = await db.select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
+    const [agent] = await db.select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel, name: agents.name }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
     if (agent && (agent.status === "paused" || agent.status === "archived")) {
       const verb = agent.status === "archived" ? "archived" : "paused";
-      return {
-        taskId,
-        status: "failed",
-        result: `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
-        cost: 0,
-        tokensUsed: 0,
-        llmUsed: false
-      };
+      return persistPreExecutionBlock(
+        db,
+        orgId,
+        task,
+        `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
+        agent.name
+      );
     }
     if (agent?.authority && typeof agent.authority === "object") {
       const auth = agent.authority;
       if (auth.canExecuteTasks === false) {
-        return {
-          taskId,
-          status: "failed",
-          result: `Execution blocked: agent does not have permission to execute tasks.`,
-          cost: 0,
-          tokensUsed: 0,
-          llmUsed: false
-        };
+        return persistPreExecutionBlock(
+          db,
+          orgId,
+          task,
+          "Execution blocked: agent does not have permission to execute tasks.",
+          agent.name
+        );
       }
     }
     if (agent) {
       const level = normalizeAutonomyLevel(agent.autonomyLevel);
       const decision = enforceAutonomy(level, "task_execute");
       if (!decision.allowed) {
-        return {
-          taskId,
-          status: "failed",
-          result: `Execution blocked by autonomy level: ${decision.reason}`,
-          cost: 0,
-          tokensUsed: 0,
-          llmUsed: false
-        };
+        return persistPreExecutionBlock(
+          db,
+          orgId,
+          task,
+          `Execution blocked by autonomy level: ${decision.reason}`,
+          agent.name
+        );
       }
     }
   }
@@ -106318,15 +107526,7 @@ ${contextSection}` : basePrompt;
   let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
   let tokensUsed = 0;
   let llmAttempted = false;
-  const trace = startTrace({
-    orgId,
-    phase: "task_execution",
-    taskId: task.id,
-    agentId: task.agentId ?? void 0,
-    temperature: 0.7,
-    maxTokens: 2048,
-    maxRetries: 2
-  });
+  let lastLlmError;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       if (attempt > 0) {
@@ -106338,40 +107538,38 @@ ${contextSection}` : basePrompt;
         agentRole,
         priority: task.priority ?? null
       });
-      const routedModel = selectTierModel(routing);
+      const calibrationAdvice = await getCalibrationAdvice(db, orgId);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
       const llmResponse = await chat(config2, systemPrompt, taskPrompt, {
         model: routedModel,
         temperature: 0.7,
         max_tokens: 2048,
-        retries: 0
+        retries: 0,
         // We handle retries at this level
+        // Trace + persist inside chat() so the row records the ACTUALLY
+        // served model (incl. 404 fallback substitutions) and real provider
+        // usage — the previous manual trace always wrote model 'unknown'
+        // with estimated tokens, corrupting model stats and routing data.
+        _trace: {
+          orgId,
+          phase: "task_execution",
+          taskId: task.id,
+          agentId: task.agentId ?? void 0,
+          db
+        }
       });
       if (llmResponse) {
         result = llmResponse;
         llmAttempted = true;
         tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
-        endTrace(trace.traceId, {
-          success: true,
-          promptTokens: Math.ceil(systemPrompt.length / 4),
-          completionTokens: Math.ceil(llmResponse.length / 4),
-          totalTokens: tokensUsed,
-          responsePreview: llmResponse.slice(0, 200)
-        });
-        const completedTrace = getTraceById(trace.traceId);
-        if (completedTrace) await persistTrace(db, completedTrace);
         break;
       }
-    } catch {
+    } catch (err) {
+      lastLlmError = err instanceof Error ? err.message : String(err);
     }
   }
   if (!llmAttempted) {
     result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
-    endTrace(trace.traceId, {
-      success: false,
-      error: "LLM unavailable after 2 attempts"
-    });
-    const failedTrace = getTraceById(trace.traceId);
-    if (failedTrace) await persistTrace(db, failedTrace);
     try {
       const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
       const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
@@ -106389,8 +107587,8 @@ ${contextSection}` : basePrompt;
     }
   }
   const durationMs = Date.now() - startTime;
-  const cost = Math.max(1, Math.ceil(tokensUsed / 1e3));
   const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
+  const cost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1e3)) : 0;
   await db.update(tasks).set({
     status: taskSucceeded ? "completed" : "failed",
     cost,
@@ -106400,7 +107598,7 @@ ${contextSection}` : basePrompt;
   if (taskSucceeded) {
     broadcastToOrg(orgId, { type: "task.completed", taskId: task.id, agentId: task.agentId ?? "", agentName, result: result.slice(0, 200) });
   } else {
-    broadcastToOrg(orgId, { type: "task.failed", taskId: task.id, agentId: task.agentId ?? "", agentName, error: result.slice(0, 200) });
+    broadcastToOrg(orgId, { type: "task.failed", taskId: task.id, agentId: task.agentId ?? "", agentName, error: (lastLlmError ?? result).slice(0, 200) });
   }
   if (task.agentId) {
     const [agent] = await db.select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
@@ -107022,7 +108220,7 @@ function formatLearningContent(learning) {
   return parts.join("\n");
 }
 async function retrieveRelevantLessons(db, orgId, agentId, taskTitle, limit = 5) {
-  const memories = await db.select().from(companyMemory).where(
+  const memories = await db.select({ content: companyMemory.content }).from(companyMemory).where(
     and(
       eq(companyMemory.orgId, orgId),
       sql`${companyMemory.category} IN ('workflow', 'lesson')`
@@ -107579,6 +108777,87 @@ function createAutoPass() {
   };
 }
 
+// src/services/ea-execution-budget.ts
+init_drizzle_orm();
+init_src2();
+var INTERACTIVE_TASK_BUDGET_MS = 9e4;
+async function executeTaskWithBudget(config2, db, orgId, taskId, budgetMs = INTERACTIVE_TASK_BUDGET_MS) {
+  let timer;
+  const execution = executeWithQuality(config2, db, orgId, taskId, { skipQA: false, revisionCount: 0 }).then(
+    (qr) => ({
+      taskId: qr.executionResult.taskId,
+      status: qr.executionResult.status,
+      result: qr.executionResult.result,
+      cost: qr.executionResult.cost,
+      tokensUsed: qr.executionResult.tokensUsed,
+      llmUsed: qr.executionResult.llmUsed
+    })
+  );
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      resolve({
+        taskId,
+        status: "deferred",
+        result: "Execution exceeded its time budget; the task remains pending in your organization and can be re-run.",
+        cost: 0,
+        tokensUsed: 0,
+        llmUsed: false,
+        deferred: true
+      });
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([execution, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+async function executeTasksWithBudget(config2, db, orgId, taskIds, opts = {}) {
+  const totalMs = opts.totalMs ?? 12e4;
+  const deadline = Date.now() + totalMs;
+  const results = [];
+  let completed = 0;
+  let failed = 0;
+  let deferred = 0;
+  const defer = (taskId, message) => ({
+    taskId,
+    status: "deferred",
+    result: message,
+    cost: 0,
+    tokensUsed: 0,
+    llmUsed: false,
+    deferred: true
+  });
+  const convergeToPending = async (taskId) => {
+    try {
+      await db.update(tasks).set({ status: "pending" }).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)));
+    } catch {
+    }
+  };
+  for (const taskId of taskIds) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 5e3) {
+      const r2 = defer(
+        taskId,
+        "Deferred: the execution budget was reached before this task started. It remains pending and can be re-run."
+      );
+      await convergeToPending(taskId);
+      results.push(r2);
+      deferred++;
+      if (opts.onTaskDone) opts.onTaskDone(r2);
+      continue;
+    }
+    const r = await executeTaskWithBudget(config2, db, orgId, taskId, Math.min(remaining, INTERACTIVE_TASK_BUDGET_MS));
+    if (r.deferred) await convergeToPending(taskId);
+    results.push(r);
+    if (r.status === "completed") completed++;
+    else if (r.status === "failed") failed++;
+    else deferred++;
+    if (opts.onTaskDone) opts.onTaskDone(r);
+  }
+  return { results, completed, failed, deferred };
+}
+
 // src/services/executive-agent.ts
 init_realtime();
 init_llm_tracer();
@@ -107845,7 +109124,8 @@ function emitTraceProgress(trace, event) {
   } catch {
   }
 }
-var EXECUTIVE_AGENT_SYSTEM_PROMPT = `You are the Executive Agent of ORQ8 \u2014 an AI executive operating system for founders and CEOs.
+function buildSystemPrompt(eaName) {
+  return `You are ${eaName}, the Executive Agent of ORQ8, an AI executive operating system for founders and CEOs.
 
 Your role is to understand the CEO's commands, analyze their intent, and orchestrate work across the AI employee organization.
 
@@ -107883,7 +109163,8 @@ APPROVAL RULES:
 RESPOND IN THIS EXACT JSON FORMAT:
 {
   "intent": "clear one-sentence description of what the CEO wants",
-  "category": "one of: research, write, communicate, plan, analyze, execute, report, manage",
+  "category": "one of: research, write, communicate, plan, analyze, execute, report, manage, inquiry",
+  "answerOnly": true/false,
   "requiresApproval": true/false,
   "approvalReason": "why approval is needed (if applicable)",
   "riskLevel": "low/medium/high",
@@ -107927,7 +109208,7 @@ EXECUTIVE TOOLS \u2014 YOU CAN EXECUTE ACTIONS DIRECTLY:
 WHEN TO USE TOOLS vs TASKS:
 - If the CEO asks to CREATE, RENAME, or MODIFY an organizational entity (department, team, agent, goal), use a TOOL directly.
 - If the CEO asks to DO WORK (research, write, analyze, build), create TASKS for AI employees.
-- If the CEO asks a QUESTION, just answer with analysis and recommendations.
+- If the CEO asks FOR INFORMATION (What needs my approval? Why is Engineering blocked? How are we performing? What should we work on next?), set "answerOnly": true, "category": "inquiry", "taskDecomposition": [] and answer directly in "response" using the REAL state in the context above (pending approvals count, active/blocked tasks, goal progress, departments). NEVER invent numbers that are not in the context. NEVER create tasks for an informational question \u2014 a question answered is work completed.
 - NEVER create tasks describing an action when a tool can execute it directly.
 
 TOOLS AVAILABLE (include in toolCalls array):
@@ -107949,6 +109230,8 @@ TOOLS AVAILABLE (include in toolCalls array):
 - analyze_workforce: {}. Safe \u2014 real utilization and coverage numbers per department/team; identifies overloaded or understaffed units. Use for "which team is overloaded?", "do we need another agent?", "what is each department's workload?".
 - archive_department: { departmentId: "uuid", restore?: boolean }. Safe \u2014 archives (or restores) a department; history, agents and tasks are preserved.
 - archive_team: { teamId: "uuid", restore?: boolean }. Safe \u2014 archives (or restores) a team; history and members are preserved.
+- recommend_org_stage: { stage?: 1|2|3|4|5, companyDescription?: "string" }. Safe \u2014 recommends a stage-appropriate organization from the Department Template Catalog (the same catalog as the Departments page). Use when the CEO asks to set up a company, structure the organization, or ask what departments are needed. Explains WHY each department is recommended and what is deferred.
+- activate_department: { templateName: "string" }. Requires approval \u2014 activates a department from the SAME catalog (idempotent; creates the department and its teams). Use the exact department name from recommend_org_stage results. Prefer this over create_department whenever a catalog template matches, because it brings the template's full team structure.
 
 For rename_agent: match the agentId from the AI Employees list in context.
 For rename_department: match the departmentId from the Departments list in context.
@@ -107974,7 +109257,22 @@ Set taskDecomposition to [] when using tools \u2014 the tool IS the action.
 
 IMPORTANT: Tools are executed server-side with full authorization and limit checks.
 
-Be decisive, clear, and professional. You are the CEO's chief of staff.`;
+Be decisive, clear, and professional. You are the CEO's chief of staff.
+
+PERSONALITY AND LANGUAGE:
+- Speak like an executive talking to a founder: direct, specific, calm, sentence case.
+- Never use marketing language: no "supercharge", "unlock your potential", "AI-powered journey", "the future", "copilot". No exclamation marks.
+- Say "company" rather than "workspace" or "organization" when replying to the founder.
+- Introduce yourself as ${eaName} when the founder asks who you are.
+
+FIRST-RUN CONVERSATION (the Founder Context section shows onboarding is not complete):
+- Your first job is to understand what the founder is building. Do not organize anything yet.
+- Ask exactly ONE question at a time. Adapt the next question to their previous answer. Never send a list of questions.
+- Accept any starting point: an idea, an existing company, a product, a business problem, or an existing operation.
+- Between questions, offer short observations grounded only in what the founder told you and the real company state, for example: "I would prioritize customer validation before expanding the engineering team."
+- When you have enough context, recommend a small initial structure and explain why each part is needed.
+- Never activate departments, hire agents, or create structure silently. Clearly separate what you recommend, what you would like to do, what needs the founder's approval, and what has actually happened.`;
+}
 function createWorkflowTrace(commandId) {
   return {
     commandId,
@@ -108027,13 +109325,28 @@ function validateIntent(intent) {
   if (!intent.intent) return "Missing intent description";
   if (!intent.category || intent.category === "unknown") return "Could not determine command category";
   const hasToolAction = Array.isArray(intent.toolCalls) && intent.toolCalls.length > 0;
-  if (!hasToolAction && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
+  const isAnswerOnly = intent.answerOnly === true;
+  if (!hasToolAction && !isAnswerOnly && (!intent.taskDecomposition || intent.taskDecomposition.length === 0)) {
     return "No tasks decomposed from command";
   }
   if (intent.estimatedCost < 0) return "Invalid cost estimate";
   for (const task of intent.taskDecomposition) {
     if (!task.title) return "Task missing title";
     if (!task.suggestedAgentRole) return `Task "${task.title}" missing agent role`;
+  }
+  if (hasToolAction && Array.isArray(intent.toolCalls)) {
+    for (const tc of intent.toolCalls) {
+      if (!tc?.tool || typeof tc.tool !== "string") return "Tool call missing tool name";
+      if (tc.params == null || typeof tc.params !== "object" || Array.isArray(tc.params)) {
+        return `Tool call "${tc.tool}" params must be an object`;
+      }
+      for (const [key, value] of Object.entries(tc.params)) {
+        if (value === null || value === void 0) continue;
+        if (typeof value === "string" && (!value.trim() || !/[\p{L}\p{N}]/u.test(value))) {
+          return `Tool call "${tc.tool}" has a junk "${key}" param: ${JSON.stringify(value.slice(0, 20))}`;
+        }
+      }
+    }
   }
   return null;
 }
@@ -108218,6 +109531,28 @@ async function buildContext(db, orgId, opts = {}) {
     ctx.workforceIntelligence = await getWorkforceIntelligence2(db, orgId);
   } catch {
   }
+  try {
+    const rows = await db.select().from(onboardingStates).where(eq(onboardingStates.orgId, orgId)).orderBy(desc(onboardingStates.updatedAt)).limit(1);
+    const row = rows[0];
+    if (row) {
+      const org = row.organization ?? {};
+      const raw = org.analysis ?? null;
+      ctx.founderContext = {
+        step: row.step,
+        completedAt: row.completedAt ?? null,
+        analysis: raw ? {
+          companyName: raw.companyName,
+          description: raw.description,
+          stage: raw.stage,
+          industry: raw.industry,
+          sourceType: raw.sourceType,
+          priorities: Array.isArray(raw.priorities) ? raw.priorities : [],
+          rawInput: raw.rawInput
+        } : null
+      };
+    }
+  } catch {
+  }
   return ctx;
 }
 function buildContextPrompt2(ctx) {
@@ -108279,23 +109614,47 @@ function buildContextPrompt2(ctx) {
     }
     strategyBlock = lines.join("\n");
   }
-  return "## ORGANIZATION CONTEXT\n\n### AI Employees\n" + agentList + "\n\n" + structureBlock + "\n\n" + (strategyBlock ? strategyBlock + "\n\n" : "") + (ctx.decisionMemory ? ctx.decisionMemory + "\n\n" : "") + (ctx.lineageContext ? ctx.lineageContext + "\n\n" : "") + "### Active Goals\n" + goalList + "\n\n### Active Tasks\n" + taskList + "\n\n### Pending Approvals: " + ctx.pendingApprovals + "\n\n### Company Memory\n" + memoryList + capabilityBlock + workforceBlock + "\n\n### Instructions\nYou have full awareness of the organization's current state, including its departments, teams, team owners, members and where work is blocked or overdue.\nUse this context to make informed decisions about task decomposition and agent selection.\nWhen the founder asks who owns work or who is responsible, answer from the organization structure above.\nIf no suitable agent exists, recommend hiring one.\nAlways be specific about which agent should handle each task.\nBefore proposing to build anything new (a new agent, tool, workflow or capability), first search the Reusable Company Capabilities above \u2014 if the company can already do the work, recommend reusing the existing capability instead of building a parallel one.\nWhen the founder asks about strategy or priorities, reference the Strategy & Objectives section above.\nConnect tasks and goals to strategic objectives where possible.";
+  let founderBlock = "";
+  if (ctx.founderContext) {
+    const fc = ctx.founderContext;
+    const status = fc.completedAt ? "complete" : fc.step === "organization" ? "not started" : `in progress (step: ${fc.step})`;
+    const lines = [`- Status: ${status}`];
+    if (fc.analysis) {
+      if (fc.analysis.companyName) lines.push(`- Company name: ${fc.analysis.companyName}`);
+      if (fc.analysis.description) lines.push(`- What the founder is building: ${fc.analysis.description}`);
+      if (fc.analysis.stage) lines.push(`- Stage: ${fc.analysis.stage}`);
+      if (fc.analysis.industry) lines.push(`- Industry: ${fc.analysis.industry}`);
+      if (fc.analysis.sourceType) lines.push(`- Source type: ${fc.analysis.sourceType}`);
+      if (fc.analysis.priorities && fc.analysis.priorities.length > 0) {
+        lines.push(`- Stated priorities: ${fc.analysis.priorities.join(", ")}`);
+      }
+    } else if (status !== "complete") {
+      lines.push("- No company context collected yet.");
+    }
+    founderBlock = "### Founder Context (onboarding)\n" + lines.join("\n") + "\n\n";
+  }
+  return "## ORGANIZATION CONTEXT\n\n" + founderBlock + "### AI Employees\n" + agentList + "\n\n" + structureBlock + "\n\n" + (strategyBlock ? strategyBlock + "\n\n" : "") + (ctx.decisionMemory ? ctx.decisionMemory + "\n\n" : "") + (ctx.lineageContext ? ctx.lineageContext + "\n\n" : "") + "### Active Goals\n" + goalList + "\n\n### Active Tasks\n" + taskList + "\n\n### Pending Approvals: " + ctx.pendingApprovals + "\n\n### Company Memory\n" + memoryList + capabilityBlock + workforceBlock + "\n\n### Instructions\nYou have full awareness of the organization's current state, including its departments, teams, team owners, members and where work is blocked or overdue.\nUse this context to make informed decisions about task decomposition and agent selection.\nWhen the founder asks who owns work or who is responsible, answer from the organization structure above.\nIf no suitable agent exists, recommend hiring one.\nAlways be specific about which agent should handle each task.\nBefore proposing to build anything new (a new agent, tool, workflow or capability), first search the Reusable Company Capabilities above \u2014 if the company can already do the work, recommend reusing the existing capability instead of building a parallel one.\nWhen the founder asks about strategy or priorities, reference the Strategy & Objectives section above.\nConnect tasks and goals to strategic objectives where possible.";
 }
-async function analyzeIntent(config2, ctx, command, commandId, contextNote) {
+async function analyzeIntent(config2, ctx, command, commandId, contextNote, db) {
   const contextPrompt = buildContextPrompt2(ctx);
-  const fullSystemPrompt = `${EXECUTIVE_AGENT_SYSTEM_PROMPT}
+  const fullSystemPrompt = `${buildSystemPrompt(config2.EA_DISPLAY_NAME)}
 
 ${contextPrompt}`;
   const userMessage = contextNote ? `[Current founder context: ${contextNote}]
 
 Command: ${command}` : command;
+  const routing = classifyTask({ title: "Executive Agent intent analysis", description: command.slice(0, 500), agentRole: "executive" });
+  const { modelId, source } = db ? await selectMeasuredModel(db, ctx.orgId, routing) : { modelId: void 0, source: "default" };
   const llmResult = await chatJson(config2, fullSystemPrompt, userMessage, {
+    model: modelId,
     temperature: 0.3,
     max_tokens: 1024,
     _trace: {
       orgId: ctx.orgId,
       phase: "intent_analysis",
-      commandId
+      commandId,
+      routingSource: source,
+      ...db ? { db } : {}
     }
   });
   if (llmResult && llmResult.intent && llmResult.category) {
@@ -108343,8 +109702,8 @@ function detectToolCalls(command, ctx) {
   }
   const agentCreateMatch = lower.match(/\b(?:hire|create|add|recruit|onboard)\b.*\b(?:a|an|the)?\s*(.+?)\s*(?:agent|employee|member|specialist)?$/i) ?? lower.match(/\b(?:hire|create|add)\b.*\bagent\b\s*(?:called|named|for)?\s*\b(.+?)$/i);
   if (agentCreateMatch && agentCreateMatch[1] && !lower.match(/\bdepartment\b/) && !lower.match(/\bteam\b/)) {
-    const roleDesc = agentCreateMatch[1].trim();
-    if (roleDesc.length > 0 && roleDesc.length < 100) {
+    const roleDesc = agentCreateMatch[1].trim().replace(/[^\p{L}\p{N}][^\p{L}\p{N}]*$/u, "");
+    if (roleDesc.length > 1 && roleDesc.length < 100 && /[a-z0-9]/i.test(roleDesc)) {
       const name2 = roleDesc.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
       const role = roleDesc.toLowerCase().replace(/\s+/g, "_");
       return [{ tool: "create_agent", params: { name: name2, role } }];
@@ -108415,6 +109774,48 @@ function detectToolCalls(command, ctx) {
 }
 function fallbackAnalysis(command, ctx) {
   const lower = command.toLowerCase();
+  const asksForState = /\b(what|which|how|why|where)\b|\bstatus\b|\bupdate me\b/.test(lower);
+  const requestsNewWork = /\b(research|analyze|write|draft|build|create|make|prepare|design|plan|find|generate|produce)\b/.test(lower);
+  const isPureQuestion = /\?\s*$/.test(command.trim()) && asksForState && !requestsNewWork;
+  if (isPureQuestion) {
+    const c = ctx.orgStructure?.counts;
+    const teams3 = ctx.orgStructure?.teams ?? [];
+    const w = {
+      activeTasks: teams3.reduce((n, t) => n + (t.work?.activeTasks ?? 0), 0),
+      blockedTasks: teams3.reduce((n, t) => n + (t.work?.blockedTasks ?? 0), 0),
+      overdueTasks: teams3.reduce((n, t) => n + (t.work?.overdueTasks ?? 0), 0)
+    };
+    const lines = [];
+    if (/approv/.test(lower)) {
+      lines.push(
+        ctx.pendingApprovals > 0 ? `**${ctx.pendingApprovals} approval${ctx.pendingApprovals === 1 ? "" : "s"} waiting for your decision** in the Command Center.` : "Nothing is waiting for your approval right now."
+      );
+    }
+    if (/block/.test(lower)) {
+      lines.push(w.blockedTasks > 0 ? `**${w.blockedTasks} blocked task${w.blockedTasks === 1 ? "" : "s"}** need attention.` : "No blocked tasks \u2014 nothing is stuck.");
+    }
+    if (/perform|week|progress|going/.test(lower)) {
+      lines.push(`Active tasks: ${w.activeTasks}. Blocked: ${w.blockedTasks}. Overdue: ${w.overdueTasks}. Active goals: ${ctx.activeGoals.length}${c ? `. AI employees active: ${c.activeAgents}/${c.agents}.` : "."}`);
+    }
+    if (/next|should we|priorit/.test(lower)) {
+      const top = ctx.activeGoals.slice(0, 2).map((g) => `"${g.title}" (${g.progress}%)`);
+      lines.push(top.length ? `Highest-priority goals: ${top.join(", ")}.` : "No active goals \u2014 define one to focus the organization.");
+    }
+    if (lines.length === 0) {
+      lines.push(`Company snapshot: ${c ? `${c.departments} departments, ${c.teams} teams, ${c.activeAgents}/${c.agents} AI employees active` : "organization loaded"}. Active tasks: ${w.activeTasks}, blocked: ${w.blockedTasks}, pending approvals: ${ctx.pendingApprovals}.`);
+    }
+    return {
+      intent: command,
+      category: "inquiry",
+      answerOnly: true,
+      requiresApproval: false,
+      riskLevel: "low",
+      estimatedCost: 0,
+      suggestedAgentRole: "executive_agent",
+      taskDecomposition: [],
+      response: lines.join("\n")
+    };
+  }
   let category = "plan";
   if (lower.includes("research") || lower.includes("analyze") || lower.includes("investigate") || lower.includes("competitor") || lower.includes("market")) category = "research";
   else if (lower.includes("write") || lower.includes("draft") || lower.includes("create content") || lower.includes("blog") || lower.includes("article")) category = "write";
@@ -108444,10 +109845,34 @@ function fallbackAnalysis(command, ctx) {
   if (detectedTools && detectedTools.length > 0 && detectedTools[0]) {
     const tool = detectedTools[0];
     const toolName = tool.tool;
-    const approvalTools = ["create_department", "create_team", "create_agent"];
+    const approvalTools = ["create_department", "create_team", "create_agent", "activate_department"];
     const needsToolApproval = approvalTools.includes(toolName);
     const toolLabel = toolName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const paramSummary = Object.entries(tool.params).filter(([k]) => k !== "agentId").map(([k, v]) => `${k}: ${v}`).join(", ");
+    const humanValue = (v) => {
+      const s = typeof v === "string" ? v : String(v ?? "");
+      return s.length > 60 ? `${s.slice(0, 57)}\u2026` : s;
+    };
+    const summarize = () => {
+      const p3 = tool.params;
+      if (toolName === "create_agent" && typeof p3.name === "string" && p3.name.trim()) {
+        return typeof p3.role === "string" && p3.role.trim() ? `hire "${humanValue(p3.name)}" (${humanValue(p3.role).replace(/_/g, " ")})` : `hire "${humanValue(p3.name)}"`;
+      }
+      if (toolName === "create_department" && typeof p3.name === "string" && p3.name.trim()) {
+        return `create the "${humanValue(p3.name)}" department`;
+      }
+      if (toolName === "create_team" && typeof p3.name === "string" && p3.name.trim()) {
+        return `create the "${humanValue(p3.name)}" team`;
+      }
+      if (toolName === "activate_department" && typeof p3.slug === "string" && p3.slug.trim()) {
+        return `activate the "${humanValue(p3.slug).replace(/-/g, " ")}" department from the catalog`;
+      }
+      if (toolName === "recommend_org_stage") {
+        const stage = typeof p3.companyDescription === "string" && p3.companyDescription.trim() ? humanValue(p3.companyDescription) : "your company";
+        return `recommend the right organizational stage for ${stage}`;
+      }
+      return toolLabel.toLowerCase();
+    };
+    const planSummary = summarize();
     return {
       intent: command,
       category: "manage",
@@ -108458,7 +109883,7 @@ function fallbackAnalysis(command, ctx) {
       suggestedAgentRole: "executive_agent",
       taskDecomposition: [],
       toolCalls: detectedTools,
-      response: needsToolApproval ? `I'll ${toolLabel.toLowerCase()} (${paramSummary}). This requires your approval.` : `I'll ${toolLabel.toLowerCase()} (${paramSummary}). Executing now.`
+      response: needsToolApproval ? `I'll ${planSummary}. This requires your approval.` : `I'll ${planSummary}. Executing now.`
     };
   }
   const taskCount = taskDecomposition.length;
@@ -108552,41 +109977,6 @@ async function createApprovalIfNeeded(db, orgId, intent) {
   }).returning();
   return created?.id;
 }
-async function executeTaskWithRecovery(config2, db, orgId, taskId, trace) {
-  const MAX_TASK_RETRIES = 2;
-  let lastError = "";
-  for (let attempt = 0; attempt <= MAX_TASK_RETRIES; attempt++) {
-    try {
-      if (attempt > 0) {
-        trace.errorRecoveryAttempts++;
-        const delay = 1e3 * Math.pow(2, attempt - 1);
-        await new Promise((r) => setTimeout(r, delay));
-      }
-      const qualityResult = await executeWithQuality(config2, db, orgId, taskId, { skipQA: false, revisionCount: attempt });
-      return qualityResult.executionResult;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : "unknown error";
-      if (attempt === MAX_TASK_RETRIES) {
-        return {
-          taskId,
-          status: "failed",
-          result: `Task failed after ${MAX_TASK_RETRIES + 1} attempts: ${lastError}`,
-          cost: 0,
-          tokensUsed: 0,
-          llmUsed: false
-        };
-      }
-    }
-  }
-  return {
-    taskId,
-    status: "failed",
-    result: "Task failed: exceeded maximum retries",
-    cost: 0,
-    tokensUsed: 0,
-    llmUsed: false
-  };
-}
 async function executeCommand(config2, db, orgId, userId, command, contextNote, opts) {
   const commandId = crypto.randomUUID();
   const startTime = Date.now();
@@ -108613,7 +110003,7 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
   const intentStep = startStep(trace, "intent_analysis");
   let intent;
   try {
-    intent = await analyzeIntent(config2, ctx, command, commandId, contextNote);
+    intent = await analyzeIntent(config2, ctx, command, commandId, contextNote, db);
     const intentError = validateIntent(intent);
     if (intentError) {
       completeStep(intentStep, void 0, intentError);
@@ -108628,6 +110018,42 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
     return buildErrorResult(commandId, command, `Intent analysis error: ${msg}`, trace, startTime);
   }
   const nvidiaWarnings = popNvidiaDiagnostics(orgId);
+  if (intent.answerOnly === true) {
+    try {
+      await appendAudit(db, {
+        orgId,
+        actorType: "user",
+        actorId: userId,
+        action: "command.answered",
+        tool: "executive_agent",
+        inputRef: command.slice(0, 500),
+        resultRef: JSON.stringify({ category: "inquiry" }),
+        outcome: "success"
+      });
+      await db.insert(companyMemory).values({
+        orgId,
+        category: "context",
+        content: `CEO question answered: "${command.slice(0, 200)}" | answerOnly`,
+        source: "executive_agent",
+        agentId: null,
+        taskId: null,
+        importance: 2
+      });
+    } catch {
+    }
+    completeStep(intentStep, { category: "inquiry", answerOnly: true });
+    trace.status = "completed";
+    return {
+      commandId,
+      intent,
+      taskIds: [],
+      status: "completed",
+      message: intent.response,
+      agentResults: [],
+      creditsConsumed: 0,
+      workflowTrace: finalizeTrace(trace, startTime)
+    };
+  }
   const creditStep = startStep(trace, "credit_check");
   const operationType = `task.${intent.category}`;
   let creditCheck;
@@ -108706,6 +110132,12 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
           case "plan_engineering":
             result = await eaTools.planEngineering(toolCtx, tc.params);
             break;
+          case "recommend_org_stage":
+            result = await eaTools.recommendOrgStage(toolCtx, tc.params);
+            break;
+          case "activate_department":
+            result = await eaTools.activateDepartmentFromCatalog(toolCtx, tc.params);
+            break;
           case "deliberate": {
             const params = tc.params;
             if (!params?.question || typeof params.question !== "string" || params.question.trim().length < 8) {
@@ -108778,14 +110210,44 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
   const execStep = startStep(trace, "task_execution");
   const taskExecutionResults = [];
   if (!intent.requiresApproval && taskIds.length > 0) {
-    for (const taskId of taskIds) {
-      const result = await executeTaskWithRecovery(config2, db, orgId, taskId, trace);
-      taskExecutionResults.push(result);
+    const budgeted = await executeTasksWithBudget(config2, db, orgId, taskIds, {
+      // Interactive ceiling: the founder watches this stage live.
+      totalMs: 12e4,
+      onTaskDone: (r) => {
+        emitTraceProgress(trace, {
+          type: "step_detail",
+          step: "task_execution",
+          detail: { taskId: r.taskId, taskStatus: r.status }
+        });
+      }
+    });
+    for (const r of budgeted.results) {
+      taskExecutionResults.push({
+        taskId: r.taskId,
+        // Deferred (budget exhausted) is honest pending work — carry it through
+        // as its own status instead of miscounting it as a failure (§58: the
+        // summary once claimed "3 tasks failed" when reality was 1 completed,
+        // 1 deferred-pending, 1 failed).
+        status: r.status === "deferred" ? "deferred" : r.status,
+        result: r.result,
+        cost: r.cost,
+        tokensUsed: r.tokensUsed,
+        llmUsed: r.llmUsed,
+        deferred: r.deferred === true
+      });
+      if (r.deferred) {
+        broadcastToOrg(orgId, {
+          type: "task.deferred",
+          taskId: r.taskId,
+          message: "Task deferred: execution budget reached. It remains pending and can be re-run."
+        });
+      }
     }
     completeStep(execStep, {
-      completed: taskExecutionResults.filter((r) => r.status === "completed").length,
-      failed: taskExecutionResults.filter((r) => r.status === "failed").length,
-      total: taskExecutionResults.length
+      completed: budgeted.completed,
+      failed: budgeted.failed,
+      deferred: budgeted.deferred,
+      total: budgeted.results.length
     });
   } else {
     completeStep(execStep, { skipped: true, reason: intent.requiresApproval ? "awaiting_approval" : "no_tasks" });
@@ -108860,6 +110322,7 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
   }
   const completedCount = taskExecutionResults.filter((r) => r.status === "completed").length;
   const failedCount = taskExecutionResults.filter((r) => r.status === "failed").length;
+  const deferredCount = taskExecutionResults.filter((r) => r.status === "deferred").length;
   const totalCount = taskExecutionResults.length;
   let status;
   if (intent.requiresApproval) {
@@ -108894,6 +110357,11 @@ ${toolParts.join("\n")}`;
     if (failedCount > 0) {
       parts.push(`${failedCount} task${failedCount > 1 ? "s" : ""} failed.`);
     }
+    if (deferredCount > 0) {
+      parts.push(
+        `${deferredCount} task${deferredCount > 1 ? "s" : ""} deferred (execution budget reached \u2014 still pending and re-runnable).`
+      );
+    }
     if (totalCost > 0) {
       parts.push(`${totalCost} credits consumed.`);
     }
@@ -108907,6 +110375,7 @@ ${parts.join(" ")}`;
     `Tasks created: ${taskIds.length}`,
     `Completed: ${completedCount}`,
     failedCount > 0 ? `Failed: ${failedCount}` : null,
+    deferredCount > 0 ? `Deferred (still pending): ${deferredCount}` : null,
     `Credits consumed: ${creditsConsumed}`,
     `Duration: ${Date.now() - startTime}ms`
   ].filter(Boolean).join(" | ");
@@ -109153,6 +110622,7 @@ function registerCommandRoutes(app, deps) {
       const qualityResult = await executeWithQuality(config2, db, ctx.orgId, request.params.taskId);
       return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
     } catch (error51) {
+      request.log.error({ err: error51 }, "task execution failed");
       reply.code(500);
       return { error: { code: "execution.failed", message: "Task execution failed" } };
     }
@@ -109257,6 +110727,15 @@ function registerCommandStreamRoutes(app, deps) {
         closed = true;
       }
     };
+    const heartbeat = setInterval(() => {
+      if (!closed) {
+        try {
+          reply.raw.write(": hb\n\n");
+        } catch {
+          closed = true;
+        }
+      }
+    }, 15e3);
     try {
       const result = await executeCommand(config2, db, ctx.orgId, ctx.userId, command, contextNote, {
         onProgress: (ev) => {
@@ -109286,6 +110765,11 @@ function registerCommandStreamRoutes(app, deps) {
               status: "skipped",
               ...ev.reason ? { reason: ev.reason } : {}
             });
+          } else if (ev.type === "step_detail" && ev.detail && typeof ev.detail === "object") {
+            const d = ev.detail;
+            if (d.taskId) {
+              send2({ type: "task", taskId: d.taskId, status: d.taskStatus ?? "unknown" });
+            }
           }
         }
       });
@@ -109302,6 +110786,7 @@ function registerCommandStreamRoutes(app, deps) {
         }
       });
     } finally {
+      clearInterval(heartbeat);
       closed = true;
       reply.raw.end();
     }
@@ -109712,7 +111197,7 @@ init_drizzle_orm();
 init_src2();
 var import_promises = require("node:fs/promises");
 var import_node_path = require("node:path");
-var import_node_crypto12 = require("node:crypto");
+var import_node_crypto14 = require("node:crypto");
 var LocalStorageBackend = class {
   baseDir;
   constructor(baseDir) {
@@ -109820,7 +111305,7 @@ function getStorageBackend(config2) {
 async function uploadFile(config2, db, orgId, opts) {
   const backend = getStorageBackend(config2);
   const ext = opts.name.split(".").pop() ?? "bin";
-  const key = `${orgId}/${(0, import_node_crypto12.randomUUID)()}.${ext}`;
+  const key = `${orgId}/${(0, import_node_crypto14.randomUUID)()}.${ext}`;
   await backend.upload(key, opts.body, opts.mimeType);
   const [record2] = await db.insert(files).values({
     orgId,
@@ -110130,7 +111615,7 @@ function registerAvatarRoutes(app, deps) {
 }
 
 // src/routes/admin.ts
-var import_node_crypto13 = require("node:crypto");
+var import_node_crypto15 = require("node:crypto");
 init_drizzle_orm();
 init_auth();
 init_audit();
@@ -110165,7 +111650,7 @@ async function requirePlatformAdmin(request, deps) {
 }
 function hashForAudit(value) {
   if (!value) return "";
-  return (0, import_node_crypto13.createHash)("sha256").update(value).digest("hex").slice(0, 16);
+  return (0, import_node_crypto15.createHash)("sha256").update(value).digest("hex").slice(0, 16);
 }
 function registerAdminRoutes(app, deps) {
   const { db } = deps;
@@ -111121,7 +112606,8 @@ function registerGoalRoutes(app, deps) {
     if (teamId) conditions.push(eq(tasks.teamId, teamId));
     if (status) conditions.push(eq(tasks.status, status));
     if (priority) conditions.push(eq(tasks.priority, priority));
-    const orderClause = sortBy === "priority" ? tasks.priority : sortBy === "dueDate" ? tasks.dueDate : tasks.createdAt;
+    const order = url2.searchParams.get("order") === "asc" ? asc : desc;
+    const orderClause = sortBy === "priority" ? tasks.priority : sortBy === "dueDate" ? order(tasks.dueDate) : order(tasks.createdAt);
     const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(tasks).where(and(...conditions));
     const list = await db.select().from(tasks).where(and(...conditions)).orderBy(orderClause).limit(limit).offset(offset);
     return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
@@ -111669,6 +113155,11 @@ function registerDepartmentRoutes(app, deps) {
   const { db, logger } = deps;
   app.get("/v1/departments", async (request) => {
     const ctx = await requireAuth(request, deps);
+    const url2 = new URL(request.url, "http://localhost");
+    const all = url2.searchParams.get("all") === "true";
+    const limit = all ? Number.MAX_SAFE_INTEGER : Math.min(Math.max(parseInt(url2.searchParams.get("limit") ?? "200", 10) || 200, 1), 1e3);
+    const offset = Math.max(parseInt(url2.searchParams.get("offset") ?? "0", 10) || 0, 0);
+    const q = (url2.searchParams.get("q") ?? "").trim().toLowerCase();
     const depts = await findByOrg4(db, ctx.orgId);
     let unassignedCount = 0;
     try {
@@ -111699,7 +113190,9 @@ function registerDepartmentRoutes(app, deps) {
         createdAt: null
       });
     }
-    return { data: result };
+    const filtered = q ? result.filter((d) => d.name.toLowerCase().includes(q)) : result;
+    const page = filtered.slice(offset, offset + limit);
+    return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
   });
   app.post("/v1/departments", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
@@ -111824,8 +113317,14 @@ function registerTeamRoutes(app, deps) {
     const ctx = await requireAuth(request, deps);
     const url2 = new URL(request.url, "http://localhost");
     const includeArchived = url2.searchParams.get("include_archived") === "true";
+    const all = url2.searchParams.get("all") === "true";
+    const limit = all ? Number.MAX_SAFE_INTEGER : Math.min(Math.max(parseInt(url2.searchParams.get("limit") ?? "200", 10) || 200, 1), 1e3);
+    const offset = Math.max(parseInt(url2.searchParams.get("offset") ?? "0", 10) || 0, 0);
+    const q = (url2.searchParams.get("q") ?? "").trim().toLowerCase();
     const teams3 = await findByOrg5(db, ctx.orgId, includeArchived);
-    return { data: teams3 };
+    const filtered = q ? teams3.filter((t) => t.name.toLowerCase().includes(q)) : teams3;
+    const page = filtered.slice(offset, offset + limit);
+    return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
   });
   app.get("/v1/teams/:id", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
@@ -111973,6 +113472,7 @@ init_auth();
 init_src2();
 init_workforce_engine();
 init_entitlements();
+init_org_recommendation();
 function isTemplateSlugCollision(err) {
   const e = err;
   return e?.code === "23505" || e?.cause?.code === "23505";
@@ -112025,6 +113525,30 @@ function registerWorkforceRoutes(app, deps) {
       }
       throw err;
     }
+  });
+  app.post("/v1/department-templates/:id/activate", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    const outcome = await activateDepartmentTemplate(db, ctx, id);
+    if (!outcome.ok) {
+      reply.code(404);
+      return { error: { code: "not_found", message: "Template not found" } };
+    }
+    return { data: { departmentId: outcome.result.departmentId, ...outcome.result.activated } };
+  });
+  app.get("/v1/department-templates/stage/:stage", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const stageNum = Number.parseInt(request.params.stage, 10);
+    if (!Number.isFinite(stageNum) || stageNum < 1 || stageNum > 5) {
+      reply.code(400);
+      return { error: { code: "validation_error", message: "stage must be an integer 1-5" } };
+    }
+    const stage = stageNum;
+    const [catalog, recommendation] = await Promise.all([
+      getStageAppropriateCatalog(db, ctx.orgId, stage),
+      recommendOrgForStage(db, ctx.orgId, stage)
+    ]);
+    return { data: recommendation };
   });
   app.get("/v1/team-templates", async (request) => {
     const ctx = await requireAuth(request, deps);
@@ -114987,7 +116511,7 @@ init_drizzle_orm();
 init_src2();
 
 // src/services/simulation.ts
-var import_node_crypto14 = require("node:crypto");
+var import_node_crypto16 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_audit();
@@ -115279,7 +116803,7 @@ async function saveProposal(db, orgId, simId, input) {
   }
   const previous = sim.proposal ?? null;
   const proposal = {
-    proposalId: previous?.proposalId ?? (0, import_node_crypto14.randomUUID)(),
+    proposalId: previous?.proposalId ?? (0, import_node_crypto16.randomUUID)(),
     createdAt: previous?.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
     rationale: input.rationale,
     departments: input.departments,
@@ -115742,7 +117266,7 @@ init_audit();
 
 // src/services/executor.ts
 var import_node_child_process = require("node:child_process");
-var import_node_crypto15 = require("node:crypto");
+var import_node_crypto17 = require("node:crypto");
 var import_promises2 = require("node:fs/promises");
 var import_node_os = require("node:os");
 var import_node_path2 = __toESM(require("node:path"), 1);
@@ -115821,7 +117345,7 @@ function capBuffer(buffer, received, cap) {
   return { truncated: total + received > cap };
 }
 async function executeCommand2(input) {
-  const runId = input.runId ?? (0, import_node_crypto15.randomUUID)();
+  const runId = input.runId ?? (0, import_node_crypto17.randomUUID)();
   const commandError = validateCommand(input.command);
   if (commandError) throw new Error(commandError);
   const timeoutMs = Math.min(input.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
@@ -116287,6 +117811,13 @@ function registerEngineeringRoutes(app, deps) {
         return { error: { code: "not_found", message: "PR not found" } };
       }
       const next = parsed.data.status;
+      if (next === "merged") {
+        const mergeGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
+        if (!mergeGate.ok) {
+          reply.code(mergeGate.status);
+          return { error: { code: "pr_merge_blocked", message: mergeGate.reason } };
+        }
+      }
       const gate = canTransitionPrStatus(pr.status, next);
       if (!gate.ok) {
         reply.code(409);
@@ -116297,13 +117828,6 @@ function registerEngineeringRoutes(app, deps) {
         if (!approveGate.ok) {
           reply.code(approveGate.status);
           return { error: { code: "pr_approval_blocked", message: `${approveGate.reason} \u2014 request approval via POST /v1/prs/:id/request-approval, then decide it in Command Center.` } };
-        }
-      }
-      if (next === "merged") {
-        const mergeGate = await requireApprovedPrMerge(db, ctx.orgId, pr.id);
-        if (!mergeGate.ok) {
-          reply.code(mergeGate.status);
-          return { error: { code: "pr_merge_blocked", message: mergeGate.reason } };
         }
       }
       const updated = await updatePrStatus(db, request.params.id, next, void 0, ctx.userId);
@@ -116445,27 +117969,27 @@ init_audit();
 init_integrations();
 
 // src/services/oauth.ts
-var import_node_crypto16 = require("node:crypto");
+var import_node_crypto18 = require("node:crypto");
 var GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 var GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 var GITHUB_API_URL = "https://api.github.com/user";
 var STATE_TTL_MS = 10 * 60 * 1e3;
-function stateKey(config2) {
+function stateKey2(config2) {
   return config2.ENCRYPTION_KEY || "oauth-state-dev-fallback-do-not-use-in-prod";
 }
-function signOAuthState(config2, payload) {
+function signOAuthState2(config2, payload) {
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const sig = (0, import_node_crypto16.createHmac)("sha256", stateKey(config2)).update(body).digest("base64url");
+  const sig = (0, import_node_crypto18.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
-function verifyOAuthState(config2, state) {
+function verifyOAuthState2(config2, state) {
   try {
     const [body, sig] = state.split(".");
     if (!body || !sig) return null;
-    const expected = (0, import_node_crypto16.createHmac)("sha256", stateKey(config2)).update(body).digest("base64url");
+    const expected = (0, import_node_crypto18.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
     const a = Buffer.from(sig, "utf8");
     const b = Buffer.from(expected, "utf8");
-    if (a.length !== b.length || !(0, import_node_crypto16.timingSafeEqual)(a, b)) return null;
+    if (a.length !== b.length || !(0, import_node_crypto18.timingSafeEqual)(a, b)) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
     if (!payload.providerId || !payload.orgId) return null;
@@ -116478,7 +118002,7 @@ function buildGitHubAuthorizeUrl(config2, providerId, orgId, redirectUri) {
   if (!config2.GITHUB_CLIENT_ID) {
     throw new Error("GitHub OAuth is not configured \u2014 set GITHUB_CLIENT_ID.");
   }
-  const state = signOAuthState(config2, {
+  const state = signOAuthState2(config2, {
     providerId,
     orgId,
     exp: Date.now() + STATE_TTL_MS
@@ -116571,7 +118095,7 @@ function buildGoogleAuthorizeUrl(config2, providerId, orgId, redirectUri) {
   if (!config2.GOOGLE_CLIENT_ID) {
     throw new Error("Google OAuth is not configured \u2014 set GOOGLE_CLIENT_ID.");
   }
-  const state = signOAuthState(config2, {
+  const state = signOAuthState2(config2, {
     providerId,
     orgId,
     exp: Date.now() + STATE_TTL_MS
@@ -116816,7 +118340,7 @@ function registerIntegrationRoutes(app, deps) {
     const parsed = oauthCallbackBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
     const state = typeof parsed.data.state === "string" ? parsed.data.state : "";
-    const payload = verifyOAuthState(deps.config, state);
+    const payload = verifyOAuthState2(deps.config, state);
     if (!payload || payload.orgId !== ctx.orgId || payload.providerId !== provider.id) {
       reply.code(400);
       return { error: { code: "invalid_state", message: "Invalid or expired OAuth state. Start a new connection." } };
@@ -117073,7 +118597,7 @@ init_audit();
 init_integrations();
 
 // src/services/webhooks.ts
-var import_node_crypto17 = require("node:crypto");
+var import_node_crypto19 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_crypto2();
@@ -117081,15 +118605,15 @@ init_audit();
 init_notifications();
 function verifySignature(secret, rawBody, signatureHeader) {
   if (!secret || !signatureHeader) return false;
-  const expected = (0, import_node_crypto17.createHmac)("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const expected = (0, import_node_crypto19.createHmac)("sha256", secret).update(rawBody, "utf8").digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "").trim();
   if (!/^[0-9a-f]{64}$/i.test(received)) return false;
   const a = Buffer.from(expected, "hex");
   const b = Buffer.from(received, "hex");
-  return a.length === b.length && (0, import_node_crypto17.timingSafeEqual)(a, b);
+  return a.length === b.length && (0, import_node_crypto19.timingSafeEqual)(a, b);
 }
 function generateWebhookSecret() {
-  return (0, import_node_crypto17.randomBytes)(32).toString("hex");
+  return (0, import_node_crypto19.randomBytes)(32).toString("hex");
 }
 function pickPayload(body, fields) {
   const out = {};
@@ -117211,7 +118735,7 @@ function normalizeProviderEvent(provider, body) {
   return null;
 }
 function sha2562(value) {
-  return (0, import_node_crypto17.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto19.createHash)("sha256").update(value).digest("hex");
 }
 async function readOrgSettings(db, orgId) {
   const rows = await db.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
@@ -117839,153 +119363,120 @@ async function runDailyBriefings(db, config2, logger, now = /* @__PURE__ */ new 
   return runBriefings(db, config2, logger, "daily", now);
 }
 
-// src/services/decision-feedback.ts
+// src/routes/events.ts
+init_decision_feedback();
+
+// src/services/decision-signals.ts
 init_drizzle_orm();
 init_src2();
-init_audit();
-init_notifications();
-var OUTCOME_REVIEW_DAYS = 14;
-var BATCH_LIMIT = 20;
-async function reviewDecisionOutcome(db, orgId, decision) {
-  const anchor = decision.decidedAt ?? decision.createdAt;
-  const since = new Date(anchor.getTime());
-  const now = /* @__PURE__ */ new Date();
-  const [taskStats] = await db.select({
-    created: sql`count(*)::int`,
-    completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
-    failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`,
-    open: sql`count(*) filter (where ${tasks.status} not in ('completed','failed','archived'))::int`
-  }).from(tasks).where(and(eq(tasks.orgId, orgId), gte(tasks.createdAt, since)));
-  const [goalStats] = await db.select({
-    active: sql`count(*) filter (where ${goals.status} = 'active')::int`,
-    completed: sql`count(*) filter (where ${goals.status} = 'completed')::int`
-  }).from(goals).where(and(eq(goals.orgId, orgId), gte(goals.createdAt, since)));
-  const completed = taskStats?.completed ?? 0;
-  const failed = taskStats?.failed ?? 0;
-  const open = taskStats?.open ?? 0;
-  const goalsCompleted = goalStats?.completed ?? 0;
-  const supportingEvidence = [];
-  const contradictingEvidence = [];
-  if (completed > 0) {
-    supportingEvidence.push(`${completed} task(s) completed since the decision`);
-  }
-  if (failed > 0) {
-    contradictingEvidence.push(`${failed} task(s) failed since the decision`);
-  }
-  if (goalsCompleted > 0) {
-    supportingEvidence.push(`${goalsCompleted} goal(s) completed since the decision`);
-  }
-  if (completed === 0 && failed === 0 && goalsCompleted === 0) {
+var MIN_CALLS_FOR_SIGNAL = 5;
+var MIN_TASKS_FOR_SIGNAL = 3;
+function reliabilityOf(calls, rate) {
+  if (calls < MIN_CALLS_FOR_SIGNAL) return "insufficient_data";
+  if (rate >= 0.9) return "reliable";
+  if (rate >= 0.7) return "mixed";
+  return "degraded";
+}
+function verdictOf(completed, failed, open, rate, orgRate) {
+  if (completed + failed < MIN_TASKS_FOR_SIGNAL) return "insufficient_data";
+  if (rate >= orgRate + 0.1) return "outperforming";
+  if (rate <= orgRate - 0.1) return "underperforming";
+  return "on_track";
+}
+async function modelSignalsSinceLastReview(db, orgId) {
+  const [anchor] = await db.select({ lastFiled: sql`max(${decisions.outcomeFiledAt})` }).from(decisions).where(eq(decisions.orgId, orgId));
+  const lastFiled = anchor?.lastFiled ? new Date(anchor.lastFiled) : null;
+  const rows = await db.select({
+    model: llmPerformance.model,
+    provider: llmPerformance.provider,
+    phase: llmPerformance.phase,
+    calls: sql`count(*)::int`,
+    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
+    avgDurationMs: sql`coalesce(avg(${llmPerformance.durationMs}), 0)::int`
+  }).from(llmPerformance).where(
+    lastFiled ? and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, lastFiled)) : eq(llmPerformance.orgId, orgId)
+  ).groupBy(llmPerformance.model, llmPerformance.provider, llmPerformance.phase);
+  return rows.map((r) => {
+    const rate = r.calls > 0 ? r.successes / r.calls : 0;
     return {
-      decisionId: decision.id,
-      title: decision.title,
-      decisionType: decision.decisionType ?? "general",
-      decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
-      expectedOutcome: decision.expectedOutcome,
-      actualOutcomeSummary: "Insufficient data: no completed, failed, or goal work has been recorded since this decision. Re-review after execution activity accumulates.",
-      predictionAccuracy: "insufficient_data",
-      supportingEvidence: [],
-      contradictingEvidence: [],
-      lessons: "No measurable outcome yet \u2014 outcome review will be attempted again on the next scheduled run."
+      model: r.model,
+      provider: r.provider,
+      phase: r.phase,
+      calls: r.calls,
+      successes: r.successes,
+      successRate: Math.round(rate * 1e3) / 1e3,
+      avgDurationMs: r.avgDurationMs,
+      reliability: reliabilityOf(r.calls, rate)
     };
+  });
+}
+async function agentSignalsSinceLastReview(db, orgId) {
+  const [anchor] = await db.select({ lastFiled: sql`max(${decisions.outcomeFiledAt})` }).from(decisions).where(eq(decisions.orgId, orgId));
+  const lastFiled = anchor?.lastFiled ? new Date(anchor.lastFiled) : null;
+  const windowClause = lastFiled ? gte(tasks.createdAt, lastFiled) : void 0;
+  const [orgStats] = await db.select({
+    completed: sql`count(*) filter (where ${tasks.status} = 'completed')::int`,
+    failed: sql`count(*) filter (where ${tasks.status} = 'failed')::int`
+  }).from(tasks).where(windowClause ? and(eq(tasks.orgId, orgId), windowClause) : eq(tasks.orgId, orgId));
+  const orgCompleted = orgStats?.completed ?? 0;
+  const orgFailed = orgStats?.failed ?? 0;
+  const orgRate = orgCompleted + orgFailed > 0 ? orgCompleted / (orgCompleted + orgFailed) : 0;
+  const rows = await db.select({
+    agentId: agents.id,
+    name: agents.name,
+    role: agents.role,
+    department: agents.department,
+    completed: sql`count(${tasks.id}) filter (where ${tasks.status} = 'completed')::int`,
+    failed: sql`count(${tasks.id}) filter (where ${tasks.status} = 'failed')::int`,
+    open: sql`count(${tasks.id}) filter (where ${tasks.status} not in ('completed','failed','archived'))::int`
+  }).from(agents).leftJoin(tasks, and(eq(tasks.agentId, agents.id), eq(tasks.orgId, orgId), ...windowClause ? [windowClause] : [])).where(and(eq(agents.orgId, orgId), eq(agents.status, "active"))).groupBy(agents.id, agents.name, agents.role, agents.department);
+  return rows.map((r) => {
+    const done = r.completed + r.failed;
+    const rate = done > 0 ? r.completed / done : 0;
+    return {
+      agentId: r.agentId,
+      name: r.name,
+      role: r.role,
+      department: r.department,
+      tasksCompleted: r.completed,
+      tasksFailed: r.failed,
+      openTasks: r.open,
+      completionRate: Math.round(rate * 1e3) / 1e3,
+      orgCompletionRate: Math.round(orgRate * 1e3) / 1e3,
+      verdict: verdictOf(r.completed, r.failed, r.open, rate, orgRate)
+    };
+  });
+}
+async function signalSummary(db, orgId) {
+  const [accuracyRows, models, agentSigs] = await Promise.all([
+    db.select({ accuracy: decisions.predictionAccuracy }).from(decisions).where(and(eq(decisions.orgId, orgId), sql`${decisions.outcomeFiledAt} is not null`)),
+    modelSignalsSinceLastReview(db, orgId),
+    agentSignalsSinceLastReview(db, orgId)
+  ]);
+  const accuracyMix = {};
+  for (const row of accuracyRows) {
+    const key = row.accuracy ?? "unclassified";
+    accuracyMix[key] = (accuracyMix[key] ?? 0) + 1;
   }
-  let predictionAccuracy;
-  if (failed > completed) {
-    predictionAccuracy = "inaccurate";
-  } else if (failed > 0) {
-    predictionAccuracy = "partially_accurate";
-  } else {
-    predictionAccuracy = "accurate";
-  }
-  const actualOutcomeSummary = [
-    `${completed} completed / ${failed} failed / ${open} still open task(s) since the decision`,
-    goalsCompleted > 0 ? `${goalsCompleted} goal(s) completed` : null
-  ].filter(Boolean).join("; ");
-  const lessons = [
-    predictionAccuracy === "accurate" ? "Measured execution supported the decision's expectation." : predictionAccuracy === "inaccurate" ? "Measured execution contradicted the decision's expectation \u2014 revisit the assumptions behind it." : "Execution was mixed \u2014 evidence both supported and contradicted the expectation.",
-    `Basis: task/goal outcome counts since ${since.toISOString().slice(0, 10)} (the only measurable proxies currently recorded).`
-  ].join(" ");
   return {
-    decisionId: decision.id,
-    title: decision.title,
-    decisionType: decision.decisionType ?? "general",
-    decidedAt: (decision.decidedAt ?? decision.createdAt).toISOString(),
-    expectedOutcome: decision.expectedOutcome,
-    actualOutcomeSummary,
-    predictionAccuracy,
-    supportingEvidence,
-    contradictingEvidence,
-    lessons
+    decisionsReviewed: accuracyRows.length,
+    accuracyMix,
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    models,
+    agents: agentSigs
   };
 }
-async function findDecisionsDueForReview(db, limit = BATCH_LIMIT) {
-  const cutoff = new Date(Date.now() - OUTCOME_REVIEW_DAYS * 24 * 60 * 60 * 1e3);
-  return db.select({
-    id: decisions.id,
-    orgId: decisions.orgId,
-    title: decisions.title,
-    decisionType: decisions.decisionType,
-    decidedAt: decisions.decidedAt,
-    createdAt: decisions.createdAt,
-    expectedOutcome: decisions.expectedOutcome,
-    actualOutcome: decisions.actualOutcome,
-    status: decisions.status
-  }).from(decisions).where(
-    and(
-      sql`${decisions.outcomeFiledAt} is null`,
-      lt(decisions.createdAt, cutoff),
-      // Live decisions only — archived/reversed rows are historical record.
-      or(eq(decisions.status, "active"), eq(decisions.status, "validated"))
-    )
-  ).limit(limit);
-}
-async function runOutcomeFeedbackLoop(db) {
-  const due = await findDecisionsDueForReview(db);
-  let filed = 0;
-  let skipped = 0;
-  for (const decision of due) {
-    const review = await reviewDecisionOutcome(db, decision.orgId, decision);
-    if (review.predictionAccuracy === "insufficient_data") {
-      skipped += 1;
-      continue;
-    }
-    await db.update(decisions).set({
-      actualOutcome: review.actualOutcomeSummary,
-      lessonsLearned: review.lessons,
-      outcomeFiledAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(and(eq(decisions.id, decision.id), eq(decisions.orgId, decision.orgId)));
-    await appendAudit(db, {
-      orgId: decision.orgId,
-      actorType: "system",
-      actorId: null,
-      action: "decision.outcome_reviewed",
-      inputRef: JSON.stringify({ decisionId: decision.id, accuracy: review.predictionAccuracy }),
-      outcome: "success"
-    });
-    try {
-      await db.insert(companyMemory).values({
-        orgId: decision.orgId,
-        category: "lesson",
-        content: `Decision review \u2014 "${decision.title.slice(0, 120)}": ${review.lessons}`,
-        importance: 4,
-        source: "decision_feedback_loop"
-      });
-    } catch {
-    }
-    try {
-      await createNotification(
-        db,
-        decision.orgId,
-        "report",
-        `Outcome review: ${decision.title.slice(0, 80)}`,
-        review.actualOutcomeSummary
-      );
-    } catch {
-    }
-    filed += 1;
+async function runSignalSync(db) {
+  const orgRows = await db.select({ orgId: decisions.orgId }).from(decisions).where(sql`${decisions.outcomeFiledAt} is not null`).groupBy(decisions.orgId).limit(100);
+  let modelSignals = 0;
+  let agentSignals = 0;
+  for (const { orgId } of orgRows) {
+    const models = await modelSignalsSinceLastReview(db, orgId);
+    const agentSigs = await agentSignalsSinceLastReview(db, orgId);
+    modelSignals += models.length;
+    agentSignals += agentSigs.length;
   }
-  return { reviewed: due.length, filed, skippedInsufficientData: skipped };
+  return { orgsSynced: orgRows.length, modelSignals, agentSignals };
 }
 
 // src/services/job-runs.ts
@@ -118517,6 +120008,18 @@ function registerEventRoutes(app, deps) {
       return { error: { code: "unauthorized", message: "Invalid internal token" } };
     }
     const result = await trackJobRun(db, "decision_outcome_review", () => runOutcomeFeedbackLoop(db), {
+      summarize: (r) => ({
+        detail: { ...r }
+      })
+    });
+    return { data: result };
+  });
+  app.post("/v1/internal/decisions/signal-sync", async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers["x-internal-token"])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: "unauthorized", message: "Invalid internal token" } };
+    }
+    const result = await trackJobRun(db, "decision_signal_sync", () => runSignalSync(db), {
       summarize: (r) => ({
         detail: { ...r }
       })
@@ -119443,7 +120946,7 @@ init_src();
 init_auth();
 
 // src/services/business-import.ts
-var import_node_crypto18 = require("node:crypto");
+var import_node_crypto20 = require("node:crypto");
 var import_promises3 = require("node:dns/promises");
 init_drizzle_orm();
 init_src2();
@@ -119961,7 +121464,7 @@ function generateImportProposal(facts, description) {
   };
 }
 function fingerprintFor(description, websiteUrl) {
-  return (0, import_node_crypto18.createHash)("sha256").update(`${websiteUrl ?? ""}|${description ?? ""}`).digest("hex");
+  return (0, import_node_crypto20.createHash)("sha256").update(`${websiteUrl ?? ""}|${description ?? ""}`).digest("hex");
 }
 function describeImport(imp) {
   return `${imp.websiteUrl ?? ""}${imp.websiteTitle ? ` (${imp.websiteTitle})` : ""}${imp.description ? ` \u2014 ${imp.description.slice(0, 80)}` : ""}`.trim();
@@ -120927,7 +122430,11 @@ var updateDecisionBody = external_exports.object({
   lessonsLearned: external_exports.string().max(5e3).optional(),
   confidence: external_exports.enum(["high", "medium", "low"]).optional(),
   rationale: external_exports.string().max(5e3).optional(),
-  reversalConditions: external_exports.array(external_exports.string()).optional()
+  reversalConditions: external_exports.array(external_exports.string()).optional(),
+  // §24 founder-verdict beat: the founder's explicit decision on a council
+  // recommendation. Both fields travel together; the note is optional.
+  founderVerdict: external_exports.enum(["approved", "rejected"]).optional(),
+  founderVerdictNote: external_exports.string().max(2e3).optional()
 });
 function registerDecisionRoutes(app, deps) {
   const { db } = deps;
@@ -120954,6 +122461,10 @@ function registerDecisionRoutes(app, deps) {
     const ctx = await requireAuth(request, deps);
     return getDecisionSummary(db, ctx.orgId);
   });
+  app.get("/v1/decisions/signals", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    return signalSummary(db, ctx.orgId);
+  });
   app.get("/v1/decisions/:id", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     const { id } = request.params;
@@ -120974,6 +122485,185 @@ function registerDecisionRoutes(app, deps) {
       return { error: { code: "not_found", message: "Decision not found" } };
     }
     return decision;
+  });
+}
+
+// src/routes/models.ts
+init_auth();
+
+// src/services/model-insights.ts
+init_drizzle_orm();
+init_src2();
+var WINDOW_DAYS = 30;
+var MIN_CALLS_FOR_RELIABILITY = 10;
+var MIN_CALLS_FOR_RECOMMENDATION = 20;
+async function getModelStats(db, orgId) {
+  const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1e3);
+  const rows = await db.select({
+    model: llmPerformance.model,
+    provider: llmPerformance.provider,
+    calls: sql`count(*)::int`,
+    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
+    avgDurationMs: sql`coalesce(round(avg(${llmPerformance.durationMs})), 0)::int`,
+    avgTotalTokens: sql`coalesce(round(avg(${llmPerformance.totalTokens})), 0)::int`
+  }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, since))).groupBy(llmPerformance.model, llmPerformance.provider).orderBy(desc(sql`count(*)`));
+  const models = rows.map((r) => ({
+    model: r.model,
+    provider: r.provider,
+    calls: r.calls,
+    successRate: r.calls > 0 ? r.successes / r.calls : 0,
+    avgDurationMs: r.avgDurationMs,
+    avgTotalTokens: r.avgTotalTokens
+  }));
+  const totalCalls = models.reduce((acc, m) => acc + m.calls, 0);
+  return { windowDays: WINDOW_DAYS, totalCalls, models, sufficientData: totalCalls >= MIN_CALLS_FOR_RECOMMENDATION };
+}
+async function getRoutingShift(db, orgId) {
+  const now = Date.now();
+  const weekStart2 = new Date(now - 7 * 24 * 60 * 60 * 1e3);
+  const prevStart = new Date(now - 14 * 24 * 60 * 60 * 1e3);
+  const weeklyGroup = async (from, to) => {
+    const rows = await db.select({
+      source: llmPerformance.routingSource,
+      calls: sql`count(*)::int`
+    }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, from), sql`${llmPerformance.createdAt} < ${to}`)).groupBy(llmPerformance.routingSource);
+    return rows.map((r) => ({ source: r.source, calls: r.calls }));
+  };
+  const [week, previousWeek] = await Promise.all([weeklyGroup(weekStart2, new Date(now)), weeklyGroup(prevStart, weekStart2)]);
+  const shareOf = (entries) => {
+    const total = entries.reduce((a, e) => a + e.calls, 0);
+    if (total === 0) return null;
+    const measured = entries.find((e) => e.source === "measured")?.calls ?? 0;
+    return measured / total;
+  };
+  const measuredShare = shareOf(week);
+  const previousMeasuredShare = shareOf(previousWeek);
+  const shiftPct = measuredShare !== null && previousMeasuredShare !== null ? measuredShare - previousMeasuredShare : null;
+  return {
+    week,
+    previousWeek,
+    measuredShare,
+    previousMeasuredShare,
+    shiftPct,
+    totalCalls: [...week, ...previousWeek].reduce((a, e) => a + e.calls, 0)
+  };
+}
+async function getCostOptimizationInsights(db, orgId) {
+  const summary = await getModelStats(db, orgId);
+  if (!summary.sufficientData) {
+    return [
+      {
+        kind: "insufficient_data",
+        title: "Not enough model history yet",
+        detail: `Cost optimization needs at least ${MIN_CALLS_FOR_RECOMMENDATION} recorded LLM calls in the last ${WINDOW_DAYS} days (currently ${summary.totalCalls}). Recommendations will appear as real usage accumulates \u2014 none are invented.`,
+        evidence: { totalCalls: summary.totalCalls, required: MIN_CALLS_FOR_RECOMMENDATION }
+      }
+    ];
+  }
+  const insights = [];
+  const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1e3);
+  const perPhase = await db.select({
+    phase: llmPerformance.phase,
+    model: llmPerformance.model,
+    calls: sql`count(*)::int`,
+    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
+    avgTotalTokens: sql`coalesce(round(avg(${llmPerformance.totalTokens})), 0)::int`
+  }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, since))).groupBy(llmPerformance.phase, llmPerformance.model);
+  const byPhase = /* @__PURE__ */ new Map();
+  for (const row of perPhase) {
+    const list = byPhase.get(row.phase) ?? [];
+    list.push(row);
+    byPhase.set(row.phase, list);
+  }
+  for (const [phase, models] of byPhase) {
+    const eligible = models.filter((m) => m.calls >= MIN_CALLS_FOR_RELIABILITY);
+    if (eligible.length < 2) continue;
+    const reference = [...eligible].sort((a, b) => b.successes / b.calls - a.successes / a.calls)[0];
+    if (!reference) continue;
+    const refRate = reference.successes / reference.calls;
+    for (const m of eligible) {
+      if (m.model === reference.model) continue;
+      const rate = m.successes / m.calls;
+      if (refRate - rate <= 0.02 && m.avgTotalTokens > reference.avgTotalTokens) {
+        insights.push({
+          kind: "redundant_reliability",
+          title: `"${m.model}" and "${reference.model}" perform equally on ${phase}`,
+          detail: `Over the last ${WINDOW_DAYS} days, ${m.model} succeeded ${Math.round(rate * 100)}% of ${m.calls} ${phase} calls while ${reference.model} succeeded ${Math.round(refRate * 100)}% of ${reference.calls} \u2014 and uses more tokens per call on average (${m.avgTotalTokens} vs ${reference.avgTotalTokens}). Consider routing ${phase} work to ${reference.model}.`,
+          evidence: {
+            phase,
+            model: m.model,
+            calls: m.calls,
+            successRate: Number(rate.toFixed(3)),
+            referenceModel: reference.model,
+            referenceCalls: reference.calls,
+            referenceSuccessRate: Number(refRate.toFixed(3)),
+            avgTokensModel: m.avgTotalTokens,
+            avgTokensReference: reference.avgTotalTokens
+          }
+        });
+      }
+    }
+  }
+  for (const m of summary.models) {
+    if (m.calls >= MIN_CALLS_FOR_RELIABILITY && m.successRate < 0.8) {
+      insights.push({
+        kind: "high_failure_rate",
+        title: `"${m.model}" fails ${Math.round((1 - m.successRate) * 100)}% of calls`,
+        detail: `${m.model} recorded ${m.calls} calls in the last ${WINDOW_DAYS} days with a measured success rate of ${Math.round(m.successRate * 100)}%. Investigate provider errors or route this work to a more reliable model.`,
+        evidence: { model: m.model, calls: m.calls, successRate: Number(m.successRate.toFixed(3)) }
+      });
+    }
+  }
+  if (insights.length === 0) {
+    insights.push({
+      kind: "insufficient_data",
+      title: "No optimization opportunities found yet",
+      detail: `All models are performing within normal bands across ${summary.totalCalls} measured calls. This re-evaluates automatically as new data arrives.`,
+      evidence: { totalCalls: summary.totalCalls }
+    });
+  }
+  return insights;
+}
+
+// src/routes/models.ts
+function registerModelRoutes(app, deps) {
+  const { db } = deps;
+  app.get("/v1/models", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const [stats, insights, routingShift] = await Promise.all([
+      getModelStats(db, ctx.orgId),
+      getCostOptimizationInsights(db, ctx.orgId),
+      getRoutingShift(db, ctx.orgId)
+    ]);
+    return { data: { stats, insights, routingShift } };
+  });
+}
+
+// src/routes/briefings.ts
+init_drizzle_orm();
+init_auth();
+init_src2();
+function registerBriefingRoutes(app, deps) {
+  const { db } = deps;
+  app.get("/v1/briefings", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url2 = new URL(request.url, "http://localhost");
+    const kind = url2.searchParams.get("kind");
+    if (kind && !["daily", "weekly", "monthly"].includes(kind)) {
+      return { data: [], meta: { limit: 0, offset: 0, total: 0 } };
+    }
+    const limit = Math.min(Math.max(parseInt(url2.searchParams.get("limit") ?? "10", 10) || 10, 1), 200);
+    const offset = Math.max(parseInt(url2.searchParams.get("offset") ?? "0", 10) || 0, 0);
+    const conditions = [eq(briefings.orgId, ctx.orgId)];
+    if (kind) conditions.push(eq(briefings.kind, kind));
+    const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(briefings).where(and(...conditions));
+    const list = await db.select().from(briefings).where(and(...conditions)).orderBy(desc(briefings.periodStart)).limit(limit).offset(offset);
+    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+  });
+  app.get("/v1/briefings/latest", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const rows = await db.select().from(briefings).where(and(eq(briefings.orgId, ctx.orgId), ne(briefings.status, "failed"))).orderBy(desc(briefings.periodStart)).limit(1);
+    return { data: rows[0] ?? null };
   });
 }
 
@@ -121002,13 +122692,226 @@ function registerLineageRoutes(app, deps) {
   });
 }
 
+// src/routes/deliberation.ts
+init_drizzle_orm();
+init_src2();
+init_zod();
+init_auth();
+init_deliberation();
+init_decision_memory();
+function registerDeliberationRoutes(app, deps) {
+  const { db } = deps;
+  app.post("/v1/deliberations", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = external_exports.object({
+      question: external_exports.string().min(8).max(1e3),
+      context: external_exports.string().max(2e3).optional()
+    }).safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: { code: "validation_failed", details: parsed.error.flatten() } };
+    }
+    const pending = await createPendingCouncilSession(db, ctx.orgId, ctx.userId, {
+      title: parsed.data.question.slice(0, 200),
+      councilDetail: {
+        question: parsed.data.question,
+        context: parsed.data.context ?? null,
+        startedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    });
+    request.log.info(
+      { orgId: ctx.orgId, sessionId: pending.id, escalationPreview: "background" },
+      "deliberation started (background)"
+    );
+    void runDeliberation(deps.config, db, ctx.orgId, ctx.userId, {
+      question: parsed.data.question,
+      context: parsed.data.context ?? null,
+      persistDecision: false
+    }).then((result) => {
+      app.log.info(
+        { orgId: ctx.orgId, sessionId: pending.id, decisionId: pending.id, stoppedReason: result.stoppedReason, rounds: result.rounds.length },
+        "deliberation completed (background)"
+      );
+      if (result.stoppedReason === "llm_unavailable") {
+        return failPendingCouncilSession(db, ctx.orgId, pending.id, "no model was available to run the council");
+      }
+      return completePendingCouncilSession(db, ctx.orgId, pending.id, {
+        confidence: result.synthesis.confidence === "none" ? "low" : result.synthesis.confidence,
+        whatWasDecided: result.synthesis.recommendation || "(no recommendation recorded \u2014 see session detail)",
+        rationale: result.synthesis.verdictText,
+        alternatives: result.synthesis.alternatives,
+        evidence: result.rounds.flatMap((r) => r.analyses).flatMap((a) => a.claims.filter((c) => c.kind === "evidence").map((c) => ({ source: a.participant, type: "council_analysis", summary: c.text }))).slice(0, 12),
+        assumptions: result.rounds.flatMap((r) => r.analyses).flatMap((a) => a.claims.filter((c) => c.kind === "assumption").map((c) => c.text)).slice(0, 10),
+        expectedOutcome: (result.synthesis.recommendation || "").slice(0, 500),
+        councilDetail: {
+          question: parsed.data.question,
+          context: parsed.data.context ?? null,
+          objective: parsed.data.context ?? null,
+          participants: result.participants,
+          rounds: result.rounds,
+          disagreements: result.synthesis.disagreements,
+          risks: result.synthesis.risks,
+          unknowns: result.synthesis.unknowns,
+          alternatives: result.synthesis.alternatives,
+          consensusReached: result.synthesis.consensusReached,
+          confidence: result.synthesis.confidence,
+          requiresFounderApproval: result.requiresFounderApproval,
+          budgetUsd: result.budgetUsd,
+          totalTokensUsed: result.totalTokensUsed,
+          stoppedReason: result.stoppedReason,
+          recordedAt: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      });
+    }).catch(async (err) => {
+      app.log.error({ orgId: ctx.orgId, sessionId: pending.id, err }, "deliberation failed (background)");
+      await failPendingCouncilSession(
+        db,
+        ctx.orgId,
+        pending.id,
+        err instanceof Error ? err.message : "unexpected error"
+      ).catch(() => {
+      });
+    });
+    reply.code(202);
+    return {
+      data: {
+        sessionId: pending.id,
+        status: "started",
+        poll: `/v1/deliberations/progress?ids=${pending.id}`
+      }
+    };
+  });
+  app.get("/v1/deliberations/progress", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url2 = new URL(request.url, "http://localhost");
+    const raw = url2.searchParams.get("ids") ?? "";
+    const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+    if (ids.length === 0) return { data: { sessions: [] } };
+    const rows = await db.select({ id: decisions.id, status: decisions.status, title: decisions.title }).from(decisions).where(and(eq(decisions.orgId, ctx.orgId), inArray(decisions.id, ids)));
+    return {
+      data: {
+        sessions: rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          status: r.status,
+          completed: r.status !== "pending"
+        }))
+      }
+    };
+  });
+  app.get("/v1/deliberations", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const rows = await db.select().from(decisions).where(eq(decisions.orgId, ctx.orgId)).orderBy(desc(decisions.createdAt)).limit(50);
+    const council = rows.filter((d) => d.decisionMakerType === "ai_council" && d.status !== "pending");
+    return {
+      data: council.map((d) => ({
+        id: d.id,
+        title: d.title,
+        decisionType: d.decisionType,
+        status: d.status,
+        confidence: d.confidence,
+        whatWasDecided: d.whatWasDecided,
+        rationale: d.rationale,
+        expectedOutcome: d.expectedOutcome,
+        actualOutcome: d.actualOutcome,
+        predictionAccuracy: d.predictionAccuracy,
+        founderVerdict: d.founderVerdict,
+        founderVerdictNote: d.founderVerdictNote,
+        founderVerdictAt: d.founderVerdictAt,
+        decidedAt: d.decidedAt,
+        createdAt: d.createdAt
+      }))
+    };
+  });
+  app.get("/v1/deliberations/:id", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    const [row] = await db.select().from(decisions).where(and(eq(decisions.id, id), eq(decisions.orgId, ctx.orgId))).limit(1);
+    if (!row || row.decisionMakerType !== "ai_council") {
+      reply.code(404);
+      return { error: { code: "not_found", message: "Council session not found" } };
+    }
+    return {
+      data: {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        confidence: row.confidence,
+        whatWasDecided: row.whatWasDecided,
+        rationale: row.rationale,
+        evidence: row.evidence,
+        assumptions: row.assumptions,
+        expectedOutcome: row.expectedOutcome,
+        actualOutcome: row.actualOutcome,
+        lessonsLearned: row.lessonsLearned,
+        founderVerdict: row.founderVerdict,
+        founderVerdictNote: row.founderVerdictNote,
+        founderVerdictAt: row.founderVerdictAt,
+        decidedAt: row.decidedAt,
+        createdAt: row.createdAt,
+        councilDetail: row.councilDetail ?? null
+      }
+    };
+  });
+}
+
 // src/services/tool-handlers.ts
 init_drizzle_orm();
 init_src2();
 init_connector_actions();
 init_connector_gmail();
-init_connector_linear();
+
+// src/services/routed-chat.ts
 init_llm();
+init_model_intelligence();
+init_calibration_routing();
+async function resolveRoutedModel(db, ctx, options) {
+  const routing = classifyTask({
+    title: ctx.agentRole,
+    description: `${ctx.agentName ?? ""} ${options.tool ?? ""}`.slice(0, 500),
+    agentRole: ctx.agentRole
+  });
+  const calibrationAdvice = await getCalibrationAdvice(db, ctx.orgId);
+  const { modelId, source } = await selectMeasuredModel(db, ctx.orgId, routing, calibrationAdvice);
+  return { modelId, source };
+}
+async function routedToolChat(config2, db, ctx, systemPrompt, userMessage, options = {}) {
+  const { modelId, source } = await resolveRoutedModel(db, ctx, options);
+  return chat(config2, systemPrompt, userMessage, {
+    model: modelId,
+    temperature: options.temperature ?? 0.7,
+    max_tokens: options.max_tokens ?? 2048,
+    retries: options.retries,
+    _trace: {
+      orgId: ctx.orgId,
+      phase: "task_execution",
+      taskId: options.taskId,
+      agentId: ctx.agentId,
+      db,
+      routingSource: source
+    }
+  });
+}
+async function routedToolChatJson(config2, db, ctx, systemPrompt, userMessage, options = {}) {
+  const { modelId, source } = await resolveRoutedModel(db, ctx, options);
+  return chatJson(config2, systemPrompt, userMessage, {
+    model: modelId,
+    temperature: options.temperature ?? 0.3,
+    max_tokens: options.max_tokens ?? 2048,
+    retries: options.retries,
+    _trace: {
+      orgId: ctx.orgId,
+      phase: "task_execution",
+      taskId: options.taskId,
+      agentId: ctx.agentId,
+      db,
+      routingSource: source
+    }
+  });
+}
+
+// src/services/tool-handlers.ts
+init_connector_linear();
 init_realtime();
 init_notifications();
 init_notification_preferences();
@@ -121095,9 +122998,10 @@ Format your response as:
 
 ## Summary
 Brief summary of the most important information.`;
-  const result = await chat(config2, "You are a knowledgeable research assistant. Provide accurate, current information.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a knowledgeable research assistant. Provide accurate, current information.", prompt, {
     temperature: 0.3,
-    max_tokens: 2048
+    max_tokens: 2048,
+    tool: "web_search"
   });
   if (result) {
     await db.insert(companyMemory).values({
@@ -121134,9 +123038,10 @@ Provide a structured analysis covering:
 8. **Threat Level** \u2014 How they compare to us
 9. **Opportunities** \u2014 Where we can differentiate
 10. **Recommendations** \u2014 How to respond to this competitor`;
-  const result = await chat(config2, "You are a competitive intelligence analyst. Provide thorough, actionable competitive analysis.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a competitive intelligence analyst. Provide thorough, actionable competitive analysis.", prompt, {
     temperature: 0.3,
-    max_tokens: 3e3
+    max_tokens: 3e3,
+    tool: "analyze_competitor"
   });
   if (result) {
     await db.insert(companyMemory).values({
@@ -121174,9 +123079,10 @@ Also cover:
 8. Risks and challenges
 
 Provide specific data points where possible. Be thorough but actionable.`;
-  const result = await chat(config2, "You are a market research analyst. Provide data-driven, actionable market intelligence.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a market research analyst. Provide data-driven, actionable market intelligence.", prompt, {
     temperature: 0.3,
-    max_tokens: 4e3
+    max_tokens: 4e3,
+    tool: "research_market"
   });
   if (result) {
     await db.insert(companyMemory).values({
@@ -121214,9 +123120,10 @@ Structure:
 
 Write in a ${tone} tone. Be engaging, informative, and purposeful.
 Use specific examples and actionable advice where possible.`;
-  const result = await chat(config2, "You are an expert content writer. Create engaging, high-quality content.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are an expert content writer. Create engaging, high-quality content.", prompt, {
     temperature: 0.7,
-    max_tokens: 4096
+    max_tokens: 4096,
+    tool: "write_blog_post"
   });
   return {
     topic,
@@ -121245,9 +123152,10 @@ Structure:
 6. Professional closing
 
 Keep it concise and ${tone} in tone.`;
-  const result = await chat(config2, "You are a professional communications specialist. Write clear, effective emails.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a professional communications specialist. Write clear, effective emails.", prompt, {
     temperature: 0.5,
-    max_tokens: 2048
+    max_tokens: 2048,
+    tool: "write_email"
   });
   return {
     recipient,
@@ -121278,9 +123186,10 @@ Structure the report with:
 
 ${format === "executive" ? "Keep it concise \u2014 focus on key insights and decisions." : ""}
 ${format === "detailed" ? "Be thorough \u2014 include supporting evidence and methodology." : ""}`;
-  const result = await chat(config2, "You are a senior analyst. Create clear, actionable reports.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a senior analyst. Create clear, actionable reports.", prompt, {
     temperature: 0.3,
-    max_tokens: 4096
+    max_tokens: 4096,
+    tool: "write_report"
   });
   return {
     topic,
@@ -121307,9 +123216,10 @@ Provide:
 4. Actionable recommendations
 5. Confidence level in findings
 6. Additional data that would strengthen the analysis`;
-  const result = await chat(config2, "You are a data analyst. Provide thorough, evidence-based analysis.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a data analyst. Provide thorough, evidence-based analysis.", prompt, {
     temperature: 0.3,
-    max_tokens: 3e3
+    max_tokens: 3e3,
+    tool: "analyze_data"
   });
   return {
     analysisType,
@@ -121335,9 +123245,10 @@ Provide:
 6. Forward-looking projections (if data supports it)
 
 Be precise with numbers. Clearly state any assumptions.`;
-  const result = await chat(config2, "You are a financial analyst. Provide precise, actionable financial analysis.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a financial analyst. Provide precise, actionable financial analysis.", prompt, {
     temperature: 0.2,
-    max_tokens: 3e3
+    max_tokens: 3e3,
+    tool: "financial_analysis"
   });
   return {
     analysisType,
@@ -121372,9 +123283,10 @@ Structure the plan as:
 5. **Risks** \u2014 What could go wrong and mitigation
 6. **Success Metrics** \u2014 How we'll know we succeeded
 7. **Next Steps** \u2014 Immediate actions`;
-  const result = await chat(config2, "You are a strategic planner. Create clear, actionable plans.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a strategic planner. Create clear, actionable plans.", prompt, {
     temperature: 0.3,
-    max_tokens: 4096
+    max_tokens: 4096,
+    tool: "create_plan"
   });
   return {
     objective,
@@ -121403,9 +123315,10 @@ For each task, provide:
 5. **Dependencies** \u2014 What needs to happen first (if any)
 
 Keep tasks specific and actionable. Each task should be completable independently where possible.`;
-  const result = await chatJson(config2, "You are an operations manager. Decompose complex objectives into clear, actionable tasks.", prompt, {
+  const result = await routedToolChatJson(config2, db, ctx, "You are an operations manager. Decompose complex objectives into clear, actionable tasks.", prompt, {
     temperature: 0.3,
-    max_tokens: 3e3
+    max_tokens: 3e3,
+    tool: "decompose_task"
   });
   return {
     objective,
@@ -121433,9 +123346,10 @@ Provide:
 7. **Refactoring Suggestions** \u2014 Code organization improvements
 
 Be specific with line references and concrete suggestions.`;
-  const result = await chat(config2, "You are a senior software engineer performing a code review. Be thorough and specific.", prompt, {
+  const result = await routedToolChat(config2, db, ctx, "You are a senior software engineer performing a code review. Be thorough and specific.", prompt, {
     temperature: 0.2,
-    max_tokens: 4096
+    max_tokens: 4096,
+    tool: "review_code"
   });
   return {
     language,
@@ -121465,9 +123379,10 @@ Provide the complete implementation with:
 - Brief explanation of the approach
 - Usage example
 - Any important notes or caveats`;
-  const result = await chat(config2, `You are an expert ${language} developer. Write clean, production-quality code.`, prompt, {
+  const result = await routedToolChat(config2, db, ctx, `You are an expert ${language} developer. Write clean, production-quality code.`, prompt, {
     temperature: 0.3,
-    max_tokens: 4096
+    max_tokens: 4096,
+    tool: "write_code"
   });
   return {
     language,
@@ -121628,14 +123543,14 @@ async function handleLinearConnectorAction(action, params, ctx, db) {
 }
 
 // src/plugins/csrf.ts
-var import_node_crypto19 = require("node:crypto");
+var import_node_crypto21 = require("node:crypto");
 var CSRF_COOKIE = "csrf_token";
 var CSRF_HEADER = "x-csrf-token";
 var CSRF_ISSUED_AT = "csrf_issued_at";
 var MAX_AGE = 60 * 60 * 24;
 var REFRESH_THRESHOLD = 0.5;
 function generateToken() {
-  return (0, import_node_crypto19.randomBytes)(32).toString("hex");
+  return (0, import_node_crypto21.randomBytes)(32).toString("hex");
 }
 function constantTimeEqual(a, b) {
   if (a.length !== b.length) return false;
@@ -121764,7 +123679,7 @@ async function buildApp(deps, opts = {}) {
     // pino Logger satisfies FastifyBaseLogger; cast bridges version skew between the
     // workspace pino and fastify's bundled pino (docs/39 — pino everywhere).
     loggerInstance: deps.logger,
-    genReqId: () => (0, import_node_crypto20.randomUUID)(),
+    genReqId: () => (0, import_node_crypto22.randomUUID)(),
     // Trust X-Forwarded-* from Vercel/nginx so request.ip is the real client IP
     // (docs/58). The API never sets cookies, so this has no auth implications.
     trustProxy: true,
@@ -121798,7 +123713,29 @@ async function buildApp(deps, opts = {}) {
   idempotencyPlugin(app, idempotencyStore);
   const rateLimitEnabled = deps.config.NODE_ENV !== "test";
   if (rateLimitEnabled && redis.isConnected()) {
-    rateLimitHookRedis(app, redis, { windowMs: 6e4, max: 60, prefix: "rl:global" });
+    rateLimitHookRedis(app, redis, {
+      windowMs: 6e4,
+      // 300/min per session: a data-dense dashboard fires 4-10 API calls per
+      // page (page data + notifications + realtime + widgets), so a founder
+      // clicking quickly bursts well past 120 — the old cap 429'd real
+      // navigation mid-session (§1 Phase A sweep). 300/min still bounds a
+      // runaway session to ~5 req/s; abuse-sensitive routes keep their own
+      // tighter buckets (commands 10/min, login 5/min, register 3/min).
+      max: 300,
+      prefix: "rl:global",
+      // Key by session identity when authenticated: behind the web proxy all
+      // users share one egress IP, so an IP-keyed bucket was effectively a
+      // global limit across users and 429'd mid-navigation (§1 Phase A).
+      keyFn: sessionOrIpKey,
+      skip: (req) => req.method === "GET" && req.url.startsWith("/v1/events")
+    });
+    rateLimitRouteRedis(app, redis, {
+      path: "/v1/events",
+      windowMs: 6e4,
+      max: 30,
+      label: "sse-handshake",
+      methods: ["GET"]
+    });
   } else if (rateLimitEnabled) {
     const globalRL = /* @__PURE__ */ new Map();
     app.addHook("onRequest", async (request, reply) => {
@@ -121830,12 +123767,16 @@ async function buildApp(deps, opts = {}) {
     rateLimitRouteRedis(app, redis, { path: "/v1/auth/register", max: 3, label: "registration" });
     rateLimitRouteRedis(app, redis, { path: "/v1/auth/forgot-password", max: 3, windowMs: 9e5, label: "forgot-password" });
     rateLimitRouteRedis(app, redis, { path: "/v1/auth/reset-password", max: 5, windowMs: 9e5, label: "reset-password" });
-    rateLimitRouteRedis(app, redis, { path: "/v1/commands", max: 10, windowMs: 6e4, label: "commands" });
+    rateLimitRouteRedis(app, redis, { path: "/v1/auth/verify-email/request", max: 3, windowMs: 9e5, label: "verify-email-request" });
+    rateLimitRouteRedis(app, redis, { path: "/v1/auth/oauth", max: 20, windowMs: 6e4, label: "oauth" });
+    rateLimitRouteRedis(app, redis, { path: "/v1/commands", max: 10, windowMs: 6e4, label: "commands", keyFn: sessionOrIpKey });
   } else if (rateLimitEnabled) {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: "/v1/auth/register", max: 3, label: "registration" });
     rateLimitRoute(app, { path: "/v1/auth/forgot-password", max: 3, windowMs: 9e5, label: "forgot-password" });
     rateLimitRoute(app, { path: "/v1/auth/reset-password", max: 5, windowMs: 9e5, label: "reset-password" });
+    rateLimitRoute(app, { path: "/v1/auth/verify-email/request", max: 3, windowMs: 9e5, label: "verify-email-request" });
+    rateLimitRoute(app, { path: "/v1/auth/oauth", max: 20, windowMs: 6e4, label: "oauth" });
     rateLimitRoute(app, { path: "/v1/commands", max: 10, windowMs: 6e4, label: "commands" });
   }
   app.addHook("onSend", async (_request, reply) => {
@@ -121886,6 +123827,7 @@ async function buildApp(deps, opts = {}) {
   });
   registerHealthRoutes(app, deps);
   registerAuthRoutes(app, deps);
+  registerOAuthRoutes(app, deps);
   registerAgentRoutes(app, deps);
   registerApprovalRoutes(app, deps);
   registerActivityRoutes(app, deps);
@@ -121934,8 +123876,11 @@ async function buildApp(deps, opts = {}) {
   registerStrategyRoutes(app, deps);
   registerWorkforceROIRoutes(app, deps);
   registerDecisionRoutes(app, deps);
+  registerModelRoutes(app, deps);
+  registerBriefingRoutes(app, deps);
   registerLineageRoutes(app, deps);
   registerRecommendationRoutes(app, deps);
+  registerDeliberationRoutes(app, deps);
   registerBuiltinTools();
   registerBuiltinToolHandlers();
   return app;
