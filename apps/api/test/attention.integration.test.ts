@@ -76,14 +76,15 @@ async function createOrgFixture(name: string): Promise<OrgFixture> {
   const userId = userRow!.id;
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });
   const session = await createSession(deps.db, { userId, orgId });
-  const fixture: OrgFixture = {
+  // Deliberately NOT pushed here: these fixtures are created with Promise.all,
+  // so pushes would land in completion order and `fixtures[0]` would be a
+  // random org from run to run. The caller records them in a fixed order.
+  return {
     orgId,
     userId,
     token: session.token,
     auth: () => ({ authorization: `Bearer ${session.token}` }),
   };
-  fixtures.push(fixture);
-  return fixture;
 }
 
 interface AttentionResponse {
@@ -128,6 +129,8 @@ beforeAll(async () => {
     createOrgFixture('attention-b'),
     createOrgFixture('attention-quiet'),
   ]);
+  // Fixed order is part of the fixture contract: tests index by position.
+  fixtures.push(orgA, orgB, quietOrg);
 
   // A real AI employee so items can name who is waiting.
   const [agentRow] = await deps.db
