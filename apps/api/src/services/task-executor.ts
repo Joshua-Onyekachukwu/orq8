@@ -3,6 +3,7 @@ import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db'
 import { chat } from './llm.js';
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
+import { consumeCredits, hasEnoughCredits } from './credits.js';
 import { broadcastToOrg } from './realtime.js';
 import { notifyAttentionChanged } from './attention.js';
 import { classifyTask } from './model-intelligence.js';
@@ -88,6 +89,7 @@ async function persistPreExecutionBlock(
   task: { id: string; agentId: string | null; title: string },
   reason: string,
   agentName: string,
+  governanceReason = 'Pre-execution governance check (agent state, authority, or autonomy level)',
 ): Promise<TaskExecutionResult> {
   await db
     .update(tasks)
@@ -100,7 +102,7 @@ async function persistPreExecutionBlock(
     taskId: task.id,
     type: 'failed',
     summary: `Execution blocked: ${reason}`,
-    reason: 'Pre-execution governance check (agent state, authority, or autonomy level)',
+    reason: governanceReason,
     cost: 0,
     department: null,
   });
@@ -134,46 +136,66 @@ export async function executeTask(
     return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0, llmUsed: false };
   }
 
-  // 2. Enforce pause: if assigned agent is paused, reject execution
+  // 2. Load the assignee once — every governance check below reads this row,
+  //    never a client-supplied copy of it.
+  let assignee:
+    | { status: string; authority: unknown; autonomyLevel: string; name: string }
+    | undefined;
   if (task.agentId) {
-    const [agent] = await db
+    const [row] = await db
       .select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel, name: agents.name })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
-    if (agent && (agent.status === 'paused' || agent.status === 'archived')) {
-      const verb = agent.status === 'archived' ? 'archived' : 'paused';
+    assignee = row;
+  }
+
+  // 2a. Enforce pause: if the assigned agent is paused or archived, reject execution
+  if (assignee && (assignee.status === 'paused' || assignee.status === 'archived')) {
+    const verb = assignee.status === 'archived' ? 'archived' : 'paused';
+    return persistPreExecutionBlock(
+      db, orgId, task,
+      `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
+      assignee.name,
+    );
+  }
+
+  // 2b. Enforce authority: check agent's authority profile
+  if (assignee?.authority && typeof assignee.authority === 'object') {
+    const auth = assignee.authority as Record<string, unknown>;
+    if (auth.canExecuteTasks === false) {
       return persistPreExecutionBlock(
         db, orgId, task,
-        `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
-        agent.name,
+        'Execution blocked: agent does not have permission to execute tasks.',
+        assignee.name,
       );
     }
+  }
 
-    // 2b. Enforce authority: check agent's authority profile
-    if (agent?.authority && typeof agent.authority === 'object') {
-      const auth = agent.authority as Record<string, unknown>;
-      if (auth.canExecuteTasks === false) {
-        return persistPreExecutionBlock(
-          db, orgId, task,
-          'Execution blocked: agent does not have permission to execute tasks.',
-          agent.name,
-        );
-      }
+  // 2c. Enforce autonomy level (F12) — server-side, read from the DB row.
+  if (assignee) {
+    const level = normalizeAutonomyLevel(assignee.autonomyLevel);
+    const decision = enforceAutonomy(level, 'task_execute');
+    if (!decision.allowed) {
+      return persistPreExecutionBlock(
+        db, orgId, task,
+        `Execution blocked by autonomy level: ${decision.reason}`,
+        assignee.name,
+      );
     }
+  }
 
-    // 2c. Enforce autonomy level (F12) — server-side, read from the DB row.
-    if (agent) {
-      const level = normalizeAutonomyLevel(agent.autonomyLevel);
-      const decision = enforceAutonomy(level, 'task_execute');
-      if (!decision.allowed) {
-        return persistPreExecutionBlock(
-          db, orgId, task,
-          `Execution blocked by autonomy level: ${decision.reason}`,
-          agent.name,
-        );
-      }
-    }
+  // 2d. Enforce credits: no free work. An exhausted balance pauses every AI
+  //     employee action, which is exactly what the credit alert copy promises.
+  //     The balance is read here, server-side; the client cannot assert it.
+  const creditCheck = await hasEnoughCredits(db, orgId, 'task.executed');
+  if (creditCheck.balance.remaining <= 0) {
+    return persistPreExecutionBlock(
+      db, orgId, task,
+      `Execution blocked: Work Credits exhausted (${creditCheck.balance.used} of ${creditCheck.balance.total} used this period). Top up or change plan to resume work.`,
+      assignee?.name ?? 'Unassigned',
+      'Pre-execution credit check',
+    );
   }
 
   // 3. Mark as in_progress
@@ -351,6 +373,44 @@ export async function executeTask(
   } else {
     broadcastToOrg(orgId, { type: 'task.failed', taskId: task.id, agentId: task.agentId ?? '', agentName, error: (lastLlmError ?? result).slice(0, 200) });
     notifyAttentionChanged(orgId, 'task.failed');
+  }
+
+  // 6b. Charge Work Credits for the work that actually ran. The amount is the
+  //     cost this execution measured, so the task row, the credit transaction,
+  //     the activity event, the audit row and the SSE event all carry the same
+  //     number. A billing failure is recorded, never swallowed: the work is
+  //     already done, so the honest outcome is visible unbilled spend.
+  if (cost > 0) {
+    try {
+      const charge = await consumeCredits(
+        db,
+        orgId,
+        'task.executed',
+        `Task: ${task.title}`.slice(0, 200),
+        task.id,
+        'task',
+        { amount: cost },
+      );
+      broadcastToOrg(orgId, {
+        type: 'credits.consumed',
+        amount: charge.consumed,
+        remaining: charge.balance.remaining,
+        operationType: 'task.executed',
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'unknown credit error';
+      await appendAudit(db, {
+        orgId,
+        actorType: 'system',
+        actorId: task.agentId,
+        agentId: task.agentId,
+        taskId: task.id,
+        action: 'credits.unbilled',
+        cost,
+        outcome: 'failure',
+        resultRef: `task:${task.id} ${message}`.slice(0, 500),
+      }).catch(() => undefined);
+    }
   }
 
   // 7. Update agent stats

@@ -293,6 +293,11 @@ export async function hasEnoughCredits(
  *
  * This is the core enforcement function — every credit-consuming operation
  * must call this.
+ *
+ * The price defaults to OPERATION_COSTS[operationType]. Callers that MEASURE
+ * the work (the task executor bills the real tokens a run consumed) pass
+ * `options.amount` so the ledger, the row that recorded the work and the audit
+ * all carry one number instead of disagreeing.
  */
 export async function consumeCredits(
   db: Db,
@@ -301,9 +306,15 @@ export async function consumeCredits(
   description: string,
   referenceId?: string,
   referenceType?: string,
+  options: { amount?: number } = {},
 ): Promise<{ balance: CreditBalanceInfo; consumed: number }> {
   const balance = await getOrCreateBalance(db, orgId);
-  const cost = (OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default) as number;
+  const cost = options.amount !== undefined
+    ? Math.max(0, Math.round(options.amount))
+    : (OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default) as number;
+
+  // Nothing to charge (a run that produced no work): no transaction, no audit.
+  if (cost === 0) return { balance, consumed: 0 };
 
   if (balance.remaining < cost) {
     throw new CreditExhaustedError(orgId, balance.remaining, cost, operationType);
