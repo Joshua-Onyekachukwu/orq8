@@ -184,6 +184,13 @@ async function main(): Promise<void> {
   if (!token) throw new Error("login failed for the seeded founder");
   console.log(`[review] founder ready (org ${orgId.slice(0, 8)}...)`);
 
+  // Label the seeded company as demo at the source, so every screen carries the
+  // demo badge instead of the review data presenting itself as real execution.
+  await pg.pool.query(
+    "update organizations set settings = coalesce(settings, '{}'::jsonb) || '{\"isDemo\": true}'::jsonb where id = $1",
+    [orgId],
+  );
+
   const dept = (
     await pg.pool.query<{ id: string }>(
       "insert into departments (org_id, name, description) values ($1, 'Growth', 'Demand and positioning') returning id",
