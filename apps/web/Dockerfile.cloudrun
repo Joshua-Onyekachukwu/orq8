@@ -1,0 +1,43 @@
+# ORQ8 Web — Google Cloud Run image (Next.js standalone-style runtime).
+# Mirrors apps/web/Dockerfile but the start command honors Cloud Run's $PORT
+# (default 8080). Build context is the repo root: gcloud builds submit from ROOT.
+
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+RUN corepack enable
+
+# Install deps against a frozen lockfile (workspace packages via pnpm-workspace.yaml)
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc tsconfig.base.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY packages/auth/package.json packages/auth/
+COPY packages/core/package.json packages/core/
+COPY packages/db/package.json packages/db/
+COPY packages/domain/package.json packages/domain/
+RUN pnpm install --frozen-lockfile
+
+# Web sources (+ tsconfig.base.json already copied) then production build
+COPY apps/web apps/web
+RUN pnpm --filter @orq8/web build
+
+# Runtime — node_modules stays (same choice as the compose image: simplicity
+# over size; the monorepo workspace layout needs it for pnpm --filter start).
+FROM node:22-slim
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/.npmrc /app/tsconfig.base.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps ./apps
+COPY --from=builder /app/packages ./packages
+
+ENV NODE_ENV=production
+EXPOSE 8080
+
+# next start binds 0.0.0.0 and reads PORT (default 3000). Cloud Run injects
+# PORT=8080, so pass it through with the same default.
+CMD ["sh", "-c", "pnpm --filter @orq8/web exec next start -p ${PORT:-8080}"]

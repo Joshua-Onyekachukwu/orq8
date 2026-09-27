@@ -1,0 +1,52 @@
+# Cloud Build → Cloud Run: ORQ8 API.
+# Run from the repo root after the one-time setup (docs/59_CLOUDRUN_DEPLOYMENT.md):
+#   gcloud builds submit --config infra/cloudrun/api.cloudbuild.yaml
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - '-f'
+      - 'apps/api/Dockerfile.cloudrun'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-api:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-api:latest'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-api'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - 'orq8-api'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-api:${SHORT_SHA}'
+      - '--region'
+      - '${_REGION}'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '3'
+      - '--cpu'
+      - '1'
+      - '--memory'
+      - '512Mi'
+      - '--set-secrets'
+      - 'DATABASE_URL=orq8-database-url:latest,SESSION_SECRET=orq8-session-secret:latest,ENCRYPTION_KEY=orq8-encryption-key:latest,ENCRYPTION_KEY_KID=orq8-encryption-key-kid:latest,INTERNAL_TOKEN=orq8-internal-token:latest,RESEND_API_KEY=orq8-resend-api-key:latest'
+      - '--set-env-vars'
+      - 'ALLOWED_ORIGINS=${_WEB_ORIGIN},APP_URL=${_WEB_ORIGIN},LOG_LEVEL=info'
+
+substitutions:
+  _REGION: europe-west1
+  _REPO: orq8
+  _WEB_ORIGIN: https://orq8.vercel.app
+
+options:
+  logging: CLOUD_LOGGING_ONLY

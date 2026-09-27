@@ -1,0 +1,52 @@
+# Cloud Build → Cloud Run: ORQ8 Web (Next.js).
+# Run from the repo root after the one-time setup (docs/59_CLOUDRUN_DEPLOYMENT.md):
+#   gcloud builds submit --config infra/cloudrun/web.cloudbuild.yaml
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - '-f'
+      - 'apps/web/Dockerfile.cloudrun'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-web:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-web:latest'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-web'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - 'orq8-web'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/orq8-web:${SHORT_SHA}'
+      - '--region'
+      - '${_REGION}'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '3'
+      - '--cpu'
+      - '1'
+      - '--memory'
+      - '512Mi'
+      - '--set-env-vars'
+      - 'API_URL=${_API_URL},NEXT_PUBLIC_API_URL=${_API_URL}'
+
+substitutions:
+  _REGION: europe-west1
+  _REPO: orq8
+  # Set this to the Cloud Run API URL after the first API deploy
+  # (it is printed by the api.cloudbuild.yaml run).
+  _API_URL: https://orq8-api-HASH-ew.a.run.app
+
+options:
+  logging: CLOUD_LOGGING_ONLY
