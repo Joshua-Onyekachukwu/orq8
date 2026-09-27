@@ -15,10 +15,17 @@
   and the RLS security matrix passes 55/55 including the FK-index invariant 0034
   asserts. The fresh side of parity is correct; the production side is
   unreadable from here.
-- **Drift the verification hid**: the production app is alive (`orq8.vercel.app`
-  serves the web and its API validated a real login), but the automation points
-  at deleted infrastructure. The GitHub `API_URL` secret is the removed Railway
-  app, so the scheduled production jobs fail with Railway's
+- **Production is down, and the drift hid it**: `orq8.vercel.app` serves the web
+  shell, but every proxied API call returns Railway's own
+  `{"code":404,"message":"Application not found"}` (probed `/api/org`,
+  `/api/departments`, `/api/credits/balance`, `/api/agents`, `/api/notifications`,
+  `/api/dashboard`), so the web has no backend at all. The deployed build also
+  predates the current login error handling and masks the outage as
+  `401 Invalid email or password`; `/api/health` and `/api/auth/me` answer 401
+  from the web's own guard, not from an API. No founder can use production today.
+  The automation points at the same deleted infrastructure. The GitHub `API_URL`
+  secret is the removed Railway app, so the scheduled production jobs fail with
+  Railway's
   `{"code":404,"message":"Application not found"}` (memory consolidation,
   anomaly scan, waitlist drip; e.g. run `36318465160` today). `docs/58` documents
   `orq8-api.vercel.app` as the API, which returns Vercel `DEPLOYMENT_NOT_FOUND`.

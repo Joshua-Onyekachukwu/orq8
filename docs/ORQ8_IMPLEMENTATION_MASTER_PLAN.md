@@ -272,3 +272,35 @@ ledger stays the subsystem task table; that document owns the ordering.
   Phase 4 (company hub with a queue-based Executive Agent).
 - **Still founder supplied**: Railway API token, Supabase pooled DB password,
   OAuth client secrets, Trigger.dev project key, Google Cloud project and billing.
+
+---
+
+## 7. Program ledger update — 2026-09-27, full system audit
+
+Full report: `docs/62_ORQ8_SYSTEM_AUDIT.md` (architecture as built, status matrix,
+frontend/navigation and dashboard audit, environment and infrastructure findings,
+the remaining-work inventory with dependencies and priorities, the MVP boundary,
+and the recommended order). Two corrections and one repair came out of it.
+
+- **Correction: production is down, not merely drifting.** Probed live today,
+  every proxied API call from `orq8.vercel.app` returns Railway's own
+  `{"code":404,"message":"Application not found"}` (`/api/org`,
+  `/api/departments`, `/api/credits/balance`, `/api/agents`, `/api/notifications`,
+  `/api/dashboard`). The deployed build also predates the current login handling
+  and masks the outage as `401 Invalid email or password`; `/api/health` and
+  `/api/auth/me` answer from the web's own guard, not from an API. The earlier
+  claim that "production itself is alive" was wrong and is corrected in the
+  changelog and in `docs/58`.
+- **Local review is available now**: `scripts/review-stack.ts` runs the
+  production migration lineage, a local model gateway, the real API and the built
+  web app, seeds one company (flagged `isDemo`, so every screen carries the demo
+  badge) and prints the login. The route sweep reports 33/33 `/app` routes clean on
+  it, and a real approval action moved the queue from 1 to 0.
+- **Repair: `scripts/route-sweep.mjs` misread navigation aborts as route
+  failures.** Hard navigation cancels in-flight polling requests, so it reported
+  8/33 clean on a healthy stack. Aborted fetches are now counted and reported,
+  while genuine network failures and any 4xx/5xx still fail a route.
+- **First task after this audit**: settle the runtime and database decisions
+  (section 62.23 of the audit). Every P0 item waits on them, and no code change can
+  unblock them. In parallel the founder can review the product on the local stack
+  today, which is what the navigation and dashboard direction needs.

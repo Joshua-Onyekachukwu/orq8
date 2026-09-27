@@ -151,15 +151,18 @@ Two versioned lineages live in git and apply in order:
 > (`apply-0033-0034`, run `36327065646`) failed at its first query with
 > `read ECONNRESET`: the `SUPABASE_DATABASE_URL` secret points at a Railway TCP
 > proxy that accepts TCP and then drops the handshake. Production itself is
-> alive (`orq8.vercel.app` serves the web and its API answers real auth), but the
-> automation around it points at deleted infrastructure: the `API_URL` secret is
-> the removed Railway app, so the scheduled jobs fail with
-> `{"code":404,"message":"Application not found"}`, and the API endpoint named
-> above (`orq8-api.vercel.app`) now returns Vercel `DEPLOYMENT_NOT_FOUND`. The
-> live API's `DATABASE_URL` is the only known-good source for the production
-> connection string; nothing in the repo or this vault can read it. Fix the two
-> secrets from the live deployment's environment, then re-dispatch the workflow
-> and re-run `scripts/lineage-parity.ts` to prove the catalogs match.
+> down: `orq8.vercel.app` serves the web shell, but every proxied API call
+> returns Railway's own `{"code":404,"message":"Application not found"}`
+> (probed `/api/org`, `/api/departments`, `/api/credits/balance`, `/api/agents`,
+> `/api/notifications`, `/api/dashboard`), and the deployed build masks the
+> outage as `401 Invalid email or password`. The `API_URL` secret and the web's
+> runtime `API_URL` both point at the removed Railway app, so the scheduled jobs
+> fail with the same message, and the API endpoint named above
+> (`orq8-api.vercel.app`) returns Vercel `DEPLOYMENT_NOT_FOUND`. There is no
+> known-good production connection string anywhere in the repo or this vault. A
+> new API runtime and its `DATABASE_URL` must be established first, then
+> re-dispatch the workflow and re-run `scripts/lineage-parity.ts` to prove the
+> catalogs match.
 
 How every apply works (single runner: `packages/db/src/migrate-supabase.ts`):
 
