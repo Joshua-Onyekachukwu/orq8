@@ -4,6 +4,11 @@
  * no console errors, no hydration failures. Honest-output: a route that fails
  * fails the suite.
  *
+ * Aborted requests are counted, not failed: the sweep hard-navigates between
+ * routes, and the browser cancels any fetch still in flight (ERR_ABORTED) when
+ * the document tears down. Genuine network failures (ERR_FAILED,
+ * ERR_CONNECTION_*, timeouts) and any 4xx/5xx response still fail the route.
+ *
  * Usage: node route-sweep.mjs [--base https://orq8.vercel.app]
  */
 import { chromium } from "@playwright/test";
@@ -35,6 +40,9 @@ const ok = (name, cond, detail = "") => {
   if (cond) { pass++; console.log(`  PASS ${name}${detail ? ` — ${detail}` : ""}`); }
   else { fail++; console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ""}`); }
 };
+// A fetch the browser cancelled mid-flight because the page navigated away.
+// Not a route defect, but still reported so a real abort storm stays visible.
+const isNavigationAbort = (u) => /ERR_ABORTED/.test(u);
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -88,7 +96,9 @@ try {
     try { bodyText = await page.locator("body").innerText({ timeout: 8_000 }); } catch {}
     const blank = bodyText.trim().length < 80;
     const criticalConsole = consoleErrors.filter((e) => !/favicon|posthog|sentry|hydrat/i.test(e));
-    const criticalNet = failedRequests.filter((u) => !/posthog|sentry/i.test(u));
+    const relevantNet = failedRequests.filter((u) => !/posthog|sentry/i.test(u));
+    const aborts = relevantNet.filter(isNavigationAbort);
+    const criticalNet = relevantNet.filter((u) => !isNavigationAbort(u));
     const hydration = consoleErrors.filter((e) => /hydrat/i.test(e));
 
     const issues = [];
@@ -100,7 +110,8 @@ try {
     if (hydration.length) issues.push(`hydration: ${hydration[0]}`);
 
     perRouteIssues[route] = issues;
-    if (issues.length === 0) ok(route, true, `${ms}ms, ${bodyText.length} chars`);
+    const note = aborts.length ? `, ${aborts.length} nav-aborted fetch${aborts.length === 1 ? "" : "es"}` : "";
+    if (issues.length === 0) ok(route, true, `${ms}ms, ${bodyText.length} chars${note}`);
     else ok(route, false, issues.join(" | "));
   }
 
