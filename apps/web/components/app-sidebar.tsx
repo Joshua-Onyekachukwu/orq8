@@ -81,6 +81,9 @@ const navAreas: NavArea[] = [
     title: "Company",
     items: [
       { label: "Overview", href: "/app", icon: LayoutDashboard },
+      // Temporary while the Company Hub is under review: it becomes Overview and
+      // replaces /app once the founder approves the design (docs/63).
+      { label: "Overview (new hub)", href: "/app/company/overview", icon: LayoutDashboard },
       { label: "Health", href: "/app/health", icon: HeartPulse },
       { label: "Activity", href: "/app/activity", icon: Activity },
     ],
