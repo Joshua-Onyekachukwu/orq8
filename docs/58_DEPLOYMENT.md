@@ -142,6 +142,24 @@ Two versioned lineages live in git and apply in order:
 | Apply at API boot (Railway / Cloud Run) | `start-railway.sh` / `start-cloudrun.sh` run `migrate:supabase` before serving | deploy |
 | Verify policies + indexes from a fresh DB | `pnpm exec tsx scripts/rls-security-e2e.ts` | local (embedded Postgres, no docker needed) |
 | Quick schema sync (dev only) | `pnpm --filter @orq8/db db:push` | local, skips migration files |
+| Compare two catalogs (fresh vs deployed) | `pnpm exec tsx scripts/lineage-parity.ts --fresh --out fresh.json`, then `DATABASE_URL=… --out target.json`, then `--diff fresh.json target.json` | local |
+
+> **Drift, verified 2026-09-27 — the apply path is broken.** 0033 and 0034 were
+> never applied: the last successful DB Migrate run (2026-09-12) merged through
+> `0032_routing_source.sql`, and the files additionally sit in local commits that
+> `origin/main` does not contain. Dispatching the workflow on a branch
+> (`apply-0033-0034`, run `36327065646`) failed at its first query with
+> `read ECONNRESET`: the `SUPABASE_DATABASE_URL` secret points at a Railway TCP
+> proxy that accepts TCP and then drops the handshake. Production itself is
+> alive (`orq8.vercel.app` serves the web and its API answers real auth), but the
+> automation around it points at deleted infrastructure: the `API_URL` secret is
+> the removed Railway app, so the scheduled jobs fail with
+> `{"code":404,"message":"Application not found"}`, and the API endpoint named
+> above (`orq8-api.vercel.app`) now returns Vercel `DEPLOYMENT_NOT_FOUND`. The
+> live API's `DATABASE_URL` is the only known-good source for the production
+> connection string; nothing in the repo or this vault can read it. Fix the two
+> secrets from the live deployment's environment, then re-dispatch the workflow
+> and re-run `scripts/lineage-parity.ts` to prove the catalogs match.
 
 How every apply works (single runner: `packages/db/src/migrate-supabase.ts`):
 

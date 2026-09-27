@@ -252,6 +252,22 @@ ledger stays the subsystem task table; that document owns the ordering.
 - **Fixed flakiness**: the attention integration suite pushed its org fixtures
   from inside the async factory, so `Promise.all` left them in completion order
   and `fixtures[0]` was a random org; they are now recorded in a fixed order.
+- **Blocked, verified 2026-09-27**: migrations 0033 and 0034 cannot be applied
+  through the DB Migrate workflow. They exist only in local commit `4f7f1d6`
+  (`origin/main` ends at `0032_routing_source.sql`), and when the workflow was
+  dispatched on a throwaway branch (`apply-0033-0034`, run `36327065646`) it
+  failed at its first query with `read ECONNRESET` — the
+  `SUPABASE_DATABASE_URL` secret is a dead Railway TCP proxy, the same one the
+  local vault holds. No database was touched. The fresh lineage is verified in
+  the meantime (both lineages from scratch plus the 55-check RLS matrix), and
+  `scripts/lineage-parity.ts` is ready to prove fresh versus production the
+  moment a live connection string exists.
+- **Drift the apply attempt exposed**: production runs, but its automation does
+  not point at it. The `API_URL` secret is the deleted Railway app, so the
+  scheduled jobs (memory consolidation, anomaly scan, waitlist drip) fail with
+  Railway's `Application not found`; the API endpoint docs/58 names returns
+  Vercel `DEPLOYMENT_NOT_FOUND`; the local Railway, Vercel and Supabase
+  credentials are all rejected. Repairs need the live deployment's own env.
 - **Next**: Phase 2 (six-area information architecture and redirects), then
   Phase 4 (company hub with a queue-based Executive Agent).
 - **Still founder supplied**: Railway API token, Supabase pooled DB password,

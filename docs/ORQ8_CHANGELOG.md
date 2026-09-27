@@ -1,5 +1,42 @@
 # ORQ8 Changelog
 
+## 2026-09-27 — Migration apply blocked: production plumbing drift (0033/0034 still unapplied)
+
+- **Attempted**: 0033 and 0034 live only in local commit `4f7f1d6` (`origin/main`
+  tops out at `0032_routing_source.sql`), so the DB Migrate workflow cannot see
+  them. A throwaway branch `apply-0033-0034` carried the pending commits and the
+  workflow was dispatched against it (run `36327065646`). It failed at its first
+  query with `read ECONNRESET`, the same signature the local credentials produce
+  (TCP connects to the Railway proxy, then the handshake is dropped on plain and
+  TLS). The `SUPABASE_DATABASE_URL` secret is therefore a dead target. No
+  database was touched; nothing was applied.
+- **Fresh lineage verified**: both lineages apply from scratch to an embedded
+  Postgres (801 columns, 261 indexes, 79 policies, 44 functions, 26 triggers),
+  and the RLS security matrix passes 55/55 including the FK-index invariant 0034
+  asserts. The fresh side of parity is correct; the production side is
+  unreadable from here.
+- **Drift the verification hid**: the production app is alive (`orq8.vercel.app`
+  serves the web and its API validated a real login), but the automation points
+  at deleted infrastructure. The GitHub `API_URL` secret is the removed Railway
+  app, so the scheduled production jobs fail with Railway's
+  `{"code":404,"message":"Application not found"}` (memory consolidation,
+  anomaly scan, waitlist drip; e.g. run `36318465160` today). `docs/58` documents
+  `orq8-api.vercel.app` as the API, which returns Vercel `DEPLOYMENT_NOT_FOUND`.
+  The local credential vault is stale in the same way: the Railway token is not
+  authorized, the Vercel token is 401, the Supabase keys are 403 and
+  `SUPABASE_DB_URL` is a placeholder.
+- **No staging exists**: docs/58 §58.11 states it and there are no staging
+  secrets or databases, so the requested fresh/staging/production comparison is
+  fresh versus production until a staging project is created.
+- **New tool**: `scripts/lineage-parity.ts` fingerprints a catalog (columns,
+  indexes, policies, RLS enablement, functions, triggers, extensions), diffs two
+  fingerprints and classifies each difference as expected (documented
+  environment differences such as the pgvector skip) or drift. Read-only; every
+  query is a SELECT, and it can boot the fresh lineage for the comparison side.
+- **Next**: put a live production connection string into the GitHub secret (or
+  hand it over locally) — then re-dispatch the branch run and re-run the parity
+  diff to prove the drift is closed.
+
 ## 2026-09-27 — First vertical slice proven end to end
 
 - **Slice proof**: `scripts/vertical-slice-e2e.ts` runs the whole slice against
