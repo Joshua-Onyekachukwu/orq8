@@ -32,6 +32,7 @@ pgdata/
 .rls-e2e-pg/
 .integration-suite-pg/
 .integration-suite-data/
+.vertical-slice-data/
 
 # Logs
 *.log
