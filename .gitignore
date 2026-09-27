@@ -27,6 +27,11 @@ out/
 data/
 volumes/
 pgdata/
+# Embedded-Postgres data dirs used by the E2E harnesses and the integration runner.
+.auth-e2e-pg/
+.rls-e2e-pg/
+.integration-suite-pg/
+.integration-suite-data/
 
 # Logs
 *.log
