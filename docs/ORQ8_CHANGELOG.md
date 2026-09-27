@@ -1,5 +1,39 @@
 # ORQ8 Changelog
 
+## 2026-09-27 — First vertical slice proven end to end
+
+- **Slice proof**: `scripts/vertical-slice-e2e.ts` runs the whole slice against
+  real infrastructure and asserts every hand-off: embedded Postgres with the
+  production migration lineage, a local OpenAI-compatible model gateway reached
+  over HTTP through the real provider chain (`OPENROUTER_BASE_URL`), the real
+  API, a founder who registers, confirms the address and hires an AI employee,
+  then asks the Executive Agent for work. 44/44 checks pass: the gateway served
+  intent analysis, task execution and QA (traces name provider `openrouter` and
+  the served model), the task completed under the hired employee, the authority
+  and credit gates both passed on the happy path and blocked real tasks with
+  their reasons persisted when the agent lost `canExecuteTasks` or the balance
+  was emptied, the credit ledger carries the measured amount per task, the audit
+  hash chain verifies, the admin activity/audit/ai-usage surfaces reflect the
+  run, and the realtime stream delivered `task.started`, `task.completed`,
+  `task.qa_passed`, the measured `credits.consumed`, both blocked `task.failed`
+  events and `attention.changed`.
+- **Credits measure the work**: the task executor now bills the cost the run
+  measured (`consumeCredits` accepts an explicit amount), so the ledger row, the
+  task row, the audit trail and the SSE event carry one number instead of a flat
+  rate disagreeing with the work. A balance at zero pauses execution before any
+  model call (the promise the credit alert copy makes), a billing failure is
+  recorded as `credits.unbilled` rather than swallowed, and a run that produced
+  no work is charged nothing.
+- **Shared harness**: the embedded-Postgres boot (migrations, auth/role shims,
+  scoped drops, stale-process cleanup) moved into `scripts/lib/embedded-db.ts`;
+  `scripts/integration-suite.ts` and the new slice script both use it.
+- **Fixed**: the attention integration suite seeded its org fixtures with
+  `Promise.all` and pushed them from inside the factory, so `fixtures[0]` was a
+  random org per run; the fixtures are now recorded in a fixed order. This was
+  the source of the intermittent attention failures in the full suite.
+- **Verified**: `pnpm typecheck` clean, `pnpm test` 453 passed, integration suite
+  69 files / 637 tests passed, vertical slice 44/44 checks passed.
+
 ## 2026-09-27 — Founder's Attention (Phase 3): real queue, real actions
 
 - **API**: `GET /v1/attention` (`routes/attention.ts`, `services/attention.ts`)

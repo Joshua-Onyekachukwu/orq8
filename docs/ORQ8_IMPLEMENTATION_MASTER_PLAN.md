@@ -238,6 +238,20 @@ ledger stays the subsystem task table; that document owns the ordering.
   company, every action), three auth E2E journeys and a live browser pass. The
   dashboard section still derives its short summary ad hoc and now links into
   the queue; Phase 4 replaces it with the hub.
+- **First vertical slice proven**: `scripts/vertical-slice-e2e.ts` runs founder →
+  Executive Agent → task → gates → model gateway → credits → audit → admin trace
+  → realtime against an embedded Postgres carrying the production lineage and a
+  local OpenAI-compatible gateway reached through the real provider chain.
+  44/44 checks pass, including two negative controls (authority withdrawn,
+  balance emptied) whose blocks are persisted with the reason and cost nothing.
+  The shareable embedded-DB boot now lives in `scripts/lib/embedded-db.ts`.
+- **Credits now measure the work**: the executor charges the cost the run
+  measured, so the ledger, the task row, the audit trail and the realtime event
+  agree; an exhausted balance pauses execution before any model call, and a
+  billing failure is recorded as `credits.unbilled` instead of vanishing.
+- **Fixed flakiness**: the attention integration suite pushed its org fixtures
+  from inside the async factory, so `Promise.all` left them in completion order
+  and `fixtures[0]` was a random org; they are now recorded in a fixed order.
 - **Next**: Phase 2 (six-area information architecture and redirects), then
   Phase 4 (company hub with a queue-based Executive Agent).
 - **Still founder supplied**: Railway API token, Supabase pooled DB password,
