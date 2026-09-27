@@ -1,5 +1,28 @@
 # ORQ8 Changelog
 
+## 2026-09-27 — Auth close-out, dashboard welcome hub, Supabase RLS audit, Phase 0 baseline
+
+- **Auth**: email-confirmation gate (403 `email_not_verified`), OAuth sign-in for
+  GitHub and Google, dark auth surfaces with their own metadata, resend from
+  `/check-email`. Verified by `scripts/auth-e2e.ts` against a real API and a real
+  production build (API + web phases), including the four dashboard journeys.
+- **Dashboard**: the Executive Agent now has a configurable name (default Atlas)
+  and a first-run stage derived server side from persisted company-builder state:
+  a new founder is welcomed and pointed at onboarding, a founder partway through
+  sees the exact steps that remain, and a completed company sees oversight only.
+- **Supabase audit**: `0033_rls_hardening` and `0034_fk_indexes` (34 indexes) plus
+  the six missing org composites in `0031`; `scripts/rls-security-e2e.ts` runs 55
+  adversarial checks as the real PostgREST roles. Neither new migration is applied
+  to any environment yet: the DB Migrate workflow applies on push to `main`.
+- **Web reliability**: `fetchWithAuth` timeouts, read retries and real error
+  surfaces; goal and task actions no longer fail silently.
+- **Launcher**: collision engine fixed, so both floating launchers stay apart and
+  clear of the top bar at desktop and mobile widths.
+- **Phase 0 baseline**: API + web typecheck clean, `pnpm -r test` green,
+  `scripts/integration-suite.ts` runs the 36 database-gated API suites against an
+  embedded Postgres (67 files pass, 18 skipped), web production build clean, auth
+  E2E PASS, RLS E2E 55/55. 99 files committed in 10 logical commits.
+
 ## 2026-09-08 — Final polish round (profile, auth UX, legal, EA engineering delegation)
 
 - **Legal & compliance**: `/privacy`, `/terms`, `/security`, `/ai-disclosure` pages with

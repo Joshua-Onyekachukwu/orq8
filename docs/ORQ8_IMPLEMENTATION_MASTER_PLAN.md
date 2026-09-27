@@ -209,3 +209,28 @@ integration DEFERRED.
   `INTERNAL_TOKEN` set
 - Local key vault: `secrets.env` (gitignored) — GitHub/Vercel/Supabase/LLM keys
 - MISSING: Railway API token, Supabase pooled DB password, OAuth client secrets
+
+---
+
+## 6. Program ledger update — 2026-09-27
+
+The reconciled whole-program plan now lives in
+`docs/61_ORQ8_MASTER_IMPLEMENTATION_PLAN.md` (34 sections, phases 0-18). This
+ledger stays the subsystem task table; that document owns the ordering.
+
+- **Phase 0 (baseline) complete**: the working tree is committed in 10 logical
+  commits and the verification battery is green (see the 2026-09-27 changelog
+  entry for the exact commands and results).
+- **New harnesses**: `scripts/integration-suite.ts` (boots embedded Postgres and
+  runs the 36 database-gated API suites), `scripts/rls-security-e2e.ts` (55
+  checks as the real PostgREST roles), `scripts/auth-e2e.ts` (API + web, four
+  founder journeys), `scripts/load-scale.ts`, `scripts/waitlist-e2e.ts`.
+- **Migrations 0033 and 0034** are written and verified against a fresh lineage
+  but NOT applied to Supabase or Railway; the DB Migrate workflow applies them on
+  the next push to `main`.
+- **Phase 1 (auth close-out)** is covered by the auth E2E run in this battery.
+  Next: Phase 2 (six-area information architecture and redirects), Phase 3
+  (Founder's Attention API, page and badge), Phase 4 (company hub with a
+  queue-based Executive Agent).
+- **Still founder supplied**: Railway API token, Supabase pooled DB password,
+  OAuth client secrets, Trigger.dev project key, Google Cloud project and billing.
