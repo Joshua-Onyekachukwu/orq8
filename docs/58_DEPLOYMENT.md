@@ -128,13 +128,32 @@ Used by the `DB Migrate` workflow only.
 
 ## 58.6 Database lifecycle
 
+Two versioned lineages live in git and apply in order:
+
+1. `packages/db/migrations/` — drizzle-generated schema (the original lineage).
+2. `supabase/migrations/` — the real ORQ8 schema + RLS lineage (`0001`…`0034`), applied on top. It reconciles a drizzle-first database (the production case) and also works on a fresh empty database.
+
 | Action | Command | Where |
 |---|---|---|
-| New schema change | `pnpm --filter @orq8/db generate` | local (drizzle-kit) |
-| Commit migration files | `git commit` | migration `NNNN_*.sql` in `packages/db/migrations` |
-| Apply to production | push to `main` | **GitHub Action** `DB Migrate` runs `migrate` + `seed` |
-| Apply to a scratch DB | `pnpm --filter @orq8/db migrate` with `DATABASE_URL` set | manual |
+| New schema change (drizzle-managed tables) | `pnpm --filter @orq8/db generate`, commit the generated `NNNN_*.sql` | local (drizzle-kit) |
+| New table / column / policy (supabase lineage) | add `supabase/migrations/NNNN_*.sql` (idempotent, never edit one after it shipped) | local |
+| Apply both lineages to any database | `pnpm --filter @orq8/db migrate` then `pnpm --filter @orq8/db migrate:supabase`, `DATABASE_URL` set | manual: local, staging, production |
+| Apply to production | push to `main` touching `supabase/migrations/**` or `packages/db/**` → **DB Migrate** workflow (`migrate:supabase` + seed) | GitHub Actions |
+| Apply at API boot (Railway / Cloud Run) | `start-railway.sh` / `start-cloudrun.sh` run `migrate:supabase` before serving | deploy |
+| Verify policies + indexes from a fresh DB | `pnpm exec tsx scripts/rls-security-e2e.ts` | local (embedded Postgres, no docker needed) |
 | Quick schema sync (dev only) | `pnpm --filter @orq8/db db:push` | local, skips migration files |
+
+How every apply works (single runner: `packages/db/src/migrate-supabase.ts`):
+
+- Files apply in numeric order (`0005` before `0004`, see `orderIdx`), multi-pass up to 10. Each file runs as one implicit transaction: if any statement fails (e.g. a dependency table from a differently-numbered file), the whole file rolls back and retries on the next pass once the dependency exists. This is why the log may show `0002` or `0033` completing on `pass 2` of a fresh database.
+- Idempotent: `IF NOT EXISTS` guards everywhere, and before each file the runner drops only the policies/triggers that that file itself creates (`scopedDrops`), so re-runs converge without wiping anything another file owns. Safe to re-run against a live database.
+- Plain Postgres (CI, local, e2e) gets the `auth.uid()` shim plus `anon`/`authenticated` roles; on real Supabase the runner detects the existing `auth` schema and skips the shim, so the same command is safe against production.
+- Fresh-database reproducibility is proven by `scripts/rls-security-e2e.ts`: it boots an empty embedded Postgres, applies both lineages from scratch, then runs the RLS security matrix (55 checks: cross-company isolation, privilege escalation, unauthenticated rejection, approval/credit/audit write rules, FK index invariants). It exits non-zero if any migration fails to apply or any invariant breaks.
+
+Indexes added by the Supabase backend audit:
+
+- `0033`: `email_verification_tokens_user_id_idx`, `login_lockouts_locked_until_idx` (partial, `WHERE locked_until IS NOT NULL`), `job_runs_started_at_idx`.
+- `0034`: 34 FK indexes, catalog-driven (full list in the file header) — after it, every FK column in the schema leads at least one index, and the security matrix keeps that invariant enforced.
 
 - Migrations are **idempotent-ish and sequential** — never edit an applied migration; add a new one (drizzle-kit convention).
 - The seed is a static, idempotent provider catalog (docs/23.1) — safe to run on every deploy. No demo users or orgs are created.
