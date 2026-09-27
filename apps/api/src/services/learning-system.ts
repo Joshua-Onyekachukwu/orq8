@@ -213,9 +213,12 @@ export async function retrieveRelevantLessons(
   taskTitle: string,
   limit: number = 5,
 ): Promise<string[]> {
-  // Get procedural and semantic learnings (most actionable)
+  // Get procedural and semantic learnings (most actionable). Only the content
+  // column is needed (relevance is matched in JS below); selecting the pgvector
+  // embedding here would 500 on databases without the extension and waste
+  // bandwidth on those that have it.
   const memories = await db
-    .select()
+    .select({ content: companyMemory.content })
     .from(companyMemory)
     .where(
       and(

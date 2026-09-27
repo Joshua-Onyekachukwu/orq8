@@ -74,17 +74,38 @@ async function getColumns(db: Db) {
 /** Attach team display names to agent rows (batch lookup, pre-migration safe). */
 async function attachTeamNames(db: Db, rows: AnyRecord[]): Promise<AnyRecord[]> {
   const teamIds = Array.from(new Set(rows.map((r) => r.teamId).filter(Boolean))) as string[];
-  if (teamIds.length === 0) return rows;
+  const deptIds = Array.from(new Set(rows.map((r) => (r as Record<string, unknown>).departmentId).filter(Boolean))) as string[];
+  if (teamIds.length === 0 && deptIds.length === 0) return rows;
   try {
-    const { teams } = await import('@orq8/db');
-    const teamRows = await db
-      .select({ id: teams.id, name: teams.name })
-      .from(teams)
-      .where(sql`${teams.id} = ANY(${teamIds})`);
-    const nameById = new Map(teamRows.map((t) => [t.id, t.name]));
-    return rows.map((r) => ({ ...r, teamName: r.teamId ? nameById.get(r.teamId) ?? null : null }));
+    const { teams, departments } = await import('@orq8/db');
+    let nameById = new Map<string, string>();
+    if (teamIds.length > 0) {
+      const teamRows = await db
+        .select({ id: teams.id, name: teams.name })
+        .from(teams)
+        .where(sql`${teams.id} = ANY(${teamIds})`);
+      nameById = new Map(teamRows.map((t) => [t.id, t.name]));
+    }
+    // Resolve the CURRENT department name from the FK (the legacy `department`
+    // text column drifts — e.g. agents moved between departments keep the old
+    // label). The widget/list UIs use this for accurate department labels.
+    let deptNameById = new Map<string, string>();
+    if (deptIds.length > 0) {
+      const deptRows = await db
+        .select({ id: departments.id, name: departments.name })
+        .from(departments)
+        .where(sql`${departments.id} = ANY(${deptIds})`);
+      deptNameById = new Map(deptRows.map((d) => [d.id, d.name]));
+    }
+    return rows.map((r) => ({
+      ...r,
+      teamName: r.teamId ? nameById.get(r.teamId) ?? null : null,
+      departmentName: (r as Record<string, unknown>).departmentId
+        ? deptNameById.get((r as Record<string, unknown>).departmentId as string) ?? null
+        : null,
+    }));
   } catch {
-    return rows.map((r) => ({ ...r, teamName: null }));
+    return rows.map((r) => ({ ...r, teamName: r.teamId ? null : null, departmentName: null }));
   }
 }
 

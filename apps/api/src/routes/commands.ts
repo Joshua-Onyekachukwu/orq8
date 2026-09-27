@@ -186,6 +186,9 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
       const qualityResult = await executeWithQuality(config, db, ctx.orgId, request.params.taskId);
       return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
     } catch (error) {
+      // Failures must be visible and actionable — log the real cause instead of
+      // collapsing it into a generic 500 envelope.
+      request.log.error({ err: error }, 'task execution failed');
       reply.code(500);
       return { error: { code: 'execution.failed', message: 'Task execution failed' } };
     }

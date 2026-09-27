@@ -26,7 +26,7 @@ import { runDeliberation } from '../services/deliberation.js';
 import {
   createPendingCouncilSession,
   completePendingCouncilSession,
-  deletePendingCouncilSession,
+  failPendingCouncilSession,
 } from '../services/decision-memory.js';
 import type { AppDeps } from '../types.js';
 
@@ -77,8 +77,9 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
           'deliberation completed (background)',
         );
         if (result.stoppedReason === 'llm_unavailable') {
-          // Honest: no session shown for a run that never produced anything.
-          return deletePendingCouncilSession(db, ctx.orgId, pending.id);
+          // Honest: the council produced nothing because no model answered.
+          // Mark the session failed so the probe reports the real cause.
+          return failPendingCouncilSession(db, ctx.orgId, pending.id, 'no model was available to run the council');
         }
         return completePendingCouncilSession(db, ctx.orgId, pending.id, {
           confidence: (result.synthesis.confidence === 'none' ? 'low' : result.synthesis.confidence) as 'high' | 'medium' | 'low',
@@ -116,7 +117,12 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
       })
       .catch(async (err) => {
         app.log.error({ orgId: ctx.orgId, sessionId: pending.id, err }, 'deliberation failed (background)');
-        await deletePendingCouncilSession(db, ctx.orgId, pending.id).catch(() => {});
+        // Report the failure on the session itself so the founder's probe
+        // says what happened instead of answering "no such session".
+        await failPendingCouncilSession(
+          db, ctx.orgId, pending.id,
+          err instanceof Error ? err.message : 'unexpected error',
+        ).catch(() => {});
       });
 
     reply.code(202);

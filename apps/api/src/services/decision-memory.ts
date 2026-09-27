@@ -173,6 +173,30 @@ export async function completePendingCouncilSession(
     .where(and(eq(decisions.id, id), eq(decisions.orgId, orgId)));
 }
 
+/**
+ * Mark a pending council session as failed, in place, with the real reason.
+ * Deleting the row erased the failure: the founder's completion probe then
+ * answered forever with "no such session" instead of what went wrong. The
+ * failed row is still excluded from the council list (status filter), so the
+ * page shows only decisions that produced something, while the probe — and
+ * any session detail view — reports the failure honestly.
+ */
+export async function failPendingCouncilSession(
+  db: Db,
+  orgId: string,
+  id: string,
+  reason: string,
+): Promise<void> {
+  await db
+    .update(decisions)
+    .set({
+      status: 'failed',
+      whatWasDecided: `(council session did not complete: ${reason})`.slice(0, 2000),
+      councilDetail: { failureReason: reason.slice(0, 500) } as never,
+    })
+    .where(and(eq(decisions.id, id), eq(decisions.orgId, orgId), eq(decisions.status, 'pending')));
+}
+
 /** Delete a pending council session row that never completed (best-effort). */
 export async function deletePendingCouncilSession(db: Db, orgId: string, id: string): Promise<void> {
   await db
