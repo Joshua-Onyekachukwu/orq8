@@ -16,38 +16,25 @@ import {
   BarChart3,
   Clock,
 } from "lucide-react";
-import { API_URL, SESSION_COOKIE } from "../../lib/api";
+import { SESSION_COOKIE, fetchWithToken } from "../../lib/api";
 
-export const metadata = { title: "Admin Dashboard — ORQ8" };
-
-async function fetchWithAuth(token: string, path: string) {
-  try {
-    const res = await fetch(`${API_URL}${path}`, {
-      headers: { authorization: `Bearer ${token}` },
-      next: { revalidate: 30 },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as { data?: unknown };
-  } catch {
-    return null;
-  }
-}
+export const metadata = { title: "Admin dashboard" };
 
 export default async function AdminDashboardPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value ?? "";
 
   const [statsRes, providersRes, usersRes, orgsRes] = await Promise.all([
-    fetchWithAuth(token, "/v1/admin/stats"),
-    fetchWithAuth(token, "/v1/admin/providers"),
-    fetchWithAuth(token, "/v1/admin/users?limit=200"),
-    fetchWithAuth(token, "/v1/admin/organizations?limit=200"),
+    fetchWithToken<any>(token, "/v1/admin/stats"),
+    fetchWithToken<any>(token, "/v1/admin/providers"),
+    fetchWithToken<any>(token, "/v1/admin/users?limit=200"),
+    fetchWithToken<any>(token, "/v1/admin/organizations?limit=200"),
   ]);
 
-  const stats = (statsRes?.data ?? {}) as Record<string, any>;
-  const providers = (providersRes?.data ?? []) as Array<{ name: string; slug: string; status: string; configured: boolean; keyCount: number; latencyMs?: number; error?: string; modelsAvailable?: string[]; circuitBreaker?: { state: string; failureCount: number } | null }>;
-  const users = (usersRes?.data ?? []) as Array<{ id: string; email: string; name: string; status: string }>;
-  const orgs = (orgsRes?.data ?? []) as Array<{ id: string; name: string; plan: string; status: string }>;
+  const stats = (statsRes ?? {}) as Record<string, any>;
+  const providers = (providersRes ?? []) as Array<{ name: string; slug: string; status: string; configured: boolean; keyCount: number; latencyMs?: number; error?: string; modelsAvailable?: string[]; circuitBreaker?: { state: string; failureCount: number } | null }>;
+  const users = (usersRes ?? []) as Array<{ id: string; email: string; name: string; status: string }>;
+  const orgs = (orgsRes ?? []) as Array<{ id: string; name: string; plan: string; status: string }>;
 
   const u = stats.users ?? {};
   const o = stats.organizations ?? {};

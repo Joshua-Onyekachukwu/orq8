@@ -11,6 +11,7 @@ interface GoalActionsProps {
 export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", description: "", priority: "normal", dueDate: "" });
 
   // If editing an existing goal's status, show simple status toggles
@@ -28,16 +29,29 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
         method="post"
         onSubmit={async (e) => {
           e.preventDefault();
+          setError(null);
           const nextStatus = currentStatus === "active" ? "completed" : "active";
-          await fetch(`/api/goals/${goalId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              status: nextStatus,
-              progress: nextStatus === "completed" ? 100 : undefined,
-            }),
-          });
-          window.location.reload();
+          try {
+            const res = await fetch(`/api/goals/${goalId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                status: nextStatus,
+                progress: nextStatus === "completed" ? 100 : undefined,
+              }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => null);
+              setError(
+                (data as { error?: { message?: string } } | null)?.error?.message ??
+                  "Could not update the goal. Try again.",
+              );
+              return;
+            }
+            window.location.reload();
+          } catch {
+            setError("Could not reach the ORQ8 API. Check your connection and try again.");
+          }
         }}
       >
         <button
@@ -46,6 +60,11 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
         >
           {currentStatus === "active" ? "Complete" : "Reactivate"}
         </button>
+        {error && (
+          <span role="alert" className="ml-2 text-xs text-red-600">
+            {error}
+          </span>
+        )}
       </form>
     );
   }
@@ -56,7 +75,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
       <>
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-orq8-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-lime hover:text-white"
+          className="flex items-center gap-1.5 rounded-full bg-orq8-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green hover:text-white"
         >
           <Plus className="h-3.5 w-3.5" /> New Goal
         </button>
@@ -74,18 +93,33 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                   e.preventDefault();
                   if (!form.title.trim()) return;
                   setLoading(true);
-                  const body: Record<string, unknown> = {
-                    title: form.title,
-                    description: form.description || undefined,
-                    priority: form.priority,
-                  };
-                  if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
-                  await fetch("/api/goals", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body),
-                  });
-                  window.location.reload();
+                  setError(null);
+                  try {
+                    const body: Record<string, unknown> = {
+                      title: form.title,
+                      description: form.description || undefined,
+                      priority: form.priority,
+                    };
+                    if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
+                    const res = await fetch("/api/goals", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(body),
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => null);
+                      setError(
+                        (data as { error?: { message?: string } } | null)?.error?.message ??
+                          "Could not create the goal. Try again.",
+                      );
+                      return;
+                    }
+                    window.location.reload();
+                  } catch {
+                    setError("Could not reach the ORQ8 API. Check your connection and try again.");
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
                 className="space-y-4"
               >
@@ -134,6 +168,14 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                     />
                   </div>
                 </div>
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                  >
+                    {error}
+                  </p>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
@@ -145,7 +187,7 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-lime hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-green hover:text-white disabled:opacity-50"
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Goal

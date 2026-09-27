@@ -7,7 +7,7 @@ import { API_URL, SESSION_COOKIE } from "../../lib/api";
 
 
 type MeData = {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string; name: string | null; emailVerified?: boolean };
   memberships: {
     org: { id: string; name: string; slug: string; plan: string };
     role: string;
@@ -35,7 +35,8 @@ export default async function AdminLayout({
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
       headers: { authorization: `Bearer ${token}` },
-      next: { revalidate: 30 },
+      // No caching: this gates platform-admin access and email confirmation.
+      cache: "no-store",
     });
 
     if (res.ok) {
@@ -50,6 +51,12 @@ export default async function AdminLayout({
 
   if (!me) {
     redirect("/login?next=/admin");
+  }
+
+  // Platform admins must also have a confirmed email (the API enforces this
+  // at login; this covers sessions minted at registration).
+  if (me.user.emailVerified === false) {
+    redirect("/check-email?next=/admin");
   }
 
   // SECURITY: /admin is the PLATFORM console — it reads every tenant's users,

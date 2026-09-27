@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
 
-export default function DashboardError({
+export default function AdminError({
   error,
   reset,
 }: {
@@ -12,8 +12,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log error for debugging (never expose to user)
-    console.error("[Dashboard Error]", error.message, error.digest);
+    console.error("[Admin Error]", error.message, error.digest);
   }, [error]);
 
   return (
@@ -28,7 +27,7 @@ export default function DashboardError({
         <p className="mt-2 text-sm text-muted">
           {error.name === "ApiRequestError"
             ? error.message
-            : "The dashboard encountered an unexpected error. Your data is safe. This is a rendering issue, not a data loss event."}
+            : "The admin page encountered an unexpected error. Your data is safe. Try again in a moment."}
         </p>
         {error.digest && (
           <p className="mt-2 font-mono text-xs text-muted">
@@ -47,7 +46,7 @@ export default function DashboardError({
             href="/app"
             className="inline-flex items-center gap-2 rounded-lg border border-hairline px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-canvas"
           >
-            <Home className="h-4 w-4" />
+            <Home aria-hidden="true" className="h-4 w-4" />
             Dashboard
           </Link>
         </div>

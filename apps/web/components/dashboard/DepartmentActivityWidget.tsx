@@ -44,6 +44,7 @@ interface AgentRow {
   id: string;
   name: string;
   department: string | null;
+  departmentName?: string | null;
   departmentId?: string | null;
 }
 
@@ -95,6 +96,7 @@ export function DepartmentActivityWidget() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastPoll, setLastPoll] = useState<Date | null>(null);
   const [agentDepartments, setAgentDepartments] = useState<Map<string, { name: string; department: string | null }>>(new Map());
+  const [deptFilter, setDeptFilter] = useState<string | null>(null); // null = All departments
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { connected } = useRealtime({
@@ -136,7 +138,11 @@ export function DepartmentActivityWidget() {
         const agentList: AgentRow[] = agentsRes.ok ? (await agentsRes.json()).data ?? [] : [];
         const map = new Map<string, { name: string; department: string | null }>();
         for (const a of agentList) {
-          if (a?.id) map.set(a.id, { name: a.name, department: a.department ?? null });
+          if (a?.id) {
+            // Prefer the resolved departmentName (current FK) over the legacy
+            // `department` text, which can drift after re-assignments.
+            map.set(a.id, { name: a.name, department: a.departmentName ?? a.department ?? null });
+          }
         }
         setAgentDepartments(map);
         setEvents(
@@ -168,6 +174,13 @@ export function DepartmentActivityWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Departments that actually appear in the visible event window (real events
+  // only — no invented list), plus the honest filtered view.
+  const departments = Array.from(
+    new Set(events.map((e) => e.department).filter((d): d is string => !!d)),
+  ).sort((a, b) => a.localeCompare(b));
+  const filteredEvents = deptFilter ? events.filter((e) => e.department === deptFilter) : events;
+
   return (
     <div className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between gap-2">
@@ -188,17 +201,50 @@ export function DepartmentActivityWidget() {
         </span>
       </div>
 
+      {/* Department filter tabs — watch a single department's live stream. */}
+      {departments.length > 1 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Filter activity by department">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={deptFilter === null}
+            onClick={() => setDeptFilter(null)}
+            className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold transition-colors ${
+              deptFilter === null ? "bg-orq8-dark text-orq8-green" : "bg-muted/10 text-muted hover:text-ink"
+            }`}
+          >
+            All
+          </button>
+          {departments.map((d) => (
+            <button
+              key={d}
+              type="button"
+              role="tab"
+              aria-selected={deptFilter === d}
+              onClick={() => setDeptFilter(d === deptFilter ? null : d)}
+              className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold transition-colors ${
+                deptFilter === d ? "bg-orq8-dark text-orq8-green" : "bg-muted/10 text-muted hover:text-ink"
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="mt-4 flex items-center gap-2 text-xs text-muted">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading activity…
         </div>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <p className="mt-4 text-xs text-muted italic">
-          No activity yet — events appear here the moment your AI workforce starts working.
+          {deptFilter
+            ? `No activity for ${deptFilter} in the current window — its agents' next event appears here live.`
+            : "No activity yet — events appear here the moment your AI workforce starts working."}
         </p>
       ) : (
         <ol className="mt-3 space-y-2">
-          {events.slice(0, 8).map((e) => (
+          {filteredEvents.slice(0, 8).map((e) => (
             <li key={e.id} className="flex items-start gap-2.5 text-xs">
               <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${e.type.endsWith(".failed") ? "bg-red-500" : e.type.endsWith(".completed") ? "bg-orq8-green" : "bg-amber-400"}`} aria-hidden />
               <div className="min-w-0 flex-1">
@@ -214,6 +260,12 @@ export function DepartmentActivityWidget() {
             </li>
           ))}
         </ol>
+      )}
+
+      {deptFilter && filteredEvents.length > 0 && (
+        <p className="mt-2 text-3xs text-muted">
+          Showing {filteredEvents.length} event{filteredEvents.length === 1 ? "" : "s"} for {deptFilter} only.
+        </p>
       )}
 
       <div className="mt-3 flex items-center justify-between">

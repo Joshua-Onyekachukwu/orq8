@@ -19,6 +19,7 @@ interface TaskActionsProps {
 export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActionsProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -37,19 +38,43 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
         : null;
     if (!nextStatus) return null;
     return (
-      <button
-        onClick={async () => {
-          await fetch(`/api/tasks/${taskId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: nextStatus }),
-          });
-          window.location.reload();
-        }}
-        className="font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green hover:underline"
-      >
-        {nextStatus === "in_progress" ? "Start" : "Complete"}
-      </button>
+      <>
+        <button
+          disabled={loading}
+          onClick={async () => {
+            setError(null);
+            setLoading(true);
+            try {
+              const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: nextStatus }),
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                setError(
+                  (data as { error?: { message?: string } } | null)?.error?.message ??
+                    "Could not update the task. Try again.",
+                );
+                return;
+              }
+              window.location.reload();
+            } catch {
+              setError("Could not reach the ORQ8 API. Check your connection and try again.");
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green hover:underline disabled:opacity-50"
+        >
+          {nextStatus === "in_progress" ? "Start" : "Complete"}
+        </button>
+        {error && (
+          <span role="alert" className="ml-2 text-xs text-red-600">
+            {error}
+          </span>
+        )}
+      </>
     );
   }
 
@@ -77,20 +102,35 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                   e.preventDefault();
                   if (!form.title.trim()) return;
                   setLoading(true);
-                  const body: Record<string, unknown> = {
-                    title: form.title,
-                    description: form.description || undefined,
-                    priority: form.priority,
-                  };
-                  if (goalId) body.goalId = goalId;
-                  if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
-                  if (form.agentId) body.agentId = form.agentId;
-                  await fetch("/api/tasks", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body),
-                  });
-                  window.location.reload();
+                  setError(null);
+                  try {
+                    const body: Record<string, unknown> = {
+                      title: form.title,
+                      description: form.description || undefined,
+                      priority: form.priority,
+                    };
+                    if (goalId) body.goalId = goalId;
+                    if (form.dueDate) body.dueDate = new Date(form.dueDate).toISOString();
+                    if (form.agentId) body.agentId = form.agentId;
+                    const res = await fetch("/api/tasks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(body),
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => null);
+                      setError(
+                        (data as { error?: { message?: string } } | null)?.error?.message ??
+                          "Could not create the task. Try again.",
+                      );
+                      return;
+                    }
+                    window.location.reload();
+                  } catch {
+                    setError("Could not reach the ORQ8 API. Check your connection and try again.");
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
                 className="space-y-4"
               >
@@ -156,6 +196,14 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     </select>
                   </div>
                 )}
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                  >
+                    {error}
+                  </p>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
@@ -167,7 +215,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-lime hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-green hover:text-white disabled:opacity-50"
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Task
