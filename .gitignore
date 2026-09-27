@@ -61,3 +61,6 @@ Thumbs.db
 
 .vercel
 secrets.env
+
+# Migration-parity fingerprints and probes (local evidence, never committed)
+.lineage-parity/
