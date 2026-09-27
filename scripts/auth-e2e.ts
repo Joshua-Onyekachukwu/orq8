@@ -817,6 +817,19 @@ async function main(): Promise<void> {
         `POST ${j3State.status} GET ${j3Page.status}`,
       );
 
+      // Journey 3b (Founder's Attention, docs/61 Phase 3): this company has no
+      // approvals, failed work, credit alerts or deadlines yet, so the queue
+      // shows its honest empty state and offers only real next steps.
+      const quietAttention = await call(`${WEB_ORIGIN}/app/attention`, { cookie: webCookie });
+      check(
+        "journey 3b: a quiet company sees the honest attention empty state",
+        quietAttention.status === 200 &&
+          quietAttention.text.includes("Nothing needs your decision") &&
+          quietAttention.text.includes("No pending approvals") &&
+          !quietAttention.text.includes("Approve the pilot launch budget"),
+        `HTTP ${quietAttention.status}`,
+      );
+
       // Journey 4: returning active company → a real goal and a real pending
       // approval (created through the real API) surface in the hub: goals
       // section, attention queue, and the overview metric.
@@ -841,6 +854,39 @@ async function main(): Promise<void> {
           j4Page.text.includes("Awaiting your decision") &&
           j4Page.text.includes("Executive recommendations"),
         `goal ${j4Goal.status} approval ${j4Approval.status} page ${j4Page.status}`,
+      );
+
+      // Journey 5 (Founder's Attention, docs/61 Phase 3): the queue is reachable
+      // from the top bar and page nav, the API aggregates the real pending
+      // approval, and the page renders it with the real actions.
+      check(
+        "journey 5: the attention queue is reachable from the app shell",
+        j4Page.text.includes('href="/app/attention"') &&
+          j4Page.text.includes("Open the attention queue"),
+        `HTTP ${j4Page.status}`,
+      );
+      const attentionApi = await call(`${API}/v1/attention`, { token: webToken });
+      const attentionData = (attentionApi.body as {
+        data?: { summary?: { total?: number; bySource?: Record<string, number> }; quiet?: boolean };
+      } | null)?.data;
+      check(
+        "journey 5: GET /v1/attention aggregates the pending approval",
+        attentionApi.status === 200 &&
+          (attentionData?.summary?.total ?? 0) >= 1 &&
+          (attentionData?.summary?.bySource?.approval ?? 0) >= 1 &&
+          attentionData?.quiet === false,
+        `HTTP ${attentionApi.status}`,
+      );
+      const attentionPage = await call(`${WEB_ORIGIN}/app/attention`, { cookie: webCookie });
+      check(
+        "journey 5: the attention page renders the item with its real actions",
+        attentionPage.status === 200 &&
+          attentionPage.text.includes("Attention") &&
+          attentionPage.text.includes("Approve the pilot launch budget") &&
+          attentionPage.text.includes("Approval") &&
+          attentionPage.text.includes("Approve") &&
+          attentionPage.text.includes("Reject"),
+        `HTTP ${attentionPage.status}`,
       );
 
       const loginAuthed = await call(`${WEB_ORIGIN}/login`, { cookie: webCookie });

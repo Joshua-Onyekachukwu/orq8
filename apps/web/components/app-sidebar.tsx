@@ -22,6 +22,7 @@ import {
   Code2,
   GitBranch,
   HeartPulse,
+  Inbox,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -56,6 +57,9 @@ const navGroups: NavGroup[] = [
     title: "Command",
     items: [
       { label: "Dashboard", href: "/app", icon: LayoutDashboard },
+      // Founder's Attention (docs/61 Phase 3): the queue lives here until the
+      // Phase 2 information architecture re-homes it under Company.
+      { label: "Attention", href: "/app/attention", icon: Inbox },
       { label: "Company Health", href: "/app/health", icon: HeartPulse },
       { label: "Scheduled Jobs", href: "/app/jobs", icon: CalendarClock },
       { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },

@@ -18,9 +18,14 @@ export type RealtimeEvent =
   | { type: 'task.failed'; taskId: string; agentId: string; agentName: string; error: string }
   | { type: 'approval.created'; approvalId: string; action: string }
   | { type: 'approval.decided'; approvalId: string; status: string }
+  | { type: 'approval.required'; approvalId?: string; agentName: string; toolName: string; riskLevel: string }
+  | { type: 'task.escalated'; taskId: string; summary: string }
+  | { type: 'task.blocked'; taskId: string; summary: string }
+  | { type: 'emergency_stop'; scope: string; agentId?: string }
   | { type: 'agent.status_changed'; agentId: string; status: string }
   | { type: 'command.processed'; commandId: string; summary: string }
   | { type: 'credits.consumed'; amount: number; remaining: number; operationType: string }
+  | { type: 'attention.changed'; reason: string }
   | { type: 'heartbeat'; timestamp: number };
 
 export type RealtimeMessage =

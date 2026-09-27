@@ -594,6 +594,13 @@ export default async function AppPage() {
             <AlertTriangle className="h-3.5 w-3.5 text-orq8-orange" />
           </span>
           <h2 className="text-sm font-semibold text-ink">Needs your attention</h2>
+          <Link
+            href="/app/attention"
+            className="ml-auto flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+          >
+            Open the attention queue
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
         {attentionItems.length > 0 ? (
           <ul className="space-y-2">

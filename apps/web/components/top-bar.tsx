@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { NotificationsBell } from "./notifications-bell";
+import { AttentionBadge } from "./attention-badge";
 
 interface TopBarProps {
   userName: string;
@@ -108,6 +109,9 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
               ⌘K
             </kbd>
           </button>
+
+          {/* Founder's attention queue: approvals, blocked work, failures, credits */}
+          <AttentionBadge />
 
           {/* Notifications */}
           <NotificationsBell />
