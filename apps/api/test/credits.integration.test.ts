@@ -22,7 +22,7 @@ import type { AppDeps } from '../src/types.js';
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 // Only run when PostgreSQL is reachable — keeps `pnpm test` green on machines without Docker.
 let dbUp = false;
@@ -65,6 +65,15 @@ async function registerTestUser(
     payload: { email, password: 'Test1234!', org_name: `Credits Test ${label}` },
   });
   expect(res.statusCode).toBe(201);
+  // An unconfirmed session may only reach the confirmation endpoints; this
+  // suite needs product APIs, so confirm the address the way the founder's
+  // link does. The gate itself is covered in auth.integration.test.ts.
+  const { users: _usersTable } = await import('@orq8/db');
+  const { eq: _eqFn } = await import('drizzle-orm');
+  const updated = await deps.db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase())).returning({ id: _usersTable.id, verified: _usersTable.emailVerifiedAt });
+  if (!updated[0]?.verified) {
+    throw new Error(`test setup: confirm failed for ${email}: ${JSON.stringify(updated)}`);
+  }
   const body = res.json();
   return {
     token: body.data.token as string,
@@ -427,7 +436,7 @@ run('Credits — cross-tenant authorization', () => {
       url: '/v1/credits/history',
       headers: auth(tokenA),
     });
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode, `history failed: ${res.payload}`).toBe(200);
     const history = res.json().data;
     // All transactions should belong to org A
     for (const tx of history) {

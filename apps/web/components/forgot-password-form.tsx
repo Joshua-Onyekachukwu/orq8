@@ -1,82 +1,64 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-orq8-green focus:ring-2 focus:ring-orq8-green/20 disabled:opacity-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-gray-600";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+const labelClass = "mb-1.5 block text-sm text-white/70";
 
 export function ForgotPasswordForm() {
-  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
 
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") ?? "");
 
     setPending(true);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
+      await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-
-      // Always show success to prevent email enumeration
-      setSent(true);
     } catch {
-      // Even on network error, show success to prevent information leakage
-      setSent(true);
+      // The request endpoint never reveals whether an account exists, so the
+      // confirmation below is the same on every outcome.
     } finally {
       setPending(false);
+      setSent(true);
     }
   }
 
   if (sent) {
     return (
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orq8-lime/10">
-          <CheckCircle2 className="h-7 w-7 text-orq8-green" />
+      <div aria-live="polite" className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+          <div>
+            <p className="text-sm text-white">Check your email</p>
+            <p className="mt-1 text-xs text-white/60">
+              If an account exists for that address, a reset link is on the way. The link expires
+              in one hour. Check your spam folder if it does not arrive within a few minutes.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSent(false)}
+              className="mt-3 text-xs text-white/50 transition-colors hover:text-white"
+            >
+              Use a different email
+            </button>
+          </div>
         </div>
-        <p className="text-sm font-medium text-white">Check your email</p>
-        <p className="mt-1 text-sm text-gray-500">
-          If an account exists with that email, we&apos;ve sent a password
-          reset link.
-        </p>
-        <p className="mt-4 text-xs text-gray-500">
-          Didn&apos;t receive it? Check your spam folder, or{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setSent(false);
-              setError(null);
-            }}
-            className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
-          >
-            try again
-          </button>
-          .
-        </p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-busy={pending}>
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
-        >
-          {error}
-        </div>
-      )}
-
       <div>
         <label htmlFor="email" className={labelClass}>
           Email address
@@ -97,15 +79,15 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-dark text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Sending reset link…
+            Sending the reset link…
           </>
         ) : (
-          "Send reset link"
+          "Send the reset link"
         )}
       </button>
     </form>

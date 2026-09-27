@@ -3,16 +3,18 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, MailCheck, AlertCircle, Clock } from "lucide-react";
+import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { AuthShell } from "../../components/auth/auth-shell";
+import { ResendVerification } from "../../components/auth/resend-verification";
 
-type VerifyState = "pending" | "verifying" | "success" | "invalid" | "expired" | "already_used" | "error";
+type VerifyState = "verifying" | "success" | "invalid" | "expired" | "already_used" | "error";
 
 export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
-          <Loader2 className="h-7 w-7 animate-spin text-orq8-green" />
+        <div className="flex min-h-screen items-center justify-center bg-orq8-dark">
+          <Loader2 className="h-6 w-6 animate-spin text-white/40" aria-label="Checking the link" />
         </div>
       }
     >
@@ -24,18 +26,19 @@ export default function VerifyEmailPage() {
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const [state, setState] = useState<VerifyState>("pending");
+  const [state, setState] = useState<VerifyState>("verifying");
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
       setState("invalid");
-      setMessage("No verification token was provided. Use the link from your verification email.");
+      setMessage(
+        "The link that opened this page is missing its token. Open the button in your confirmation email, or request a new link below.",
+      );
       return;
     }
     let cancelled = false;
     (async () => {
-      setState("verifying");
       try {
         const res = await fetch("/api/auth/verify-email", {
           method: "POST",
@@ -46,9 +49,10 @@ function VerifyEmailInner() {
         if (cancelled) return;
         if (res.ok) {
           setState("success");
+          setMessage("Your email is confirmed. Sign in to open your company.");
         } else {
           const code = json?.error?.code as string | undefined;
-          const msg = (json?.error?.message as string | undefined) ?? "Verification failed.";
+          const msg = (json?.error?.message as string | undefined) ?? null;
           if (code === "verification_expired") setState("expired");
           else if (code === "verification_already_used") setState("already_used");
           else setState("invalid");
@@ -66,77 +70,104 @@ function VerifyEmailInner() {
     };
   }, [token]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
-      <div className="w-full max-w-md rounded-xl border border-hairline bg-white p-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-orq8-lime/10">
-          {state === "verifying" ? (
-            <Loader2 className="h-7 w-7 animate-spin text-orq8-green" />
-          ) : state === "success" ? (
-            <CheckCircle2 className="h-7 w-7 text-orq8-green" />
-          ) : state === "expired" ? (
-            <Clock className="h-7 w-7 text-amber-500" />
-          ) : state === "pending" ? (
-            <MailCheck className="h-7 w-7 text-orq8-green" />
-          ) : (
-            <AlertCircle className="h-7 w-7 text-red-500" />
-          )}
+  if (state === "verifying") {
+    return (
+      <AuthShell
+        eyebrow="Confirm your email"
+        title="Confirming your email"
+        subtitle="This takes a moment."
+        brandHeadline="Confirming."
+        brandBody="We are checking your link with the ORQ8 API. Nothing else is needed from you."
+      >
+        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-white/40" aria-hidden />
+          <p className="text-sm text-white/70">Checking the link…</p>
         </div>
+      </AuthShell>
+    );
+  }
 
-        {state === "verifying" && (
-          <>
-            <h1 className="mt-4 text-lg font-bold text-ink">Verifying your email…</h1>
-            <p className="mt-2 text-sm text-muted">This only takes a moment.</p>
-          </>
-        )}
-
-        {state === "pending" && (
-          <>
-            <h1 className="mt-4 text-lg font-bold text-ink">Check your inbox</h1>
-            <p className="mt-2 text-sm text-muted">
-              Open the verification email we sent you and click the link inside.
-            </p>
-          </>
-        )}
-
-        {state === "success" && (
-          <>
-            <h1 className="mt-4 text-lg font-bold text-ink">Email verified</h1>
-            <p className="mt-2 text-sm text-muted">
-              Your email is confirmed. Everything in your workspace is ready to go.
-            </p>
+  if (state === "success") {
+    return (
+      <AuthShell
+        eyebrow="Confirm your email"
+        title="Email confirmed"
+        subtitle="Your email is confirmed. Sign in to open your company."
+        brandHeadline="You are in."
+        brandBody="Your company is ready. Sign in and continue where sign-up left you."
+        footer={
+          <p className="text-sm text-white/50">
+            Ready to set up your company?{" "}
             <Link
-              href="/app"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+              href="/onboarding"
+              className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
             >
-              Go to your dashboard
+              Open company setup
             </Link>
-          </>
-        )}
+            .
+          </p>
+        }
+      >
+        <div
+          aria-live="polite"
+          className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4"
+        >
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+            <p className="text-sm text-white/70">
+              Confirmation recorded. Your company is unlocked.
+            </p>
+          </div>
+          <Link
+            href="/login"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+          >
+            Continue to sign in
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
 
-        {(state === "invalid" || state === "expired" || state === "already_used" || state === "error") && (
-          <>
-            <h1 className="mt-4 text-lg font-bold text-ink">
-              {state === "expired" ? "Link expired" : state === "already_used" ? "Link already used" : "Verification problem"}
-            </h1>
-            <p className="mt-2 text-sm text-muted">{message}</p>
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Link
-                href="/settings"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
-              >
-                Resend verification email
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-hairline px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-orq8-green"
-              >
-                Back to login
-              </Link>
-            </div>
-          </>
-        )}
+  const heading =
+    state === "expired"
+      ? "This link expired"
+      : state === "already_used"
+        ? "This link was already used"
+        : "This link did not work";
+
+  return (
+    <AuthShell
+      eyebrow="Confirm your email"
+      title={heading}
+      subtitle="Request a new link below and open the newest email you receive."
+      brandHeadline="Links expire. Accounts do not."
+      brandBody="Confirmation links last 24 hours and can be used once. A fresh link takes a few seconds."
+      footer={
+        <p className="text-sm text-white/50">
+          Already confirmed?{" "}
+          <Link
+            href="/login"
+            className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
+          >
+            Sign in
+          </Link>
+          .
+        </p>
+      }
+    >
+      <div className="space-y-4">
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+            <p className="text-sm text-white/70">
+              {message ??
+                "The link is not valid any more. Request a new confirmation email below."}
+            </p>
+          </div>
+        </div>
+        <ResendVerification />
       </div>
-    </div>
+    </AuthShell>
   );
 }

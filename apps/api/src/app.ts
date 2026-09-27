@@ -21,6 +21,7 @@ import { registerActivityRoutes } from './routes/activity.js';
 import { registerAgentRoutes } from './routes/agents.js';
 import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerOAuthRoutes } from './routes/oauth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerProviderRoutes } from './routes/providers.js';
 import { registerCommandRoutes } from './routes/commands.js';
@@ -208,12 +209,16 @@ export async function buildApp(
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/auth/verify-email/request', max: 3, windowMs: 900_000, label: 'verify-email-request' });
+    rateLimitRouteRedis(app, redis, { path: '/v1/auth/oauth', max: 20, windowMs: 60_000, label: 'oauth' });
     rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands', keyFn: sessionOrIpKey });
   } else if (rateLimitEnabled) {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
     rateLimitRoute(app, { path: '/v1/auth/forgot-password', max: 3, windowMs: 900_000, label: 'forgot-password' });
     rateLimitRoute(app, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
+    rateLimitRoute(app, { path: '/v1/auth/verify-email/request', max: 3, windowMs: 900_000, label: 'verify-email-request' });
+    rateLimitRoute(app, { path: '/v1/auth/oauth', max: 20, windowMs: 60_000, label: 'oauth' });
     rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' }); // in-memory fallback path
   }
 
@@ -289,6 +294,7 @@ export async function buildApp(
 
   registerHealthRoutes(app, deps);
   registerAuthRoutes(app, deps);
+  registerOAuthRoutes(app, deps);
   registerAgentRoutes(app, deps);
   registerApprovalRoutes(app, deps);
   registerActivityRoutes(app, deps);

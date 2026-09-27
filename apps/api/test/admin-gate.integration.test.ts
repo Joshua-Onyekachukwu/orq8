@@ -24,7 +24,7 @@ import type { AppDeps } from '../src/types.js';
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 try {
@@ -63,6 +63,12 @@ async function registerOrgOwner(tag: string): Promise<{ token: string; orgId: st
     payload: { email, password: 'Test1234!', org_name: `${tag} Org` },
   });
   expect(res.statusCode).toBe(201);
+  // An unconfirmed session may only reach the confirmation endpoints; this
+  // suite needs product APIs, so confirm the address the way the founder's
+  // link does. The gate itself is covered in auth.integration.test.ts.
+  const { users: _usersTable } = await import('@orq8/db');
+  const { eq: _eqFn } = await import('drizzle-orm');
+  await deps.db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase()));
   return {
     token: res.json().data.token as string,
     orgId: res.json().data.org.id as string,

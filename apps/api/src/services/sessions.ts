@@ -24,6 +24,8 @@ interface CachedSession {
   role: string;
   email: string;
   platformRole: string;
+  /** Whether the account's email was confirmed when this entry was written. */
+  emailVerified: boolean;
   revokedAt: string | null;
   expiresAt: string;
   /** Epoch ms when this cache entry was written from the DB — bounds trust. */
@@ -38,9 +40,11 @@ interface CachedSession {
  */
 const SESSION_CACHE_TRUST_WINDOW_MS = 5 * 60 * 1000;
 
-// v2: includes platformRole. Bumped so pre-flag cache entries (no platformRole)
-// are treated as misses and re-resolved from the DB instead of guessing 'user'.
-const SESSION_CACHE_PREFIX = 'session:v3:';
+// v2: includes platformRole. v4: includes emailVerified. Bumped so pre-flag
+// cache entries are treated as misses and re-resolved from the DB instead of
+// guessing the wrong value (guessing 'unverified' would lock out every
+// confirmed founder until their entry expired).
+const SESSION_CACHE_PREFIX = 'session:v4:';
 
 export async function createSession(
   db: Db,
@@ -119,6 +123,9 @@ export async function findSessionByToken(
             email: parsed.email,
             name: null as string | null,
             platformRole: parsed.platformRole ?? 'user',
+            // Truthy stand-in for "confirmed as of the cache write": the value
+            // itself is never displayed, only checked for presence.
+            emailVerifiedAt: parsed.emailVerified ? new Date(parsed.cachedAt) : null,
           },
           role: parsed.role,
           platformRole: parsed.platformRole ?? 'user',
@@ -134,7 +141,13 @@ export async function findSessionByToken(
   const [row] = await db
     .select({
       session: sessions,
-      user: { id: users.id, email: users.email, name: users.name, platformRole: users.platformRole },
+      user: {
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        platformRole: users.platformRole,
+        emailVerifiedAt: users.emailVerifiedAt,
+      },
       role: memberships.role,
     })
     .from(sessions)
@@ -158,6 +171,7 @@ export async function findSessionByToken(
         role: row.role,
         email: row.user.email,
         platformRole: row.user.platformRole,
+        emailVerified: row.user.emailVerifiedAt !== null,
         revokedAt: (row.session.revokedAt as Date | null)?.toISOString() ?? null,
         expiresAt: row.session.expiresAt.toISOString(),
         cachedAt: Date.now(),

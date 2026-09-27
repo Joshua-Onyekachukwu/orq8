@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
 
 /**
- * POST /v1/auth/logout — proxied with the session cookie, then the
- * local cookie is cleared and the browser is redirected to /login (303).
- *
- * GET — also handles logout via GET for direct browser navigation.
- * Clears the local session cookie and redirects to /login.
+ * Logout: POST /v1/auth/logout revokes the session server-side (the API also
+ * evicts its Redis cache entry, so the token is dead immediately), then the
+ * local httpOnly cookie is cleared and the browser returns to the landing
+ * page. GET is handled identically for direct browser navigation, so no
+ * form-vs-link mismatch exists and nothing can 405.
  */
 async function performLogout(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -21,7 +21,7 @@ async function performLogout(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.redirect(new URL("/login", request.url), 303);
+  const response = NextResponse.redirect(new URL("/", request.url), 303);
   response.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
   return response;
 }

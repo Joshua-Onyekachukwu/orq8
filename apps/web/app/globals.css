@@ -649,6 +649,9 @@ body {
 /* Hover variants */
 .hover\:bg-orq8-green:hover { background-color: #157a3a; }
 .hover\:bg-orq8-green-dark:hover { background-color: #0d1a12; }
+/* Orange-bright is the action accent on dark surfaces; hover steps one shade
+ * darker so the press state reads without touching label contrast. */
+.hover\:bg-orq8-orange-bright:hover { background-color: #d95d29; }
 .hover\:text-orq8-green:hover { color: #1a5c2e; }
 .hover\:text-orq8-lime:hover { color: #c8ff8a; }
 .hover\:text-orq8-orange:hover { color: #a8431a; }
@@ -656,6 +659,12 @@ body {
 /* Text muted on dark backgrounds */
 .text-orq8-muted-on-dark { color: rgba(255,255,255,0.5); }
 .text-orq8-faint-on-dark { color: rgba(255,255,255,0.3); }
+
+/* Green tint for TEXT accents on dark surfaces: the base brand green
+ * (#1a5c2e) lands near 2:1 on #0a0a0b, which is unreadable. The tint keeps
+ * the hue and clears 4.5:1. Fill/border accents keep the base green. */
+.text-orq8-green-tint { color: #7fbf8f; }
+.hover\:text-orq8-green-tint:hover { color: #a5d6b3; }
 
 /* Font size tokens — ONLY add custom sizes not in Tailwind's default scale.
    Do NOT override Tailwind built-ins: text-xs (12px), text-sm (14px),

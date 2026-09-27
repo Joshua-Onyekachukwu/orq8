@@ -52,7 +52,7 @@ export function verificationEmail(input: { email: string; verifyUrl: string }): 
   text: string;
   html: string;
 } {
-  const subject = 'Verify your email — ORQ8';
+  const subject = 'Verify your email for ORQ8';
   const text = [
     'Welcome to ORQ8.',
     '',
@@ -101,7 +101,7 @@ export function passwordResetEmail(input: {
     '',
     'If you did not request this, you can safely ignore this email.',
     '',
-    'ORQ8 — the AI organization operating system.',
+    'ORQ8. The AI organization operating system.',
   ].join('\n');
 
   const html = shell(

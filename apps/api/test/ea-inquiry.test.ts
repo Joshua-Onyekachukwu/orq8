@@ -68,3 +68,44 @@ describe('fallbackAnalysis — pure informational questions are answerOnly', () 
     expect(intent.taskDecomposition.length).toBeGreaterThan(0);
   });
 });
+
+describe('fallbackAnalysis — first-run discovery answers, never taskified', () => {
+  it('treats "I am building X" as a context answer while onboarding is incomplete', () => {
+    const intent = fallbackAnalysis("I'm building an AI platform for Nigerian businesses", makeCtx());
+    expect(intent.answerOnly).toBe(true);
+    expect(intent.category).toBe('inquiry');
+    expect(intent.taskDecomposition).toHaveLength(0);
+    expect(intent.response).toContain('AI platform for Nigerian businesses');
+    expect(intent.response).toContain('Are you still validating');
+    expect(validateIntent(intent)).toBeNull();
+  });
+
+  it('describes an existing company the same way', () => {
+    const intent = fallbackAnalysis('We run a logistics company for pharmacies', makeCtx());
+    expect(intent.answerOnly).toBe(true);
+    expect(intent.taskDecomposition).toHaveLength(0);
+    expect(intent.response).toContain('logistics company for pharmacies');
+  });
+
+  it('asks the idea-vs-company follow-up when the answer is too thin to reason about', () => {
+    const intent = fallbackAnalysis("I'm building", makeCtx());
+    expect(intent.answerOnly).toBe(true);
+    expect(intent.response).toContain('an idea, or an existing company');
+  });
+
+  it('never reads building statements as engineering delegation', () => {
+    const intent = fallbackAnalysis(
+      "I'm building a platform that helps small businesses manage inventory",
+      makeCtx(),
+    );
+    expect(intent.taskDecomposition).toHaveLength(0);
+    expect(intent.toolCalls).toBeUndefined();
+  });
+
+  it('still delegates engineering work once onboarding is complete', () => {
+    const doneCtx = makeCtx({ founderContext: { step: 'complete', completedAt: new Date().toISOString(), analysis: null } });
+    const intent = fallbackAnalysis("I'm building an AI platform for Nigerian businesses", doneCtx);
+    expect(intent.answerOnly).toBeUndefined();
+    expect(intent.taskDecomposition.length).toBeGreaterThan(0);
+  });
+});

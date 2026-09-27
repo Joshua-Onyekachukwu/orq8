@@ -32,6 +32,12 @@ async function registerUser(email: string, orgName: string) {
   if (!token || !orgId) {
     throw new Error(`Unexpected register response: ${res.payload}`);
   }
+  // An unconfirmed session may only reach the confirmation endpoints; this
+  // suite needs product APIs, so confirm the address as the founder's link
+  // does. The gate itself is covered in auth.integration.test.ts.
+  const { users: _usersTable } = await import('@orq8/db');
+  const { eq: _eqFn } = await import('drizzle-orm');
+  await db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase()));
   return { token, orgId };
 }
 

@@ -14,7 +14,7 @@ function sha256hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 // Only run when the local Postgres (infra compose) is reachable — keeps `pnpm test` green
 // on machines without Docker.
@@ -65,6 +65,12 @@ run('auth end-to-end (G1: two tenants isolated, audit chain, free stack)', () =>
     expect(body.data.org.plan).toBe('free');
     token = body.data.token as string;
     orgId = body.data.org.id as string;
+    // Confirm the email, as the founder's link does: an unconfirmed session
+    // may only reach the confirmation endpoints, and the rest of this suite
+    // exercises confirmed-account flows. The gate has its own group below.
+    const { users: _usersTable } = await import('@orq8/db');
+    const { eq: _eqFn } = await import('drizzle-orm');
+    await deps.db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase()));
   });
 
   it('me returns user + memberships + active org', async () => {
@@ -368,6 +374,11 @@ run('auth change-password flow', () => {
     });
     expect(reg.statusCode).toBe(201);
     token = reg.json().data.token as string;
+    // Confirm the email: the final test logs in, and login requires a
+    // confirmed address. change-password itself stays allowed either way.
+    const { users: _pwUsers } = await import('@orq8/db');
+    const { eq: _pwEq } = await import('drizzle-orm');
+    await deps.db.update(_pwUsers).set({ emailVerifiedAt: new Date() }).where(_pwEq(_pwUsers.email, email));
   });
 
   it('rejects change with wrong current password (401)', async () => {
@@ -414,5 +425,89 @@ run('auth change-password flow', () => {
       payload: { email, password: newPassword },
     });
     expect(newLogin.statusCode).toBe(200);
+  });
+});
+
+// ─── Email confirmation gate (unconfirmed sessions are limited) ─────────────
+
+run('auth email confirmation gate', () => {
+  const email = `gate-${randomUUID()}@example.com`;
+  const password = 'sup3r-secret!';
+  let token = '';
+
+  it('registers an unconfirmed account', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/register',
+      payload: { email, password, org_name: 'Gate Test Org' },
+    });
+    expect(res.statusCode).toBe(201);
+    token = res.json().data.token as string;
+  });
+
+  it('blocks login until the email is confirmed (403 email_not_verified)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email, password },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('email_not_verified');
+  });
+
+  it('blocks product APIs until the email is confirmed (403 email_not_verified)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/org',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('email_not_verified');
+  });
+
+  it('allows the confirmation flow, then opens login and the product APIs', async () => {
+    const me = await app.inject({
+      method: 'GET',
+      url: '/v1/auth/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json().data.user.emailVerified).toBe(false);
+
+    const resend = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/verify-email/request',
+      payload: { email },
+    });
+    expect(resend.statusCode).toBe(200);
+
+    // Mint the token through the same service the routes use, then consume it
+    // through the real endpoint (the emailed plaintext is never readable here).
+    const { users } = await import('@orq8/db');
+    const [user] = await deps.db.select().from(users).where(eq(users.email, email));
+    const { issueVerificationToken } = await import('../src/services/email-verification.js');
+    const minted = await issueVerificationToken(deps.db, user!.id, email);
+    expect(minted.ok).toBe(true);
+
+    const verify = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/verify-email',
+      payload: { token: (minted as { plaintextToken: string }).plaintextToken },
+    });
+    expect(verify.statusCode).toBe(200);
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email, password },
+    });
+    expect(login.statusCode).toBe(200);
+
+    const org = await app.inject({
+      method: 'GET',
+      url: '/v1/org',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(org.statusCode).toBe(200);
   });
 });

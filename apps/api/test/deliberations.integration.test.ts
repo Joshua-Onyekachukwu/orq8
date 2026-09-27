@@ -23,7 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -66,6 +66,11 @@ beforeAll(async () => {
       payload: { email, password: 'Test1234!', org_name: `${tag} Org` },
     });
     expect(res.statusCode).toBe(201);
+    // Confirm the address: an unconfirmed session may only reach the
+    // confirmation endpoints, and the suite needs product APIs.
+    const { users: _usersTable } = await import('@orq8/db');
+    const { eq: _eqFn } = await import('drizzle-orm');
+    await deps.db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase()));
     const body = res.json();
     contexts.push({ token: body.data.token, orgId: body.data.org.id, userId: body.data.user.id });
   }

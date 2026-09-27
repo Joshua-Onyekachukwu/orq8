@@ -1,105 +1,60 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { AuthShell } from "../../components/auth/auth-shell";
 import { AuthForm } from "../../components/auth-form";
-import { API_URL, SESSION_COOKIE } from "../../lib/api";
+import { oauthProviders, postAuthTarget, probeSession } from "../../lib/auth-pages";
 
-export const metadata = { title: "Sign in — ORQ8" };
-
-async function isAuthenticated(): Promise<boolean> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return false;
-  try {
-    const res = await fetch(`${API_URL}/v1/auth/me`, {
-      headers: { authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+export const metadata = {
+  title: "Sign in | ORQ8",
+  // Own description so the sign-in head never inherits the root layout's
+  // marketing copy (the auth e2e bans "organization" on this page).
+  description: "Sign in to your company on ORQ8.",
+};
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; oauth_error?: string }>;
 }) {
-  if (await isAuthenticated()) redirect("/app");
+  const { next, oauth_error } = await searchParams;
+  const target = postAuthTarget(next);
 
-  const { next } = await searchParams;
-  const title =
-    next && next.startsWith("/") && !next.startsWith("//")
-      ? "Sign back in to continue"
-      : "Welcome back";
+  // Only a session the API confirms counts as signed in. An expired cookie
+  // falls through to the form instead of bouncing back into /app, which is
+  // what made the old middleware redirect loop possible.
+  const session = await probeSession();
+  if (session.authenticated) {
+    redirect(session.emailVerified ? target ?? "/app" : "/check-email");
+  }
+
+  const providers = await oauthProviders();
+  const nextQs = target ? `?next=${encodeURIComponent(target)}` : "";
 
   return (
-    <div id="main" className="flex min-h-screen bg-white">
-      {/* Left panel — branding */}
-      <div className="hidden w-1/2 flex-col justify-between bg-orq8-dark p-10 lg:flex">
-        <Link
-          href="/"
-          className="flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-white"
-        >
-          ORQ8
-          <span className="h-2 w-2 rounded-full bg-orq8-green" />
-        </Link>
-
-        <div className="max-w-md">
-          <h2 className="mb-4 text-3xl font-light leading-tight text-white">
-            Run your company with{" "}
-            <span className="text-orq8-lime">AI employees</span>
-          </h2>
-          <p className="text-sm leading-relaxed text-white/50">
-            The AI organization operating system. One founder. One HQ. A whole
-            operation running itself.
-          </p>
-        </div>
-
-        <p className="text-xs text-white/30">
-          © 2026 ORQ8. The AI Organization Operating System.
+    <AuthShell
+      eyebrow="Sign in"
+      title="Sign in to your company"
+      brandHeadline="The company keeps moving while you sleep."
+      brandBody="Your AI employees hold their departments, report progress, and escalate decisions that need a founder. Sign in to review the work."
+      footer={
+        <p className="text-sm text-white/50">
+          Starting a company?{" "}
+          <Link
+            href={`/register${nextQs}`}
+            className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
+          >
+            Create one
+          </Link>
+          .
         </p>
-      </div>
-
-      {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        {/* Mobile logo */}
-        <Link
-          href="/"
-          className="mb-8 flex items-baseline gap-1.5 text-2xl font-bold tracking-tight text-ink lg:hidden"
-        >
-          ORQ8
-          <span className="h-2 w-2 rounded-full bg-orq8-green" />
-        </Link>
-
-        <div className="w-full max-w-sm">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-orq8-green">
-            Sign in
-          </p>
-          <h1 className="mb-1 text-2xl font-semibold text-ink">
-            {title}
-          </h1>
-          <p className="mb-8 text-sm text-gray-500">
-            {next
-              ? "Your organization is waiting."
-              : "Sign in to your organization."}
-          </p>
-
-          <AuthForm mode="login" next={next} />
-
-          <p className="mt-6 text-center text-sm text-gray-500">
-            New to ORQ8?{" "}
-            <Link
-              href={
-                next ? `/register?next=${encodeURIComponent(next)}` : "/register"
-              }
-              className="font-medium text-orq8-green transition-colors hover:text-orq8-green/80"
-            >
-              Create an organization
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      }
+    >
+      <AuthForm
+        mode="login"
+        next={target}
+        oauthProviders={providers}
+        oauthError={oauth_error ?? null}
+      />
+    </AuthShell>
   );
 }

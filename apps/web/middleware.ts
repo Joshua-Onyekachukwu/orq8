@@ -4,43 +4,37 @@ import type { NextRequest } from "next/server";
 // Routes that require authentication
 const PROTECTED_ROUTES = ["/app"];
 
-// Routes that should redirect to /app if already authenticated
-const AUTH_ROUTES = ["/login", "/register", "/onboarding"];
-
 // Public routes that never need auth
 const PUBLIC_ROUTES = ["/", "/pricing", "/about", "/healthz"];
-
-function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
-}
-
-function isAuthRoute(pathname: string): boolean {
-  return AUTH_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
-}
-
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
-}
 
 // Admin-only routes: require admin role in session
 const ADMIN_ROUTES = ["/admin"];
 
-function isAdminRoute(pathname: string): boolean {
-  return ADMIN_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
+function matches(pathname: string, routes: string[]): boolean {
+  return routes.some((route) => pathname === route || pathname.startsWith(route + "/"));
+}
+
+/**
+ * Validates a ?next= target the same way the auth forms do: internal absolute
+ * paths only, so the value can never smuggle an open redirect (no scheme, no
+ * //host, no backslash tricks).
+ */
+function safeNext(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
+  return value;
 }
 
 /**
  * Security middleware:
  * 1. Adds standard security headers to all responses
  * 2. Enforces authentication on protected routes (server-side)
+ *
+ * The middleware only checks that a session cookie EXISTS; validity is proven
+ * by the server components (layouts and pages call /v1/auth/me with the
+ * token). Because middleware never redirects authed users INTO the app on its
+ * own judgment, an expired cookie cannot ping-pong between /login and /app:
+ * the login page simply renders the form again instead of redirecting.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -71,31 +65,23 @@ export function middleware(request: NextRequest) {
   }
 
   // ── Static/public routes: skip auth logic ──
-  if (isPublicRoute(pathname)) {
+  if (matches(pathname, PUBLIC_ROUTES)) {
     return response;
   }
 
-  // ── Protected routes: redirect to login if no session cookie ──
-  if (isProtectedRoute(pathname) && !hasSession) {
+  // ── Protected and admin routes: redirect to login when there is no cookie ──
+  if ((matches(pathname, PROTECTED_ROUTES) || matches(pathname, ADMIN_ROUTES)) && !hasSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Admin routes: check for admin session cookie ──
-  // Admin role is verified server-side in the admin layout; the middleware
-  // only ensures a session exists. The admin layout then calls /v1/auth/me
-  // and checks the role before rendering any admin content.
-  if (isAdminRoute(pathname) && !hasSession) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // ── Auth routes: redirect to /app if already authenticated ──
-  if (isAuthRoute(pathname) && hasSession) {
-    return NextResponse.redirect(new URL("/app", request.url));
-  }
+  // ── Auth pages (/login, /register, /onboarding): the middleware does NOT
+  // redirect authenticated users away. Cookie presence proves nothing about
+  // validity, and a wrong guess here is exactly what caused the old
+  // /login → /app → /login redirect loop for expired sessions. The pages
+  // probe /v1/auth/me themselves (no-store) and redirect only on a 200,
+  // preserving ?next=. An expired cookie simply renders the form again.
 
   return response;
 }

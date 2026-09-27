@@ -21,14 +21,21 @@ interface PolicyLevel {
 }
 
 async function registerUser() {
+  const email = `autonomy-${Date.now()}@test.com`;
   const res = await app.inject({
     method: 'POST',
     url: '/v1/auth/register',
-    payload: { email: `autonomy-${Date.now()}@test.com`, password: 'TestPass123!', org_name: 'Autonomy Org' },
+    payload: { email, password: 'TestPass123!', org_name: 'Autonomy Org' },
     headers: { 'content-type': 'application/json' },
   });
   const body = JSON.parse(res.payload) as { data?: { token?: string } };
   if (!body?.data?.token) throw new Error(`register failed: ${res.payload}`);
+  // An unconfirmed session may only reach the confirmation endpoints; this
+  // suite needs product APIs, so confirm the address the way the founder's
+  // link does. The gate itself is covered in auth.integration.test.ts.
+  const { users: _usersTable } = await import('@orq8/db');
+  const { eq: _eqFn } = await import('drizzle-orm');
+  await db.update(_usersTable).set({ emailVerifiedAt: new Date() }).where(_eqFn(_usersTable.email, email.trim().toLowerCase()));
   return body.data.token;
 }
 

@@ -76,7 +76,16 @@ beforeAll(async () => {
   orgId = orgRow!.id;
   const [userRow] = await deps.db
     .insert(users)
-    .values({ email: `ob-${randomUUID()}@example.com`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({
+      email: `ob-${randomUUID()}@example.com`,
+      name: 'Founder',
+      passwordHash: 'not-a-real-hash',
+      status: 'active',
+      // The email-confirmation gate blocks unverified sessions from every
+      // route that is not on the allowlist, so this fixture represents a
+      // founder who has confirmed their address (as a real one must).
+      emailVerifiedAt: new Date(),
+    })
     .returning();
   userId = userRow!.id;
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });

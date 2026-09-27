@@ -4,34 +4,120 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
+import { scorePassword, type StrengthLabel } from "@/lib/password-strength";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/35 outline-none transition-colors focus:border-orq8-green/60 focus:ring-2 focus:ring-emerald/25 disabled:opacity-50";
-const labelClass = "mb-1.5 block text-sm font-medium text-white/70";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+const labelClass = "mb-1.5 block text-sm text-white/70";
+
+const meterColors: Record<StrengthLabel, string> = {
+  weak: "bg-red-400",
+  fair: "bg-amber-400",
+  good: "bg-[#5f9f75]",
+  strong: "bg-[#7fbf8f]",
+};
+
+function PasswordInput({
+  id,
+  name,
+  label,
+  show,
+  onToggle,
+  onChange,
+  disabled,
+  placeholder,
+  autoFocus,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  show: boolean;
+  onToggle: () => void;
+  onChange?: (value: string) => void;
+  disabled: boolean;
+  placeholder: string;
+  autoFocus?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const input = inputRef.current;
+    const cursorPos = input?.selectionStart ?? 0;
+    onToggle();
+    requestAnimationFrame(() => {
+      if (input) {
+        input.focus();
+        try {
+          input.setSelectionRange(cursorPos, cursorPos);
+        } catch {
+          // some input types do not support selection ranges
+        }
+      }
+    });
+  };
+
+  return (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id={id}
+          name={name}
+          type={show ? "text" : "password"}
+          required
+          autoComplete="new-password"
+          minLength={8}
+          disabled={disabled}
+          className={`${fieldClass} pr-11`}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange?.(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={handleToggle}
+          aria-label={show ? "Hide password" : "Show password"}
+          aria-pressed={show}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-white"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [helpResend, setHelpResend] = useState(false);
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [password, setPassword] = useState("");
+  const strength = scorePassword(password);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setHelpResend(false);
 
     const form = new FormData(e.currentTarget);
     const password = String(form.get("password") ?? "");
     const confirm = String(form.get("confirm_password") ?? "");
 
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setError("The passwords do not match. Re-enter them.");
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("Use at least 8 characters for the new password.");
       return;
     }
 
@@ -47,14 +133,16 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
       if (!res.ok) {
         const message =
-          data?.error?.message ?? "Invalid or expired reset link. Please request a new one.";
+          (data as { error?: { message?: string } } | null)?.error?.message ??
+          "This reset link is not valid any more. Request a new one and try again.";
         setError(message);
+        setHelpResend(true);
         return;
       }
 
       setSuccess(true);
     } catch {
-      setError("Network error. Please try again.");
+      setError("Could not reach the server. Check your connection and try again.");
     } finally {
       setPending(false);
     }
@@ -62,21 +150,23 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   if (success) {
     return (
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orq8-lime/10">
-          <CheckCircle2 className="h-7 w-7 text-orq8-green" />
+      <div aria-live="polite" className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+          <div>
+            <p className="text-sm text-white">Password updated</p>
+            <p className="mt-1 text-xs text-white/60">
+              Every other session has been signed out. Sign in with the new password.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+            >
+              Sign in
+            </button>
+          </div>
         </div>
-        <p className="text-sm font-medium text-white">Password updated</p>
-        <p className="mt-1 text-sm text-fog">
-          Your password has been reset successfully.
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push("/login")}
-          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-green text-sm font-semibold text-white transition-colors hover:bg-orq8-lime"
-        >
-          Sign in with new password
-        </button>
       </div>
     );
   }
@@ -88,85 +178,72 @@ export function ResetPasswordForm({ token }: { token: string }) {
           role="alert"
           className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
         >
-          {error}
+          <p>{error}</p>
+          {helpResend && (
+            <Link
+              href="/forgot-password"
+              className="mt-2 inline-block text-xs text-red-100 underline decoration-red-200/40 underline-offset-2 transition-colors hover:decoration-red-100"
+            >
+              Request a new reset link
+            </Link>
+          )}
         </div>
       )}
 
-      <div>
-        <label htmlFor="password" className={labelClass}>
-          New password
-        </label>
-        <div className="relative">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            required
-            autoComplete="new-password"
-            minLength={8}
-            disabled={pending}
-            className={`${fieldClass} pr-11`}
-            placeholder="At least 8 characters"
-            autoFocus
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setShowPassword((v) => !v);
-              document.getElementById("password")?.focus();
-            }}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            aria-pressed={showPassword}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-orq8-lime"
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+      <PasswordInput
+        id="password"
+        name="password"
+        label="New password"
+        placeholder="At least 8 characters"
+        show={showPassword}
+        onToggle={() => setShowPassword((v) => !v)}
+        onChange={setPassword}
+        disabled={pending}
+        autoFocus
+      />
+
+      <div aria-live="polite">
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 gap-1">
+            {[0, 1, 2, 3].map((seg) => (
+              <span
+                key={seg}
+                aria-hidden
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  strength.score > seg ? meterColors[strength.label] : "bg-white/10"
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-white/50">{strength.label}</span>
         </div>
+        {strength.suggestions.length > 0 && (
+          <p className="mt-1 text-xs text-white/50">{strength.suggestions[0]}</p>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="confirm_password" className={labelClass}>
-          Confirm password
-        </label>
-        <div className="relative">
-          <input
-            id="confirm_password"
-            name="confirm_password"
-            type={showConfirm ? "text" : "password"}
-            required
-            autoComplete="new-password"
-            minLength={8}
-            disabled={pending}
-            className={`${fieldClass} pr-11`}
-            placeholder="Repeat your password"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setShowConfirm((v) => !v);
-              document.getElementById("confirm_password")?.focus();
-            }}
-            aria-label={showConfirm ? "Hide password" : "Show password"}
-            aria-pressed={showConfirm}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-orq8-lime"
-          >
-            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
+      <PasswordInput
+        id="confirm_password"
+        name="confirm_password"
+        label="Confirm password"
+        placeholder="Repeat the new password"
+        show={showConfirm}
+        onToggle={() => setShowConfirm((v) => !v)}
+        disabled={pending}
+      />
 
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-green text-sm font-semibold text-white transition-colors hover:bg-orq8-lime active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Resetting password…
+            Updating the password…
           </>
         ) : (
-          "Reset password"
+          "Update the password"
         )}
       </button>
     </form>

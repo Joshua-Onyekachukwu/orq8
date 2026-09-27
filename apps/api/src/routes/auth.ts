@@ -1,5 +1,5 @@
 import { hashPassword, verifyPassword } from '@orq8/auth';
-import { conflict, forbidden, platformAdminEmails, unauthorized, validation } from '@orq8/core';
+import { AppError, conflict, forbidden, platformAdminEmails, unauthorized, validation } from '@orq8/core';
 import { createHash, randomBytes } from 'node:crypto';
 import { eq, and, gt, isNull, sql } from 'drizzle-orm';
 import { users as usersTable, passwordResetTokens, emailVerificationTokens, type Db } from '@orq8/db';
@@ -70,7 +70,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
           html: emailContent.html,
         });
       } catch (emailErr) {
-        deps.logger.warn({ err: emailErr }, 'verification email delivery failed at signup — user can resend');
+        deps.logger.warn({ err: emailErr }, 'verification email delivery failed at signup, user can resend');
       }
     }
 
@@ -129,6 +129,19 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         await appendAudit(db, { orgId, actorType: 'user', actorId: user.id, action: 'auth.login_failed', outcome: 'denied' });
       }
       throw unauthorized('Invalid email or password');
+    }
+
+    // Email confirmation gate (docs: auth task STEP 5.3). Credentials may be
+    // correct, but an unconfirmed email cannot open a session. The structured
+    // code lets the web UI offer a resend instead of a dead end.
+    if (!user.emailVerifiedAt) {
+      logger.info({ userId: user.id }, 'login blocked: email not verified');
+      throw new AppError(
+        403,
+        'email_not_verified',
+        'Confirm your email address to sign in. Use the link we emailed you, or request a new one from the sign-in page.',
+        { email },
+      );
     }
 
     // Successful login — reset brute-force counter
@@ -300,7 +313,17 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       .set({ usedAt: new Date() })
       .where(eq(passwordResetTokens.id, resetToken.id));
 
-    // Invalidate all sessions for this user (force re-login)
+    // Invalidate all sessions for this user (force re-login): a reset token
+    // proves ownership of the account, so any live session may be stolen
+    // material. Revoking here closes that window.
+    await sessions.invalidateUserSessions(db, resetToken.userId, deps.redis ?? null);
+
+    // A completed reset also proves email ownership.
+    await db
+      .update(usersTable)
+      .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(usersTable.id, resetToken.userId), isNull(usersTable.emailVerifiedAt)));
+
     const user = await users.findById(db, resetToken.userId);
     if (user) {
       const memberships = await orgs.findMembershipsByUser(db, resetToken.userId);
@@ -506,9 +529,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const result = await emailVerification.consumeVerificationToken(db, parsed.data.token);
     if (!result.ok) {
       const messages: Record<Extract<emailVerification.ConsumeResult, { ok: false }>['reason'], string> = {
-        invalid: 'This verification link is not valid.',
-        expired: 'This verification link has expired. Request a new email from Settings.',
-        already_used: 'This verification link was already used — your email may already be verified.',
+        invalid: 'This verification link is not valid. Request a new email from the sign-in page.',
+        expired: 'This verification link has expired. Request a new email from the sign-in page.',
+        already_used: 'This verification link was already used. Your email may already be verified.',
         already_verified: 'This email is already verified.',
       };
       reply.code(400);
@@ -529,5 +552,42 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       });
     }
     return { data: { verified: true } };
+  });
+
+  /**
+   * POST /v1/auth/verify-email/request — public resend for unconfirmed
+   * accounts that are locked out of login. Unlike the authenticated /resend,
+   * this takes an email address, so it must never reveal whether the account
+   * exists: any malformed address is accepted silently, and the response is
+   * identical for known and unknown emails. Abuse is bounded by the same
+   * 3-per-hour token policy inside issueVerificationToken plus the fact that
+   * a request for an unknown email is a no-op.
+   */
+  app.post('/v1/auth/verify-email/request', async (request) => {
+    const parsed = z.object({ email: z.string().email() }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const user = await users.findByEmail(db, parsed.data.email);
+    if (user && !user.emailVerifiedAt) {
+      const result = await emailVerification.issueVerificationToken(db, user.id, user.email);
+      if (result.ok) {
+        const verifyUrl = `${deps.config.ALLOWED_ORIGINS.split(',')[0]?.trim() ?? 'http://localhost:3000'}/verify-email?token=${result.plaintextToken}`;
+        const { verificationEmail } = await import('../email/transactional.js');
+        const emailContent = verificationEmail({ email: user.email, verifyUrl });
+        const transport = createEmailTransport(deps.config, deps.logger);
+        try {
+          await transport.send({
+            to: user.email,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html,
+          });
+        } catch (emailErr) {
+          deps.logger.warn({ err: emailErr }, 'public verification resend delivery failed');
+        }
+      }
+    }
+    // Same response shape whether or not the account exists (anti-enumeration).
+    return { data: { ok: true } };
   });
 }
