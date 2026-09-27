@@ -229,8 +229,16 @@ ledger stays the subsystem task table; that document owns the ordering.
   but NOT applied to Supabase or Railway; the DB Migrate workflow applies them on
   the next push to `main`.
 - **Phase 1 (auth close-out)** is covered by the auth E2E run in this battery.
-  Next: Phase 2 (six-area information architecture and redirects), Phase 3
-  (Founder's Attention API, page and badge), Phase 4 (company hub with a
-  queue-based Executive Agent).
+- **Phase 3 (Founder's Attention) complete**: `GET /v1/attention` aggregates real
+  approvals, tool permission requests, blocked critical work, recent failures,
+  unacknowledged credit alerts, deadline risk and council escalations into one
+  severity-ordered queue; `/app/attention` runs the real actions and the top-bar
+  badge carries the live count over `attention.changed`. Covered by 16 unit
+  tests, an integration suite (aggregate, both isolation directions, quiet
+  company, every action), three auth E2E journeys and a live browser pass. The
+  dashboard section still derives its short summary ad hoc and now links into
+  the queue; Phase 4 replaces it with the hub.
+- **Next**: Phase 2 (six-area information architecture and redirects), then
+  Phase 4 (company hub with a queue-based Executive Agent).
 - **Still founder supplied**: Railway API token, Supabase pooled DB password,
   OAuth client secrets, Trigger.dev project key, Google Cloud project and billing.

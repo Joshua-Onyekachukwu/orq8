@@ -1,5 +1,39 @@
 # ORQ8 Changelog
 
+## 2026-09-27 — Founder's Attention (Phase 3): real queue, real actions
+
+- **API**: `GET /v1/attention` (`routes/attention.ts`, `services/attention.ts`)
+  aggregates real rows only: pending approvals split into business decisions and
+  tool permission requests, high or urgent work blocked past the blocked
+  threshold, recent failed work, unacknowledged Work Credit alerts, goal
+  deadlines overdue or inside the at-risk window, and council escalations with
+  no founder verdict. Each item carries what / why / who / authority / impact /
+  next plus actions that name the real endpoint, so no client invents state.
+  Ordering is severity, then decisions before information, then oldest first;
+  every source is capped and `truncated` says so.
+- **Realtime**: new `attention.changed` SSE event, emitted from the real
+  mutations (approval created or decided, task status change, task failure,
+  credit alert, founder verdict). The badge and the page refetch on it, with a
+  60 second poll only as a fallback for a dropped stream.
+- **Web**: `/app/attention` renders the queue grouped by severity with actions
+  wired to the existing endpoints (approve, reject, retry, pause, cancel,
+  acknowledge) and an ask-the-EA action that opens the panel with a prompt built
+  from the item. An honest empty state offers real next steps instead of
+  padding. Top-bar badge shows the live count, the sidebar gains Attention, and
+  the dashboard attention section links into the queue.
+- **Audit**: task status changes are now audited (`task.status_changed`), the
+  one action the queue exposed that previously left no trail.
+- **Tests**: 16 unit tests for classification, ordering and summary; an
+  integration suite covering the aggregate, both directions of org isolation, a
+  quiet company, and every action end to end (including that a second decision
+  is refused and that rows stay untouched across orgs); three new auth E2E
+  journeys (quiet empty state, queue reachability, page rendering).
+- **Verified**: `pnpm typecheck` clean, `pnpm test` 453 passed, integration suite
+  69 files / 637 tests passed, web production build clean, auth E2E PASS
+  (journeys 1-5), RLS E2E 55/55, plus a live browser pass against a local stack
+  (badge 7 to 6 to 5 as items were cleared, approval visible as Approved on
+  Command Center afterwards).
+
 ## 2026-09-27 — Auth close-out, dashboard welcome hub, Supabase RLS audit, Phase 0 baseline
 
 - **Auth**: email-confirmation gate (403 `email_not_verified`), OAuth sign-in for
