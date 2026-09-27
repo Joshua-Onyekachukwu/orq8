@@ -14,7 +14,7 @@ import type { AppDeps } from '../types.js';
 // The API owns the whole server-side exchange: client secrets stay here, and
 // the browser only ever sees a provider redirect plus (on success) the session
 // cookie the WEB app sets. The API itself never sets cookies, so the flow
-// works unchanged across origins (Vercel web ↔ Railway API) and local dev.
+// works unchanged across origins (web on one host, API on another) and local dev.
 //
 // State is stateless HMAC (services/oauth-signin.ts), mirroring the
 // integration flow: it binds provider + exact web callback + destination, so a

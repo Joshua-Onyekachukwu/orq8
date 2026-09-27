@@ -2,7 +2,7 @@
  * Orphaned-execution reaper (§17 data integrity).
  *
  * A task's `in_progress` state is set in-memory by executeTask right before
- * the LLM call; if the process dies mid-call (Railway 502/timeout, deploy,
+ * the LLM call; if the process dies mid-call (upstream 502/timeout, deploy,
  * OOM), the task row can stay `in_progress` forever with no result — a task
  * the founder's board shows as running but that no process will ever finish.
  * (Live production evidence: a Marketing task stuck in_progress with 0-char

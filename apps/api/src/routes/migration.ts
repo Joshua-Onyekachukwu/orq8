@@ -1,6 +1,6 @@
 /**
  * Internal migration endpoint — runs ALTER TABLE statements directly
- * on the connected database (Railway Postgres). Protected by INTERNAL_TOKEN.
+ * on the connected database (DATABASE_URL). Protected by INTERNAL_TOKEN.
  * One-time use: call once, then remove or leave dormant.
  */
 import type { FastifyInstance } from 'fastify';

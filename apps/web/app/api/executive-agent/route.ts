@@ -4,7 +4,7 @@ import { API_URL, proxyApiJson } from "../../../lib/api";
 /**
  * POST /api/executive-agent
  *
- * Proxies the founder's command to the Executive Agent on the Railway API.
+ * Proxies the founder's command to the Executive Agent on the ORQ8 API.
  * The backend handles: context building, LLM intent analysis, task creation,
  * agent selection, approval gates, and audit trail.
  *

@@ -55,7 +55,7 @@ export function parseApiError(data: unknown, fallback: string): string {
 /**
  * Build auth headers for proxying to the Fastify backend.
  * Uses Authorization: Bearer <token> instead of cookie forwarding.
- * This is critical for cross-domain deployments (Vercel → Railway):
+ * This is critical for cross-domain deployments (web host and API host differ):
  * 1. Cookie-based auth fails because the cookie domain differs
  * 2. Bearer auth is CSRF-exempt on the backend (ADR-007)
  * 3. The session token is the same — it's just passed in a header
@@ -150,7 +150,7 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 /**
  * One fetch to the API with a hard timeout, retried once for reads when the
- * API is unreachable or answers 502/503/504 (Railway cold start). Writes
+ * API is unreachable or answers 502/503/504 (a cold start or a proxy hiccup). Writes
  * are never retried: a POST that runs twice is worse than a visible failure.
  */
 async function apiFetch(path: string, init: RequestInit, retry: boolean): Promise<Response> {
@@ -210,8 +210,8 @@ export async function fetchWithToken<T>(
       ...(options?.body ? { "content-type": "application/json" } : {}),
     },
     body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
-    // Cache GET requests for 30s by default (reduces Railway cold-start latency
-    // on repeated navigations). Writes always bypass cache. Pass
+    // Cache GET requests for 30s by default (reduces cold-start latency on
+    // repeated navigations). Writes always bypass cache. Pass
     // revalidate: false to opt out entirely, or a custom seconds value.
     // NOTE: in Next 15 `next: { revalidate: false }` means INFINITE cache, not
     // "no cache", so the opt-out is expressed as cache: "no-store".

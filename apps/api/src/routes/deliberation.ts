@@ -5,7 +5,7 @@
  *   return immediately with the session id. The deliberation itself runs in
  *   the background (2–5 min for full councils) and the session row is promoted
  *   to its Decision Memory record on completion. This keeps long councils
- *   from being killed by proxy timeouts (Railway 502) — the 2026-09-12
+ *   from being killed by proxy timeouts (upstream 502) — the 2026-09-12
  *   rehearsals showed sync POSTs completing server-side but 502ing the client.
  *   Budget caps still bound total cost and wall time. Never executes anything:
  *   the result is a recommendation with preserved disagreements.
