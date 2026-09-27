@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { createPool } from './db.js';
 import { count, eq } from 'drizzle-orm';
 import { providers, users, type NewProvider } from './schema.js';
 
@@ -22,7 +22,7 @@ const PROVIDER_CATALOG: NewProvider[] = [
 ];
 
 async function main() {
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = createPool(databaseUrl);
   const db = drizzle(pool);
   for (const p of PROVIDER_CATALOG) {
     const existing = await db.select().from(providers).where(eq(providers.slug, p.slug)).limit(1);

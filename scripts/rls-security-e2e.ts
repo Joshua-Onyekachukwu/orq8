@@ -280,12 +280,20 @@ async function main() {
     // STEP 4.3: FK index coverage. A child FK column with no index where it
     // leads makes every parent delete/update a seq scan (org/user rows churn
     // constantly in this app). Report all gaps, assert the tenant hot paths.
+    //
+    // Scoped to public on purpose, matching 0034_fk_indexes.sql: a Supabase
+    // database also carries auth.* and storage.* tables whose FKs we neither
+    // own nor index, so counting them here would fail the invariant for
+    // reasons that are outside the product schema.
     const fkGaps = await adminPool.query(`
-      SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+      SELECT ns.nspname || '.' || rel.relname AS tbl, a.attname AS col
       FROM pg_constraint c
+      JOIN pg_class rel ON rel.oid = c.conrelid
+      JOIN pg_namespace ns ON ns.oid = rel.relnamespace
       CROSS JOIN LATERAL unnest(c.conkey) AS k(col)
       JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.col
       WHERE c.contype = 'f'
+        AND ns.nspname = 'public'
         AND NOT EXISTS (
           SELECT 1 FROM pg_index i
           WHERE i.indrelid = c.conrelid AND i.indkey[0] = k.col

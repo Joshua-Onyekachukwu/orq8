@@ -11,7 +11,7 @@
  * product seed must stay demo-agnostic.
  */
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { createPool } from './db.js';
 import { and, eq, sql } from 'drizzle-orm';
 import { agents, organizations, users, memberships, subscriptions } from './schema.js';
 
@@ -25,7 +25,7 @@ async function main() {
     return;
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = createPool(databaseUrl);
   const db = drizzle(pool);
   try {
     const [owner] = await db.select().from(users).where(eq(users.email, demoEmail)).limit(1);

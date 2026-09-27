@@ -29,13 +29,17 @@
 -- time and only creates what is missing. Re-running is a no-op.
 --
 -- Implementation notes: the gap query matches the harness check exactly
--- (no schema filter), index names are built from pg_class.relname (not the
--- regnamespace cast, which stringifies to a numeric oid on PG 18 and made
--- an earlier draft of this file silently create nothing).
+-- and is scoped to the public schema. The scope matters: a Supabase database
+-- carries auth.* and storage.* tables whose FKs the postgres role does not
+-- own, and an unscoped query tried to index auth.mfa_challenges and failed
+-- the whole migration with "must be owner of table" — which is why the
+-- production apply stopped here while local runs passed. Index names are
+-- built from pg_class.relname (not the regnamespace cast, which stringifies
+-- to a numeric oid on PG 18 and made an earlier draft create nothing).
 --
--- scripts/rls-security-e2e.ts asserts the gap set is zero after this file,
--- so any future migration that adds a FK without an index fails the
--- security matrix run.
+-- scripts/rls-security-e2e.ts asserts the same public-only gap set is zero
+-- after this file, so any future migration that adds a FK without an index
+-- fails the security matrix run.
 --
 -- All statements are CREATE INDEX IF NOT EXISTS on public.* tables:
 -- non-destructive, no data rewritten, safe on a populated environment.
@@ -50,27 +54,30 @@ DECLARE
   idx_name text;
 BEGIN
   FOR r IN
-    SELECT c.conrelid, a.attname
+    SELECT ns.nspname AS schema_name, rel.relname AS table_name, a.attname AS column_name
     FROM pg_constraint c
+    JOIN pg_class rel ON rel.oid = c.conrelid
+    JOIN pg_namespace ns ON ns.oid = rel.relnamespace
     CROSS JOIN LATERAL unnest(c.conkey) AS k(col)
     JOIN pg_attribute a
       ON a.attrelid = c.conrelid AND a.attnum = k.col
     WHERE c.contype = 'f'
+      AND ns.nspname = 'public'
       AND NOT EXISTS (
         SELECT 1 FROM pg_index i
         WHERE i.indrelid = c.conrelid AND i.indkey[0] = k.col
       )
-    ORDER BY c.conrelid::regclass::text, a.attname
+    ORDER BY ns.nspname, rel.relname, a.attname
   LOOP
-    idx_name := (SELECT relname FROM pg_class WHERE oid = r.conrelid)
-                || '_' || r.attname || '_idx';
+    idx_name := r.table_name || '_' || r.column_name || '_idx';
     EXECUTE format(
-      'CREATE INDEX IF NOT EXISTS %I ON %s (%I)',
+      'CREATE INDEX IF NOT EXISTS %I ON %I.%I (%I)',
       idx_name,
-      r.conrelid::regclass,
-      r.attname
+      r.schema_name,
+      r.table_name,
+      r.column_name
     );
-    RAISE NOTICE '0034: created index % on % (%)',
-      idx_name, r.conrelid::regclass, r.attname;
+    RAISE NOTICE '0034: created index % on %.% (%)',
+      idx_name, r.schema_name, r.table_name, r.column_name;
   END LOOP;
 END $$;

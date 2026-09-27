@@ -1,7 +1,11 @@
 name: DB Migrate
 
-# Migrations + seed run against the Railway Postgres (public TCP proxy) on every
-# main push touching packages/db; also triggerable manually via workflow_dispatch.
+# Migrations + seed run against the Supabase Postgres on every main push
+# touching packages/db; also triggerable manually via workflow_dispatch.
+#
+# The URL is the Supabase pooler (session mode, port 5432): the direct
+# db.<ref>.supabase.co host resolves over IPv6 only, which GitHub runners do not
+# have. Setup and the exact connection string shape: docs/64_SUPABASE_SETUP.md.
 on:
   push:
     branches: [main]
@@ -13,7 +17,7 @@ jobs:
     name: Apply migrations + seed
     runs-on: ubuntu-latest
     env:
-      # Railway Postgres public TCP proxy URL (Settings → Networking → TCP Proxy)
+      # Supabase pooler URL, session mode (Supabase → Connect → Session pooler).
       DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
     steps:
       - name: Checkout
@@ -34,9 +38,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # The supabase lineage runner is idempotent — it skips the auth shim when
-      # auth.uid() already exists, and scoped drops make re-runs safe.
+      # auth.uid() already exists, and scoped drops make re-runs safe. It also
+      # records what it applied in supabase_migrations.schema_migrations, so a
+      # later run reads the ledger instead of replaying all 34 files, and
+      # `migrate:supabase:status` can be run by hand to see what a database has.
       - name: Migrate
-        run: pnpm --filter @orq8/db migrate:supabase
+        run: |
+          pnpm --filter @orq8/db migrate:supabase:status
+          pnpm --filter @orq8/db migrate:supabase
 
       - name: Seed (idempotent — provider catalog + demo-org plan)
         env:

@@ -67,3 +67,6 @@ secrets.env
 
 # Local review stack data (never committed)
 .review-stack-data/
+.review-stack.log
+.review-stack.err
+.supabase-setup.json

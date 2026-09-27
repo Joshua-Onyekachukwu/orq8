@@ -1,5 +1,66 @@
 # ORQ8 Changelog
 
+## 2026-09-27 — Company Hub rebuilt as a single orbital surface
+
+- **What changed**: `/app/company/overview` is now one diagram instead of seven
+  stacked sections — the ORQ8 core, two orbit rings and six satellites
+  (Executive Agent, Audit Trail, AI Workforce, Company Memory, Approval Gates,
+  Goals & Tasks). Every satellite carries a figure read from the backend, so the
+  diagram is an operating console, not an illustration.
+- **Why**: the first hub buried the organisation under detail. The founder asked
+  for the hub to be the focus and for everything else to be minimal.
+- **First run**: the welcome now appears only while the company has no employees,
+  goals or departments. A running company goes straight to the hub. The
+  onboarding stage still reaches the Executive Agent unchanged, so its greeting
+  matches the dashboard at `/app`, and `/app` itself was not touched.
+- **Removed**: `company-hub/{organization-hub,ea-rail,hub-ui}.tsx`, left over from
+  the first hub and imported by nothing else. One hub implementation remains.
+- **Verified**: web typecheck, production build, and a browser pass over three
+  states — a running company, a brand new company (first run), and the tablet
+  layout — with zero console errors.
+
+## 2026-09-27 — Supabase reached, applied and recorded (34/34, with a ledger)
+
+- **Access**: the ORQ8 project is `gttkaxbcdtpsusmconxm` (eu-west-1, Postgres
+  17.6, healthy). The connected MCP server only exposes `CapitalOS`
+  (`tvekoojdilkjptjzpvqo`), a different product, so the Management API and the
+  pooler are the working path. The database password was rotated and both pooler
+  modes (session 5432, transaction 6543) were verified; the direct
+  `db.<ref>.supabase.co` host does not resolve on this network (IPv6 only).
+- **Vault**: credentials live in `.supabase-setup.json` (gitignored). The vault
+  the earlier session expected was missing, so it has been recreated; it now
+  holds the rotated password. A long-lived token in a file is a local
+  convenience, not a secret manager.
+- **0034 could not apply, and the reason was a real bug**: the catalog-driven gap
+  query had no schema filter, so on real Supabase it walked `auth.*` and tried to
+  index `auth.mfa_challenges`, which the `postgres` role does not own
+  (`ERROR: 42501: must be owner of table mfa_challenges`). Local and CI passed
+  because the embedded `auth` shim has no foreign keys. 0034 and the
+  `scripts/rls-security-e2e.ts` invariant are now both scoped to `public`, and
+  production is 34/34 applied.
+- **Ledger**: `supabase_migrations.schema_migrations` with our `checksum` column,
+  keyed on the migration file stem. The lineage uses `0002` twice, so a numeric
+  prefix keyed two files to one row and made one read as permanently "changed" —
+  the exact drift this ledger exists to expose. `migrate:supabase:status` reads it
+  without writing; CI now reports status before applying.
+- **Parity, measured** (`scripts/lineage-parity.ts`): fresh lineage 801 columns /
+  261 indexes / 79 policies / 44 functions / 26 triggers versus production 828 /
+  264 / 87 / 128 / 26. Three groups explain all of it: expected environment
+  extras (pg_stat_statements, supabase_vault, uuid-ossp, pgvector), four legacy
+  tables that exist only in production (`agent_memory`,
+  `notification_preferences`, `platform_admins`, `user_org_mapping`), and the
+  drizzle half production never received (eight performance indexes,
+  `users.password_hash`, `webhook_events.title`, several column defaults).
+  Production has 0 rows, so this is cheap to fix now — but it needs a decision:
+  converge the two lineages into one, or apply the drizzle lineage to production
+  as well.
+- **Removed as dead**: `railway.json` and the unreferenced, Railway-based
+  `DEPLOY.md` that contradicted `docs/58_DEPLOYMENT.md`.
+- **Setup documented**: `docs/64_SUPABASE_SETUP.md`.
+- **Not changed on purpose**: the landing privacy and security pages still name
+  Railway as the application host. That copy is user-facing, so it needs a
+  decision rather than a silent edit.
+
 ## 2026-09-27 — Migration apply blocked: production plumbing drift (0033/0034 still unapplied)
 
 - **Attempted**: 0033 and 0034 live only in local commit `4f7f1d6` (`origin/main`

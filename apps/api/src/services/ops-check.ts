@@ -11,6 +11,7 @@
  * the report is safe to render in logs, CI, and the founder UI.
  */
 import type { AppConfig } from '@orq8/core';
+import { databaseSslOptions } from '@orq8/db';
 import { Pool } from 'pg';
 
 export interface OpsCheckRow {
@@ -162,5 +163,10 @@ export async function runOpsCheck(config: AppConfig, db: Pool): Promise<OpsCheck
 
 /** Open a short-lived pool for the local (script) path. Caller must end it. */
 export function openCheckPool(connectionString: string): Pool {
-  return new Pool({ connectionString, connectionTimeoutMillis: 4000, max: 3 });
+  return new Pool({
+    connectionString,
+    connectionTimeoutMillis: 4000,
+    max: 3,
+    ssl: databaseSslOptions(connectionString),
+  });
 }
