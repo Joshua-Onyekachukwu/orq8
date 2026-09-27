@@ -14,11 +14,18 @@
  *
  * When the collision disappears, the launcher returns to the saved preference.
  *
+ * Multiple launchers (the Executive Agent trigger + the dashboard's
+ * quick-actions FAB) coordinate through the collision engine: every launcher
+ * is a collision source for the others, and each instance persists its own
+ * saved corner under a floatingId-keyed storage key. Instances must pass
+ * distinct floatingIds — a shared id means a shared corner, and they stack.
+ *
  * Usage:
  *   <FloatingLauncher
  *     onClick={togglePanel}
  *     icon={<MessageSquare />}
- *     label="Executive Agent"
+ *     label="Atlas"
+ *     floatingId="ea"
  *   />
  */
 
@@ -34,7 +41,9 @@ export interface FloatingLauncherProps {
   label: string;
   /** Extra class names for the button */
   className?: string;
-  /** Unique ID for stacking coordination between floating controls */
+  /** Unique ID for stacking coordination between floating controls.
+   * Required when more than one launcher is mounted (each gets its own
+   * saved corner). Defaults to "ea" for the single-launcher case. */
   floatingId?: string;
   /** Whether the launcher is in an active/toggled-on state (changes icon styling) */
   isActive?: boolean;
@@ -56,7 +65,10 @@ function positionToClasses(pos: LauncherPreference): string {
   const vertical =
     pos.vertical === "bottom"
       ? "bottom-[calc(1.25rem+env(safe-area-inset-bottom))] lg:bottom-6"
-      : "top-[calc(1.25rem+env(safe-area-inset-top))] lg:top-6";
+      : // Top corners sit below the 64px sticky top bar (24 = 6rem = 96px) so the
+        // launcher never covers the account menu. Mirrors TOP_OFFSET in the
+        // collision engine.
+        "top-[calc(6rem+env(safe-area-inset-top))] lg:top-24";
   return `${horizontal} ${vertical}`;
 }
 
@@ -76,12 +88,13 @@ export function FloatingLauncher({
   icon,
   label,
   className = "",
+  floatingId = "ea",
   isActive = false,
   buttonBg = "bg-orq8-dark",
   buttonBgActive,
   zIndex = 40,
 }: FloatingLauncherProps) {
-  const { preference, setPreference } = useLauncherPreference();
+  const { preference, setPreference } = useLauncherPreference(floatingId);
   /** Transient position while dragging (not persisted until snap). */
   const [dragPosition, setDragPosition] = useState<LauncherPreference | null>(null);
 
@@ -89,7 +102,14 @@ export function FloatingLauncher({
   // explicit control, and repositioning under their pointer feels broken.
   const effectivePosition = dragPosition ?? preference;
 
-  const collision = useCollisionDetection(effectivePosition, !dragPosition);
+  // The hook identifies this launcher by floatingId (data-launcher-id), so no
+  // ref has to be attached first for the first scan to be correct.
+  const collision = useCollisionDetection(
+    effectivePosition,
+    !dragPosition,
+    floatingId,
+    preference,
+  );
 
   // Effective position: collision override is TEMPORARY — the preference is
   // never overwritten by the collision engine (spec §8/§9).
@@ -109,7 +129,7 @@ export function FloatingLauncher({
   const {
     isDragging,
     tempPosition,
-    elementRef,
+    elementRef: draggableElementRef,
     consumeDragFlag,
     handlers,
   } = useDraggable({ onSnap: handleSnap });
@@ -128,13 +148,14 @@ export function FloatingLauncher({
 
   return (
     <button
-      ref={elementRef}
+      ref={draggableElementRef}
       data-ea-launcher="true"
+      data-launcher-id={floatingId}
       onClick={handleClick}
       className={`group fixed flex h-12 w-12 touch-none select-none items-center justify-center rounded-full text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-orq8-orange/70 focus-visible:ring-offset-2 ${posClasses} ${stateClasses} ${className} ${isActive && buttonBgActive ? buttonBgActive : buttonBg}`}
       style={{ zIndex: zIndex, ...(isDragging && tempPosition ? dragPreviewStyle(tempPosition) : {}) }}
       title={`${label} (\u2318\u21E7E)`}
-      aria-label={label}
+      aria-label={`Open ${label}`}
       aria-keyshortcuts="Meta+Shift+E"
       {...handlers}
     >

@@ -2,7 +2,12 @@
 
 import { useState, useCallback, useEffect } from "react";
 
-const STORAGE_KEY = "orq8-ea-launcher-position";
+/**
+ * Saved launcher corner, keyed per floating control id. The EA trigger and
+ * the quick-actions FAB must NOT share one key: a shared key makes both
+ * launchers read (and drag-write) the same corner, so they stack and drag
+ * each other around. Each floatingId gets its own persisted preference.
+ */
 
 export type LauncherSide = "right" | "left";
 export type LauncherVertical = "bottom" | "top";
@@ -17,7 +22,13 @@ const DEFAULT_PREFERENCE: LauncherPreference = {
   vertical: "bottom",
 };
 
-export function useLauncherPreference() {
+function storageKeyFor(id: string): string {
+  return id === "ea"
+    ? "orq8-ea-launcher-position" // legacy key: existing users keep their corner
+    : `orq8-launcher-position-${id}`;
+}
+
+export function useLauncherPreference(id: string = "ea") {
   const [preference, setPreferenceState] = useState<LauncherPreference>(
     DEFAULT_PREFERENCE,
   );
@@ -25,7 +36,7 @@ export function useLauncherPreference() {
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKeyFor(id));
       if (stored) {
         const parsed = JSON.parse(stored) as LauncherPreference;
         if (
@@ -40,16 +51,16 @@ export function useLauncherPreference() {
     } catch {
       // Ignore parse errors — use default
     }
-  }, []);
+  }, [id]);
 
   const setPreference = useCallback((pref: LauncherPreference) => {
     setPreferenceState(pref);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pref));
+      localStorage.setItem(storageKeyFor(id), JSON.stringify(pref));
     } catch {
       // Ignore storage errors
     }
-  }, []);
+  }, [id]);
 
   return { preference, setPreference };
 }

@@ -23,7 +23,9 @@ interface CollisionResult {
  */
 const INTERACTIVE_SELECTORS = [
   ".fixed",
+  "[class*='fixed']",
   ".sticky",
+  "header",
   "[data-sticky]",
   "[data-bottom-nav]",
   "[data-mobile-nav]",
@@ -37,12 +39,14 @@ const INTERACTIVE_SELECTORS = [
 ];
 
 const COLLISION_MARGIN = 16; // px around the launcher to check
-const LAUNCHER_SIZE = 48; // 48px = h-12 w-12
+const LAUNCHER_SIZE = 48; // 48px = h-12 w-12 (fallback before the node mounts)
 const OFFSET = 24; // matches the launcher's CSS offset (bottom-6/right-6 ≈ 24px)
+/** Vertical offset for top-anchored launchers. A top corner must clear the
+ * 64px sticky top bar by more than COLLISION_MARGIN, otherwise the header
+ * counts as a permanent collision there and every corner looks taken.
+ * Mirrors `lg:top-24` in FloatingLauncher's position classes. */
+const TOP_OFFSET = 96;
 
-/** Stability: a position change must persist for this long before the
- * launcher moves again. Prevents flip-flopping on transient layout churn. */
-const STABILITY_MS = 400;
 /** How often DOM mutation checks are allowed to run at most. */
 const MIN_CHECK_INTERVAL_MS = 250;
 
@@ -65,7 +69,7 @@ function getLauncherRect(
   const left =
     position.side === "right" ? vw - launcherSize - OFFSET : OFFSET;
   const top =
-    position.vertical === "bottom" ? vh - launcherSize - OFFSET : OFFSET;
+    position.vertical === "bottom" ? vh - launcherSize - OFFSET : TOP_OFFSET;
 
   return new DOMRect(left, top, launcherSize, launcherSize);
 }
@@ -80,7 +84,12 @@ function isElementVisible(el: Element): boolean {
   return true;
 }
 
-function findFloatingElements(): Element[] {
+/** The floatingId of an element when it is a floating launcher. */
+function launcherIdOf(el: Element): string | undefined {
+  return (el as HTMLElement).dataset?.launcherId || undefined;
+}
+
+function findFloatingElements(selfId: string | undefined): Element[] {
   const elements: Element[] = [];
   const seen = new Set<Element>();
   for (const selector of INTERACTIVE_SELECTORS) {
@@ -89,10 +98,17 @@ function findFloatingElements(): Element[] {
       for (const el of found) {
         if (seen.has(el)) continue;
         seen.add(el);
-        // Skip the launcher itself
-        if (el.closest("[data-ea-launcher]")) continue;
-        // Skip anything inside an open panel/dialog's backdrop tree? No —
-        // dialogs SHOULD count as collisions.
+        // Never treat this launcher as its own obstacle. Identification is by
+        // data-launcher-id rather than a DOM ref: refs are attached during
+        // commit, so a render-time ref can still be null when the first scan
+        // runs and the launcher would then flee from itself.
+        const id = launcherIdOf(el);
+        if (id && id === selfId) continue;
+        // Another launcher only counts when it OUTRANKS this one: ids are
+        // compared as strings and the lower id owns a contested corner. A
+        // lower-priority launcher yields instead, so treating it as an
+        // obstacle would make both of them give way and chase each other.
+        if (id && selfId && !(id < selfId)) continue;
         if (!isElementVisible(el)) continue;
         elements.push(el);
       }
@@ -106,6 +122,11 @@ function findFloatingElements(): Element[] {
 export function useCollisionDetection(
   currentPosition: LauncherPosition,
   enabled: boolean = true,
+  /** This launcher's floatingId, matching data-launcher-id on its button. */
+  selfId?: string,
+  /** The launcher's saved corner. Always evaluated as a candidate so a
+   * displaced launcher returns home once the corner frees up. */
+  preferredPosition?: LauncherPosition,
 ): CollisionResult {
   const [result, setResult] = useState<CollisionResult>({
     hasCollision: false,
@@ -115,10 +136,12 @@ export function useCollisionDetection(
 
   const rafRef = useRef(0);
   const lastCheckRef = useRef(0);
-  /** Timestamp of the last committed position; used for stability debounce. */
-  const lastCommitRef = useRef(Date.now());
   const positionRef = useRef(currentPosition);
   positionRef.current = currentPosition;
+  const selfIdRef = useRef<string | undefined>(selfId);
+  selfIdRef.current = selfId;
+  const preferredRef = useRef<LauncherPosition | undefined>(preferredPosition);
+  preferredRef.current = preferredPosition;
 
   const checkCollisions = useCallback(() => {
     if (!enabled) return;
@@ -129,8 +152,18 @@ export function useCollisionDetection(
     lastCheckRef.current = now;
 
     const current = positionRef.current;
-    const launcherRect = getLauncherRect(current);
-    const floating = findFloatingElements();
+    const id = selfIdRef.current;
+    // Measure our own node (offsetWidth ignores hover/scale transforms) so the
+    // wider 56px quick-actions FAB is not tested as a 48px box.
+    const selfEl = id
+      ? [...document.querySelectorAll<HTMLElement>("[data-launcher-id]")].find(
+          (el) => el.dataset.launcherId === id,
+        )
+      : undefined;
+    const launcherSize =
+      selfEl && selfEl.offsetWidth > 0 ? selfEl.offsetWidth : LAUNCHER_SIZE;
+    const launcherRect = getLauncherRect(current, launcherSize);
+    const floating = findFloatingElements(id);
     const collisions: string[] = [];
 
     for (const el of floating) {
@@ -148,10 +181,7 @@ export function useCollisionDetection(
 
     if (collisions.length === 0) {
       setResult((prev) => {
-        // Stability: only clear the collision after it has been absent long
-        // enough — avoids rapid flip between states.
         if (!prev.hasCollision) return prev;
-        lastCommitRef.current = Date.now();
         return {
           hasCollision: false,
           bestPosition: current,
@@ -161,23 +191,32 @@ export function useCollisionDetection(
       return;
     }
 
-    // Find the best alternative position, respecting fallback priority:
-    // bottom-right (current) → top-right → bottom-left → top-left
-    const candidates: LauncherPosition[] = [
+    // Find the best position. The launcher's own saved corner is evaluated
+    // FIRST so a displaced launcher returns home as soon as that corner is
+    // free again. Remaining corners follow in fallback priority:
+    // top-right → bottom-left → top-left → bottom-right.
+    const candidates: LauncherPosition[] = [];
+    for (const candidate of [
+      preferredRef.current ?? current,
       { side: "right", vertical: "top" },
       { side: "left", vertical: "bottom" },
       { side: "left", vertical: "top" },
-    ];
+      { side: "right", vertical: "bottom" },
+    ] satisfies LauncherPosition[]) {
+      if (
+        !candidates.some(
+          (c) => c.side === candidate.side && c.vertical === candidate.vertical,
+        )
+      ) {
+        candidates.push(candidate);
+      }
+    }
 
-    const fallback: LauncherPosition = candidates[0] ?? {
-      side: "right",
-      vertical: "top",
-    };
-    let bestPos: LauncherPosition = fallback;
+    let bestPos: LauncherPosition = candidates[0] ?? current;
     let fewestCollisions = Infinity;
 
     for (const candidate of candidates) {
-      const candidateRect = getLauncherRect(candidate);
+      const candidateRect = getLauncherRect(candidate, launcherSize);
       let candidateCollisions = 0;
       for (const el of floating) {
         const elRect = el.getBoundingClientRect();
@@ -195,7 +234,6 @@ export function useCollisionDetection(
       if (prev.hasCollision && prev.bestPosition.side === bestPos.side && prev.bestPosition.vertical === bestPos.vertical) {
         return prev; // No change — avoid re-render churn
       }
-      lastCommitRef.current = Date.now();
       return {
         hasCollision: true,
         bestPosition: bestPos,
@@ -215,8 +253,13 @@ export function useCollisionDetection(
       rafRef.current = requestAnimationFrame(checkCollisions);
     };
 
-    // Initial check (after paint, so layout is settled)
-    const initialTimer = setTimeout(scheduleCheck, 100);
+    // Staged checks after mount (after paint, so layout has settled). A single
+    // early check is not enough: a sibling launcher may still be hydrating, or
+    // its box may not be laid out yet, and the MutationObserver below only
+    // fires on class/style/child changes — plain text re-renders would leave a
+    // stacked launcher stacked forever. Retrying converges on the settled
+    // layout instead, and every later mutation re-triggers a check anyway.
+    const timers = [100, 400, 1200, 2500].map((ms) => setTimeout(scheduleCheck, ms));
 
     window.addEventListener("resize", scheduleCheck, { passive: true });
 
@@ -230,7 +273,7 @@ export function useCollisionDetection(
     });
 
     return () => {
-      clearTimeout(initialTimer);
+      timers.forEach(clearTimeout);
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", scheduleCheck);
       observer.disconnect();
