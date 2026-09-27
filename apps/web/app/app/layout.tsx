@@ -133,7 +133,6 @@ export default async function AppLayout({
         plan={plan}
         userName={userName}
         userAvatarUrl={userAvatarUrl}
-        sampleMode={false}
         platformRole={platformRole}
       />
 

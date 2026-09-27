@@ -1,44 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
   Activity,
-  Bell,
-  BookOpen,
+  BadgeCheck,
+  Boxes,
   Brain,
-  CalendarClock,
   Building2,
+  CalendarClock,
   ChevronDown,
+  Code2,
   Command,
   Compass,
   DollarSign,
   FileText,
-
-  Globe,
-  Newspaper,
-  GraduationCap,
-  Code2,
+  Gauge,
+  Gavel,
   GitBranch,
+  Globe,
+  GraduationCap,
   HeartPulse,
+  History,
   Inbox,
   KeyRound,
+  Landmark,
+  Layers,
   LayoutDashboard,
   LogOut,
-  ScrollText,
-  Scale,
-  Settings,
+  Network,
+  Newspaper,
   Plug,
+  Scale,
+  ScrollText,
+  Settings,
   Shield,
   ShieldCheck,
   Target,
+  TrendingUp,
   User,
   Users,
   Wallet,
+  Wrench,
   X,
   Zap,
-  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "./branding/logo-mark";
@@ -47,29 +53,64 @@ type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
-  badge?: string;
 };
 
-type NavGroup = { title: string; items: NavItem[] };
+/** A named group of destinations inside one primary area. */
+type NavSubGroup = {
+  title: string;
+  items: NavItem[];
+};
 
-const navGroups: NavGroup[] = [
+/**
+ * Primary area of the company operating system (docs/61 Phase 2, and the
+ * navigation direction: Company, Work, Organization, Decisions, Resources,
+ * Governance).
+ */
+type NavArea = {
+  title: string;
+  items: NavItem[];
+  subgroups?: NavSubGroup[];
+};
+
+// Every destination here is a page that exists. Where the direction names a
+// destination that has no page yet (All Work, Tasks, Workstreams, Reviews,
+// Authority & Permissions, Department Reports) it is deliberately absent
+// rather than rendered as a placeholder.
+const navAreas: NavArea[] = [
   {
-    title: "Command",
+    title: "Company",
     items: [
-      { label: "Dashboard", href: "/app", icon: LayoutDashboard },
-      // Founder's Attention (docs/61 Phase 3): the queue lives here until the
-      // Phase 2 information architecture re-homes it under Company.
-      { label: "Attention", href: "/app/attention", icon: Inbox },
-      { label: "Company Health", href: "/app/health", icon: HeartPulse },
-      { label: "Scheduled Jobs", href: "/app/jobs", icon: CalendarClock },
-      { label: "Command Center", href: "/app/approvals", icon: ShieldCheck, badge: "Approvals" },
-      { label: "Weekly Report", href: "/app/report", icon: ScrollText },
-      { label: "Performance", href: "/app/performance", icon: Activity },
+      { label: "Overview", href: "/app", icon: LayoutDashboard },
+      { label: "Health", href: "/app/health", icon: HeartPulse },
+      { label: "Activity", href: "/app/activity", icon: Activity },
+    ],
+    subgroups: [
+      {
+        title: "Strategy",
+        items: [
+          { label: "Company Strategy", href: "/app/strategy", icon: Compass },
+          { label: "Goals & Tasks", href: "/app/goals", icon: Target },
+          { label: "Strategic Lineage", href: "/app/lineage", icon: GitBranch },
+          { label: "Simulation", href: "/app/simulation", icon: Zap },
+        ],
+      },
+      {
+        title: "Reports",
+        items: [
+          { label: "Weekly Report", href: "/app/report", icon: ScrollText },
+          { label: "Performance", href: "/app/performance", icon: TrendingUp },
+          { label: "AI Workforce ROI", href: "/app/roi", icon: DollarSign },
+          { label: "Briefings", href: "/app/briefings", icon: Newspaper },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Work",
+    items: [
+      { label: "My Attention", href: "/app/attention", icon: Inbox },
+      { label: "Scheduled Work", href: "/app/jobs", icon: CalendarClock },
       { label: "Engineering", href: "/app/engineering", icon: Code2 },
-      { label: "MCP & Tools", href: "/app/mcp", icon: Plug },
-      { label: "Simulation", href: "/app/simulation", icon: Zap },
-      { label: "Squads", href: "/app/squads", icon: Users },
-      { label: "AI Workforce ROI", href: "/app/roi", icon: DollarSign },
     ],
   },
   {
@@ -77,37 +118,69 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "AI Employees", href: "/app/agents", icon: Users },
       { label: "Departments", href: "/app/departments", icon: Building2 },
-      { label: "Teams", href: "/app/teams", icon: GitBranch },
-      { label: "Strategy", href: "/app/strategy", icon: Compass },
-      { label: "Goals & Tasks", href: "/app/goals", icon: Target },
-      { label: "Org Explorer", href: "/app/org", icon: Building2 },
+      { label: "Teams", href: "/app/teams", icon: Network },
+      { label: "Squads", href: "/app/squads", icon: Layers },
+      { label: "Org Explorer", href: "/app/org", icon: Boxes },
       { label: "Business Import", href: "/app/business-import", icon: Globe },
+      { label: "Members", href: "/app/members", icon: User },
     ],
   },
   {
-    title: "Systems",
-    items: [{ label: "Integrations", href: "/app/integrations", icon: Plug }],
+    title: "Decisions",
+    items: [
+      { label: "Decision Center", href: "/app/decisions", icon: Scale },
+      { label: "Decision Council", href: "/app/council", icon: Gavel },
+    ],
+  },
+  {
+    title: "Resources",
+    items: [
+      { label: "Files", href: "/app/files", icon: FileText },
+      { label: "Knowledge", href: "/app/knowledge", icon: Brain },
+      { label: "Company Memory", href: "/app/memory", icon: History },
+      { label: "Integrations", href: "/app/integrations", icon: Plug },
+      { label: "Tools & MCP", href: "/app/mcp", icon: Wrench },
+    ],
   },
   {
     title: "Governance",
     items: [
-      { label: "Notifications", href: "/app/notifications", icon: Bell },
-      { label: "Company Memory", href: "/app/memory", icon: ScrollText },
-      { label: "Strategic Lineage", href: "/app/lineage", icon: GitBranch },
-      { label: "Decision Memory", href: "/app/decisions", icon: BookOpen },
-      { label: "Decision Council", href: "/app/council", icon: Scale },
-      { label: "Knowledge Graph", href: "/app/knowledge", icon: Brain },
-      { label: "Audit Trail", href: "/app/audit", icon: Shield },
+      { label: "Approvals", href: "/app/approvals", icon: ShieldCheck },
       { label: "Budgets", href: "/app/budgets", icon: Wallet },
-      { label: "Usage & Limits", href: "/app/usage", icon: Gauge },
-      { label: "Files", href: "/app/files", icon: FileText },
-      { label: "Constitution", href: "/app/constitution", icon: ScrollText },
-      { label: "Quality & Learning", href: "/app/quality", icon: Shield },
-      { label: "Learning", href: "/app/learning", icon: GraduationCap },
-      { label: "Briefings", href: "/app/briefings", icon: Newspaper },
+      { label: "Usage & Credits", href: "/app/usage", icon: Gauge },
+      { label: "Audit Trail", href: "/app/audit", icon: Shield },
+      { label: "Constitution", href: "/app/constitution", icon: Landmark },
+    ],
+    subgroups: [
+      {
+        title: "Quality & Learning",
+        items: [
+          { label: "Quality", href: "/app/quality", icon: BadgeCheck },
+          { label: "Learning", href: "/app/learning", icon: GraduationCap },
+        ],
+      },
     ],
   },
 ];
+
+/** The area that owns a path, so the sidebar can open where the founder is. */
+function areaForPath(pathname: string): string | null {
+  for (const area of navAreas) {
+    const hrefs = [
+      ...area.items.map((i) => i.href),
+      ...(area.subgroups ?? []).flatMap((g) => g.items.map((i) => i.href)),
+    ];
+    if (
+      hrefs.some(
+        (href) =>
+          pathname === href || (href !== "/app" && pathname.startsWith(`${href}/`)),
+      )
+    ) {
+      return area.title;
+    }
+  }
+  return null;
+}
 
 export function AppSidebar({
   orgName,
@@ -120,15 +193,27 @@ export function AppSidebar({
   plan: string;
   userName: string;
   userAvatarUrl?: string | null;
-  sampleMode: boolean;
   platformRole?: string;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Areas start collapsed, except the one the founder is standing in, so the
+  // sidebar reads as six things rather than thirty.
+  const [openAreas, setOpenAreas] = useState<Set<string>>(() => {
+    const active = areaForPath(pathname);
+    return new Set(active ? [active] : ["Company"]);
+  });
+  const [collapsedSubgroups, setCollapsedSubgroups] = useState<Set<string>>(new Set());
+
+  // Moving into a new area opens it, and never closes what the founder opened.
+  useEffect(() => {
+    const active = areaForPath(pathname);
+    if (!active) return;
+    setOpenAreas((prev) => (prev.has(active) ? prev : new Set([...prev, active])));
+  }, [pathname]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -161,13 +246,45 @@ export function AppSidebar({
   const isActive = (href: string) =>
     pathname === href || (href !== "/app" && pathname.startsWith(href));
 
-  const toggleGroup = (title: string) => {
-    setCollapsedGroups((prev) => {
+  const toggleArea = (title: string) => {
+    setOpenAreas((prev) => {
       const next = new Set(prev);
       if (next.has(title)) next.delete(title);
       else next.add(title);
       return next;
     });
+  };
+
+  const toggleSubgroup = (title: string) => {
+    setCollapsedSubgroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  };
+
+  const renderItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          onClick={() => setMobileOpen(false)}
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
+            active
+              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright border border-orq8-orange/20"
+              : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
+          }`}
+        >
+          <Icon
+            className={`h-4 w-4 shrink-0 ${active ? "text-orq8-orange-bright" : "text-white/30"}`}
+          />
+          <span className="flex-1 truncate">{item.label}</span>
+        </Link>
+      </li>
+    );
   };
 
   const sidebarContent = (
@@ -180,6 +297,7 @@ export function AppSidebar({
         <button
           onClick={() => setMobileOpen(false)}
           className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/5 lg:hidden"
+          aria-label="Close navigation menu"
         >
           <X className="h-5 w-5" />
         </button>
@@ -188,60 +306,73 @@ export function AppSidebar({
       {/* Plan badge */}
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
-          <div className="h-2 w-2 rounded-full bg-orq8-lime animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-orq8-orange-bright" />
           <span className="text-overline font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — six primary areas */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {navGroups.map((group) => {
-          const isCollapsed = collapsedGroups.has(group.title);
+        {navAreas.map((area) => {
+          const isOpen = openAreas.has(area.title);
+          const areaActive = areaForPath(pathname) === area.title;
+          const itemCount =
+            area.items.length +
+            (area.subgroups ?? []).reduce((n, g) => n + g.items.length, 0);
           return (
-            <div key={group.title} className="mb-4">
+            <div key={area.title} className="mb-1">
               <button
-                onClick={() => toggleGroup(group.title)}
-                className="flex w-full items-center justify-between px-2 py-1"
+                onClick={() => toggleArea(area.title)}
+                className="flex w-full items-center justify-between rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.03]"
+                aria-expanded={isOpen}
               >
-                <span className="text-3xs font-semibold uppercase tracking-[0.15em] text-white/30">
-                  {group.title}
+                <span
+                  className={`text-3xs font-semibold uppercase tracking-[0.15em] ${
+                    areaActive ? "text-orq8-orange-bright" : "text-white/40"
+                  }`}
+                >
+                  {area.title}
                 </span>
-                <ChevronDown
-                  className={`h-3 w-3 text-white/20 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                />
+                <span className="flex items-center gap-1.5">
+                  <span className="font-mono text-3xs text-white/25">{itemCount}</span>
+                  <ChevronDown
+                    className={`h-3 w-3 text-white/25 transition-transform ${isOpen ? "" : "-rotate-90"}`}
+                  />
+                </span>
               </button>
-              {!isCollapsed && (
-                <ul className="mt-1 space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
+
+              {isOpen && (
+                <div className="mt-0.5">
+                  <ul className="space-y-0.5">{area.items.map(renderItem)}</ul>
+
+                  {(area.subgroups ?? []).map((group) => {
+                    const groupOpen = !collapsedSubgroups.has(group.title);
+                    const groupActive = group.items.some((i) => isActive(i.href));
                     return (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          onClick={() => setMobileOpen(false)}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
-                            active
-                              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright border border-orq8-orange/20"
-                              : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
-                          }`}
+                      <div key={group.title} className="mt-1">
+                        <button
+                          onClick={() => toggleSubgroup(group.title)}
+                          className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
+                          aria-expanded={groupOpen}
                         >
-                          <Icon
-                            className={`h-4 w-4 shrink-0 ${
-                              active ? "text-orq8-orange-bright" : "text-white/30"
+                          <span
+                            className={`text-2sm font-medium ${
+                              groupActive ? "text-white/75" : "text-white/40"
                             }`}
+                          >
+                            {group.title}
+                          </span>
+                          <ChevronDown
+                            className={`h-3 w-3 text-white/25 transition-transform ${groupOpen ? "" : "-rotate-90"}`}
                           />
-                          <span className="flex-1 truncate">{item.label}</span>
-                          {item.badge && !active && (
-                            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-3xs font-medium text-white/40">
-                              {item.badge}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
+                        </button>
+                        {groupOpen && (
+                          <ul className="mt-0.5 space-y-0.5 pl-2">{group.items.map(renderItem)}</ul>
+                        )}
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               )}
             </div>
           );
@@ -282,7 +413,7 @@ export function AppSidebar({
             aria-haspopup="menu"
             aria-label="User account menu"
           >
-            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-orq8-lime">
+            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-white">
               {userAvatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
