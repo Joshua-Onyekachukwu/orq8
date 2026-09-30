@@ -499,10 +499,10 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## W. Revision 3 — founder feedback on mock v2 (open)
 
-> **Status: APPLIED — 13 items recorded and applied to mock v2
-> (2026-09-30; items 6–9 founder Rev-4 pass, 10–13 founder-approved UX
-> pass).** The founder reviews `marketing/headquarters-mock-v2.html` and
-> lists changes (colors, wording, layout). Each item is recorded here as
+> **Status: APPLIED — 16 items recorded and applied to mock v2
+> (2026-09-30; 6–9 founder Rev-4 pass, 10–13 UX pass, 14–16 color quieting
+> + Tasks + hire flow).** The founder reviews `marketing/headquarters-mock-v2.html`
+> and lists changes (colors, wording, layout). Each item is recorded here as
 > it arrives, then applied to the mock before implementation begins.
 
 | # | Screen | Change (colors / wording / layout) | Status |
@@ -520,6 +520,9 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 | 11 | Dashboard | **Org chart vs Company now split by job:** Company now retitled "What's happening now" = activity (task, elapsed time, thin progress meter per working employee); structure lives only on the Org chart page. | APPLIED |
 | 12 | Dashboard | **Stats strip slimmed to 4** (Active goals, Employees, Credits+meter, Health with /100 scale + bar); approvals and in-progress no longer duplicate as stat cards. | APPLIED |
 | 13 | EA dock | **"Working now" strip pinned** under Atlas's header (never scrolls away); composer gains **/hire /budget /pause command chips**; the "Give direction" button now focuses the composer input. | APPLIED |
+| 14 | All | **Color quieting (founder: "sharp colors give AI slop"):** hues kept, saturation cut ~30% (lime `#B6F09C`→`#A6CE95`, orange `#F59E4C`→`#E9974F`, red `#F87171`→`#E07A7A`, info `#7DD3FC`→`#8FB8D8`); colored washes reduced to 7% alpha; chips/links/leads/labels go neutral with color reserved for state dots and CTAs. Premium = muted neutrals, color only where it carries meaning. | APPLIED |
+| 15 | Tasks | **UX pass:** task detail is a **sticky 4th board column** (always visible, opens the open task by default) with **Live log / Brief & context** tabs; backlog cards get **grip handles**; per-agent employee drawer wired to every card; unblock actions on blocked/paused rows. | APPLIED |
+| 16 | Hire flow | **Atlas hire-proposal modal** (from `/hire` chip + Team's Hire button): Atlas proposes name/department/role/model + the four authority bands with editable caps; **Approve hire / Reject proposal / Save draft**; approving creates the employee immediately (org chart + Team) and writes the hire audit event. This is the employee-creation screen for the four-department model; real flow lands with the founder's agent-creation spec. | SHOWN in mock |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit

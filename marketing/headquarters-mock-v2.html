@@ -8,11 +8,11 @@
   :root{
     --bg:#0B0F14; --surface:#11161D; --hover:#161D26; --line:#1E2732;
     --line-strong:#2A3646;
-    --lime:#B6F09C; --lime-soft:rgba(182,240,156,.12); --lime-dim:rgba(182,240,156,.55);
-    --orange:#F59E4C; --orange-soft:rgba(245,158,76,.12);
-    --red:#F87171; --red-soft:rgba(248,113,113,.12);
-    --info:#7DD3FC; --info-soft:rgba(125,211,252,.10);
-    --muted:#8B95A3; --body:#E6EAF0; --white:#FFFFFF;
+    --lime:#A6CE95; --lime-soft:rgba(166,206,149,.07); --lime-dim:rgba(166,206,149,.45);
+    --orange:#E9974F; --orange-soft:rgba(233,151,79,.07);
+    --red:#E07A7A; --red-soft:rgba(224,122,122,.08);
+    --info:#8FB8D8; --info-soft:rgba(143,184,216,.07);
+    --muted:#97A3B4; --body:#E6EAF0; --white:#FFFFFF;
     --r:10px; --r-sm:8px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -28,22 +28,23 @@
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
   .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .card-head .micro{color:var(--muted)}
-  .card-head a{font-size:12px;color:var(--lime)}
+  .card-head a{font-size:12px;color:var(--body)}
+  .card-head a:hover{text-decoration:underline}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
   .chip .dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
-  .chip.running{color:var(--lime);border-color:rgba(182,240,156,.35)} .chip.running .dot{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
-  .chip.approval{color:var(--orange);border-color:rgba(245,158,76,.4)} .chip.approval .dot{background:var(--orange)}
-  .chip.blocked{color:var(--red);border-color:rgba(248,113,113,.4)} .chip.blocked .dot{background:var(--red)}
+  .chip.running{color:var(--body);border-color:var(--line)} .chip.running .dot{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .chip.approval{color:var(--body);border-color:var(--line)} .chip.approval .dot{background:var(--orange)}
+  .chip.blocked{color:var(--body);border-color:var(--line)} .chip.blocked .dot{background:var(--red)}
   .chip.paused .dot{background:var(--muted)}
   .chip.done{color:var(--body)} .chip.done .dot{background:var(--body)}
-  .chip.green{color:var(--lime);border-color:rgba(182,240,156,.35)}
+  .chip.green{color:var(--body);border-color:var(--line)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600;border:1px solid transparent;white-space:nowrap}
   .btn-primary{background:var(--orange);color:#231206}
   .btn-primary:hover{filter:brightness(1.07)}
   .btn-secondary{border-color:var(--line-strong);color:var(--body)}
   .btn-secondary:hover{background:var(--hover)}
-  .btn-tertiary{color:var(--lime);padding:0 6px}
+  .btn-tertiary{color:var(--body);padding:0 6px}
   .btn-danger{border-color:rgba(248,113,113,.45);color:var(--red)}
   .btn-danger:hover{background:var(--red-soft)}
   .btn-sm{height:30px;padding:0 10px;font-size:12px}
@@ -101,7 +102,7 @@
   .stat .delta{font-size:11px;color:var(--lime);margin-top:4px}
   .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
   .dashgrid>*,.memgrid>*,.revwrap>*{min-width:0}
-  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(245,158,76,.45);background:var(--orange-soft);margin-bottom:14px;flex-wrap:wrap}
+  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(233,151,79,.35);background:var(--orange-soft);margin-bottom:14px;flex-wrap:wrap}
   .banner b{color:var(--white);font-size:13.5px}
   .banner p{font-size:12px;color:var(--muted)}
   .banner .btn{margin-left:auto}
@@ -134,11 +135,11 @@
   .dept{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px;min-height:210px}
   .dept .dh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .dept .dh b{font-size:13px;color:var(--white)}
-  .dept .lead{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(182,240,156,.35);border-radius:var(--r-sm);background:var(--lime-soft);margin-bottom:10px;cursor:pointer}
-  .dept .lead:hover{border-color:var(--lime)}
+  .dept .lead{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--hover);margin-bottom:10px;cursor:pointer}
+  .dept .lead:hover{border-color:var(--line-strong)}
   .dept .lead .av{width:30px;height:30px;border-radius:50%;background:var(--bg);border:1px solid var(--lime-dim);display:grid;place-items:center;font-size:11px;color:var(--lime)}
   .dept .lead b{font-size:12.5px;color:var(--white);display:block}
-  .dept .lead span{font-size:11px;color:var(--lime)}
+  .dept .lead span{font-size:11px;color:var(--muted)}
   .dept .member{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r-sm);cursor:pointer}
   .dept .member:hover{background:var(--hover)}
   .dept .member .av{width:26px;height:26px;border-radius:50%;background:var(--surface);border:1px dashed var(--line-strong);display:grid;place-items:center;font-size:10px;color:var(--muted)}
@@ -147,7 +148,7 @@
   .dept .member .st{margin-left:auto}
   .dept .ghost{border:1px dashed var(--line-strong);border-radius:var(--r);background:transparent;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:210px;color:var(--muted);font-size:12px;cursor:pointer}
   .dept .ghost b{color:var(--body);font-size:12.5px}
-  .dept .ghost:hover{border-color:var(--lime-dim);color:var(--body)}
+  .dept .ghost:hover{border-color:var(--line-strong);color:var(--body)}
   .dept .ghost .gi{width:28px;height:28px;border-radius:50%;border:1px dashed var(--line-strong);display:grid;place-items:center;font-size:13px}
   .sdot{width:8px;height:8px;border-radius:50%}
   .sdot.run{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
@@ -185,13 +186,29 @@
   .ev .meta code{font:11px "JetBrains Mono",monospace;color:var(--info);background:var(--info-soft);padding:1px 5px;border-radius:4px}
   .ev.msg{background:transparent;border:0;padding:2px}
   .ev.msg .bub{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--body)}
-  .ev.gate{border-color:rgba(245,158,76,.45)}
+  .ev.gate{border-color:rgba(233,151,79,.32)}
   .ev.gate.compact{padding:9px 12px}
   .nowstrip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--body);background:var(--lime-soft);flex-shrink:0}
   .nowstrip b{color:var(--lime)}
   .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .chips button{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
-  .chips button:hover{color:var(--lime);border-color:var(--lime-dim)}
+  .chips button:hover{color:var(--body);border-color:var(--line-strong)}
+  .hirebtn{font-size:11.5px;font-weight:600;color:var(--body);border:1px solid var(--line-strong);border-radius:99px;padding:2px 10px}
+  .hirebtn:hover{border-color:var(--lime-dim);color:var(--body)}
+
+  /* hire proposal modal */
+  .hiregrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .hiregrid .hfull{grid-column:1/-1}
+  .hiregrid label{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .hiregrid input,.hiregrid select{width:100%}
+  .hiregrid select{background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--body);padding:6px 8px;font:inherit;font-size:12.5px}
+  .authband{border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:10px;overflow:hidden}
+  .authband .ab-h{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--hover);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .authband .ab-h .dot{width:7px;height:7px;border-radius:50%}
+  .authband ul{list-style:none;padding:6px 12px 8px}
+  .authband li{font-size:12.5px;color:var(--body);padding:2px 0;display:flex;gap:8px;align-items:center}
+  .authband li input{width:64px;padding:2px 6px;font-size:11.5px;text-align:right}
+  .authband li .m{color:var(--muted);margin-left:auto;font-size:11px}
   @keyframes flashgate{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px var(--lime-dim)}}
   .flash{animation:flashgate .9s ease-in-out 2}
   .ev.gate .who{font-size:12.5px;font-weight:700;color:var(--orange)}
@@ -219,7 +236,7 @@
   .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .filters .f{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
   .filters .f.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
-  .board{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start}
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr 340px;gap:14px;align-items:start}
   .col{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
   .col .ch{display:flex;align-items:center;gap:8px;margin-bottom:4px}
   .col .ch .micro{color:var(--muted)}
@@ -234,8 +251,9 @@
   .tcard .meta .av{width:18px;height:18px;border-radius:50%;background:var(--surface);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:8px;color:var(--muted)}
   .tcard .meta span{font-size:11px;color:var(--muted)}
   .tcard.openrow{border-color:var(--lime-dim)}
-  .taskdetail{grid-column:1/-1;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:2px}
-  .taskdetail h3{font-size:14px;color:var(--white);margin-bottom:4px}
+  .taskdetail{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px;position:sticky;top:76px;max-height:calc(100vh - 140px);overflow:auto}
+  .taskdetail h3{font-size:14px;color:var(--white);margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tcard .grip{color:var(--muted);opacity:.55;font-size:11px;cursor:grab;margin-right:2px}
   .taskdetail .meta{font-size:12px;color:var(--muted);margin-bottom:12px}
   .taskdetail h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
   .logpane{font:11.5px/1.75 "JetBrains Mono",monospace;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;max-height:150px;overflow:hidden;position:relative}
@@ -342,7 +360,7 @@
   .diffline.del{background:var(--red-soft);color:var(--red)}
 
   /* ---------- approvals / gates ---------- */
-  .approvalcard{border:1px solid rgba(245,158,76,.4);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .approvalcard{border:1px solid rgba(233,151,79,.32);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
   .chip.trigger{color:var(--info);border-color:rgba(125,211,252,.35)}
 
   /* ---------- goals ---------- */
@@ -397,7 +415,7 @@
   /* ---------- departments page ---------- */
   .deptgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
   .deptcard{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:16px;cursor:pointer}
-  .deptcard:hover{border-color:var(--lime-dim)}
+  .deptcard:hover{border-color:var(--line-strong)}
   .deptcard .dch{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .deptcard .dch .di{width:32px;height:32px;border-radius:8px;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:14px;color:var(--lime)}
   .deptcard .dch b{font-size:14px;color:var(--white)}
@@ -432,7 +450,7 @@
   /* ---------- notifications page ---------- */
   .notifrow{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);margin-bottom:8px}
   .notifrow.unread{border-color:var(--lime-dim);background:var(--lime-soft)}
-  .notifrow.gate{border-color:rgba(245,158,76,.45);background:var(--orange-soft)}
+  .notifrow.gate{border-color:rgba(233,151,79,.32);background:var(--orange-soft)}
   .notifrow .ni{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:12px;flex-shrink:0;color:var(--muted)}
   .notifrow.gate .ni{color:var(--orange);border-color:rgba(245,158,76,.4)}
   .notifrow.unread .ni{color:var(--lime);border-color:var(--lime-dim)}
@@ -524,7 +542,7 @@
 
         <div class="stats" style="grid-template-columns:repeat(4,1fr)">
           <div class="stat"><span class="micro">Active goals</span><div class="v">2</div></div>
-          <div class="stat"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
+          <div class="stat" data-go="team"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
           <div class="stat"><span class="micro">Credits this week</span><div class="v num">1,420</div><div class="meter"><i style="width:38%"></i></div></div>
           <div class="stat"><span class="micro">Company health</span><div class="v">82<span style="font-size:12px;color:var(--muted)"> / 100</span></div><div class="meter"><i style="width:82%"></i></div><div class="delta">▲ 3 this week</div></div>
         </div>
@@ -600,7 +618,7 @@
             <div class="composer">
               <div class="box">
                 <input id="composerInput" type="text" placeholder="Give direction, or type / for commands" style="border:0;background:transparent;width:100%;padding:0">
-                <div class="chips"><button data-cmd="/hire ">/hire</button><button data-cmd="/budget ">/budget</button><button data-cmd="/pause ">/pause</button></div>
+                <div class="chips"><button data-cmd="/hire ">/hire</button><button data-cmd="/budget ">/budget</button><button data-cmd="/pause ">/pause</button><button class="hirebtn" data-hire="1">＋ Ask Atlas to hire</button></div>
                 <div class="row"><span class="model" data-openmodal="1"><i></i> Auto ▾</span><button class="send">↑</button></div>
               </div>
             </div>
@@ -611,7 +629,7 @@
       <!-- ========== SCREEN: TASKS ========== -->
       <section class="screen" id="screen-tasks">
         <div class="pagehead">
-          <div><h1>Tasks</h1><p>Work is assigned from goals and by Atlas. Approvals pause work that needs you.</p></div>
+          <div><h1>Tasks</h1><p>Work is assigned from goals and by Atlas. Approvals pause work that needs you — nothing else does.</p></div>
           <button class="btn btn-secondary">Ask Atlas to plan work</button>
         </div>
         <div class="filters">
@@ -621,39 +639,53 @@
           <div class="col">
             <div class="ch"><span class="micro">Backlog</span><span class="cnt">4 · priority order</span></div>
             <div class="sub">What Atlas has planned next. Drag to reorder.</div>
-            <div class="tcard"><div class="r1"><span class="ord">#1</span><span class="chip">Draft</span></div><b>Write the pricing-page copy</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
-            <div class="tcard"><div class="r1"><span class="ord">#2</span><span class="chip">Draft</span></div><b>Set up Stripe test products</b><div class="meta"><span class="av">I</span><span>Iris</span></div></div>
-            <div class="tcard"><div class="r1"><span class="ord">#3</span><span class="chip">Draft</span></div><b>Draft launch email to waitlist</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
-            <div class="tcard"><div class="r1"><span class="ord">#4</span><span class="chip">Draft</span></div><b>Weekly metrics baseline</b><div class="meta"><span class="av">S</span><span>Sage</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Ember" data-role="Communications lead · Communications" data-chip="chip" data-chiptext="Draft" data-task="Write the pricing-page copy" data-taskmeta="Not started · assigned by Atlas · from goal “Announce the new pricing page”" title="Open employee details"><div class="r1"><span class="grip">⠿</span><span class="ord">#1</span><span class="chip">Draft</span></div><b>Write the pricing-page copy</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Iris" data-role="Ops Engineer · Engineering" data-chip="chip" data-chiptext="Draft" data-task="Set up Stripe test products" data-taskmeta="Not started · blocked by missing credentials — escalate before starting" title="Open employee details"><div class="r1"><span class="grip">⠿</span><span class="ord">#2</span><span class="chip">Draft</span></div><b>Set up Stripe test products</b><div class="meta"><span class="av">I</span><span>Iris</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Ember" data-role="Communications lead · Communications" data-chip="chip" data-chiptext="Draft" data-task="Draft launch email to waitlist" data-taskmeta="Not started · assigned by Atlas" title="Open employee details"><div class="r1"><span class="grip">⠿</span><span class="ord">#3</span><span class="chip">Draft</span></div><b>Draft launch email to waitlist</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Sage" data-role="Analyst · Research" data-chip="chip" data-chiptext="Draft" data-task="Weekly metrics baseline" data-taskmeta="Not started · recurring weekly" title="Open employee details"><div class="r1"><span class="grip">⠿</span><span class="ord">#4</span><span class="chip">Draft</span></div><b>Weekly metrics baseline</b><div class="meta"><span class="av">S</span><span>Sage</span></div></div>
           </div>
           <div class="col">
             <div class="ch"><span class="micro">In progress</span><span class="cnt">2</span></div>
-            <div class="sub">Live work. Open a task to watch its log.</div>
-            <div class="tcard openrow" data-openlog="1"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 12m</span></div><b>Pricing page build</b><div class="meta"><span class="av">R</span><span>Ridge · Engineering</span></div></div>
-            <div class="tcard"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 4m</span></div><b>Pricing research sweep</b><div class="meta"><span class="av">N</span><span>Nova · Research</span></div></div>
-            <div class="tcard"><div class="r1"><span class="chip approval"><span class="dot"></span>Paused — approval</span></div><b>Publish the pricing post</b><div class="meta"><span class="av">E</span><span>Ember · waiting on you</span></div></div>
+            <div class="sub">Live work. Click a card to watch its log here.</div>
+            <div class="tcard openrow" data-drawer="1" data-name="Ridge" data-role="Engineer · Engineering lead" data-chip="chip running" data-chiptext="Working" data-task="Pricing page build" data-taskmeta="Started 09:32 · 36 Cr spent · from goal “Announce the new pricing page”" title="Open employee details"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 12m</span></div><b>Pricing page build</b><div class="meta"><span class="av">R</span><span>Ridge · Engineering</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Nova" data-role="Market Researcher · Research lead" data-chip="chip running" data-chiptext="Working" data-task="Pricing research sweep" data-taskmeta="Started 09:40 · 6 Cr so far" title="Open employee details"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 4m</span></div><b>Pricing research sweep</b><div class="meta"><span class="av">N</span><span>Nova · Research</span></div></div>
+            <div class="tcard" data-drawer="1" data-name="Ember" data-role="Communications lead · Communications" data-chip="chip approval" data-chiptext="Paused" data-task="Publish the pricing post" data-taskmeta="Paused — gate #41 open · expires in 22h to a pause" title="Open employee details"><div class="r1"><span class="chip approval"><span class="dot"></span>Paused — approval</span></div><b>Publish the pricing post</b><div class="meta"><span class="av">E</span><span>Ember · waiting on you</span></div></div>
           </div>
           <div class="col">
             <div class="ch"><span class="micro">Done</span><span class="cnt">1 today</span></div>
             <div class="sub">Finished work, newest first. Nothing is deleted.</div>
-            <div class="tcard"><div class="r1"><span class="chip done"><span class="dot"></span>Done · 09:41</span></div><b>Competitor page screenshots</b><div class="meta"><span class="av">I</span><span>Iris · 18 Cr</span><a class="btn btn-tertiary btn-sm" style="margin-left:auto">Report</a></div></div>
+            <div class="tcard" data-drawer="1" data-name="Iris" data-role="Ops Engineer · Engineering" data-chip="chip done" data-chiptext="Done" data-task="Competitor page screenshots" data-taskmeta="Completed 09:41 · 18 Cr · verified by pipeline v2" title="Open employee details"><div class="r1"><span class="chip done"><span class="dot"></span>Done · 09:41</span></div><b>Competitor page screenshots</b><div class="meta"><span class="av">I</span><span>Iris · 18 Cr</span><a class="btn btn-tertiary btn-sm" style="margin-left:auto">Report</a></div></div>
           </div>
 
-          <div class="taskdetail" id="tasklog" style="display:none">
-            <h3>Pricing page build</h3>
-            <div class="meta">Ridge · Engineering · from goal “Announce the new pricing page” · started 09:32 · 36 Cr spent</div>
-            <h4>Brief</h4>
-            <p style="font-size:13px;color:var(--body)">Build the public pricing page from the approved plan: three tiers, annual toggle, FAQ. Match the site design system. Definition of done: page renders, links verified, Lighthouse ≥ 90.</p>
-            <h4>Live log</h4>
-            <div class="logpane">
+          <div class="taskdetail">
+            <h3>Pricing page build <span class="chip running"><span class="dot"></span>Working · 12m</span></h3>
+            <div class="meta">Ridge · Engineering · from goal “Announce the new pricing page” · started 09:32 · 36 Cr spent · budget 150 Cr per action</div>
+            <div class="tabwrap">
+              <div class="subtabs" style="margin-bottom:12px"><button class="on" data-pane="live">Live log</button><button data-pane="brief">Brief &amp; context</button></div>
+              <div class="subpane on" data-pane="live">
+                <div class="logpane" style="max-height:240px">
 <span class="t">[09:38:11]</span> <span class="ty">TOOL</span>   — file.read  components/pricing/*.tsx
 <span class="t">[09:39:02]</span> <span class="ty">TOOL</span>   — browser.open  localhost:3000/pricing
 <span class="t">[09:40:24]</span> <span class="ok">OK</span>     — TierCards rendered, annual toggle works
 <span class="t">[09:41:56]</span> <span class="ty">TOOL</span>   — test.run  pricing.spec.ts (14 checks)
-<span class="t">[09:42:30]</span> <span class="ok">VERIFIED</span> — all checks passed<span class="lm"></span>
+<span class="t">[09:42:30]</span> <span class="ok">VERIFIED</span> — all checks passed
+<span class="t">[09:43:02]</span> <span class="ty">TOOL</span>   — git.commit  feat/pricing-tiers
+<span class="t">[09:44:19]</span> <span class="ty">TOOL</span>   — browser.open  localhost:3000/pricing (visual pass)<span class="lm"></span>
+                </div>
+                <div class="sub" style="margin-top:8px;color:var(--muted);font-size:11.5px">Streams live while the task runs. Every entry is also in the audit trail.</div>
+              </div>
+              <div class="subpane" data-pane="brief">
+                <h4 style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px">Brief</h4>
+                <p style="font-size:13px;color:var(--body)">Build the public pricing page from the approved plan: three tiers, annual toggle, FAQ. Match the site design system. Definition of done: page renders, links verified, Lighthouse ≥ 90.</p>
+                <h4 style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px">Context</h4>
+                <div class="frow" style="border:0;padding:2px 0"><span class="fi">◎</span>Serves goal “Announce the new pricing page”<span class="who">on track · due Oct 3</span></div>
+                <div class="frow" style="border:0;padding:2px 0"><span class="fi">◫</span>Uses memory “Stripe, Paddle and Lemlist are the closest pricing references”<span class="who">learned Sep 29</span></div>
+                <div class="frow" style="border:0;padding:2px 0"><span class="fi">⌥</span>Tool scope: GitHub (repo:read), browser, file system<span class="who">push to main needs approval</span></div>
+              </div>
             </div>
           </div>
-        </div>      </section>
+        </div>
+      </section>
 
       <!-- ========== SCREEN: PLAN ========== -->
       <section class="screen" id="screen-plan">
@@ -801,7 +833,7 @@
       <section class="screen" id="screen-team">
         <div class="pagehead">
           <div><h1>Team</h1><p>Seven AI employees across four departments. Click a card for the full authority profile.</p></div>
-          <button class="btn btn-primary">＋ Hire employee</button>
+          <button class="btn btn-primary" data-hire="1">＋ Hire employee</button>
         </div>
         <div class="teamgrid">
           <div class="tmember" data-drawer="1"><div class="th"><span class="av">N</span><div><b>Nova</b><span>Market Researcher · Research lead</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Working</span></div><div class="cap">Finds markets, competitors and pricing signals from public data.</div><div class="cur"><span>Working — Pricing research sweep</span><span style="color:var(--muted)" class="num">412 Cr this week</span></div></div>
@@ -1284,6 +1316,56 @@
   </div>
 </aside>
 
+<!-- ================= ATLAS HIRE PROPOSAL (gate) ================= -->
+<div class="modal" id="hiremodal" role="dialog" aria-label="Atlas proposes a hire">
+  <div class="box" style="width:640px">
+    <h2>Atlas proposes a hire</h2>
+    <div class="sub">Atlas drafts the role, model and authority. You approve the hire — the employee appears on the org chart and Team the moment it is created, with hire #44 in the audit trail.</div>
+
+    <div class="hiregrid">
+      <div class="hfull"><label>Name</label><input type="text" value="Quill"></div>
+      <div><label>Department</label><select><option>Growth</option><option>Research</option><option>Engineering</option><option>Communications</option></select></div>
+      <div><label>Role</label><input type="text" value="Lifecycle marketer"></div>
+    </div>
+    <div class="hiregrid">
+      <div class="hfull"><label>Model — resolution: Company → Department → Employee</label><select><option>Auto (recommended)</option><option>GLM 5.3 Flash</option><option>DeepSeek V4.1</option><option>Claude Sonnet 4.6</option><option>GPT-5 Mini</option></select></div>
+    </div>
+
+    <div class="authband">
+      <div class="ab-h"><span class="dot" style="background:var(--lime)"></span>May do</div>
+      <ul>
+        <li>Research channels and draft campaign briefs</li>
+        <li>Create tasks for its own plan</li>
+      </ul>
+    </div>
+    <div class="authband">
+      <div class="ab-h"><span class="dot" style="background:var(--info)"></span>Spend cap</div>
+      <ul>
+        <li>Per action <span class="m">Cr</span><input type="number" value="50"></li>
+        <li>Per day <span class="m">Cr</span><input type="number" value="500"></li>
+      </ul>
+    </div>
+    <div class="authband">
+      <div class="ab-h"><span class="dot" style="background:var(--orange)"></span>Needs approval</div>
+      <ul>
+        <li>Any spend above <input type="number" value="50"> <span class="m">Cr in one action</span></li>
+        <li>Sending email or posting externally</li>
+      </ul>
+    </div>
+    <div class="authband">
+      <div class="ab-h"><span class="dot" style="background:var(--red)"></span>Forbidden</div>
+      <ul><li>Publishing externally without a gate · production systems</li></ul>
+    </div>
+
+    <div class="banner note" style="margin-bottom:12px"><span class="bdot"></span><div><b>Approving hires Quill immediately.</b><p>Growth gets a second seat, the weekly budget is shared, and the hire writes audit event #44. Rejecting tells Atlas to revise the proposal.</p></div></div>
+    <div class="acts">
+      <button class="btn btn-secondary" data-close="1">Save draft, decide later</button>
+      <button class="btn btn-danger" data-close="1">Reject proposal</button>
+      <button class="btn btn-primary" data-close="1">Approve hire</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= DEFAULT MODEL MODAL ================= -->
 <div class="modal" id="modal" role="dialog" aria-label="Choose default model">
   <div class="box">
@@ -1343,7 +1425,7 @@
   const overlay=document.getElementById("overlay"),drawer=document.getElementById("drawer"),modal=document.getElementById("modal");
   function openDrawer(){drawer.classList.add("on");overlay.classList.add("on")}
   function openModal(){modal.classList.add("on")}
-  function closeAll(){drawer.classList.remove("on");modal.classList.remove("on");overlay.classList.remove("on")}
+  function closeAll(){drawer.classList.remove("on");modal.classList.remove("on");overlay.classList.remove("on");hiremodal?.classList.remove("on")}
   document.querySelectorAll("[data-drawer]").forEach(el=>el.addEventListener("click",openDrawer));
   document.querySelectorAll("[data-openmodal]").forEach(el=>el.addEventListener("click",e=>{e.stopPropagation();openModal()}));
   document.querySelectorAll("[data-close]").forEach(el=>el.addEventListener("click",closeAll));
@@ -1376,6 +1458,10 @@
     if(g){g.scrollIntoView({behavior:"smooth",block:"center"});g.classList.add("flash");setTimeout(()=>g.classList.remove("flash"),2000)}
   });
   document.querySelectorAll(".chips button").forEach(c=>c.addEventListener("click",()=>{const i=document.getElementById("composerInput");if(i){i.value=c.getAttribute("data-cmd");i.focus()}}));
+  // hire proposal modal (mock)
+  const hiremodal=document.getElementById("hiremodal");
+  document.querySelectorAll("[data-hire]").forEach(el=>el.addEventListener("click",e=>{e.stopPropagation();hiremodal.classList.add("on")}));
+  hiremodal.addEventListener("click",e=>{if(e.target===hiremodal)closeAll()});
 </script>
 </body>
 </html>
