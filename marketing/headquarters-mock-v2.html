@@ -276,7 +276,117 @@
   .hier{font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:14px}
   .hier b{color:var(--body)}
 
-  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} }
+  /* ---------- shared: subtabs, tables, meters ---------- */
+  .tabwrap .subpane{display:none}.tabwrap .subpane.on{display:block}
+  .subtabs{display:flex;gap:8px;margin-bottom:16px}
+  .subtabs button{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 14px;background:var(--surface)}
+  .subtabs button.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+  .table td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--body);font-variant-numeric:tabular-nums}
+  .table tr:hover td{background:var(--hover)}
+  .meter2{height:6px;border-radius:99px;background:var(--line);position:relative}
+  .meter2 i{display:block;height:100%;border-radius:99px;background:var(--lime)}
+  .meter2 i.warn{background:var(--orange)} .meter2 i.out{background:var(--red)}
+  .meter2 .tick{position:absolute;top:-3px;width:2px;height:12px;background:var(--orange);opacity:.7}
+  .emptybox{border:1px dashed var(--line-strong);border-radius:var(--r);padding:30px;text-align:center;background:var(--surface)}
+  .emptybox .t{font-size:13.5px;color:var(--body);font-weight:600;margin-bottom:4px}
+  .emptybox .s{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .banner.note{border-color:var(--line-strong);background:var(--hover)}
+  .banner.note b{color:var(--body)}
+  .banner.note .bdot{background:var(--info)}
+  input[type=text],input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--body);padding:6px 8px;font:inherit;font-size:12.5px}
+
+  /* ---------- plan ---------- */
+  .revwrap{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
+  .rev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--surface)}
+  .rev:hover{background:var(--hover)}
+  .rev.sel{border-color:var(--lime-dim);background:var(--lime-soft)}
+  .rev .rv{font-size:12.5px;font-weight:600;color:var(--white)}
+  .rev .rd{font-size:11px;color:var(--muted)}
+  .rev .rs{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .plandoc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 30px;max-width:760px}
+  .plandoc h1{font-size:21px;color:var(--white);font-weight:600}
+  .plandoc h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--lime);margin:20px 0 8px}
+  .plandoc p,.plandoc li{font-size:13.5px;color:var(--body);line-height:1.7}
+  .plandoc ul{padding-left:18px}
+  .diffbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
+  .diffline{font:12px/1.9 "JetBrains Mono",monospace;padding:0 10px;border-radius:3px;white-space:pre-wrap}
+  .diffline.add{background:var(--lime-soft);color:var(--lime)}
+  .diffline.del{background:var(--red-soft);color:var(--red)}
+
+  /* ---------- approvals / gates ---------- */
+  .approvalcard{border:1px solid rgba(245,158,76,.4);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .chip.trigger{color:var(--info);border-color:rgba(125,211,252,.35)}
+
+  /* ---------- goals ---------- */
+  .goalrow{margin-bottom:10px}
+  .goalhead{display:flex;gap:14px;align-items:center;cursor:pointer;flex-wrap:wrap}
+  .goalhead b{font-size:13.5px;color:var(--white)}
+  .goalhead .chev{margin-left:auto;color:var(--muted);font-size:11px}
+  .goalbody{display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+  .goalrow.open .goalbody{display:block}
+  .crumbchips{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .crumbchips span{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px}
+  .crumbchips span.here{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .crumbchips i{color:#5B6675;font-style:normal;font-size:10px}
+  .stepchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;color:var(--body);margin:0 6px 6px 0;background:var(--bg)}
+
+  /* ---------- audit ---------- */
+  details.arow summary{list-style:none;display:grid;grid-template-columns:86px 150px 110px 1fr auto;gap:10px;cursor:pointer;padding:9px 10px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--body);align-items:baseline;font-variant-numeric:tabular-nums}
+  details.arow summary::-webkit-details-marker{display:none}
+  details.arow summary:hover{background:var(--hover)}
+  details.arow[open] summary{background:var(--hover)}
+  details.arow pre{font:11px/1.7 "JetBrains Mono",monospace;color:var(--muted);background:var(--bg);border-radius:var(--r-sm);padding:10px 12px;margin:0;overflow-x:auto}
+
+  /* ---------- memory ---------- */
+  .memgrid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
+  .memrow{padding:11px 14px;border-bottom:1px dashed var(--line);cursor:pointer}
+  .memrow:hover{background:var(--hover)}
+  .memrow.sel{background:var(--lime-soft)}
+  .memrow .mt{font-size:13px;color:var(--body);margin-top:4px}
+  .memrow .ms{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* ---------- org chart ---------- */
+  .orgtree{display:flex;flex-direction:column;align-items:center;padding:8px 0 20px}
+  .onode{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 14px;min-width:210px;cursor:pointer}
+  .onode:hover{border-color:var(--line-strong)}
+  .onode.ea{border-color:var(--lime-dim);background:var(--lime-soft)}
+  .onode .av{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11px;color:var(--muted);flex-shrink:0}
+  .onode b{font-size:13px;color:var(--white);display:block}
+  .onode span{font-size:11px;color:var(--muted)}
+  .oline{width:1px;height:20px;background:var(--line-strong)}
+  .orow{display:flex;gap:14px;align-items:flex-start}
+  .ogroup{display:flex;flex-direction:column;align-items:center;gap:0}
+  .odept{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:8px 14px;text-align:center;min-width:190px}
+  .odept b{font-size:12.5px;color:var(--white)}
+  .odept span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
+  .oemp{margin-top:8px;min-width:190px}
+
+  /* ---------- team / integrations ---------- */
+  .teamgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .tmember{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer}
+  .tmember:hover{background:var(--hover)}
+  .tmember .th{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+  .tmember .th .av{width:32px;height:32px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:12px;color:var(--muted)}
+  .tmember .th b{font-size:13.5px;color:var(--white);display:block}
+  .tmember .th span{font-size:11px;color:var(--muted)}
+  .tmember .cap{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .tmember .cur{font-size:12px;color:var(--body);border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;align-items:center}
+  .intgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .intcard .ih{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .intcard .ih .ic{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:13px;color:var(--body)}
+  .intcard .ih b{font-size:13.5px;color:var(--white)}
+  .intcard .scope{font:11px/1.8 "JetBrains Mono",monospace;color:var(--info)}
+  .intcard .row{font-size:12px;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between;gap:10px}
+  .intcard .row b{color:var(--body);font-weight:500}
+
+  /* ---------- briefings ---------- */
+  .signoff{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+
+  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} .teamgrid{grid-template-columns:1fr 1fr} .intgrid{grid-template-columns:1fr} .memgrid{grid-template-columns:1fr} .revwrap{grid-template-columns:1fr} }
+  @media (max-width:640px){ .teamgrid{grid-template-columns:1fr} .orow{flex-direction:column;align-items:center} details.arow summary{grid-template-columns:86px 1fr auto} details.arow summary span:nth-child(3),details.arow summary span:nth-child(4){display:none} .budgetrow{grid-template-columns:1fr} }
+
   @media (max-width:1024px){ .app{grid-template-columns:64px 1fr} .side .logo b,.side .orgswitch,.side .navitem span,.side .navgroup .micro,.side .sidefoot .who,.side .sidefoot .plan{display:none} .navitem{justify-content:center} .navitem .n{display:none} }
 </style>
 </head>
@@ -291,34 +401,34 @@
       <button class="navitem on" data-go="dashboard"><span class="ico">▦</span><span>Dashboard</span></button>
     </div>
     <div class="navgroup"><span class="micro">Direction</span>
-      <button class="navitem"><span class="ico">▤</span><span>Plan</span></button>
-      <button class="navitem"><span class="ico">◎</span><span>Goals</span></button>
+      <button class="navitem" data-go="plan"><span class="ico">▤</span><span>Plan</span><span class="n">R4</span></button>
+      <button class="navitem" data-go="goals"><span class="ico">◎</span><span>Goals</span><span class="n">2</span></button>
       <button class="navitem"><span class="ico">§</span><span>Constitution</span></button>
     </div>
     <div class="navgroup"><span class="micro">Work</span>
       <button class="navitem" data-go="tasks"><span class="ico">☰</span><span>Tasks</span><span class="n">5</span></button>
-      <button class="navitem"><span class="ico">✓</span><span>Approvals</span><span class="n hot">2</span></button>
-      <button class="navitem"><span class="ico">⌗</span><span>Audit trail</span></button>
+      <button class="navitem" data-go="approvals"><span class="ico">✓</span><span>Approvals</span><span class="n hot">2</span></button>
+      <button class="navitem" data-go="audit"><span class="ico">⌗</span><span>Audit trail</span></button>
     </div>
     <div class="navgroup"><span class="micro">People</span>
-      <button class="navitem"><span class="ico">◔</span><span>Team</span></button>
+      <button class="navitem" data-go="team"><span class="ico">◔</span><span>Team</span></button>
       <button class="navitem"><span class="ico">귖</span><span>Departments</span></button>
-      <button class="navitem"><span class="ico">⌬</span><span>Org chart</span></button>
+      <button class="navitem" data-go="orgchart"><span class="ico">⌬</span><span>Org chart</span></button>
     </div>
     <div class="navgroup"><span class="micro">Money</span>
-      <button class="navitem"><span class="ico">◧</span><span>Budgets</span></button>
-      <button class="navitem"><span class="ico">$</span><span>Finance</span></button>
+      <button class="navitem" data-go="budgets"><span class="ico">◧</span><span>Budgets</span></button>
+      <button class="navitem" data-go="finance"><span class="ico">$</span><span>Finance</span></button>
     </div>
     <div class="navgroup"><span class="micro">Knowledge</span>
-      <button class="navitem"><span class="ico">◈</span><span>Memory</span></button>
+      <button class="navitem" data-go="memory"><span class="ico">◈</span><span>Memory</span></button>
       <button class="navitem"><span class="ico">▤</span><span>Files</span></button>
-      <button class="navitem"><span class="ico">✉</span><span>Briefings</span></button>
+      <button class="navitem" data-go="briefings"><span class="ico">✉</span><span>Briefings</span></button>
     </div>
     <div class="navgroup"><span class="micro">System</span>
       <button class="navitem" data-openmodal="1"><span class="ico">⟡</span><span>Models</span></button>
-      <button class="navitem"><span class="ico">⇄</span><span>Integrations</span></button>
+      <button class="navitem" data-go="integrations"><span class="ico">⇄</span><span>Integrations</span></button>
       <button class="navitem"><span class="ico">◍</span><span>Notifications</span></button>
-      <button class="navitem"><span class="ico">⚙</span><span>Settings</span></button>
+      <button class="navitem" data-go="settings"><span class="ico">⚙</span><span>Settings</span></button>
     </div>
 
     <div class="sidefoot">
@@ -477,13 +587,392 @@
 <span class="t">[09:42:30]</span> <span class="ok">VERIFIED</span> — all checks passed<span class="lm"></span>
             </div>
           </div>
+        </div>      </section>
+
+      <!-- ========== SCREEN: PLAN ========== -->
+      <section class="screen" id="screen-plan">
+        <div class="banner note" style="margin-bottom:14px"><span class="bdot"></span><div><b>This is the team's working plan — ratify to make it direction.</b><p>Revision 5 by Atlas is awaiting your ratification. Until then, rev 4 is direction.</p></div><button class="btn btn-primary btn-sm">Ratify rev 5</button></div>
+        <div class="revwrap">
+          <div>
+            <div class="micro" style="margin-bottom:10px">Revisions</div>
+            <div class="rev"><div class="rv">Rev 5 <span class="chip approval" style="margin-left:6px">unratified</span></div><div class="rd">Atlas · today 09:12</div><div class="rs">Pricing launch moved to Friday</div></div>
+            <div class="rev sel"><div class="rv">Rev 4 <span class="chip running" style="margin-left:6px">direction</span></div><div class="rd">Atlas · Sep 28</div><div class="rs">Research moved ahead of copy</div></div>
+            <div class="rev"><div class="rv">Rev 3</div><div class="rd">Atlas · Sep 21</div><div class="rs">Added Stripe test products</div></div>
+            <div class="rev"><div class="rv">Rev 2</div><div class="rd">Atlas · Sep 14</div><div class="rs">Scope: launch pricing before ads</div></div>
+            <div class="rev"><div class="rv">Rev 1</div><div class="rd">Joshua · Sep 7</div><div class="rs">Initial plan</div></div>
+          </div>
+          <div class="plandoc">
+            <h1>Acme Studio — Company Plan</h1>
+            <p style="color:var(--muted);font-size:12px;margin-top:4px">Rev 4 · ratified Sep 28 by Joshua · authored by Atlas</p>
+            <h2>What we're building</h2>
+            <p>Acme Studio sells a lightweight client-report portal for freelance agencies: branded dashboards their clients can log into, fed automatically from spreadsheets the agency already uses.</p>
+            <h2>Who it's for</h2>
+            <p>Two-to-ten-person marketing agencies that report to clients monthly and lose a day per client to manual slide decks.</p>
+            <h2>How it makes money</h2>
+            <p>$29/mo per agency (starter) and $79/mo (studio, unlimited clients). Annual toggle at two months free. Launch pricing announced on the public pricing page.</p>
+            <h2>Current focus</h2>
+            <ul>
+              <li>Launch the public pricing page <span class="chip running" style="margin-left:6px"><span class="dot"></span>in flight</span></li>
+              <li>Convert waitlist to trials after announcement</li>
+            </ul>
+            <h2>KPIs</h2>
+            <p>10 paying agencies by Oct 31 · 25% trial→paid · &lt;2% weekly churn</p>
+            <div style="margin-top:18px;display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Edit section</button><button class="btn btn-tertiary btn-sm">Ask Atlas to redraft</button></div>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+        <div class="micro" style="margin-bottom:10px">What changed in rev 5 (unratified draft)</div>
+        <div class="diffbox">
+          <div class="diffline del">- Launch pricing announced Thursday</div>
+          <div class="diffline add">+ Launch pricing announced Friday (Stripe test products still in progress)</div>
+          <div class="diffline add">+ Waitlist email moves to Friday 16:00, after the announcement</div>
         </div>
       </section>
-    </div>
-  </div>
-</div>
 
-<!-- ================= EMPLOYEE DRAWER ================= -->
+      <!-- ========== SCREEN: APPROVALS ========== -->
+      <section class="screen" id="screen-approvals">
+        <div class="pagehead">
+          <div><h1>Approvals</h1><p>The gate queue. Nothing here approves itself — open gates expire to a pause, never to an approval.</p></div>
+        </div>
+        <div class="banner note" style="margin-bottom:14px"><span class="bdot"></span><div><b>Silence is never consent.</b><p>If you don't decide, the work stays paused and the requester is told. Gates never auto-approve.</p></div></div>
+        <div class="tabwrap">
+          <div class="subtabs"><button class="on" data-pane="open">Open (2)</button><button data-pane="decided">Decided</button></div>
+          <div class="subpane on" data-pane="open">
+            <div class="approvalcard">
+              <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+                <span class="chip trigger">external publish</span><span class="chip">gate #41</span>
+                <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">opened 09:43 · expires in 22h</span>
+              </div>
+              <b style="font-size:14.5px;color:var(--white)">Publish the pricing post</b>
+              <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Ember (Communications lead) wants to publish the pricing announcement to the company blog and newsletter. Authority summary: may draft, may not publish externally.</div>
+              <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums"><span>Cost: <b style="color:var(--body)">25 Cr</b></span><span>Serves: goal “Announce the new pricing page”</span><span>If approved: post goes live, newsletter queued</span></div>
+              <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+            </div>
+            <div class="approvalcard">
+              <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+                <span class="chip trigger">spend &gt; threshold</span><span class="chip">gate #42</span>
+                <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">opened 09:51 · no timeout</span>
+              </div>
+              <b style="font-size:14.5px;color:var(--white)">Raise Ada's daily spend cap</b>
+              <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Nova (Research lead) requests Ada's cap 500 → 800 Cr/day for two days to finish the pricing sweep. If approved: cap resets automatically on Friday.</div>
+              <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums"><span>Worst case: <b style="color:var(--body)">+600 Cr</b></span><span>Serves: task “Pricing research sweep”</span></div>
+              <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+            </div>
+          </div>
+          <div class="subpane" data-pane="decided">
+            <div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn btn-secondary btn-sm">Export CSV</button><button class="btn btn-secondary btn-sm">Export JSON</button></div>
+            <table class="table">
+              <thead><tr><th>When</th><th>Gate</th><th>Decided by</th><th>Decision</th><th>Note</th></tr></thead>
+              <tbody>
+                <tr><td>Sep 29 14:02</td><td>#39 · spend</td><td>Joshua (human)</td><td><span class="chip running"><span class="dot"></span>Approved</span></td><td>Report purchase within budget</td></tr>
+                <tr><td>Sep 29 11:47</td><td>#38 · publish</td><td>Joshua (human)</td><td><span class="chip blocked"><span class="dot"></span>Rejected</span></td><td>Copy not final</td></tr>
+                <tr><td>Sep 28 17:30</td><td>#37 · hire</td><td>Joshua (human)</td><td><span class="chip running"><span class="dot"></span>Approved</span></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: GOALS ========== -->
+      <section class="screen" id="screen-goals">
+        <div class="pagehead">
+          <div><h1>Goals</h1><p>Each goal is a commitment with a plan. Expand one to see its steps and lineage.</p></div>
+          <button class="btn btn-primary">＋ New goal</button>
+        </div>
+        <div class="card goalrow open">
+          <div class="goalhead">
+            <span class="chip running"><span class="dot"></span>On track</span>
+            <b>Announce the new pricing page</b>
+            <span class="meter2" style="width:160px"><i style="width:64%"></i></span>
+            <span style="font-size:12px;color:var(--muted)">7 tasks · due Oct 3</span>
+            <span class="chev">▾</span>
+          </div>
+          <div class="goalbody">
+            <div class="crumbchips"><span>Strategy: win solo agencies</span><i>→</i><span>Objective: launch paid plans</span><i>→</i><span>Key result: pricing live</span><i>→</i><span class="here">Goal: announce pricing page</span></div>
+            <div class="micro" style="margin-bottom:8px">Plan steps</div>
+            <div>
+              <span class="stepchip"><span class="chip done"><span class="dot"></span>Done</span> Competitor page screenshots · Iris</span>
+              <span class="stepchip"><span class="chip running"><span class="dot"></span>Working</span> Pricing page build · Ridge</span>
+              <span class="stepchip"><span class="chip running"><span class="dot"></span>Working</span> Pricing research sweep · Nova</span>
+              <span class="stepchip"><span class="chip approval"><span class="dot"></span>Paused</span> Publish the pricing post · Ember</span>
+              <span class="stepchip">Draft pricing-page copy · Ember</span>
+              <span class="stepchip">Set up Stripe test products · Iris</span>
+              <span class="stepchip">Draft launch email · Ember</span>
+            </div>
+          </div>
+        </div>
+        <div class="card goalrow">
+          <div class="goalhead">
+            <span class="chip"><span class="dot"></span>Planned</span>
+            <b>Convert waitlist to trials</b>
+            <span class="meter2" style="width:160px"><i style="width:8%"></i></span>
+            <span style="font-size:12px;color:var(--muted)">2 tasks · due Oct 10</span>
+            <span class="chev">▸</span>
+          </div>
+          <div class="goalbody"><div class="crumbchips"><span>Objective: launch paid plans</span><i>→</i><span class="here">Goal: convert waitlist</span></div><p style="font-size:12.5px;color:var(--muted)">Steps appear here as Atlas plans the work.</p></div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: AUDIT ========== -->
+      <section class="screen" id="screen-audit">
+        <div class="pagehead">
+          <div><h1>Audit trail</h1><p>Every row is append-only. Nothing here is editable, by anyone.</p></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Export CSV</button><button class="btn btn-secondary btn-sm">Export JSON</button></div>
+        </div>
+        <div class="filters"><button class="f on">All</button><button class="f">hires</button><button class="f">gates</button><button class="f">credits</button><button class="f">tasks</button><button class="f">escalations</button></div>
+        <div class="card" style="padding:4px 8px">
+          <details class="arow" open><summary><span>Sep 30 09:44</span><span>task.completed</span><span>Iris · AI</span><span>Competitor page screenshots archived</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "task.completed", "task_id": "tsk_8f2", "actor": "agent:iris", "cost_cents": 1800, "duration_ms": 720000, "verified_by": "pipeline:v2" }</pre></details>
+          <details class="arow"><summary><span>Sep 30 09:43</span><span>gate.opened</span><span>Ember · AI</span><span>Publish the pricing post — external publish</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "gate.opened", "gate_id": 41, "trigger": "external_publish", "requester": "agent:ember", "payload": { "channel": "blog+newsletter", "cost_cents": 2500 } }</pre></details>
+          <details class="arow"><summary><span>Sep 30 09:40</span><span>task.started</span><span>Ridge · AI</span><span>Pricing page build</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "task.started", "task_id": "tsk_7c1", "actor": "agent:ridge", "goal": "Announce the new pricing page" }</pre></details>
+          <details class="arow"><summary><span>Sep 30 09:12</span><span>plan.revised</span><span>Atlas · AI</span><span>Plan rev 5 drafted — awaiting ratification</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "plan.revised", "revision": 5, "author": "agent:atlas", "ratified": false }</pre></details>
+          <details class="arow"><summary><span>Sep 30 08:31</span><span>credit.reserved</span><span>system</span><span>600 Cr reserved — Ada daily cap raise (worst case)</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "credit.reserved", "amount": 600, "reason": "gate_42_worst_case", "settles_on": "gate_42_decision" }</pre></details>
+          <details class="arow"><summary><span>Sep 29 14:02</span><span>gate.approved</span><span>Joshua · human</span><td>Gate #39 — industry report purchase</td><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "gate.approved", "gate_id": 39, "decided_by": "human:joshua", "note": "within budget" }</pre></details>
+        </div>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:10px">Showing 6 of 1,284 events · full history in exports</p>
+      </section>
+
+      <!-- ========== SCREEN: TEAM ========== -->
+      <section class="screen" id="screen-team">
+        <div class="pagehead">
+          <div><h1>Team</h1><p>Seven AI employees across three departments. Click a card for the full authority profile.</p></div>
+          <button class="btn btn-primary">＋ Hire employee</button>
+        </div>
+        <div class="teamgrid">
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">N</span><div><b>Nova</b><span>Market Researcher · Research lead</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Working</span></div><div class="cap">Finds markets, competitors and pricing signals from public data.</div><div class="cur"><span>Working — Pricing research sweep</span><span style="color:var(--muted)" class="num">412 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">R</span><div><b>Ridge</b><span>Engineer · Engineering lead</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Working</span></div><div class="cap">Builds and ships the product surface: pages, APIs, deploys.</div><div class="cur"><span>Working — Pricing page build</span><span style="color:var(--muted)" class="num">688 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">E</span><div><b>Ember</b><span>Communications · Communications lead</span></div><span class="chip approval" style="margin-left:auto"><span class="dot"></span>Needs you</span></div><div class="cap">Writes and drafts public copy; publishes only with approval.</div><div class="cur"><span>Draft ready — pricing post</span><span style="color:var(--muted)" class="num">95 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">A</span><div><b>Ada</b><span>Data Analyst · Research</span></div><span class="chip approval" style="margin-left:auto"><span class="dot"></span>Gate</span></div><div class="cap">Turns raw datasets into decision-ready summaries.</div><div class="cur"><span>Waiting — cap raise gate</span><span style="color:var(--muted)" class="num">203 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">I</span><div><b>Iris</b><span>Ops Engineer · Engineering</span></div><span class="chip blocked" style="margin-left:auto"><span class="dot"></span>Blocked</span></div><div class="cap">Wires integrations, credentials and pipelines.</div><div class="cur"><span>Blocked — Stripe credentials</span><span style="color:var(--muted)" class="num">77 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">S</span><div><b>Sage</b><span>Analyst · Research</span></div><span class="chip paused" style="margin-left:auto"><span class="dot"></span>Idle</span></div><div class="cap">Weekly metrics, baselines and anomaly watch.</div><div class="cur"><span>Idle — no assignment</span><span style="color:var(--muted)" class="num">0 Cr this week</span></div></div>
+          <div class="tmember" data-drawer="1"><div class="th"><span class="av">M</span><div><b>Milo</b><span>Growth · Communications</span></div><span class="chip paused" style="margin-left:auto"><span class="dot"></span>Paused</span></div><div class="cap">Outreach and campaigns — paused by budget policy.</div><div class="cur"><span>Paused by budget</span><span style="color:var(--muted)" class="num">0 Cr this week</span></div></div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: ORG CHART ========== -->
+      <section class="screen" id="screen-orgchart">
+        <div class="pagehead">
+          <div><h1>Org chart</h1><p>Who reports to whom, and what each part of the company is doing right now.</p></div>
+        </div>
+        <div class="card" style="padding:22px">
+          <div class="orgtree">
+            <div class="onode"><span class="av" style="background:var(--hover);color:var(--body)">JO</span><div><b>Joshua</b><span>Founder · human</span></div></div>
+            <div class="oline"></div>
+            <div class="onode ea"><span class="av" style="color:var(--lime);border-color:var(--lime-dim)">◈</span><div><b>Atlas</b><span>Executive Agent · directs all departments</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>active</span></div>
+            <div class="oline"></div>
+            <div class="orow">
+              <div class="ogroup">
+                <div class="odept"><b>Research</b><span>2 employees · 615 Cr/wk</span></div>
+                <div class="oline"></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">A</span><div><b>Ada</b><span>Analyst · Gate</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
+              </div>
+              <div class="ogroup">
+                <div class="odept"><b>Engineering</b><span>2 employees · 765 Cr/wk</span></div>
+                <div class="oline"></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">I</span><div><b>Iris</b><span>Ops · Blocked</span></div><span class="sdot block" style="margin-left:auto"></span></div>
+              </div>
+              <div class="ogroup">
+                <div class="odept"><b>Communications</b><span>3 employees · 95 Cr/wk</span></div>
+                <div class="oline"></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">E</span><div><b>Ember</b><span>Lead · Needs you</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">S</span><div><b>Sage</b><span>Analyst · Idle</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
+                <div class="onode oemp" data-drawer="1"><span class="av">M</span><div><b>Milo</b><span>Growth · Paused</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: BUDGETS ========== -->
+      <section class="screen" id="screen-budgets">
+        <div class="pagehead">
+          <div><h1>Budgets</h1><p>Credit budgets per goal and per employee. Exhaustion pauses work — it never degrades it.</p></div>
+        </div>
+        <div class="banner note" style="margin-bottom:14px"><span class="bdot"></span><div><b>Credits are reserved before a call and settled after.</b><p>Overspend is structurally impossible. When a meter hits its cap, linked tasks show PAUSED, never a silent failure.</p></div></div>
+        <div class="micro" style="margin:0 0 10px">By goal</div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Announce the new pricing page</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 2,500 Cr · 4 linked tasks</div></div><div class="meter2"><i style="width:56%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">1,412 / 2,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--white)">Convert waitlist to trials</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 800 Cr · 2 linked tasks</div></div><div class="meter2"><i style="width:6%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">44 / 800 Cr</div></div>
+        </div>
+        <div class="micro" style="margin:0 0 10px">By employee</div>
+        <div class="card">
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Ridge</b><div style="font-size:11.5px;color:var(--muted)">Engineering · per-action cap 150 Cr</div></div><div class="meter2"><i style="width:78%"></i><span class="tick" style="left:85%"></span></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--orange)">2,730 / 3,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Nova</b><div style="font-size:11.5px;color:var(--muted)">Research · per-action cap 50 Cr</div></div><div class="meter2"><i style="width:12%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">412 / 3,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--white)">Milo</b><div style="font-size:11.5px;color:var(--muted)">Growth · budget exhausted Sep 28</div></div><div class="meter2"><i class="out" style="width:100%"></i></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--red)">2,000 / 2,000 Cr — PAUSED</div></div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: FINANCE ========== -->
+      <section class="screen" id="screen-finance">
+        <div class="pagehead">
+          <div><h1>Finance</h1><p>Real money only. Figures come from the connected payment provider.</p></div>
+        </div>
+        <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+          <div class="stat"><span class="micro">Balance</span><div class="v num">$0.00</div></div>
+          <div class="stat"><span class="micro">MRR</span><div class="v num">$0.00</div></div>
+          <div class="stat"><span class="micro">This month in</span><div class="v num">$0.00</div></div>
+          <div class="stat"><span class="micro">Provider</span><div class="v" style="font-size:13px;color:var(--orange)">Not connected</div></div>
+        </div>
+        <div class="emptybox">
+          <div class="t">No real money has moved yet</div>
+          <div class="s">Connect a payment provider to see balance, transactions and invoices here.</div>
+          <button class="btn btn-primary">Connect payment provider</button>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: MEMORY ========== -->
+      <section class="screen" id="screen-memory">
+        <div class="pagehead">
+          <div><h1>Memory</h1><p>What the company knows and remembers. Only what actually happened is stored — nothing is pre-seeded.</p></div>
+          <input type="text" placeholder="Search memory…" style="width:260px">
+        </div>
+        <div class="memgrid">
+          <div class="card" style="padding:0">
+            <div class="memrow sel" data-memsel="1"><span class="chip">decision</span><div class="mt">Competitor pricing is tracked weekly, rounded to USD.</div><div class="ms">Sep 24 · wrote: Nova · recalled 6 times</div></div>
+            <div class="memrow" data-memsel="1"><span class="chip">decision</span><div class="mt">Launch pricing before paid ads; ads wait for first 10 customers.</div><div class="ms">Sep 21 · wrote: Atlas · recalled 11 times</div></div>
+            <div class="memrow" data-memsel="1"><span class="chip">learned</span><div class="mt">Stripe, Paddle and Lemlist are the closest pricing references.</div><div class="ms">Sep 29 · wrote: Nova · recalled 2 times</div></div>
+            <div class="memrow" data-memsel="1"><span class="chip">preference</span><div class="mt">Founder reviews every external publish before it goes out.</div><div class="ms">Sep 8 · wrote: Joshua · recalled 14 times</div></div>
+            <div class="memrow" data-memsel="1"><span class="chip">policy</span><div class="mt">Any single spend above 50 Cr needs founder approval.</div><div class="ms">Sep 8 · wrote: constitution §4 · recalled 22 times</div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="micro">Entry detail</span><a href="#">History</a></div>
+            <b style="font-size:13.5px;color:var(--white)">Competitor pricing is tracked weekly, rounded to USD.</b>
+            <p style="font-size:12.5px;color:var(--muted);margin:8px 0 12px">Source: founder decision in chat with Atlas, Sep 24. Applied by Nova's weekly sweep; feeds the pricing-page copy task.</p>
+            <div class="micro" style="margin-bottom:8px">Events that wrote it</div>
+            <div style="font:11.5px/1.8 'JetBrains Mono',monospace;color:var(--muted)">decision.recorded · Sep 24 15:02<br>memory.recalled · Sep 29 09:40 (task tsk_7f3)<br>memory.recalled · Sep 30 09:44 (task tsk_8f2)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: BRIEFINGS ========== -->
+      <section class="screen" id="screen-briefings">
+        <div class="pagehead">
+          <div><h1>Briefings</h1><p>Weekly and monthly reports, written by Atlas, acknowledged by you.</p></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-head"><span class="micro">Weekly briefing · Sep 22 – Sep 28</span><a href="#">Download</a></div>
+          <div class="wk"><div class="big">
+            <div><div class="v num">14</div><div class="micro">Completed</div></div>
+            <div><div class="v num">1</div><div class="micro">Failed</div></div>
+            <div><div class="v num">2</div><div class="micro">Revisions</div></div>
+            <div><div class="v num">3,410</div><div class="micro">Credits used</div></div>
+            <div><div class="v num">9.5h</div><div class="micro">Founder time saved</div></div>
+          </div></div>
+          <div class="micro" style="margin:10px 0 6px">Notable decisions</div>
+          <p style="font-size:12.5px;color:var(--body)">• Pricing launch moved ahead of paid ads (rev 4) — research showed test products need Stripe credentials first.<br>• Iris blocked on Stripe keys — escalated instead of improvising with test mode.</p>
+          <div class="micro" style="margin:10px 0 6px">Risks & escalations</div>
+          <p style="font-size:12.5px;color:var(--body)">• Ridge at 78% of weekly budget with the pricing build mid-flight — cap raise may be needed Wednesday.</p>
+          <div class="micro" style="margin:10px 0 6px">Next week's proposed focus</div>
+          <p style="font-size:12.5px;color:var(--body)">1. Ship pricing page · 2. Announce · 3. Convert first 25 waitlist signups.</p>
+          <div class="signoff">✓ Acknowledged by Joshua · Sep 29</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="micro">Weekly briefing · Sep 15 – Sep 21</span><a href="#">Download</a></div>
+          <div class="wk"><div class="big">
+            <div><div class="v num">9</div><div class="micro">Completed</div></div>
+            <div><div class="v num">0</div><div class="micro">Failed</div></div>
+            <div><div class="v num">1</div><div class="micro">Revisions</div></div>
+            <div><div class="v num">2,205</div><div class="micro">Credits used</div></div>
+            <div><div class="v num">6h</div><div class="micro">Founder time saved</div></div>
+          </div></div>
+          <div class="signoff" style="color:var(--orange)">◍ Awaiting your acknowledgement <button class="btn btn-primary btn-sm" style="margin-left:auto">Acknowledge</button></div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: INTEGRATIONS ========== -->
+      <section class="screen" id="screen-integrations">
+        <div class="pagehead">
+          <div><h1>Integrations</h1><p>Company infrastructure — what's connected, who uses it, and what it's allowed to do.</p></div>
+          <button class="btn btn-secondary">＋ Add connection</button>
+        </div>
+        <div class="intgrid">
+          <div class="card intcard">
+            <div class="ih"><span class="ic">⌥</span><div><b>GitHub</b><span style="font-size:11px;color:var(--muted)">code hosting</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Connected</span></div>
+            <div class="scope">repo:read · repo:write · pr:create</div>
+            <div class="row"><span>Used by</span><b>Engineering (Ridge, Iris)</b></div>
+            <div class="row"><span>Tools unlocked</span><b>push_code, open_pr, read_issues</b></div>
+            <div class="row"><span>Requires approval</span><b>push to main</b></div>
+            <div class="row"><span>Last used</span><b>today 09:41</b></div>
+            <div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Settings</button><button class="btn btn-danger btn-sm">Disconnect</button></div>
+          </div>
+          <div class="card intcard">
+            <div class="ih"><span class="ic">⚡</span><div><b>Supabase</b><span style="font-size:11px;color:var(--muted)">database & auth</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Connected</span></div>
+            <div class="scope">db:read · db:write (staging)</div>
+            <div class="row"><span>Used by</span><b>Engineering (Iris)</b></div>
+            <div class="row"><span>Tools unlocked</span><b>run_migration, seed_data</b></div>
+            <div class="row"><span>Requires approval</span><b>production db write</b></div>
+            <div class="row"><span>Last used</span><b>today 08:55</b></div>
+            <div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Settings</button><button class="btn btn-danger btn-sm">Disconnect</button></div>
+          </div>
+          <div class="card intcard">
+            <div class="ih"><span class="ic">✉</span><div><b>Gmail</b><span style="font-size:11px;color:var(--muted)">email</span></div><span class="chip approval" style="margin-left:auto"><span class="dot"></span>Needs setup</span></div>
+            <div class="scope">not connected</div>
+            <div class="row"><span>Would unlock</span><b>send_email, read_inbox</b></div>
+            <div class="row"><span>Used by</span><b>Communications (Ember)</b></div>
+            <div style="margin-top:10px"><button class="btn btn-primary btn-sm">Connect Gmail</button></div>
+          </div>
+          <div class="card intcard">
+            <div class="ih"><span class="ic">◈</span><div><b>OpenRouter</b><span style="font-size:11px;color:var(--muted)">model provider</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>Connected</span></div>
+            <div class="scope">models:list · completions:create</div>
+            <div class="row"><span>Used by</span><b>all employees (via Atlas routing)</b></div>
+            <div class="row"><span>Tools unlocked</span><b>every AI action</b></div>
+            <div class="row"><span>Requires approval</span><b>nothing — billed as credits</b></div>
+            <div class="row"><span>Last used</span><b>today 09:44</b></div>
+            <div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Settings</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: SETTINGS ========== -->
+      <section class="screen" id="screen-settings">
+        <div class="pagehead">
+          <div><h1>Settings</h1><p>Workspace, authority defaults, notifications and danger zone.</p></div>
+        </div>
+        <div class="tabwrap">
+          <div class="subtabs"><button class="on" data-pane="workspace">Workspace</button><button data-pane="authority">Authority defaults</button><button data-pane="notify">Notifications</button></div>
+          <div class="subpane on" data-pane="workspace">
+            <div class="card" style="max-width:560px;margin-bottom:14px">
+              <div class="card-head"><span class="micro">Workspace</span></div>
+              <div class="setrow"><span class="lab">Organization</span><span class="val">Acme Studio</span></div>
+              <div class="setrow"><span class="lab">Plan</span><span class="val">Free · 3,500 Cr/week</span></div>
+              <div class="setrow"><span class="lab">Default model</span><span class="val" style="cursor:pointer" data-openmodal="1">Auto (recommended)</span></div>
+              <div class="setrow"><span class="lab">Export org config</span><button class="btn btn-secondary btn-sm">Download JSON</button></div>
+            </div>
+            <div class="card" style="max-width:560px;border-color:rgba(248,113,113,.35)">
+              <div class="card-head"><span class="micro" style="color:var(--red)">Danger zone</span></div>
+              <div class="setrow"><span><b style="font-size:13px;color:var(--white)">Pause entire org</b><div style="font-size:11.5px;color:var(--muted)">Freezes all employees and budgets in one click. Nothing runs until you resume.</div></span><button class="btn btn-danger btn-sm">Pause org</button></div>
+            </div>
+          </div>
+          <div class="subpane" data-pane="authority">
+            <div class="card" style="max-width:560px;margin-bottom:14px">
+              <div class="card-head"><span class="micro">Default authority for new employees</span><a href="#">Per-employee in Team →</a></div>
+              <div class="setrow"><span class="lab">May create tasks</span><span class="toggle on"></span></div>
+              <div class="setrow"><span class="lab">May execute tasks</span><span class="toggle on"></span></div>
+              <div class="setrow"><span class="lab">May access company info</span><span class="toggle on"></span></div>
+              <div class="setrow"><span class="lab">May communicate externally</span><span class="toggle"></span></div>
+              <div class="setrow"><span class="lab">Default per-action spend cap</span><input type="number" value="50" style="width:90px"> <span style="font-size:12px;color:var(--muted)">Cr</span></div>
+            </div>
+            <div class="banner note"><span class="bdot"></span><div><b>Every change shows a diff before saving and writes an audit event.</b><p>Nothing silently changes who can do what.</p></div></div>
+          </div>
+          <div class="subpane" data-pane="notify">
+            <div class="card" style="max-width:640px">
+              <table class="table">
+                <thead><tr><th>Event</th><th>In-app</th><th>Email</th><th>None</th></tr></thead>
+                <tbody>
+                  <tr><td>Approval requested</td><td><span class="toggle on"></span></td><td><span class="toggle on"></span></td><td><span class="toggle"></span></td></tr>
+                  <tr><td>Work blocked</td><td><span class="toggle on"></span></td><td><span class="toggle"></span></td><td><span class="toggle"></span></td></tr>
+                  <tr><td>Task completed</td><td><span class="toggle on"></span></td><td><span class="toggle"></span></td><td><span class="toggle"></span></td></tr>
+                  <tr><td>Weekly briefing ready</td><td><span class="toggle on"></span></td><td><span class="toggle on"></span></td><td><span class="toggle"></span></td></tr>
+                  <tr><td>Budget warn line crossed</td><td><span class="toggle on"></span></td><td><span class="toggle on"></span></td><td><span class="toggle"></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== end screens ========== -->
 <div class="overlay" id="overlay"></div>
 <aside class="drawer" id="drawer" aria-label="Employee details">
   <button class="iconbtn close" data-close="1">✕</button>
@@ -593,6 +1082,7 @@
 
 <script>
   // screen switching
+  const CRUMBS={dashboard:"Dashboard",tasks:"Tasks",plan:"Plan",goals:"Goals",approvals:"Approvals",audit:"Audit trail",team:"Team",orgchart:"Org chart",budgets:"Budgets",finance:"Finance",memory:"Memory",briefings:"Briefings",integrations:"Integrations",settings:"Settings"};
   document.querySelectorAll("[data-go]").forEach(el=>{
     el.addEventListener("click",()=>{
       const id=el.getAttribute("data-go");
@@ -600,7 +1090,7 @@
       document.getElementById("screen-"+id).classList.add("on");
       document.querySelectorAll(".navitem").forEach(n=>n.classList.remove("on"));
       document.querySelector('.navitem[data-go="'+id+'"]')?.classList.add("on");
-      document.getElementById("crumb-here").textContent=id==="dashboard"?"Dashboard":"Tasks";
+      document.getElementById("crumb-here").textContent=CRUMBS[id]||id;
       window.scrollTo({top:0});
     });
   });
@@ -619,6 +1109,19 @@
   document.querySelectorAll(".toggle").forEach(t=>t.addEventListener("click",()=>t.classList.toggle("on")));
   document.querySelectorAll(".filters .f").forEach(f=>f.addEventListener("click",()=>{document.querySelectorAll(".filters .f").forEach(x=>x.classList.remove("on"));f.classList.add("on")}));
   document.querySelectorAll(".mrow").forEach(r=>r.addEventListener("click",()=>{document.querySelectorAll(".mrow").forEach(x=>x.classList.remove("sel"));r.classList.add("sel")}));
+  // subtabs (approvals, settings)
+  document.querySelectorAll(".tabwrap").forEach(w=>{
+    w.querySelectorAll(".subtabs button").forEach(b=>b.addEventListener("click",()=>{
+      const pane=b.getAttribute("data-pane");
+      w.querySelectorAll(".subtabs button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+      w.querySelectorAll(".subpane").forEach(x=>x.classList.toggle("on",x.getAttribute("data-pane")===pane));
+    }));
+  });
+  // goals expand/collapse
+  document.querySelectorAll(".goalrow .goalhead").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("open")));
+  // memory row selection
+  document.querySelectorAll(".memrow").forEach(r=>r.addEventListener("click",()=>{document.querySelectorAll(".memrow").forEach(x=>x.classList.remove("sel"));r.classList.add("sel")}));
+  // audit filter chips are visual-only in the mock
 </script>
 </body>
 </html>

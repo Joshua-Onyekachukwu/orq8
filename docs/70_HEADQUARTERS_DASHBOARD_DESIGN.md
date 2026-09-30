@@ -36,9 +36,19 @@ the visual identity. Concretely, when building any ORQ8 surface:
 
 Mocks: v1 (`marketing/headquarters-mock.html`) explored the reference-faithful
 look; **v2 (`marketing/headquarters-mock-v2.html`) is the ORQ8-native baseline**
-— sidebar shell, lime/orange system, all four screens (dashboard, tasks kanban,
-employee drawer, default-model modal) in one clickable file. v2 supersedes v1
-as the visual spec for implementation.
+— sidebar shell, lime/orange system, in one clickable file. **v2 now covers the
+full page set (14 screens):** dashboard, tasks kanban (+ task detail with live
+log), employee drawer, default-model modal, plan (revision rail + ratify banner
++ diff view), approvals (open/decided tabs, trigger chips, export, "silence is
+never consent" banner), goals (expandable rows + lineage breadcrumbs + step
+chips), audit trail (expandable JSON rows, fixed vocabulary, filters, export),
+team (7-employee cards), org chart (founder → Atlas → departments → employees),
+budgets (per-goal/per-employee meters, warn ticks, PAUSED-at-exhaustion case),
+finance (real-money-only empty state), memory (typed entries + recall counts +
+detail pane), briefings (weekly report card + acknowledgement sign-off),
+integrations (permissions-map cards: scopes, used-by, approval-required), and
+settings (workspace / authority defaults / notification matrix / pause-org
+danger zone). v2 supersedes v1 as the visual spec for implementation.
 
 ## 1. What the reference design is
 
