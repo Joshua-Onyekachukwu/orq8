@@ -6,11 +6,39 @@ Headquarters redesign. When implementation starts, status rows move into
 
 Updated 2026-09-30. Reference material: 8 founder-supplied screenshots
 (hero canvas state, working state, default-model modal, approval modal,
-employee drawer, tasks kanban, and two live-run states). Founder decisions:
-dark app shell + light marketing, build mock-first, unbuilt features render as
-"coming soon" stubs, more reference material is coming — this plan must absorb it.
+employee drawer, tasks kanban, and two live-run states) + 1 agent-node
+popover screenshot. **Founder decision (2026-09-30): the product must NOT
+visually clone the reference** — see §1a "ORQ8-native translation rule".
+Founder decisions: dark app shell + light marketing, build mock-first, unbuilt
+features render as "coming soon" stubs, more reference material is coming —
+this plan must absorb it.
 
 ---
+
+## 1a. ORQ8-native translation rule (anti-plagiarism, founder-directed)
+
+The references define the **interaction model and standard of quality**, never
+the visual identity. Concretely, when building any ORQ8 surface:
+
+1. **Take the flow, not the look.** Persistent EA beside the work, live state
+   on one screen, founder attention surfaced, dense-but-calm — yes. Their
+   colors, logos, crowns, graph-paper texture, component chrome, and branded
+   microcopy — never.
+2. **Use ORQ8's own design system** (docs/71 §V): `#0B0F14` base, lime/orange
+   accents, hairline cards, Inter + JetBrains Mono, 11px caps micro-labels.
+3. **Use ORQ8's own concepts and words:** Atlas (EA), Work Credits,
+   authority bands (May do / Spend cap / Needs approval / Forbidden),
+   departments, goals. If a reference term has no ORQ8 equivalent
+   ("crown", "PRO chips", "sell this business"), it does not ship.
+4. **When in doubt, redesign from the data**: draw the component from the
+   real fields it must show (authority profile, approval payload, credit
+   ledger), not from the screenshot.
+
+Mocks: v1 (`marketing/headquarters-mock.html`) explored the reference-faithful
+look; **v2 (`marketing/headquarters-mock-v2.html`) is the ORQ8-native baseline**
+— sidebar shell, lime/orange system, all four screens (dashboard, tasks kanban,
+employee drawer, default-model modal) in one clickable file. v2 supersedes v1
+as the visual spec for implementation.
 
 ## 1. What the reference design is
 

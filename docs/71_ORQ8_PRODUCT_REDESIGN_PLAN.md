@@ -57,9 +57,11 @@ valid JSON; every page has a real empty state.
 ### Reconciliation: what Revision 2 changes in §A–U
 
 1. **Palette/accents (§N):** violet/gold primary set is **replaced** by
-   lime/orange on near-black `#0B0F14`. The docs/70 mock's violet canvas stays
-   as the Dashboard page's canvas treatment unless the founder says otherwise
-   — flagged for confirmation, since the two references differ.
+   lime/orange on near-black `#0B0F14`. **Resolved 2026-09-30:** the founder
+   confirmed ORQ8 uses its own palette, not the reference images'. The
+   ORQ8-native mock (`marketing/headquarters-mock-v2.html`) is the visual
+   baseline for every screen; see docs/70 §1a for the translation rule
+   (flow yes, look no — no cloned branding, concepts, or chrome).
 2. **Shell (§E):** sidebar shell replaces the two-row top nav. The HQ
    left-rail TODO/LIVE ACTIVITY concepts survive *inside the Dashboard page*.
 3. **IA (§D):** Plan, Org Chart, Briefings, Finance, Authority editor join
@@ -423,8 +425,11 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## S. Implementation phases
 
-- **Phase 0 — DONE:** HQ dark mock approved-visual baseline
-  (`marketing/headquarters-mock.html`), docs/70.
+- **Phase 0 — DONE:** HQ dark mock approved-visual baseline —
+  `marketing/headquarters-mock-v2.html` (ORQ8-native: sidebar shell, lime/
+  orange system, dashboard + tasks kanban + employee drawer + default-model
+  modal in one clickable file). v1 (violet, reference-faithful) kept for
+  history only. docs/70.
 - **Phase 1 — Design tokens & primitives:** `.hq` dark scope, tokens,
   StatusRing/Badge/SectionLabel/EmptyState; story-route `/app/_style` (admin
   visible) for review. *Deliverable: tokens + 5 primitives, nothing user-

@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORQ8 — Headquarters mock v2 (ORQ8-native)</title>
+<style>
+  /* ================================================================
+     ORQ8 HEADQUARTERS — DESIGN SYSTEM v2 (ORQ8-native, per docs/71 §V)
+     Flow adapted from reference material; visuals are ORQ8's own:
+     lime/orange on near-black, Inter + JetBrains Mono, hairline cards,
+     no shadows, 8px grid. No cloned branding, no crowns, no sponsors.
+     ================================================================ */
+  :root{
+    --bg:#0B0F14; --surface:#11161D; --hover:#161D26; --line:#1E2732;
+    --line-strong:#2A3646;
+    --lime:#B6F09C; --lime-soft:rgba(182,240,156,.12); --lime-dim:rgba(182,240,156,.55);
+    --orange:#F59E4C; --orange-soft:rgba(245,158,76,.12);
+    --red:#F87171; --red-soft:rgba(248,113,113,.12);
+    --info:#7DD3FC; --info-soft:rgba(125,211,252,.10);
+    --muted:#8B95A3; --body:#E6EAF0; --white:#FFFFFF;
+    --r:10px; --r-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--body);font:14px/1.5 Inter,ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:rgba(182,240,156,.25)}
+  :focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px}
+  .mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+  .num{font-variant-numeric:tabular-nums}
+  .micro{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .card-head .micro{color:var(--muted)}
+  .card-head a{font-size:12px;color:var(--lime)}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+  .chip .dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+  .chip.running{color:var(--lime);border-color:rgba(182,240,156,.35)} .chip.running .dot{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .chip.approval{color:var(--orange);border-color:rgba(245,158,76,.4)} .chip.approval .dot{background:var(--orange)}
+  .chip.blocked{color:var(--red);border-color:rgba(248,113,113,.4)} .chip.blocked .dot{background:var(--red)}
+  .chip.paused .dot{background:var(--muted)}
+  .chip.done{color:var(--body)} .chip.done .dot{background:var(--body)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+  .btn-primary{background:var(--orange);color:#231206}
+  .btn-primary:hover{filter:brightness(1.07)}
+  .btn-secondary{border-color:var(--line-strong);color:var(--body)}
+  .btn-secondary:hover{background:var(--hover)}
+  .btn-tertiary{color:var(--lime);padding:0 6px}
+  .btn-danger{border-color:rgba(248,113,113,.45);color:var(--red)}
+  .btn-danger:hover{background:var(--red-soft)}
+  .btn-sm{height:30px;padding:0 10px;font-size:12px}
+
+  /* ---------- shell ---------- */
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  .side{border-right:1px solid var(--line);background:var(--surface);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .logo{display:flex;align-items:center;gap:10px;padding:4px 8px 14px}
+  .logo .mark{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);display:grid;place-items:center;color:var(--lime);font-size:14px}
+  .logo b{font-size:15px;color:var(--white);letter-spacing:.01em}
+  .orgswitch{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:14px;cursor:pointer}
+  .orgswitch:hover{background:var(--hover)}
+  .orgswitch .o{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white)}
+  .orgswitch .o i{width:18px;height:18px;border-radius:5px;background:var(--lime-soft);display:grid;place-items:center;font-size:10px;color:var(--lime);font-style:normal}
+  .orgswitch .plan{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .navgroup{margin-bottom:6px}
+  .navgroup .micro{padding:10px 8px 6px;display:block}
+  .navitem{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:var(--r-sm);font-size:13px;color:var(--muted);text-align:left;position:relative}
+  .navitem:hover{background:var(--hover);color:var(--body)}
+  .navitem.on{color:var(--lime);background:var(--lime-soft)}
+  .navitem.on::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--lime);border-radius:2px}
+  .navitem .ico{width:16px;text-align:center;font-style:normal;opacity:.9}
+  .navitem .n{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 6px}
+  .navitem .n.hot{color:#231206;background:var(--orange);border-color:var(--orange);font-weight:700}
+  .sidefoot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px}
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11px;color:var(--muted)}
+  .sidefoot .who{font-size:12px;color:var(--body)} .sidefoot .plan{font-size:10px;color:var(--muted)}
+
+  .main{min-width:0}
+  .topbar{height:56px;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:20}
+  .crumb{font-size:13px;color:var(--muted)} .crumb b{color:var(--body);font-weight:600}
+  .search{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;color:var(--muted);font-size:12.5px;min-width:220px;cursor:text}
+  .search:hover{border-color:var(--line-strong)}
+  .search kbd{margin-left:auto;font:11px "JetBrains Mono",monospace;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--muted)}
+  .iconbtn{position:relative;width:34px;height:34px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--muted);border:1px solid var(--line)}
+  .iconbtn:hover{background:var(--hover);color:var(--body)}
+  .iconbtn .pip{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--orange);border:2px solid var(--bg)}
+
+  .content{padding:20px;max-width:1280px}
+  .screen{display:none} .screen.on{display:block}
+
+  /* ---------- dashboard ---------- */
+  .hello{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+  .hello h1{font-size:22px;font-weight:600;color:var(--white)}
+  .hello .date{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer}
+  .stat:hover{background:var(--hover)}
+  .stat .micro{font-size:10px}
+  .stat .v{font-size:20px;font-weight:600;color:var(--white);margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat .v.warn{color:var(--orange)}
+  .stat .meter{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
+  .stat .meter i{display:block;height:100%;background:var(--lime);border-radius:99px}
+  .stat .delta{font-size:11px;color:var(--lime);margin-top:4px}
+  .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(245,158,76,.45);background:var(--orange-soft);margin-bottom:14px}
+  .banner b{color:var(--white);font-size:13.5px}
+  .banner p{font-size:12px;color:var(--muted)}
+  .banner .btn{margin-left:auto}
+  .banner.quiet{border-color:rgba(182,240,156,.35);background:var(--lime-soft)}
+  .banner.quiet .bdot{background:var(--lime)}
+  .bdot{width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0}
+  .canvas{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 8px;position:relative;overflow:hidden}
+  .canvas .tools{position:absolute;top:12px;right:12px;display:flex;gap:8px}
+  .canvas .tools button{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 10px;background:var(--bg)}
+  .canvas .tools button:hover{color:var(--body);border-color:var(--line-strong)}
+  .grid-bg{background-image:radial-gradient(rgba(42,54,70,.7) 1px,transparent 1px);background-size:24px 24px}
+  .orgmap{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 4px 18px}
+  .dept{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px;min-height:210px}
+  .dept .dh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .dept .dh b{font-size:13px;color:var(--white)}
+  .dept .lead{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(182,240,156,.35);border-radius:var(--r-sm);background:var(--lime-soft);margin-bottom:10px;cursor:pointer}
+  .dept .lead:hover{border-color:var(--lime)}
+  .dept .lead .av{width:30px;height:30px;border-radius:50%;background:var(--bg);border:1px solid var(--lime-dim);display:grid;place-items:center;font-size:11px;color:var(--lime)}
+  .dept .lead b{font-size:12.5px;color:var(--white);display:block}
+  .dept .lead span{font-size:11px;color:var(--lime)}
+  .dept .member{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r-sm);cursor:pointer}
+  .dept .member:hover{background:var(--hover)}
+  .dept .member .av{width:26px;height:26px;border-radius:50%;background:var(--surface);border:1px dashed var(--line-strong);display:grid;place-items:center;font-size:10px;color:var(--muted)}
+  .dept .member b{font-size:12.5px;font-weight:600;color:var(--body);display:block}
+  .dept .member span{font-size:11px;color:var(--muted)}
+  .dept .member .st{margin-left:auto}
+  .sdot{width:8px;height:8px;border-radius:50%}
+  .sdot.run{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .sdot.appr{background:var(--orange)}
+  .sdot.idle{background:var(--line-strong)}
+  .sdot.block{background:var(--red)}
+  .term{margin-top:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px}
+  .term pre{font:11.5px/1.8 "JetBrains Mono",ui-monospace,Consolas,monospace;color:var(--muted);max-height:118px;overflow:hidden}
+  .term .t{color:#5B6675} .term .ty{color:var(--info)} .term .ty.ap{color:var(--orange)} .term .ty.ok{color:var(--lime)}
+
+  .sidecol{display:flex;flex-direction:column;gap:16px}
+  .todo .row{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .todo .row:last-child{border-bottom:0}
+  .todo .ix{width:18px;height:18px;border-radius:5px;background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
+  .todo b{display:block;font-size:13px;font-weight:600;color:var(--white)}
+  .todo span{font-size:12px;color:var(--muted)}
+  .wk .big{display:flex;gap:14px;margin-bottom:10px}
+  .wk .big div{flex:1}
+  .wk .big .v{font-size:18px;font-weight:600;color:var(--white);font-variant-numeric:tabular-nums}
+  .wk .big .micro{font-size:10px}
+
+  /* EA dock */
+  .dock{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;height:calc(100vh - 210px);min-height:480px;position:sticky;top:76px}
+  .dock .dh{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .dock .dh .ea{width:26px;height:26px;border-radius:50%;background:var(--lime-soft);border:1px solid var(--lime-dim);display:grid;place-items:center;color:var(--lime);font-size:12px}
+  .dock .dh b{font-size:13.5px;color:var(--white)}
+  .dock .dh .st{font-size:11px;color:var(--lime)}
+  .dock .dh .mx{margin-left:auto;font-size:11px;color:var(--muted)}
+  .dock .cards{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .ev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;background:var(--bg)}
+  .ev .ty{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--white)}
+  .ev .ty .ic{color:var(--muted);font-style:normal}
+  .ev .ty a{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--lime)}
+  .ev .meta{font-size:11.5px;color:var(--muted);margin-top:3px;word-break:break-all}
+  .ev .meta code{font:11px "JetBrains Mono",monospace;color:var(--info);background:var(--info-soft);padding:1px 5px;border-radius:4px}
+  .ev.msg{background:transparent;border:0;padding:2px}
+  .ev.msg .bub{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--body)}
+  .ev.gate{border-color:rgba(245,158,76,.45)}
+  .ev.gate .who{font-size:12.5px;font-weight:700;color:var(--orange)}
+  .ev.gate .what{font-size:13px;font-weight:600;color:var(--white);margin-top:4px}
+  .ev.gate .desc{font-size:12px;color:var(--muted);margin-top:3px}
+  .ev.gate .cost{font-size:11.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+  .ev.gate .acts{display:flex;gap:8px;margin-top:10px}
+  .ev.gate .acts .btn{flex:1;justify-content:center}
+  .ev.active{border-color:rgba(182,240,156,.4);background:var(--lime-soft)}
+  .ev.active .who{font-size:12.5px;font-weight:700;color:var(--lime)}
+  .ev.active .think{font-size:12px;color:var(--muted);margin-top:4px}
+  .ev.active .think .dots::after{content:"···";animation:pulse 1.2s steps(3) infinite}
+  .composer{border-top:1px solid var(--line);padding:10px 12px}
+  .composer .box{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:10px 12px}
+  .composer .hint{color:#5B6675;font-size:13px}
+  .composer .row{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .composer .model{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
+  .composer .model i{width:10px;height:10px;border-radius:50%;background:var(--lime);font-style:normal}
+  .composer .send{margin-left:auto;width:30px;height:30px;border-radius:var(--r-sm);background:var(--orange);display:grid;place-items:center;color:#231206;font-weight:700}
+
+  /* ---------- kanban (tasks) ---------- */
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+  .pagehead h1{font-size:22px;font-weight:600;color:var(--white)}
+  .pagehead p{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .filters{display:flex;gap:8px;margin-bottom:14px}
+  .filters .f{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
+  .filters .f.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start}
+  .col{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+  .col .ch{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .col .ch .micro{color:var(--muted)}
+  .col .ch .cnt{margin-left:auto;font-size:11px;color:var(--muted)}
+  .col .sub{font-size:11.5px;color:#5B6675;margin-bottom:10px}
+  .tcard{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:10px 12px;margin-bottom:8px;cursor:pointer}
+  .tcard:hover{border-color:var(--line-strong)}
+  .tcard .r1{display:flex;align-items:center;gap:8px}
+  .tcard .ord{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .tcard b{font-size:12.5px;font-weight:600;color:var(--body);display:block;margin-top:3px}
+  .tcard .meta{display:flex;align-items:center;gap:8px;margin-top:7px}
+  .tcard .meta .av{width:18px;height:18px;border-radius:50%;background:var(--surface);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:8px;color:var(--muted)}
+  .tcard .meta span{font-size:11px;color:var(--muted)}
+  .tcard.openrow{border-color:var(--lime-dim)}
+  .taskdetail{grid-column:1/-1;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:2px}
+  .taskdetail h3{font-size:14px;color:var(--white);margin-bottom:4px}
+  .taskdetail .meta{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .taskdetail h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+  .logpane{font:11.5px/1.75 "JetBrains Mono",monospace;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;max-height:150px;overflow:hidden;position:relative}
+  .logpane .lm{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(transparent,var(--surface))}
+  .logpane .ty{color:var(--info)} .logpane .ok{color:var(--lime)} .logpane .t{color:#5B6675}
+
+  /* ---------- drawer ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(4,6,10,.62);z-index:40;display:none}
+  .overlay.on{display:block}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:470px;max-width:94vw;background:var(--surface);border-left:1px solid var(--line);z-index:50;display:none;overflow-y:auto;padding:20px}
+  .drawer.on{display:block}
+  .drawer .close{position:absolute;top:14px;right:14px}
+  .dr-head{display:flex;gap:12px;align-items:center;margin-bottom:4px}
+  .dr-head .av{width:44px;height:44px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:15px;color:var(--muted)}
+  .dr-head h2{font-size:18px;color:var(--white)}
+  .dr-head .role{font-size:12px;color:var(--muted)}
+  .dr-acts{display:flex;gap:8px;margin:14px 0 18px}
+  .authzones{display:flex;flex-direction:column;gap:10px}
+  .zone{border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+  .zone .zh{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--hover);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .zone .zh .dot{width:7px;height:7px;border-radius:50%}
+  .zone ul{list-style:none;padding:6px 12px 8px}
+  .zone li{font-size:12.5px;color:var(--body);padding:3px 0;display:flex;gap:8px}
+  .zone li .m{color:var(--muted)}
+  .zone.may .dot{background:var(--lime)} .zone.spend .dot{background:var(--info)}
+  .zone.gate .dot{background:var(--orange)} .zone.forb .dot{background:var(--red)}
+  .zone.spend .v{font-variant-numeric:tabular-nums;color:var(--white)}
+  .setrow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .setrow:last-child{border-bottom:0}
+  .setrow .lab{color:var(--muted);font-size:12px}
+  .setrow .val{color:var(--body);font-weight:600;font-variant-numeric:tabular-nums}
+  .toggle{width:34px;height:20px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:all .15s ease-out}
+  .toggle.on{background:var(--lime-soft);border:1px solid var(--lime-dim)}
+  .toggle.on::after{left:15px;background:var(--lime)}
+  .rwork{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .rwork:last-child{border:0}
+  .rwork .st{flex-shrink:0;margin-top:2px}
+  .rwork .cr{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
+  .mem{font-size:12.5px;color:var(--body);padding:7px 0;border-bottom:1px dashed var(--line)}
+  .mem:last-child{border:0}
+  .mem .src{font-size:11px;color:var(--muted)}
+
+  /* ---------- modal ---------- */
+  .modal{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(4,6,10,.62);padding:20px}
+  .modal.on{display:grid}
+  .modal .box{width:560px;max-width:96vw;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:20px;max-height:88vh;overflow-y:auto}
+  .modal h2{font-size:16px;color:var(--white)}
+  .modal .sub{font-size:12.5px;color:var(--muted);margin:4px 0 14px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-bottom:14px}
+  .seg button{padding:6px 14px;font-size:12px;color:var(--muted)}
+  .seg button.on{background:var(--hover);color:var(--lime)}
+  .mrow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px;cursor:pointer}
+  .mrow:hover{background:var(--hover)}
+  .mrow.sel{border-color:var(--lime);background:var(--lime-soft)}
+  .mrow .nm{font-size:13px;font-weight:600;color:var(--white)}
+  .mrow .pv{font-size:11px;color:var(--muted)}
+  .mrow .dots{margin-left:auto;display:flex;gap:3px}
+  .mrow .dots i{width:6px;height:6px;border-radius:50%;background:var(--line-strong)}
+  .mrow .dots i.f{background:var(--lime)}
+  .mrow .cost{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;width:74px;text-align:right}
+  .mrow .tag{font-size:10px;color:var(--lime);border:1px solid var(--lime-dim);border-radius:4px;padding:1px 6px}
+  .modal .acts{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+  .hier{font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:14px}
+  .hier b{color:var(--body)}
+
+  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} }
+  @media (max-width:1024px){ .app{grid-template-columns:64px 1fr} .side .logo b,.side .orgswitch,.side .navitem span,.side .navgroup .micro,.side .sidefoot .who,.side .sidefoot .plan{display:none} .navitem{justify-content:center} .navitem .n{display:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="side">
+    <div class="logo"><span class="mark">◈</span><b>ORQ8</b></div>
+    <div class="orgswitch"><span class="o"><i>A</i> Acme Studio</span><span class="plan">FREE</span></div>
+
+    <div class="navgroup"><span class="micro">Overview</span>
+      <button class="navitem on" data-go="dashboard"><span class="ico">▦</span><span>Dashboard</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">Direction</span>
+      <button class="navitem"><span class="ico">▤</span><span>Plan</span></button>
+      <button class="navitem"><span class="ico">◎</span><span>Goals</span></button>
+      <button class="navitem"><span class="ico">§</span><span>Constitution</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">Work</span>
+      <button class="navitem" data-go="tasks"><span class="ico">☰</span><span>Tasks</span><span class="n">5</span></button>
+      <button class="navitem"><span class="ico">✓</span><span>Approvals</span><span class="n hot">2</span></button>
+      <button class="navitem"><span class="ico">⌗</span><span>Audit trail</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">People</span>
+      <button class="navitem"><span class="ico">◔</span><span>Team</span></button>
+      <button class="navitem"><span class="ico">귖</span><span>Departments</span></button>
+      <button class="navitem"><span class="ico">⌬</span><span>Org chart</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">Money</span>
+      <button class="navitem"><span class="ico">◧</span><span>Budgets</span></button>
+      <button class="navitem"><span class="ico">$</span><span>Finance</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">Knowledge</span>
+      <button class="navitem"><span class="ico">◈</span><span>Memory</span></button>
+      <button class="navitem"><span class="ico">▤</span><span>Files</span></button>
+      <button class="navitem"><span class="ico">✉</span><span>Briefings</span></button>
+    </div>
+    <div class="navgroup"><span class="micro">System</span>
+      <button class="navitem" data-openmodal="1"><span class="ico">⟡</span><span>Models</span></button>
+      <button class="navitem"><span class="ico">⇄</span><span>Integrations</span></button>
+      <button class="navitem"><span class="ico">◍</span><span>Notifications</span></button>
+      <button class="navitem"><span class="ico">⚙</span><span>Settings</span></button>
+    </div>
+
+    <div class="sidefoot">
+      <div class="avatar">JO</div>
+      <div><div class="who">Joshua</div><div class="plan">Founder · Free plan</div></div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb">Acme Studio / <b id="crumb-here">Dashboard</b></div>
+      <div class="search">⌕&nbsp;Search or jump to…<kbd>⌘K</kbd></div>
+      <button class="iconbtn" title="Notifications">◍<span class="pip"></span></button>
+      <button class="iconbtn" title="Account">JO</button>
+    </div>
+
+    <div class="content">
+      <!-- ========== SCREEN: DASHBOARD ========== -->
+      <section class="screen on" id="screen-dashboard">
+        <div class="hello">
+          <div><h1>Good morning, Joshua</h1><div class="date">Wednesday, September 30 — your company has been running for 6 hours</div></div>
+          <button class="btn btn-primary">＋ Give direction</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><span class="micro">Active goals</span><div class="v">2</div></div>
+          <div class="stat" data-go="tasks"><span class="micro">Open approvals</span><div class="v warn">2</div></div>
+          <div class="stat" data-go="tasks"><span class="micro">In progress</span><div class="v">2</div></div>
+          <div class="stat"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
+          <div class="stat"><span class="micro">Credits this week</span><div class="v num">1,420</div><div class="meter"><i style="width:38%"></i></div></div>
+          <div class="stat"><span class="micro">Company health</span><div class="v">82</div><div class="delta">▲ 3 this week</div></div>
+        </div>
+
+        <div class="dashgrid">
+          <div>
+            <div class="banner">
+              <span class="bdot"></span>
+              <div><b>2 approvals are holding work</b><p>Ridge and Nova are paused mid-task until you decide</p></div>
+              <button class="btn btn-primary btn-sm">Review</button>
+            </div>
+
+            <div class="canvas grid-bg">
+              <div class="tools"><button>View as list</button><button data-openmodal="1">Default model: Auto</button></div>
+              <div class="micro" style="padding:2px 4px 0">Company now</div>
+              <div class="orgmap">
+                <div class="dept">
+                  <div class="dh"><b>Research</b><span class="chip running"><span class="dot"></span>1 working</span></div>
+                  <div class="lead" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working — Pricing research sweep</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="member"><span class="av">A</span><div><b>Ada</b><span>Waiting on approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
+                  <div class="member"><span class="av">S</span><div><b>Sage</b><span>Idle</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
+                </div>
+                <div class="dept">
+                  <div class="dh"><b>Engineering</b><span class="chip running"><span class="dot"></span>1 working</span></div>
+                  <div class="lead" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working — Pricing page build</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="member"><span class="av">I</span><div><b>Iris</b><span>Blocked — needs credentials</span></div><span class="st sdot block" style="margin-left:auto"></span></div>
+                </div>
+                <div class="dept">
+                  <div class="dh"><b>Communications</b><span class="chip approval"><span class="dot"></span>Needs you</span></div>
+                  <div class="member" data-drawer="1"><span class="av">E</span><div><b>Ember</b><span>Lead · Draft ready for approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
+                  <div class="member"><span class="av">M</span><div><b>Milo</b><span>Paused by budget</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:14px"></div>
+            <div class="term">
+              <div class="card-head" style="margin-bottom:6px"><span class="micro">Live activity</span><a href="#">Full audit trail →</a></div>
+              <pre><span class="t">[09:41:12]</span> <span class="ty ok">DONE</span>     — Iris: Competitor page screenshots archived
+<span class="t">[09:42:03]</span> <span class="ty">TOOL</span>     — Ridge: browser.open  <span class="t">pricing.stripe.com</span>
+<span class="t">[09:43:47]</span> <span class="ty ap">GATE</span>     — Ember requests approval: publish pricing post
+<span class="t">[09:44:01]</span> <span class="ty">TOOL</span>     — Nova: dataset.query  <span class="t">competitor_prices</span>
+<span class="t">[09:44:58]</span> <span class="ty ok">VERIFIED</span> — Ridge: build passed, 14 checks</pre>
+            </div>
+          </div>
+
+          <!-- ===== EA dock ===== -->
+          <div class="dock">
+            <div class="dh"><span class="ea">◈</span><div><b>Atlas</b><div class="st">Executive Agent · active</div></div><a class="mx" href="#">Expand</a></div>
+            <div class="cards">
+              <div class="ev msg"><div class="bub">Morning. Two items need you before the pricing launch can continue — everything else is moving.</div></div>
+              <div class="ev gate">
+                <div class="who">Approval requested</div>
+                <div class="what">Publish the pricing post</div>
+                <div class="desc">Ember wants to publish the announcement to the company blog and newsletter.</div>
+                <div class="cost">Cost: 25 Work Credits · Reversible within 1h</div>
+                <div class="acts"><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+              </div>
+              <div class="ev gate">
+                <div class="who">Approval requested</div>
+                <div class="what">Raise Ada's daily spend cap</div>
+                <div class="desc">Research sweep needs 500 → 800 Cr/day for two days.</div>
+                <div class="cost">Impact: +600 Cr worst case</div>
+                <div class="acts"><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+              </div>
+              <div class="ev"><div class="ty"><span class="ic">▤</span> Plan updated <span style="color:var(--lime)">(rev 4)</span><a href="#">View diff</a></div><div class="meta">Pricing launch moved to Friday; research moved ahead of copy.</div></div>
+              <div class="ev"><div class="ty"><span class="ic">✓</span> Task completed<a href="#">Report</a></div><div class="meta">Competitor page screenshots — Iris · 18 Cr · 12m</div></div>
+              <div class="ev active">
+                <div class="who">Working now</div>
+                <div class="meta" style="margin-top:2px">Ridge — Pricing page build</div>
+                <div class="think">◌ Building hero section <span class="dots"></span> <a class="btn btn-tertiary btn-sm" href="#" style="margin-left:auto">Open task</a></div>
+              </div>
+            </div>
+            <div class="composer">
+              <div class="box">
+                <div class="hint">Give direction, or type / for commands</div>
+                <div class="row"><span class="model" data-openmodal="1"><i></i> Auto ▾</span><button class="send">↑</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SCREEN: TASKS ========== -->
+      <section class="screen" id="screen-tasks">
+        <div class="pagehead">
+          <div><h1>Tasks</h1><p>Work is assigned from goals and by Atlas. Approvals pause work that needs you.</p></div>
+          <button class="btn btn-secondary">Ask Atlas to plan work</button>
+        </div>
+        <div class="filters">
+          <button class="f on">All</button><button class="f">Pending</button><button class="f">In progress</button><button class="f">Needs approval</button><button class="f">Done</button>
+        </div>
+        <div class="board">
+          <div class="col">
+            <div class="ch"><span class="micro">Backlog</span><span class="cnt">4 · priority order</span></div>
+            <div class="sub">What Atlas has planned next. Drag to reorder.</div>
+            <div class="tcard"><div class="r1"><span class="ord">#1</span><span class="chip">Draft</span></div><b>Write the pricing-page copy</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
+            <div class="tcard"><div class="r1"><span class="ord">#2</span><span class="chip">Draft</span></div><b>Set up Stripe test products</b><div class="meta"><span class="av">I</span><span>Iris</span></div></div>
+            <div class="tcard"><div class="r1"><span class="ord">#3</span><span class="chip">Draft</span></div><b>Draft launch email to waitlist</b><div class="meta"><span class="av">E</span><span>Ember</span></div></div>
+            <div class="tcard"><div class="r1"><span class="ord">#4</span><span class="chip">Draft</span></div><b>Weekly metrics baseline</b><div class="meta"><span class="av">S</span><span>Sage</span></div></div>
+          </div>
+          <div class="col">
+            <div class="ch"><span class="micro">In progress</span><span class="cnt">2</span></div>
+            <div class="sub">Live work. Open a task to watch its log.</div>
+            <div class="tcard openrow"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 12m</span></div><b>Pricing page build</b><div class="meta"><span class="av">R</span><span>Ridge · Engineering</span></div></div>
+            <div class="tcard"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 4m</span></div><b>Pricing research sweep</b><div class="meta"><span class="av">N</span><span>Nova · Research</span></div></div>
+            <div class="tcard"><div class="r1"><span class="chip approval"><span class="dot"></span>Paused — approval</span></div><b>Publish the pricing post</b><div class="meta"><span class="av">E</span><span>Ember · waiting on you</span></div></div>
+          </div>
+          <div class="col">
+            <div class="ch"><span class="micro">Done</span><span class="cnt">1 today</span></div>
+            <div class="sub">Finished work, newest first. Nothing is deleted.</div>
+            <div class="tcard"><div class="r1"><span class="chip done"><span class="dot"></span>Done · 09:41</span></div><b>Competitor page screenshots</b><div class="meta"><span class="av">I</span><span>Iris · 18 Cr</span><a class="btn btn-tertiary btn-sm" style="margin-left:auto">Report</a></div></div>
+          </div>
+
+          <div class="taskdetail">
+            <h3>Pricing page build</h3>
+            <div class="meta">Ridge · Engineering · from goal “Announce the new pricing page” · started 09:32 · 36 Cr spent</div>
+            <h4>Brief</h4>
+            <p style="font-size:13px;color:var(--body)">Build the public pricing page from the approved plan: three tiers, annual toggle, FAQ. Match the site design system. Definition of done: page renders, links verified, Lighthouse ≥ 90.</p>
+            <h4>Live log</h4>
+            <div class="logpane">
+<span class="t">[09:38:11]</span> <span class="ty">TOOL</span>   — file.read  components/pricing/*.tsx
+<span class="t">[09:39:02]</span> <span class="ty">TOOL</span>   — browser.open  localhost:3000/pricing
+<span class="t">[09:40:24]</span> <span class="ok">OK</span>     — TierCards rendered, annual toggle works
+<span class="t">[09:41:56]</span> <span class="ty">TOOL</span>   — test.run  pricing.spec.ts (14 checks)
+<span class="t">[09:42:30]</span> <span class="ok">VERIFIED</span> — all checks passed<span class="lm"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= EMPLOYEE DRAWER ================= -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer" aria-label="Employee details">
+  <button class="iconbtn close" data-close="1">✕</button>
+  <div class="dr-head">
+    <div class="av">N</div>
+    <div><h2>Nova</h2><div class="role">Market Researcher · Research department</div></div>
+    <span class="chip running" style="margin-left:auto"><span class="dot"></span>Working</span>
+  </div>
+  <div class="dr-acts">
+    <button class="btn btn-secondary btn-sm">Rename</button>
+    <button class="btn btn-secondary btn-sm">Pause</button>
+    <button class="btn btn-danger btn-sm">Retire</button>
+    <button class="btn btn-secondary btn-sm" data-openmodal="1" style="margin-left:auto">Model: Auto ▾</button>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head"><span class="micro">Current task</span><a href="#">Open →</a></div>
+    <b style="font-size:13.5px;color:var(--white)">Pricing research sweep</b>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">Started 09:40 · 4m elapsed · 6 Cr so far</div>
+  </div>
+
+  <div class="micro" style="margin-bottom:8px">Authority</div>
+  <div class="authzones" style="margin-bottom:18px">
+    <div class="zone may"><div class="zh"><span class="dot"></span>May do</div><ul>
+      <li>Research markets and competitors <span class="m">· web, datasets</span></li>
+      <li>Create and complete assigned tasks</li>
+      <li>Read company memory and files</li>
+    </ul></div>
+    <div class="zone spend"><div class="zh"><span class="dot"></span>Spend cap</div><ul>
+      <li>Per action <span class="v" style="margin-left:auto">50 Cr</span></li>
+      <li>Per day <span class="v" style="margin-left:auto">500 Cr</span></li>
+      <li>This week <span class="v" style="margin-left:auto">412 / 3,500 Cr</span></li>
+    </ul></div>
+    <div class="zone gate"><div class="zh"><span class="dot"></span>Needs approval</div><ul>
+      <li>Any spend above 50 Cr in one action</li>
+      <li>Purchasing external data or reports</li>
+    </ul></div>
+    <div class="zone forb"><div class="zh"><span class="dot"></span>Forbidden</div><ul>
+      <li>Publishing anything externally</li>
+      <li>Modifying production systems</li>
+    </ul></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head"><span class="micro">Abilities</span></div>
+    <div class="setrow"><span>Web research</span><span class="toggle on"></span></div>
+    <div class="setrow"><span>Data analysis</span><span class="toggle on"></span></div>
+    <div class="setrow"><span>File access</span><span class="toggle on"></span></div>
+    <div class="setrow"><span>Code execution</span><span class="toggle"></span></div>
+    <div class="setrow"><span>External communication</span><span class="toggle"></span></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head"><span class="micro">Recent work</span><a href="#">All tasks →</a></div>
+    <div class="rwork"><span class="chip done"><span class="dot"></span>Done</span><span>Competitor pricing matrix</span><span class="cr">64 Cr · 1h 10m</span></div>
+    <div class="rwork"><span class="chip done"><span class="dot"></span>Done</span><span>Market sizing memo</span><span class="cr">41 Cr · 48m</span></div>
+    <div class="rwork"><span class="chip approval"><span class="dot"></span>Gate</span><span>Buy industry report ($29)</span><span class="cr">awaiting you</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="micro">What Nova remembers</span><a href="#">Memory →</a></div>
+    <div class="mem">“Founder wants competitor pricing weekly, rounded to USD.”<div class="src">decision · Sep 24 · recalled 6 times</div></div>
+    <div class="mem">“Stripe, Paddle and Lemlist are the closest pricing references.”<div class="src">learned · Sep 29 · recalled 2 times</div></div>
+  </div>
+</aside>
+
+<!-- ================= DEFAULT MODEL MODAL ================= -->
+<div class="modal" id="modal" role="dialog" aria-label="Choose default model">
+  <div class="box">
+    <h2>Default model</h2>
+    <div class="sub">Used when a task doesn't pin one. Atlas picks per task when set to Auto — by complexity, cost and context.</div>
+    <div class="hier">Resolution order: <b>Company</b> → Department → Employee → Task. Employee and task overrides win.</div>
+    <div class="seg"><button class="on">Our picks</button><button>Smartest</button><button>Cheapest</button><button>All</button></div>
+
+    <div class="mrow sel">
+      <div><div class="nm">Auto</div><div class="pv">ORQ8 chooses per task</div></div>
+      <span class="tag" style="margin-left:auto">Recommended</span>
+      <span style="color:var(--lime);font-weight:700">✓</span>
+    </div>
+    <div class="mrow">
+      <div><div class="nm">GLM 5.3 Flash</div><div class="pv">Z.ai · fast general work</div></div>
+      <div class="dots"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+      <div class="cost">~$0.10/M</div>
+    </div>
+    <div class="mrow">
+      <div><div class="nm">DeepSeek V4.1</div><div class="pv">DeepSeek · strong reasoning per $</div></div>
+      <div class="dots"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i></div>
+      <div class="cost">~$0.27/M</div>
+    </div>
+    <div class="mrow">
+      <div><div class="nm">Claude Sonnet 4.6</div><div class="pv">Anthropic · best for code & long docs</div></div>
+      <div class="dots"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></div>
+      <div class="cost">~$3.00/M</div>
+    </div>
+    <div class="mrow">
+      <div><div class="nm">GPT-5 Mini</div><div class="pv">OpenAI · cheap summaries & triage</div></div>
+      <div class="dots"><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div>
+      <div class="cost">~$0.05/M</div>
+    </div>
+
+    <div class="acts">
+      <button class="btn btn-secondary" data-close="1">Cancel</button>
+      <button class="btn btn-primary" data-close="1">Set as default</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // screen switching
+  document.querySelectorAll("[data-go]").forEach(el=>{
+    el.addEventListener("click",()=>{
+      const id=el.getAttribute("data-go");
+      document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+      document.getElementById("screen-"+id).classList.add("on");
+      document.querySelectorAll(".navitem").forEach(n=>n.classList.remove("on"));
+      document.querySelector('.navitem[data-go="'+id+'"]')?.classList.add("on");
+      document.getElementById("crumb-here").textContent=id==="dashboard"?"Dashboard":"Tasks";
+      window.scrollTo({top:0});
+    });
+  });
+  // drawer + modal
+  const overlay=document.getElementById("overlay"),drawer=document.getElementById("drawer"),modal=document.getElementById("modal");
+  function openDrawer(){drawer.classList.add("on");overlay.classList.add("on")}
+  function openModal(){modal.classList.add("on")}
+  function closeAll(){drawer.classList.remove("on");modal.classList.remove("on");overlay.classList.remove("on")}
+  document.querySelectorAll("[data-drawer]").forEach(el=>el.addEventListener("click",openDrawer));
+  document.querySelectorAll("[data-openmodal]").forEach(el=>el.addEventListener("click",e=>{e.stopPropagation();openModal()}));
+  document.querySelectorAll("[data-close]").forEach(el=>el.addEventListener("click",closeAll));
+  overlay.addEventListener("click",closeAll);
+  modal.addEventListener("click",e=>{if(e.target===modal)closeAll()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAll()});
+  // toggles + filter chips + model rows (mock interactions)
+  document.querySelectorAll(".toggle").forEach(t=>t.addEventListener("click",()=>t.classList.toggle("on")));
+  document.querySelectorAll(".filters .f").forEach(f=>f.addEventListener("click",()=>{document.querySelectorAll(".filters .f").forEach(x=>x.classList.remove("on"));f.classList.add("on")}));
+  document.querySelectorAll(".mrow").forEach(r=>r.addEventListener("click",()=>{document.querySelectorAll(".mrow").forEach(x=>x.classList.remove("sel"));r.classList.add("sel")}));
+</script>
+</body>
+</html>
