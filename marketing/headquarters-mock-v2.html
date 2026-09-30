@@ -159,7 +159,8 @@
   .sdot.appr{background:var(--orange)}
   .sdot.idle{background:var(--line-strong)}
   .sdot.block{background:var(--red)}
-  .term{margin-top:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px;overflow:hidden}
+  .term{margin-top:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px;overflow:hidden;position:relative}
+  .term::after{content:"";position:absolute;left:12px;right:12px;bottom:10px;height:26px;background:linear-gradient(transparent,var(--surface));pointer-events:none}
   .term pre{font:11.5px/1.8 "JetBrains Mono",ui-monospace,Consolas,monospace;color:var(--muted);max-height:118px;overflow:hidden}
   .term .t{color:#5B6675} .term .ty{color:var(--info)} .term .ty.ap{color:var(--orange)} .term .ty.ok{color:var(--lime)}
 
@@ -591,7 +592,7 @@
           <div class="stat"><span class="micro">Active goals</span><div class="v">2</div></div>
           <div class="stat" data-go="team"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
           <div class="stat"><span class="micro">Credits this week</span><div class="v num">1,420</div><div class="meter"><i style="width:38%"></i></div></div>
-          <div class="stat"><span class="micro">Company health</span><div class="v">82<span style="font-size:12px;color:var(--muted)"> / 100</span></div><div class="meter"><i style="width:82%"></i></div><div class="delta">▲ 3 this week</div></div>
+          <div class="stat"><span class="micro">Company health</span><div class="v" title="82 = 2/2 goals on track · 0 gates overdue · 1 budget in warn">82<span style="font-size:12px;color:var(--muted)"> / 100</span></div><div class="meter"><i style="width:82%"></i></div><div class="delta">▲ 3 this week · goals on track · no overdue gates</div></div>
         </div>
 
         <div class="dashgrid">
@@ -915,25 +916,25 @@
             <div class="oline"></div>
             <div class="orow">
               <div class="ogroup">
-                <div class="odept"><b>Research</b><span>2 employees · 615 Cr/wk</span></div>
+                <div class="odept" data-go="departments" style="cursor:pointer" title="Open Research"><b>Research</b><span>2 employees · 615 Cr/wk</span></div>
                 <div class="oline"></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">A</span><div><b>Ada</b><span>Analyst · Gate</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
               </div>
               <div class="ogroup">
-                <div class="odept"><b>Engineering</b><span>2 employees · 765 Cr/wk</span></div>
+                <div class="odept" data-go="departments" style="cursor:pointer" title="Open Engineering"><b>Engineering</b><span>2 employees · 765 Cr/wk</span></div>
                 <div class="oline"></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">I</span><div><b>Iris</b><span>Ops · Blocked</span></div><span class="sdot block" style="margin-left:auto"></span></div>
               </div>
               <div class="ogroup">
-                <div class="odept"><b>Communications</b><span>2 employees · 95 Cr/wk</span></div>
+                <div class="odept" data-go="departments" style="cursor:pointer" title="Open Communications"><b>Communications</b><span>2 employees · 95 Cr/wk</span></div>
                 <div class="oline"></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">E</span><div><b>Ember</b><span>Lead · Needs you</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">S</span><div><b>Sage</b><span>Analyst · Idle</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
               </div>
               <div class="ogroup">
-                <div class="odept"><b>Growth</b><span>1 employee · 0 Cr/wk</span></div>
+                <div class="odept" data-go="departments" style="cursor:pointer" title="Open Growth"><b>Growth</b><span>1 employee · 0 Cr/wk</span></div>
                 <div class="oline"></div>
                 <div class="onode oemp" data-drawer="1"><span class="av">M</span><div><b>Milo</b><span>Lead · Paused by budget</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
               </div>
@@ -1158,7 +1159,7 @@
       <section class="screen" id="screen-notifications">
         <div class="pagehead">
           <div><h1>Notifications</h1><p>Only real events reach this list. Read state is per founder account.</p></div>
-          <button class="btn btn-secondary markread">Mark all as read</button>
+          <button class="btn btn-secondary btn-sm" id="markAll">Mark all as read</button>
         </div>
         <div class="filters">
           <button class="f on">All</button><button class="f">Approvals</button><button class="f">Work</button><button class="f">Briefings</button><button class="f">System</button>
@@ -1507,6 +1508,8 @@
   document.querySelectorAll(".goalrow .goalhead").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("open")));
   // memory row selection
   document.querySelectorAll(".memrow").forEach(r=>r.addEventListener("click",()=>{document.querySelectorAll(".memrow").forEach(x=>x.classList.remove("sel"));r.classList.add("sel")}));
+  // mark all notifications read (mock)
+  document.getElementById("markAll")?.addEventListener("click",()=>{document.querySelectorAll(".notifrow.unread,.notifrow.gate").forEach(n=>n.classList.remove("unread","gate"))});
   // task detail open (mock)
   const tl=document.getElementById("tasklog");
   document.querySelector('[data-openlog="1"]')?.addEventListener("click",()=>{tl.style.display=tl.style.display==="none"?"block":"none"});
