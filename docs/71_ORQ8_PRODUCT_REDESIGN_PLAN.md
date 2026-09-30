@@ -499,12 +499,11 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## W. Revision 3 — founder feedback on mock v2 (open)
 
-> **Status: APPLIED — 5 founder items recorded and applied to mock v2
-> (2026-09-30).** The founder reviews `marketing/headquarters-mock-v2.html`
-> and lists changes (colors, wording, layout). Each item is recorded here as
-> it arrives, then applied to the mock **before** any remaining pages
-> (Constitution, Departments, Files, Notifications) are mocked with the
-> feedback baked in.
+> **Status: APPLIED — 9 founder items recorded and applied to mock v2
+> (2026-09-30; items 6–9 are the founder's Rev-4 pass).** The founder reviews
+> `marketing/headquarters-mock-v2.html` and lists changes (colors, wording,
+> layout). Each item is recorded here as it arrives, then applied to the mock
+> **before** implementation begins.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|
@@ -512,18 +511,25 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 | 2 | Dashboard (new Company Hub screen) | Between "2 approvals are holding work" and "Company now", founder wants a **Company Hub**: EA (Atlas) at the center, departments and agents around it; a working department shows as **connected to the EA**; clicking the EA shows its info; clicking any agent shows their details. | APPLIED |
 | 3 | Dashboard | Keep **"Company now"** too — it "shows more details about the company and also the agent under them." | APPLIED |
 | 4 | Company Hub | **Hired-on-creation rule:** employees/departments appear on the hub **only when the EA (Atlas) creates (hires) them** — hired status is live company state, never a placeholder. | SHOWN in mock (real gating lands with the agent-creation implementation the founder will specify) |
-| 5 | All | **Full-screen layout:** "work on things to be full screen and not cut up as it should be on the main" — content spans the window (no 1280px cap); verified zero horizontal overflow on all 15 screens at narrow and desktop widths. | APPLIED |
+| 5 | All | **Full-screen layout:** "work on things to be full screen and not cut up as it should be on the main" — content spans the window (no 1280px cap); verified zero horizontal overflow on all screens at narrow and desktop widths. | APPLIED |
+| 6 | All | **Company Hub REMOVED** — founder: "it is not looking good." Also **white theme REVERTED to dark** for now ("I prefer the dark now"); a **user-facing light/dark toggle** is wanted later, built during implementation. | APPLIED |
+| 7 | Dashboard | **Org chart embedded on the dashboard** between the "2 approvals are holding work" banner and the "Company now" section (founder loves the org chart). Compact variant with an "Open full org chart →" link; full page remains in People. | APPLIED |
+| 8 | Dashboard / Company now | **Four departments** — Research, Engineering, Communications, **Growth (new; fixes Milo's role)**. Grid wraps to the next line on narrow screens and the page scrolls. | APPLIED |
+| 9 | Constitution, Departments, Files, Notifications | **Remaining pages mocked** with R3/R4 feedback baked in: Constitution (6 articles, EA-bound note), Departments (4 dept cards + Atlas-proposes-new), Files (per-department folders + dropzone), Notifications (event list with gates on top). | APPLIED |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit
 + push. When the founder confirms the list is complete, flip this section's
 status to **APPLIED** and note the commit.
 
-**Note for later phases:** the white/light theme above is a founder decision
-for the product and supersedes the dark-palette clauses in §V (brief) and
-§F wherever they conflict. The Company Hub becomes a first-class screen in
-§E/§K planning. When the founder sends the agent/EA-creation details, the
-hired-on-creation gating in item 4 gets its real backend wiring.
+**Note for later phases:** items 1–5 were superseded on the same day by the
+founder's Rev-4 pass (items 6–9): dark theme stays (white returns later as a
+user-facing toggle, built during implementation — not before), the Company
+Hub is dropped in favor of the org chart embedded on the dashboard, and the
+department model is four departments with Growth carved out for Milo. All
+14 original screens plus Constitution, Departments, Files and Notifications
+are now mocked — every nav item renders. **The design phase is complete;
+the next founder decision is approving the implementation plan (§S).**
 
 ---
 
