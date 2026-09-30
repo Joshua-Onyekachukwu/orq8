@@ -45,8 +45,10 @@
   .btn-secondary{border-color:var(--line-strong);color:var(--body)}
   .btn-secondary:hover{background:var(--hover)}
   .btn-tertiary{color:var(--body);padding:0 6px}
-  .btn-danger{border-color:rgba(248,113,113,.45);color:var(--red)}
-  .btn-danger:hover{background:var(--red-soft)}
+  .btn-danger{background:transparent;border:1px solid rgba(224,122,122,.5);color:var(--red)}
+  .btn-danger:hover{background:rgba(224,122,122,.08)}
+  .btn-white{background:transparent;border:1px solid var(--line-strong);color:var(--white)}
+  .btn-white:hover{background:rgba(255,255,255,.06);border-color:var(--white)}
   .btn-sm{height:30px;padding:0 10px;font-size:12px}
 
   /* ---------- shell ---------- */
@@ -64,7 +66,7 @@
   .navgroup .micro{padding:10px 8px 6px;display:block}
   .navitem{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:var(--r-sm);font-size:13px;color:var(--muted);text-align:left;position:relative}
   .navitem:hover{background:var(--hover);color:var(--body)}
-  .navitem.on{color:var(--lime);background:var(--lime-soft)}
+  .navitem.on{color:var(--body);background:var(--hover)}
   .navitem.on::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--lime);border-radius:2px}
   .navitem .ico{width:16px;text-align:center;font-style:normal;opacity:.9}
   .navitem .n{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 6px}
@@ -92,6 +94,8 @@
   .hello h1{font-size:22px;font-weight:600;color:var(--white)}
   .hello .date{font-size:12.5px;color:var(--muted);margin-top:2px}
   .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+  .stats>*{min-width:0}
+  .stats4{grid-template-columns:repeat(4,1fr)}
   .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer}
   .stat:hover{background:var(--hover)}
   .stat .micro{font-size:10px}
@@ -99,14 +103,14 @@
   .stat .v.warn{color:var(--orange)}
   .stat .meter{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
   .stat .meter i{display:block;height:100%;background:var(--lime);border-radius:99px}
-  .stat .delta{font-size:11px;color:var(--lime);margin-top:4px}
+  .stat .delta{font-size:11px;color:var(--muted);margin-top:4px}
   .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
   .dashgrid>*,.memgrid>*,.revwrap>*{min-width:0}
   .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(233,151,79,.35);background:var(--orange-soft);margin-bottom:14px;flex-wrap:wrap}
   .banner b{color:var(--white);font-size:13.5px}
   .banner p{font-size:12px;color:var(--muted)}
   .banner .btn{margin-left:auto}
-  .banner.quiet{border-color:rgba(182,240,156,.35);background:var(--lime-soft)}
+  .banner.quiet{border-color:var(--line-strong);background:var(--hover)}
   .banner.quiet .bdot{background:var(--lime)}
   .bdot{width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0}
   .canvas{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 8px;position:relative;overflow:hidden}
@@ -165,8 +169,8 @@
   .todo .ix{width:18px;height:18px;border-radius:5px;background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
   .todo b{display:block;font-size:13px;font-weight:600;color:var(--white)}
   .todo span{font-size:12px;color:var(--muted)}
-  .wk .big{display:flex;gap:14px;margin-bottom:10px}
-  .wk .big div{flex:1}
+  .wk .big{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+  .wk .big div{flex:1;min-width:64px}
   .wk .big .v{font-size:18px;font-weight:600;color:var(--white);font-variant-numeric:tabular-nums}
   .wk .big .micro{font-size:10px}
 
@@ -175,7 +179,7 @@
   .dock .dh{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line)}
   .dock .dh .ea{width:26px;height:26px;border-radius:50%;background:var(--lime-soft);border:1px solid var(--lime-dim);display:grid;place-items:center;color:var(--lime);font-size:12px}
   .dock .dh b{font-size:13.5px;color:var(--white)}
-  .dock .dh .st{font-size:11px;color:var(--lime)}
+  .dock .dh .st{font-size:11px;color:var(--muted)}
   .dock .dh .mx{margin-left:auto;font-size:11px;color:var(--muted)}
   .dock .cards{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
   .ev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;background:var(--bg)}
@@ -184,12 +188,21 @@
   .ev .ty a{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--lime)}
   .ev .meta{font-size:11.5px;color:var(--muted);margin-top:3px;word-break:break-all}
   .ev .meta code{font:11px "JetBrains Mono",monospace;color:var(--info);background:var(--info-soft);padding:1px 5px;border-radius:4px}
-  .ev.msg{background:transparent;border:0;padding:2px}
-  .ev.msg .bub{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--body)}
+  .ev.msg{background:transparent;border:0;padding:2px 0}
+  .ev.msg .bub{max-width:86%;border:1px solid var(--line);border-radius:12px;padding:9px 13px;font-size:13px;color:var(--body)}
+  .ev.msg .bub em{font-style:normal;color:var(--muted)}
+  .ev.msg .bub.ea{background:var(--hover)}
+  .ev.msg.user{display:flex;justify-content:flex-end}
+  .ev.msg.user .bub{background:var(--hover);border-color:var(--line-strong)}
+  .ev .ctx{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .ev .ctx button{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px}
+  .ev .ctx button:hover{color:var(--body);border-color:var(--line-strong)}
+  .dempty{border:1px dashed var(--line-strong);border-radius:var(--r-sm);padding:18px 14px;text-align:center;font-size:12px;color:var(--muted);margin-top:4px}
+  .dfoot{font-size:11px;color:var(--muted);text-align:center;padding:8px 0 2px}
   .ev.gate{border-color:rgba(233,151,79,.32)}
   .ev.gate.compact{padding:9px 12px}
   .nowstrip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--body);background:var(--lime-soft);flex-shrink:0}
-  .nowstrip b{color:var(--lime)}
+  .nowstrip b{color:var(--body)}
   .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .chips button{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
   .chips button:hover{color:var(--body);border-color:var(--line-strong)}
@@ -218,15 +231,18 @@
   .ev.gate .acts{display:flex;gap:8px;margin-top:10px}
   .ev.gate .acts .btn{flex:1;justify-content:center}
   .ev.active{border-color:rgba(182,240,156,.4);background:var(--lime-soft)}
-  .ev.active .who{font-size:12.5px;font-weight:700;color:var(--lime)}
+  .ev.active .who{font-size:12.5px;font-weight:700;color:var(--body)}
   .ev.active .think{font-size:12px;color:var(--muted);margin-top:4px}
   .ev.active .think .dots::after{content:"···";animation:pulse 1.2s steps(3) infinite}
+  .ev .acts .btn{flex:1;justify-content:center}
   .composer{border-top:1px solid var(--line);padding:10px 12px}
   .composer .box{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:10px 12px}
-  .composer .hint{color:#5B6675;font-size:13px}
-  .composer .row{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .composer textarea{width:100%;background:transparent;border:0;resize:none;color:var(--body);font:inherit;font-size:13px;outline:none;min-height:40px}
+  .composer textarea::placeholder{color:#5B6675}
+  .composer .box:focus-within{border-color:var(--line-strong)}
+  .composer .row{display:flex;align-items:center;gap:8px;margin-top:6px}
   .composer .model{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
-  .composer .model i{width:10px;height:10px;border-radius:50%;background:var(--lime);font-style:normal}
+  .composer .model i{width:8px;height:8px;border-radius:50%;background:var(--muted);font-style:normal}
   .composer .send{margin-left:auto;width:30px;height:30px;border-radius:var(--r-sm);background:var(--orange);display:grid;place-items:center;color:#231206;font-weight:700}
 
   /* ---------- kanban (tasks) ---------- */
@@ -235,7 +251,7 @@
   .pagehead p{font-size:12.5px;color:var(--muted);margin-top:2px}
   .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .filters .f{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
-  .filters .f.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .filters .f.on{color:var(--body);border-color:var(--line-strong);background:var(--hover)}
   .board{display:grid;grid-template-columns:1fr 1fr 1fr 340px;gap:14px;align-items:start}
   .col{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
   .col .ch{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -308,7 +324,7 @@
   .seg button.on{background:var(--hover);color:var(--lime)}
   .mrow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px;cursor:pointer}
   .mrow:hover{background:var(--hover)}
-  .mrow.sel{border-color:var(--lime);background:var(--lime-soft)}
+  .mrow.sel{border-color:var(--line-strong);background:var(--hover)}
   .mrow .nm{font-size:13px;font-weight:600;color:var(--white)}
   .mrow .pv{font-size:11px;color:var(--muted)}
   .mrow .dots{margin-left:auto;display:flex;gap:3px}
@@ -324,7 +340,7 @@
   .tabwrap .subpane{display:none}.tabwrap .subpane.on{display:block}
   .subtabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
   .subtabs button{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 14px;background:var(--surface)}
-  .subtabs button.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .subtabs button.on{color:var(--body);border-color:var(--line-strong);background:var(--hover)}
   .table{width:100%;border-collapse:collapse;font-size:12.5px}
   .table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
   .table td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--body);font-variant-numeric:tabular-nums}
@@ -345,13 +361,13 @@
   .revwrap{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
   .rev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--surface)}
   .rev:hover{background:var(--hover)}
-  .rev.sel{border-color:var(--lime-dim);background:var(--lime-soft)}
+  .rev.sel{border-color:var(--line-strong);background:var(--hover)}
   .rev .rv{font-size:12.5px;font-weight:600;color:var(--white)}
   .rev .rd{font-size:11px;color:var(--muted)}
   .rev .rs{font-size:11.5px;color:var(--muted);margin-top:2px}
   .plandoc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 30px;max-width:760px}
   .plandoc h1{font-size:21px;color:var(--white);font-weight:600}
-  .plandoc h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--lime);margin:20px 0 8px}
+  .plandoc h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
   .plandoc p,.plandoc li{font-size:13.5px;color:var(--body);line-height:1.7}
   .plandoc ul{padding-left:18px}
   .diffbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
@@ -372,7 +388,7 @@
   .goalrow.open .goalbody{display:block}
   .crumbchips{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .crumbchips span{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px}
-  .crumbchips span.here{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
+  .crumbchips span.here{color:var(--body);border-color:var(--line-strong);background:var(--hover)}
   .crumbchips i{color:#5B6675;font-style:normal;font-size:10px}
   .stepchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;color:var(--body);margin:0 6px 6px 0;background:var(--bg)}
 
@@ -387,7 +403,7 @@
   .memgrid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
   .memrow{padding:11px 14px;border-bottom:1px dashed var(--line);cursor:pointer}
   .memrow:hover{background:var(--hover)}
-  .memrow.sel{background:var(--lime-soft)}
+  .memrow.sel{background:var(--hover)}
   .memrow .mt{font-size:13px;color:var(--body);margin-top:4px}
   .memrow .ms{font-size:11px;color:var(--muted);margin-top:3px}
 
@@ -470,10 +486,40 @@
   .constrow .csrc{margin-top:8px;font-size:11.5px;color:var(--muted)}
   .constrow .csrc b{color:var(--info);font-weight:500}
 
-  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} .teamgrid{grid-template-columns:1fr 1fr} .intgrid{grid-template-columns:1fr} .memgrid{grid-template-columns:1fr} .revwrap{grid-template-columns:1fr} .deptgrid{grid-template-columns:1fr} .filegrid{grid-template-columns:1fr} }
+  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} .taskdetail{position:static;max-height:520px;overflow:visible} .teamgrid{grid-template-columns:1fr 1fr} .intgrid{grid-template-columns:1fr} .memgrid{grid-template-columns:1fr} .revwrap{grid-template-columns:1fr} .deptgrid{grid-template-columns:1fr} .filegrid{grid-template-columns:1fr} }
   @media (max-width:640px){ .teamgrid{grid-template-columns:1fr} .orow{flex-direction:column;align-items:center} details.arow summary{grid-template-columns:86px 1fr auto} details.arow summary span:nth-child(3),details.arow summary span:nth-child(4){display:none} .budgetrow{grid-template-columns:1fr!important} .orgmap{grid-template-columns:1fr} .canvas .tools{position:static;justify-content:flex-end;flex-wrap:wrap} .banner .btn{margin-left:0} .hello,.pagehead{flex-direction:column;align-items:flex-start;gap:10px} }
 
-  @media (max-width:1024px){ .app{grid-template-columns:64px 1fr} .side .logo b,.side .orgswitch,.side .navitem span,.side .navgroup .micro,.side .sidefoot .who,.side .sidefoot .plan{display:none} .navitem{justify-content:center} .navitem .n{display:none} }
+  /* ---------- narrow screens: sidebar collapses to icon rail (1004px), mobile FAB (640px) ---------- */
+  .fab{position:fixed;right:16px;bottom:16px;width:52px;height:52px;border-radius:50%;background:var(--orange);color:#231206;font-size:20px;display:grid;place-items:center;z-index:45;box-shadow:0 6px 18px rgba(0,0,0,.45);display:none}
+  .fabpip{position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:var(--white);border:2px solid var(--orange)}
+  @media (max-width:1004px){
+    .app{grid-template-columns:64px 1fr}
+    .side .logo b,.side .orgswitch,.side .navitem span:not(.ico),.side .navgroup .micro,.side .sidefoot .who,.side .sidefoot .plan{display:none}
+    .navitem{justify-content:center}
+    .navitem.on::before{left:-13px}
+    .navitem .n{display:none}
+  }
+  @media (max-width:640px){
+    .fab{display:grid}
+    .app{grid-template-columns:56px 1fr}
+    .side{padding:14px 8px}
+    .content{padding:16px 14px}
+    .search{min-width:0;flex:1}
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stats4{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .orgmap{grid-template-columns:1fr}
+    .teamgrid{grid-template-columns:1fr}
+    .hello,.pagehead{flex-direction:column;align-items:flex-start;gap:10px}
+    .canvas .tools{position:static;justify-content:flex-end;flex-wrap:wrap}
+    .banner .btn{margin-left:0}
+    .filters{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
+    .subtabs{overflow-x:auto;flex-wrap:nowrap}
+    .ev.gate .acts .btn,.ev .acts .btn{flex:1 1 auto}
+    .budgetrow{grid-template-columns:1fr!important}
+    details.arow summary{grid-template-columns:86px 1fr auto}
+    details.arow summary span:nth-child(3),details.arow summary span:nth-child(4){display:none}
+    .orow{flex-direction:column;align-items:center}
+  }
 </style>
 </head>
 <body>
@@ -540,7 +586,7 @@
           <button class="btn btn-primary" id="giveDir">＋ Give direction</button>
         </div>
 
-        <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stats stats4">
           <div class="stat"><span class="micro">Active goals</span><div class="v">2</div></div>
           <div class="stat" data-go="team"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
           <div class="stat"><span class="micro">Credits this week</span><div class="v num">1,420</div><div class="meter"><i style="width:38%"></i></div></div>
@@ -601,23 +647,32 @@
             <div class="dh"><span class="ea">◈</span><div><b>Atlas</b><div class="st">Executive Agent · active</div></div><a class="mx" href="#">Expand</a></div>
             <div class="nowstrip"><span class="sdot run"></span><span><b>Ridge</b> — Pricing page build · 12m</span><a href="#" class="btn btn-tertiary btn-sm" style="margin-left:auto">Open task</a></div>
             <div class="cards">
-              <div class="ev msg"><div class="bub">Morning. Two items need you before the pricing launch can continue — everything else is moving.</div></div>
+              <div class="ev msg"><div class="bub ea">Morning. Two items need you before the pricing launch can continue — everything else is moving.</div><div class="ctx"><button>Why?</button><button>What's holding them?</button></div></div>
+              <div class="ev msg user"><div class="bub">Approve the publish — but hold the spend-cap raise until Friday.</div></div>
               <div class="ev gate compact">
                 <div class="who">Gate #41 · Ember · 25 Cr · expires in 22h</div>
                 <div class="what">Publish the pricing post</div>
-                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+                <div class="ctx"><button>Full context</button><button>Reversible for 1h after</button></div>
+                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-white btn-sm">Approve</button></div>
               </div>
               <div class="ev gate compact">
                 <div class="who">Gate #42 · Nova · +600 Cr worst case · no timeout</div>
                 <div class="what">Raise Ada's daily spend cap</div>
-                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+                <div class="ctx"><button>Full context</button><button>Cap auto-resets Friday</button></div>
+                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-white btn-sm">Approve</button></div>
               </div>
               <div class="ev"><div class="ty"><span class="ic">▤</span> Plan updated <span style="color:var(--lime)">(rev 4)</span><a href="#">View diff</a></div><div class="meta">Pricing launch moved to Friday; research moved ahead of copy.</div></div>
               <div class="ev"><div class="ty"><span class="ic">✓</span> Task completed<a href="#">Report</a></div><div class="meta">Competitor page screenshots — Iris · 18 Cr · 12m</div></div>
             </div>
+            <div class="ev">
+              <div class="ty"><span class="ic">▤</span> Proposal — plan rev 6<a href="#">View diff</a></div>
+              <div class="meta">Atlas can raise the Growth weekly budget 800 → 1,400 Cr to unblock Milo, or keep the current direction.</div>
+              <div class="acts"><button class="btn btn-danger btn-sm">Keep rev 4</button><button class="btn btn-white btn-sm">Apply rev 6</button></div>
+            </div>
+            <div class="dfoot">3 events this hour · nothing else needs you</div>
             <div class="composer">
               <div class="box">
-                <input id="composerInput" type="text" placeholder="Give direction, or type / for commands" style="border:0;background:transparent;width:100%;padding:0">
+                <textarea id="composerInput" rows="2" placeholder="Message Atlas — give direction, ask anything, or type / for commands"></textarea>
                 <div class="chips"><button data-cmd="/hire ">/hire</button><button data-cmd="/budget ">/budget</button><button data-cmd="/pause ">/pause</button><button class="hirebtn" data-hire="1">＋ Ask Atlas to hire</button></div>
                 <div class="row"><span class="model" data-openmodal="1"><i></i> Auto ▾</span><button class="send">↑</button></div>
               </div>
@@ -744,7 +799,7 @@
               <b style="font-size:14.5px;color:var(--white)">Publish the pricing post</b>
               <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Ember (Communications lead) wants to publish the pricing announcement to the company blog and newsletter. Authority summary: may draft, may not publish externally.</div>
               <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums;flex-wrap:wrap"><span>Cost: <b style="color:var(--body)">25 Cr</b></span><span>Serves: goal “Announce the new pricing page”</span><span>If approved: post goes live, newsletter queued</span></div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-white btn-sm">Approve</button></div>
             </div>
             <div class="approvalcard">
               <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
@@ -754,7 +809,7 @@
               <b style="font-size:14.5px;color:var(--white)">Raise Ada's daily spend cap</b>
               <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Nova (Research lead) requests Ada's cap 500 → 800 Cr/day for two days to finish the pricing sweep. If approved: cap resets automatically on Friday.</div>
               <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums;flex-wrap:wrap"><span>Worst case: <b style="color:var(--body)">+600 Cr</b></span><span>Serves: task “Pricing research sweep”</span></div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-white btn-sm">Approve</button></div>
             </div>
           </div>
           <div class="subpane" data-pane="decided">
@@ -948,7 +1003,7 @@
         <div class="pagehead">
           <div><h1>Finance</h1><p>Real money only. Figures come from the connected payment provider.</p></div>
         </div>
-        <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stats stats4">
           <div class="stat"><span class="micro">Balance</span><div class="v num">$0.00</div></div>
           <div class="stat"><span class="micro">MRR</span><div class="v num">$0.00</div></div>
           <div class="stat"><span class="micro">This month in</span><div class="v num">$0.00</div></div>
@@ -1316,6 +1371,9 @@
   </div>
 </aside>
 
+<!-- mobile Atlas FAB -->
+<button class="fab" id="fab" title="Atlas — 2 need you">◈<span class="fabpip"></span></button>
+
 <!-- ================= ATLAS HIRE PROPOSAL (gate) ================= -->
 <div class="modal" id="hiremodal" role="dialog" aria-label="Atlas proposes a hire">
   <div class="box" style="width:640px">
@@ -1456,6 +1514,12 @@
   document.getElementById("review-gates")?.addEventListener("click",()=>{
     const g=document.querySelector(".dock .ev.gate");
     if(g){g.scrollIntoView({behavior:"smooth",block:"center"});g.classList.add("flash");setTimeout(()=>g.classList.remove("flash"),2000)}
+  });
+  // mobile: Atlas FAB jumps to the dock and flags it
+  document.getElementById("fab")?.addEventListener("click",()=>{
+    document.querySelector('.navitem[data-go="dashboard"]')?.click();
+    const d=document.querySelector(".dock .dh");
+    if(d){d.scrollIntoView({behavior:"smooth",block:"center"});const dock=d.closest(".dock");dock.classList.add("flash");setTimeout(()=>dock.classList.remove("flash"),2000)}
   });
   document.querySelectorAll(".chips button").forEach(c=>c.addEventListener("click",()=>{const i=document.getElementById("composerInput");if(i){i.value=c.getAttribute("data-cmd");i.focus()}}));
   // hire proposal modal (mock)

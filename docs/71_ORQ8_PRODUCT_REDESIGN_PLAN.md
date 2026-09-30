@@ -499,11 +499,16 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## W. Revision 3 — founder feedback on mock v2 (open)
 
-> **Status: APPLIED — 16 items recorded and applied to mock v2
+> **Status: APPLIED — 20 items recorded and applied to mock v2
 > (2026-09-30; 6–9 founder Rev-4 pass, 10–13 UX pass, 14–16 color quieting
-> + Tasks + hire flow).** The founder reviews `marketing/headquarters-mock-v2.html`
-> and lists changes (colors, wording, layout). Each item is recorded here as
-> it arrives, then applied to the mock before implementation begins.
+> + Tasks + hire flow, 17–20 chat redesign + ghost decisions + mobile).**
+> The founder reviews `marketing/headquarters-mock-v2.html` and lists
+> changes (colors, wording, layout). Each item is recorded here as it
+> arrives, then applied to the mock before implementation begins.
+>
+> **Reserved:** the founder will send the EA behavioral guide (how Atlas
+> should work; open to full-autonomy suggestions) — chat behaviors beyond
+> this surface stay unimplemented until it arrives.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|
@@ -523,6 +528,10 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 | 14 | All | **Color quieting (founder: "sharp colors give AI slop"):** hues kept, saturation cut ~30% (lime `#B6F09C`→`#A6CE95`, orange `#F59E4C`→`#E9974F`, red `#F87171`→`#E07A7A`, info `#7DD3FC`→`#8FB8D8`); colored washes reduced to 7% alpha; chips/links/leads/labels go neutral with color reserved for state dots and CTAs. Premium = muted neutrals, color only where it carries meaning. | APPLIED |
 | 15 | Tasks | **UX pass:** task detail is a **sticky 4th board column** (always visible, opens the open task by default) with **Live log / Brief & context** tabs; backlog cards get **grip handles**; per-agent employee drawer wired to every card; unblock actions on blocked/paused rows. | APPLIED |
 | 16 | Hire flow | **Atlas hire-proposal modal** (from `/hire` chip + Team's Hire button): Atlas proposes name/department/role/model + the four authority bands with editable caps; **Approve hire / Reject proposal / Save draft**; approving creates the employee immediately (org chart + Team) and writes the hire audit event. This is the employee-creation screen for the four-department model; real flow lands with the founder's agent-creation spec. | SHOWN in mock |
+| 17 | All | **Final color quieting:** active/selected states (nav, filters, tabs, list selections) go neutral raised gray — no colored fills anywhere except state dots and CTAs; deltas, plan-doc headings, EA status text all neutral. | APPLIED |
+| 18 | Decision buttons | **Ghost decision pair:** Reject = transparent red-outline button; Approve = **transparent white-outline button** (white text, brightens on hover) — used for dock gates, plan proposals, and every Approve/Reject pair incl. the hire modal. Orange is now reserved for primary CTAs only. | APPLIED |
+| 19 | EA chat | **Chat redesign:** real conversation bubbles (EA left on raised surface, founder right-aligned), **follow-up question chips** under EA messages ("Why?", "What's holding them?"), **inline context chips** on gate cards ("Full context", effect hints), a **plan-rev proposal card** with Keep rev 4 / Apply rev 6, a feed summary footer ("3 events this hour · nothing else needs you"), and the composer upgraded to an auto-growing **textarea** with Enter-to-send planned. Founder will supply the EA behavioral guide later — chat surface is designed, autonomy suggestions deferred until it arrives. | APPLIED |
+| 20 | Mobile (≤640px) | **Narrow-screen design:** sidebar collapses to 56px icon rail at ≤1004px (labels hidden); below 640px content full-bleeds, stats 2×2, filters/tabs scroll horizontally, and the EA dock is reachable via a **floating Atlas FAB** (bottom-right, pip = pending items) that jumps to the dock and flags it; task detail returns to in-flow below the board. Verified zero overflow on all 18 screens at 375px and 768px. | APPLIED |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit
