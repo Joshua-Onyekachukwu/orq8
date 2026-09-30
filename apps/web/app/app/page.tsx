@@ -4,12 +4,8 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Bot,
-  CheckCircle2,
   ClipboardCheck,
   Command,
-  Target,
-  TrendingUp,
-  Wallet,
   Zap,
 } from "lucide-react";
 import { CommandBar } from "../../components/command-bar";
@@ -26,6 +22,7 @@ import { EAOpenButton } from "../../components/dashboard/ea-open-button";
 import type { FounderStage } from "../../components/executive-agent-context";
 import { fetchWithAuth, formatCost, formatDate, formatTimeAgo } from "../../lib/api";
 import { EA_NAME } from "../../lib/ea";
+import { computeScore } from "../../components/dashboard/HealthScore";
 
 export const metadata = { title: "Dashboard" };
 
@@ -193,38 +190,41 @@ const fetchDecisions = () =>
 const fetchActiveGoals = () =>
   fetchWithAuth<GoalRow[]>("/v1/goals?status=active&limit=5", FRESH).catch(() => null);
 
+/*
+ * Phase 2 (docs/71): the dashboard follows the approved mock composition —
+ * a slim 4-stat strip (approvals live in the banner, not as a stat card),
+ * the slim approvals banner that anchors to the EA dock's gate rows, then
+ * "What's happening now" and the section set. Every value stays
+ * server-derived from the same real endpoints as before; only composition
+ * and hierarchy change.
+ */
 function StatCard({
   label,
   value,
   subtext,
-  icon: Icon,
-  color,
+  meter,
   href,
 }: {
   label: string;
   value: string | number;
   subtext: string;
-  icon: React.ElementType;
-  color: string;
+  meter?: number;
   href: string;
 }) {
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-hairline bg-white p-5 transition-all hover:border-hairline hover:shadow-sm"
+      className="group rounded-xl border border-hairline bg-white p-4 transition-all hover:border-hairline-strong hover:shadow-sm"
     >
-      <div className="flex items-center justify-between">
-        <span data-contrast-check="stat-card-label" className="text-xs font-medium text-muted">{label}</span>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${color}`}>
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p data-contrast-check="stat-card-value" className="mt-2 text-2xl font-bold tracking-tight text-ink">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-ink">
         {value}
+        {meter !== undefined && (
+          <span className="ml-1 align-middle text-xs font-medium text-muted">/ {meter}</span>
+        )}
       </p>
       <div className="mt-2 flex items-center gap-1">
-        <span data-contrast-check="stat-card-subtext" className="text-xs text-muted">{subtext}</span>
-        <ArrowUpRight className="h-3 w-3 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <span className="text-xs text-muted">{subtext}</span>
       </div>
     </Link>
   );
@@ -284,15 +284,8 @@ export default async function AppPage() {
         ? "in_progress"
         : "new";
 
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
   const activeOrg = orgInfo?.memberships?.find((m) => m.org.id === orgInfo.active_org_id);
   const orgName = activeOrg?.org.name ?? "My Company";
-  const isDemoOrg = !!activeOrg?.org.isDemo;
-  const roleLabel = activeOrg?.role === "owner" ? "Founder & CEO" : "Team Member";
 
   const activeAgents = dashboard?.active_agents ?? 0;
   const pendingApprovals = dashboard?.pending_approvals ?? 0;
@@ -304,6 +297,20 @@ export default async function AppPage() {
   const totalGoals = dashboard?.total_goals ?? 0;
   const activeGoalsCount = dashboard?.active_goals ?? 0;
   const blockedTasks = companyProgress?.blockedTasks ?? 0;
+
+  // Company health for the stat strip — the same composite the HealthScore
+  // widget computes, reused so the number means the same thing everywhere.
+  const health = computeScore({
+    activeAgents,
+    totalAgents: agentList.length,
+    completedTasks,
+    totalTasks,
+    creditsRemaining: credits?.remaining ?? 0,
+    creditsTotal: credits?.total ?? 100,
+    pendingApprovals,
+    activeGoals: activeGoalsCount,
+    totalGoals,
+  });
 
   // Executive Agent setup strip. The stage comes from persisted onboarding
   // state (founderStage, derived above from /v1/company-builder/state) and
@@ -387,86 +394,104 @@ export default async function AppPage() {
           greeting, empty state and suggestions match reality. */}
       <EAStageRegistrar stage={founderStage} route="/app" pageName="Dashboard" />
 
-      {/* Welcome banner */}
-      <div className="rounded-xl ink p-6 text-white sm:p-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
-              {today}
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Company at a glance
-            </h1>
-            <p className="mt-1 text-sm text-white/60">
-              Your AI workforce is{" "}
-              {activeAgents > 0
-                ? `running ${activeAgents} active agent${activeAgents !== 1 ? "s" : ""}`
-                : "waiting for you to get started"}
-              .
-            </p>
+      {/* Phase 2: slim header → 4-stat strip → slim approvals banner.
+          Each fact appears once; the banner anchors to the approvals queue
+          (the canonical gate list the EA dock also surfaces). */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">
+            {dayGreeting}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-0.5 text-sm text-muted">
+            {liveSummary ?? `Nothing needs you right now — ${EA_NAME} is watching the company.`}
+          </p>
+        </div>
+        {founderStage === "active" ? (
+          <EAOpenButton
+            className={secondaryActionClass}
+            prompt="What should we do next, and why?"
+          >
+            Give direction
+          </EAOpenButton>
+        ) : (
+          <Link href="/onboarding" className={primaryActionClass}>
+            Continue setup
+          </Link>
+        )}
+      </div>
 
-            <div className="mt-6 flex flex-wrap gap-4">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-warm/15 text-warm-ink">
-                  <ClipboardCheck className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">
-                    {pendingApprovals} pending approval{pendingApprovals !== 1 ? "s" : ""}
-                  </p>
-                  <p className="text-xs text-white/50">Awaiting your decision</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/15 text-ink-accent">
-                  <Bot aria-hidden="true" className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">
-                    {activeAgents} active agent{activeAgents !== 1 ? "s" : ""}
-                  </p>
-                  <p className="text-xs text-white/50">
-                    {agentList.length > 0
-                      ? `${agentList.length} total in your roster`
-                      : "Hire agents to get started"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white/70">
-                  <TrendingUp className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">
-                    {completedTasks} task{completedTasks !== 1 ? "s" : ""} completed
-                  </p>
-                  <p className="text-xs text-white/50">{totalTasks} total tasks</p>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Active goals"
+          value={activeGoalsCount}
+          subtext={
+            activeGoalsCount > 0
+              ? "In progress"
+              : totalGoals > 0
+                ? "None active"
+                : "None yet"
+          }
+          href="/app/goals"
+        />
+        <StatCard
+          label="Employees active"
+          value={activeAgents}
+          meter={agentList.length}
+          subtext={
+            agentList.length > 0
+              ? `${agentList.length} on the roster`
+              : "Hire your first employee"
+          }
+          href="/app/agents"
+        />
+        <StatCard
+          label="Work credits"
+          value={credits ? credits.remaining : 0}
+          subtext={
+            credits
+              ? `${credits.utilizationPercent}% used this week`
+              : "Usage not available"
+          }
+          href="/app/budgets"
+        />
+        <StatCard
+          label="Company health"
+          value={health.score}
+          meter={100}
+          subtext={`${health.label.toLowerCase()} · ${
+            pendingApprovals > 0
+              ? `${pendingApprovals} gate${pendingApprovals !== 1 ? "s" : ""} waiting`
+              : "no gates waiting"
+          }`}
+          href="/app/attention"
+        />
+      </div>
 
-          {/* System status */}
-          <div className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-center md:min-w-[160px]">
-            <p className="flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-accent" />
-              System Online
+      {approvalList.length > 0 && (
+        <div className="rounded-xl border border-hairline-strong bg-white p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="state-dot" data-state="waiting" aria-hidden="true" />
+            <p className="text-sm font-semibold text-ink">
+              {approvalList.length} approval{approvalList.length !== 1 ? "s" : ""} holding work
             </p>
-            <p className="text-2xl font-bold tracking-tight">
-              {orgName}
-              {isDemoOrg && (
-                <span
-                  title="This organization contains staged demo content — its history is illustrative, not a record of live execution."
-                  className="ml-2 inline-flex items-center rounded-full border border-warm/40 bg-warm/15 px-2 py-0.5 align-middle font-sans text-3xs font-semibold uppercase tracking-wider text-warm-ink"
-                >
-                  Demo data
-                </span>
-              )}
+            <p className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block">
+              {approvalList
+                .slice(0, 2)
+                .map((a) => a.action)
+                .join(" · ")}
+              {approvalList.length > 2 ? ` · +${approvalList.length - 2} more` : ""}
             </p>
-            <p className="text-xs text-white/50">{roleLabel}</p>
+            <Link
+              href="/app/approvals"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-hairline-strong px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-secondary"
+            >
+              Review
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Executive Agent setup strip: identity plus the next real step.
           Compact by design, the oversight sections below stay the focus. */}
@@ -529,63 +554,6 @@ export default async function AppPage() {
         </div>
       </section>
 
-      {/* B. Company overview */}
-      <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-ink">Company overview</h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            label="Active goals"
-            value={`${activeGoalsCount}/${totalGoals}`}
-            subtext={activeGoalsCount > 0 ? "In progress" : totalGoals > 0 ? "None active" : "None yet"}
-            icon={Target}
-            color="bg-brand-deep/10 text-brand-ink"
-            href="/app/goals"
-          />
-          <StatCard
-            label="AI employees"
-            value={activeAgents}
-            subtext={`${agentList.length} total`}
-            icon={Bot}
-            color="bg-brand-deep/10 text-brand-ink"
-            href="/app/agents"
-          />
-          <StatCard
-            label="Pending approvals"
-            value={pendingApprovals}
-            subtext={pendingApprovals > 0 ? "Awaiting your decision" : "Nothing waiting"}
-            icon={ClipboardCheck}
-            color="bg-warm/10 text-warm-ink"
-            href="/app/approvals"
-          />
-          <StatCard
-            label="Tasks"
-            value={completedTasks}
-            subtext={`${totalTasks} total${blockedTasks > 0 ? ` · ${blockedTasks} blocked` : ""}`}
-            icon={CheckCircle2}
-            color="bg-warm/10 text-warm-ink"
-            href="/app/goals"
-          />
-          <StatCard
-            label="Work credits"
-            value={credits ? credits.remaining : 0}
-            subtext={credits ? `${credits.utilizationPercent}% used` : "Usage not available"}
-            icon={Zap}
-            color="bg-brand-deep/10 text-brand-ink"
-            href="/app/budgets"
-          />
-          <StatCard
-            label="Weekly spend"
-            value={formatCost(Math.round(weeklySpend * 100))}
-            subtext="This week"
-            icon={Wallet}
-            color="bg-warm/10 text-warm-ink"
-            href="/app/budgets"
-          />
-        </div>
-      </section>
-
       {/* C. Needs your attention */}
       <div className="rounded-xl border border-warm/20 bg-warm/5 p-5">
         <div className="mb-3 flex items-center gap-2">
@@ -624,10 +592,10 @@ export default async function AppPage() {
         )}
       </div>
 
-      {/* D. Active work */}
+      {/* D. What's happening now — live activity, mock title (docs/71 item 11) */}
       <section className="rounded-xl border border-hairline bg-white p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-ink">Active work</h2>
+          <h2 className="text-lg font-semibold text-ink">What's happening now</h2>
           <Link href="/app/agents" className="text-xs font-medium text-brand-ink hover:underline">
             View AI employees
           </Link>
@@ -652,7 +620,8 @@ export default async function AppPage() {
                   </p>
                   <p className="truncate text-xs text-muted">{agent.currentTask}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-warm/10 px-2 py-0.5 font-mono text-2xs uppercase text-warm-ink">
+                <span className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-0.5 font-mono text-2xs uppercase text-ink-muted">
+                  <span className="state-dot" data-state="working" aria-hidden="true" />
                   Working
                 </span>
               </Link>

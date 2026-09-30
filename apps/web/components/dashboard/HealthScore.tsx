@@ -29,7 +29,7 @@ interface ScoreResult {
   }[];
 }
 
-function computeScore(props: HealthScoreProps): ScoreResult {
+export function computeScore(props: HealthScoreProps): ScoreResult {
   const {
     activeAgents,
     totalAgents,

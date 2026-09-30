@@ -290,8 +290,8 @@ export function ExecutiveAgentPanel() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-hairline-light px-4 py-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full ink">
-                  <Bot className="h-4 w-4 text-warm-ink" />
+                <div className="ea-avatar flex h-8 w-8 items-center justify-center rounded-full">
+                  <Bot className="h-4 w-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-ink">
@@ -381,7 +381,7 @@ export function ExecutiveAgentPanel() {
                   <div
                     className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "ink text-white"
+                        ? "border border-hairline-strong bg-surface-secondary text-ink"
                         : "bg-surface-secondary text-ink"
                     }`}
                   >
@@ -472,14 +472,14 @@ export function ExecutiveAgentPanel() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask the Executive Agent..."
+                  placeholder="Message Atlas — give direction, ask anything, or type / for commands"
                   rows={1}
                   className="flex-1 resize-none rounded-xl border border-hairline bg-surface-secondary px-4 py-2.5 text-sm text-ink placeholder-ink-faint focus:border-warm/40 focus:outline-none focus:ring-2 focus:ring-warm/20"
                 />
                 <button
                   onClick={() => sendMessage(input)}
                   disabled={!input.trim() || loading}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl ink text-white transition-colors hover:bg-brand-deep disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-warm text-on-warm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />

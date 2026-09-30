@@ -1100,6 +1100,19 @@ body {
   --orq-on-error: var(--console-on-orange);
 }
 
+/* Compatibility shim (docs/71 Phase 2): literal `bg-white` call sites in
+   pre-token components resolve to the console surface inside .console
+   instead of raw white. Remove per-component as they migrate to tokens. */
+.console .bg-white {
+  background-color: var(--orq-surface-white);
+}
+.console .bg-white\/95 {
+  background-color: color-mix(in srgb, var(--orq-surface-white) 95%, transparent);
+}
+.console .bg-white\/90 {
+  background-color: color-mix(in srgb, var(--orq-surface-white) 90%, transparent);
+}
+
 /* Light mode: the founder toggle flips data-console-theme; the .console
    scope re-points the same tokens at the light values from design-tokens. */
 .console[data-console-theme="light"] {
@@ -1120,6 +1133,12 @@ body {
 
   --orq-ink: #ffffff;
   --orq-overlay: rgba(14, 21, 32, 0.35);
+}
+
+/* The EA's identity mark: lime in both themes (the mock's Atlas avatar). */
+.console .ea-avatar {
+  background: color-mix(in srgb, var(--orq-mark-active) 14%, transparent);
+  color: var(--orq-mark-active);
 }
 
 /* Console micro-patterns from the mock (state dots, chat composer shell) */

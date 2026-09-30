@@ -1,8 +1,8 @@
 # 71 — ORQ8 Product-Wide UI/UX and System Redesign Plan
 
-Status: **PHASES 0–1 IMPLEMENTED (2026-09-30) on founder instruction; Phases
-2–8 await founder go-ahead.** Design frozen after the mock review; rows for
-the shipped phases move to `docs/68` as work lands.
+Status: **PHASES 0–2 IMPLEMENTED (2026-09-30) on founder instruction;
+Phases 3–8 await the founder go-ahead.** Design frozen after the mock
+review; rows for the shipped phases move to `docs/68` as work lands.
 
 **Shipped in Phases 0–1:** `packages/core/src/design-tokens.ts` (token
 source of truth: quieted dark palette, light pair, theme resolver); the
@@ -14,6 +14,19 @@ override; `apps/web/lib/console-theme.ts` + `components/theme-toggle.tsx`
 there is no first-paint flash); the app shell now renders inside `.console`
 with the mock's dark surfaces. Console micro-pattern helpers (`.state-dot`,
 `.console-card`, `.console-composer`) exist for the Phase-2+ page work.
+Skin + toggle verified live via the `/skin-preview` harness.
+
+**Shipped in Phase 2 (Dashboard):** the approved mock composition on the
+real `/v1/dashboard` data — slim greeting with the EA's live summary, the
+**4-stat strip** (Active goals, Employees active, Work credits, Company
+health with the shared `computeScore` composite so the number matches the
+Health widget), the **slim approvals banner** ("N approvals holding work ·
+first actions · Review" → the approvals queue the EA dock also surfaces),
+the duplicate 6-card overview and hard-coded stat colors removed,
+"What's happening now" with live state dots, and the EA dock polished to
+the mock (lime avatar, raised user bubbles, orange send, mock placeholder).
+A scoped `bg-white` shim keeps pre-token components on the console surface;
+they migrate to tokens as each page is touched.
 
 Updated 2026-09-30. **Revision 2** — the founder supplied a detailed page-by-page
 build brief (§V below). **Revision 3 — APPLIED:** the founder reviewed mock
