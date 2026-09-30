@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { NotificationsBell } from "./notifications-bell";
 import { AttentionBadge } from "./attention-badge";
+import { ThemeToggle } from "./theme-toggle";
 
 interface TopBarProps {
   userName: string;
@@ -109,6 +110,9 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
               ⌘K
             </kbd>
           </button>
+
+          {/* Light/dark console toggle (docs/71 item 6 — user's choice) */}
+          <ThemeToggle />
 
           {/* Founder's attention queue: approvals, blocked work, failures, credits */}
           <AttentionBadge />

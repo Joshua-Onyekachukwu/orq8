@@ -1,17 +1,28 @@
 # 71 — ORQ8 Product-Wide UI/UX and System Redesign Plan
 
-Status: **PLAN — awaiting founder approval. No implementation has started.**
-When approved, phases execute in order and status moves to `docs/68`.
+Status: **PHASES 0–1 IMPLEMENTED (2026-09-30) on founder instruction; Phases
+2–8 await founder go-ahead.** Design frozen after the mock review; rows for
+the shipped phases move to `docs/68` as work lands.
+
+**Shipped in Phases 0–1:** `packages/core/src/design-tokens.ts` (token
+source of truth: quieted dark palette, light pair, theme resolver); the
+`.console` scope in `apps/web/app/globals.css` re-pointing the semantic
+`--orq-*` tokens at the mock's palette (same per-element mechanism as the
+`.ink` band — zero call-site edits) with a `data-console-theme="light"`
+override; `apps/web/lib/console-theme.ts` + `components/theme-toggle.tsx`
+(the founder-facing light/dark toggle, cookie-persisted, server-rendered so
+there is no first-paint flash); the app shell now renders inside `.console`
+with the mock's dark surfaces. Console micro-pattern helpers (`.state-dot`,
+`.console-card`, `.console-composer`) exist for the Phase-2+ page work.
 
 Updated 2026-09-30. **Revision 2** — the founder supplied a detailed page-by-page
-build brief (§V below). **Revision 3 — open:** the founder is reviewing mock v2
-and will list changes (colors, wording, layout); they are recorded in §W as
-they arrive and must be applied to `marketing/headquarters-mock-v2.html`
-**before** any further page mocks are produced. Where §A–U and the briefs
-disagree, **the latest founder revision wins**;
-this document records both and flags every change Revision 2 makes. Earlier
-reference material: 8 Headquarters screenshots (dark mock built from them at
-`marketing/headquarters-mock.html`) + 1 agent-node popover screenshot.
+build brief (§V below). **Revision 3 — APPLIED:** the founder reviewed mock
+v2; all feedback is recorded in §W (items 1–23) and applied to
+`marketing/headquarters-mock-v2.html`. Where §A–U and the briefs disagree,
+**the latest founder revision wins**; this document records both and flags
+every change Revision 2 makes. Earlier reference material: 8 Headquarters
+screenshots (dark mock built from them at `marketing/headquarters-mock.html`)
++ 1 agent-node popover screenshot.
 
 ---
 

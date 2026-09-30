@@ -6,9 +6,8 @@ import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 import { IdentifyUser } from "../../components/identify-user";
 import { ExecutiveAgentShell } from "../../components/executive-agent-shell";
-
-
-
+import { resolveConsoleTheme } from "../../lib/console-theme";
+import { CONSOLE_THEME_COOKIE } from "../../components/theme-toggle";
 type MeData = {
   user: {
     id: string;
@@ -37,6 +36,12 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
+  // The console theme is read on the server so the first paint already has
+  // the right surfaces — no light flash before hydration. ThemeToggle flips
+  // this cookie client-side and re-points the same data attribute.
+  const consoleTheme = resolveConsoleTheme(
+    cookieStore.get(CONSOLE_THEME_COOKIE)?.value,
+  );
 
   // No session token → redirect to login with return URL
   if (!token) {
@@ -130,7 +135,7 @@ export default async function AppLayout({
 
   return (
     <ExecutiveAgentShell userId={me?.user.id ?? null}>
-      <div id="main" className="min-h-screen bg-canvas">
+      <div id="main" className="console min-h-screen bg-canvas" data-console-theme={consoleTheme}>
       <IdentifyUser
         userId={me?.user.id}
         orgId={active?.org.id}

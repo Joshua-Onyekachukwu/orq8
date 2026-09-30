@@ -967,3 +967,198 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/*
+ * =====================================================================
+ * THE CONSOLE SCOPE (docs/71 Revision 4 — the founder's dark product).
+ *
+ * The authenticated app (`/app/*`) renders as the dark console from the
+ * approved mock: quiet `#0B0F14` surfaces, desaturated lime/orange that
+ * only ever carry state, and the founder-facing light/dark toggle. The
+ * marketing site stays light-first; `dark:` call sites remain inert.
+ *
+ * Mechanism: the alias layer is `@theme inline`, so overriding the raw
+ * `--orq-*` tokens here re-skins every existing console component with
+ * zero call-site edits — the same trick `.ink` uses for its band, but
+ * driven from the design tokens in packages/core/src/design-tokens.ts
+ * (single source of truth; values there and here must match).
+ *
+ * Theme switching: `<html data-console-theme="light|dark">` (set from
+ * the cookie by ThemeToggle; default dark). The `.console` scope reads
+ * `--console-*` for the toggle-independent chrome (combox, status dots)
+ * and the `--orq-*` overrides for everything else.
+ * =====================================================================
+ */
+.console {
+  color-scheme: dark;
+  background-color: var(--console-bg, var(--orq-ink));
+
+  /* Console-local chrome values (toggle-independent defaults = dark) */
+  --console-bg: #0b0f14;
+  --console-surface: #11161d;
+  --console-hover: #161d26;
+  --console-line: #1e2732;
+  --console-line-strong: #2a3646;
+  --console-lime: #a6ce95;
+  --console-orange: #e9974f;
+  --console-red: #e07a7a;
+  --console-info: #8fb8d8;
+  --console-muted: #97a3b4;
+  --console-body: #e6eaf0;
+  --console-on-orange: #231206;
+
+  /* Surfaces — the mock's raised ladder */
+  --orq-ink: var(--console-bg);
+  --orq-surface-page: var(--console-bg);
+  --orq-surface-white: var(--console-surface);
+  --orq-surface-secondary: var(--console-hover);
+  --orq-surface-tint: var(--console-hover);
+  --orq-overlay: rgba(4, 6, 10, 0.62);
+
+  /* Text */
+  --orq-text-primary: var(--console-body);
+  --orq-text-secondary: var(--console-muted);
+  --orq-text-tertiary: var(--console-muted);
+  --orq-text-inverse: var(--console-bg);
+  --orq-text-brand: var(--console-body);
+  --orq-text-error: var(--console-red);
+  --orq-text-warm: var(--console-muted);
+
+  /* Borders */
+  --orq-border: var(--console-line);
+  --orq-border-soft: var(--console-line);
+  --orq-border-strong: var(--console-line-strong);
+  --orq-border-selected: var(--console-line-strong);
+  --orq-border-error: var(--console-red);
+
+  /* Interactive */
+  --orq-focus-ring: var(--console-lime);
+  --orq-disabled-surface: var(--console-hover);
+  --orq-disabled-text: var(--console-muted);
+
+  /* The warm accent becomes the mock's orange — primary CTA only. */
+  --orq-warm: var(--console-orange);
+  --orq-warm-deep: var(--console-orange);
+  --orq-warm-soft: rgba(233, 151, 79, 0.12);
+  --orq-on-warm: var(--console-on-orange);
+
+  /* Marks and live indicators */
+  --orq-mark-active: var(--console-lime);
+  --orq-mark-warm: var(--console-orange);
+  --orq-mark-brand: var(--console-line-strong);
+
+  /* Status: neutral chip surfaces, colored marks (the quieted mock look) */
+  --orq-status-active-bg: var(--console-hover);
+  --orq-status-active-text: var(--console-body);
+  --orq-status-working-bg: var(--console-hover);
+  --orq-status-working-text: var(--console-body);
+  --orq-status-waiting-bg: var(--console-hover);
+  --orq-status-waiting-text: var(--console-body);
+  --orq-status-blocked-bg: rgba(224, 122, 122, 0.08);
+  --orq-status-blocked-text: var(--console-red);
+  --orq-status-review-bg: var(--console-hover);
+  --orq-status-review-text: var(--console-body);
+  --orq-status-done-bg: var(--console-hover);
+  --orq-status-done-text: var(--console-body);
+  --orq-status-paused-bg: var(--console-hover);
+  --orq-status-paused-text: var(--console-body);
+  --orq-status-offline-bg: var(--console-line-strong);
+  --orq-status-offline-text: var(--console-muted);
+
+  /* Authority bands: same neutral-chip treatment */
+  --orq-authority-can-bg: var(--console-hover);
+  --orq-authority-can-text: var(--console-body);
+  --orq-authority-spend-bg: var(--console-hover);
+  --orq-authority-spend-text: var(--console-body);
+  --orq-authority-approval-bg: var(--console-hover);
+  --orq-authority-approval-text: var(--console-body);
+  --orq-authority-cannot-bg: rgba(224, 122, 122, 0.08);
+  --orq-authority-cannot-text: var(--console-red);
+
+  /* Charts adopt the console accents */
+  --orq-chart-1: var(--console-lime);
+  --orq-chart-2: var(--console-info);
+  --orq-chart-3: var(--console-muted);
+  --orq-chart-4: var(--console-orange);
+  --orq-chart-5: var(--console-red);
+  --orq-chart-ramp-1: var(--console-line);
+  --orq-chart-ramp-2: var(--console-line-strong);
+  --orq-chart-ramp-3: var(--console-muted);
+  --orq-chart-ramp-4: var(--console-lime);
+  --orq-chart-band-3: var(--console-hover);
+  --orq-chart-band-4: var(--console-hover);
+
+  /* Ink-band aliases collapse onto the console surfaces */
+  --orq-on-ink: var(--console-body);
+  --orq-on-ink-muted: var(--console-muted);
+  --orq-ink-accent: var(--console-lime);
+
+  /* Error soft */
+  --orq-error: var(--console-red);
+  --orq-error-fill: var(--console-red);
+  --orq-error-soft: rgba(224, 122, 122, 0.08);
+  --orq-on-error: var(--console-on-orange);
+}
+
+/* Light mode: the founder toggle flips data-console-theme; the .console
+   scope re-points the same tokens at the light values from design-tokens. */
+.console[data-console-theme="light"] {
+  color-scheme: light;
+
+  --console-bg: #ffffff;
+  --console-surface: #f7f8fa;
+  --console-hover: #eef1f4;
+  --console-line: #e3e8ee;
+  --console-line-strong: #c9d2dc;
+  --console-lime: #5c9e31;
+  --console-orange: #e8761a;
+  --console-red: #c23b3b;
+  --console-info: #2563eb;
+  --console-muted: #5c6878;
+  --console-body: #2a3340;
+  --console-on-orange: #ffffff;
+
+  --orq-ink: #ffffff;
+  --orq-overlay: rgba(14, 21, 32, 0.35);
+}
+
+/* Console micro-patterns from the mock (state dots, chat composer shell) */
+.console .state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--console-muted);
+  flex-shrink: 0;
+}
+.console .state-dot[data-state="working"] {
+  background: var(--console-lime);
+  animation: console-pulse 1.6s ease-in-out infinite;
+}
+.console .state-dot[data-state="waiting"] {
+  background: var(--console-orange);
+}
+.console .state-dot[data-state="blocked"] {
+  background: var(--console-red);
+}
+@keyframes console-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.console .console-card {
+  background: var(--console-surface);
+  border: 1px solid var(--console-line);
+  border-radius: 10px;
+}
+.console .console-composer {
+  background: var(--console-bg);
+  border: 1px solid var(--console-line);
+  border-radius: 8px;
+}
+.console .console-composer:focus-within {
+  border-color: var(--console-line-strong);
+}
