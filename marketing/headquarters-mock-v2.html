@@ -130,11 +130,6 @@
   .odept b{font-size:12.5px;color:var(--white)}
   .odept span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
   .oemp{margin-top:8px;min-width:190px}
-  .dashorg{margin-bottom:14px}
-  .dashorg .orgtree{padding:14px 8px 18px}
-  .dashorg .odept,.dashorg .oemp{min-width:150px}
-  .dashorg .onode{min-width:160px}
-
   .orgmap{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:14px 4px 18px}
   .dept{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px;min-height:210px}
   .dept .dh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -191,6 +186,14 @@
   .ev.msg{background:transparent;border:0;padding:2px}
   .ev.msg .bub{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--body)}
   .ev.gate{border-color:rgba(245,158,76,.45)}
+  .ev.gate.compact{padding:9px 12px}
+  .nowstrip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--body);background:var(--lime-soft);flex-shrink:0}
+  .nowstrip b{color:var(--lime)}
+  .chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .chips button{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+  .chips button:hover{color:var(--lime);border-color:var(--lime-dim)}
+  @keyframes flashgate{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px var(--lime-dim)}}
+  .flash{animation:flashgate .9s ease-in-out 2}
   .ev.gate .who{font-size:12.5px;font-weight:700;color:var(--orange)}
   .ev.gate .what{font-size:13px;font-weight:600;color:var(--white);margin-top:4px}
   .ev.gate .desc{font-size:12px;color:var(--muted);margin-top:3px}
@@ -516,76 +519,39 @@
       <section class="screen on" id="screen-dashboard">
         <div class="hello">
           <div><h1>Good morning, Joshua</h1><div class="date">Wednesday, September 30 — your company has been running for 6 hours</div></div>
-          <button class="btn btn-primary">＋ Give direction</button>
+          <button class="btn btn-primary" id="giveDir">＋ Give direction</button>
         </div>
 
-        <div class="stats">
+        <div class="stats" style="grid-template-columns:repeat(4,1fr)">
           <div class="stat"><span class="micro">Active goals</span><div class="v">2</div></div>
-          <div class="stat" data-go="tasks"><span class="micro">Open approvals</span><div class="v warn">2</div></div>
-          <div class="stat" data-go="tasks"><span class="micro">In progress</span><div class="v">2</div></div>
           <div class="stat"><span class="micro">Employees active</span><div class="v">4 / 7</div></div>
           <div class="stat"><span class="micro">Credits this week</span><div class="v num">1,420</div><div class="meter"><i style="width:38%"></i></div></div>
-          <div class="stat"><span class="micro">Company health</span><div class="v">82</div><div class="delta">▲ 3 this week</div></div>
+          <div class="stat"><span class="micro">Company health</span><div class="v">82<span style="font-size:12px;color:var(--muted)"> / 100</span></div><div class="meter"><i style="width:82%"></i></div><div class="delta">▲ 3 this week</div></div>
         </div>
 
         <div class="dashgrid">
           <div>
             <div class="banner">
               <span class="bdot"></span>
-              <div><b>2 approvals are holding work</b><p>Ridge and Nova are paused mid-task until you decide</p></div>
-              <button class="btn btn-primary btn-sm">Review</button>
-            </div>
-
-            <!-- Revision 4: org chart lives on the dashboard -->
-            <div class="canvas grid-bg dashorg">
-              <div class="tools"><button data-go="orgchart">Open full org chart →</button><button data-openmodal="1">Default model: Auto</button></div>
-              <div class="micro" style="padding:2px 4px 0">Who runs what — live</div>
-              <div class="orgtree">
-                <div class="onode"><span class="av" style="background:var(--hover);color:var(--body)">JO</span><div><b>Joshua</b><span>Founder · human</span></div></div>
-                <div class="oline"></div>
-                <div class="onode ea" data-drawer="1"><span class="av" style="color:var(--lime);border-color:var(--lime-dim)">◈</span><div><b>Atlas</b><span>Executive Agent · directs all departments</span></div><span class="chip running" style="margin-left:auto"><span class="dot"></span>active</span></div>
-                <div class="oline"></div>
-                <div class="orow">
-                  <div class="ogroup">
-                    <div class="odept"><b>Research</b><span>2 employees · 615 Cr/wk</span></div>
-                    <div class="oline"></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">A</span><div><b>Ada</b><span>Analyst · Gate</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
-                  </div>
-                  <div class="ogroup">
-                    <div class="odept"><b>Engineering</b><span>2 employees · 765 Cr/wk</span></div>
-                    <div class="oline"></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working</span></div><span class="sdot run" style="margin-left:auto"></span></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">I</span><div><b>Iris</b><span>Ops · Blocked</span></div><span class="sdot block" style="margin-left:auto"></span></div>
-                  </div>
-                  <div class="ogroup">
-                    <div class="odept"><b>Communications</b><span>2 employees · 95 Cr/wk</span></div>
-                    <div class="oline"></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">E</span><div><b>Ember</b><span>Lead · Needs you</span></div><span class="sdot appr" style="margin-left:auto"></span></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">S</span><div><b>Sage</b><span>Analyst · Idle</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
-                  </div>
-                  <div class="ogroup">
-                    <div class="odept"><b>Growth</b><span>1 employee · 0 Cr/wk</span></div>
-                    <div class="oline"></div>
-                    <div class="onode oemp" data-drawer="1"><span class="av">M</span><div><b>Milo</b><span>Lead · Paused by budget</span></div><span class="sdot idle" style="margin-left:auto"></span></div>
-                  </div>
-                </div>
-              </div>
+              <div><b>2 approvals are holding work</b><p>Ember and Ada — decide in the Atlas dock below, or open the full queue</p></div>
+              <button class="btn btn-primary btn-sm" id="review-gates">Review</button>
             </div>
 
             <div class="canvas grid-bg">
               <div class="tools"><button data-go="departments">All departments →</button><button data-openmodal="1">Default model: Auto</button></div>
-              <div class="micro" style="padding:2px 4px 0">Company now</div>
+              <div class="micro" style="padding:2px 4px 0">What's happening now</div>
               <div class="orgmap">
                 <div class="dept">
                   <div class="dh"><b>Research</b><span class="chip running"><span class="dot"></span>1 working</span></div>
-                  <div class="lead" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working — Pricing research sweep</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="lead" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working — Pricing research sweep · 4m</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="meter2" style="height:3px;margin:-4px 0 10px"><i style="width:44%"></i></div>
                   <div class="member" data-drawer="1"><span class="av">A</span><div><b>Ada</b><span>Waiting on approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
                   <div class="member" data-drawer="1"><span class="av">S</span><div><b>Sage</b><span>Idle</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
                 </div>
                 <div class="dept">
                   <div class="dh"><b>Engineering</b><span class="chip running"><span class="dot"></span>1 working</span></div>
-                  <div class="lead" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working — Pricing page build</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="lead" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working — Pricing page build · 12m</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
+                  <div class="meter2" style="height:3px;margin:-4px 0 10px"><i class="warn" style="width:61%"></i></div>
                   <div class="member" data-drawer="1"><span class="av">I</span><div><b>Iris</b><span>Blocked — needs credentials</span></div><span class="st sdot block" style="margin-left:auto"></span></div>
                 </div>
                 <div class="dept">
@@ -615,33 +581,26 @@
           <!-- ===== EA dock ===== -->
           <div class="dock">
             <div class="dh"><span class="ea">◈</span><div><b>Atlas</b><div class="st">Executive Agent · active</div></div><a class="mx" href="#">Expand</a></div>
+            <div class="nowstrip"><span class="sdot run"></span><span><b>Ridge</b> — Pricing page build · 12m</span><a href="#" class="btn btn-tertiary btn-sm" style="margin-left:auto">Open task</a></div>
             <div class="cards">
               <div class="ev msg"><div class="bub">Morning. Two items need you before the pricing launch can continue — everything else is moving.</div></div>
-              <div class="ev gate">
-                <div class="who">Approval requested</div>
+              <div class="ev gate compact">
+                <div class="who">Gate #41 · Ember · 25 Cr · expires in 22h</div>
                 <div class="what">Publish the pricing post</div>
-                <div class="desc">Ember wants to publish the announcement to the company blog and newsletter.</div>
-                <div class="cost">Cost: 25 Work Credits · Reversible within 1h</div>
-                <div class="acts"><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
               </div>
-              <div class="ev gate">
-                <div class="who">Approval requested</div>
+              <div class="ev gate compact">
+                <div class="who">Gate #42 · Nova · +600 Cr worst case · no timeout</div>
                 <div class="what">Raise Ada's daily spend cap</div>
-                <div class="desc">Research sweep needs 500 → 800 Cr/day for two days.</div>
-                <div class="cost">Impact: +600 Cr worst case</div>
-                <div class="acts"><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
+                <div class="acts"><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
               </div>
               <div class="ev"><div class="ty"><span class="ic">▤</span> Plan updated <span style="color:var(--lime)">(rev 4)</span><a href="#">View diff</a></div><div class="meta">Pricing launch moved to Friday; research moved ahead of copy.</div></div>
               <div class="ev"><div class="ty"><span class="ic">✓</span> Task completed<a href="#">Report</a></div><div class="meta">Competitor page screenshots — Iris · 18 Cr · 12m</div></div>
-              <div class="ev active">
-                <div class="who">Working now</div>
-                <div class="meta" style="margin-top:2px">Ridge — Pricing page build</div>
-                <div class="think">◌ Building hero section <span class="dots"></span> <a class="btn btn-tertiary btn-sm" href="#" style="margin-left:auto">Open task</a></div>
-              </div>
             </div>
             <div class="composer">
               <div class="box">
-                <div class="hint">Give direction, or type / for commands</div>
+                <input id="composerInput" type="text" placeholder="Give direction, or type / for commands" style="border:0;background:transparent;width:100%;padding:0">
+                <div class="chips"><button data-cmd="/hire ">/hire</button><button data-cmd="/budget ">/budget</button><button data-cmd="/pause ">/pause</button></div>
                 <div class="row"><span class="model" data-openmodal="1"><i></i> Auto ▾</span><button class="send">↑</button></div>
               </div>
             </div>
@@ -1410,6 +1369,13 @@
   // task detail open (mock)
   const tl=document.getElementById("tasklog");
   document.querySelector('[data-openlog="1"]')?.addEventListener("click",()=>{tl.style.display=tl.style.display==="none"?"block":"none"});
+  // dashboard quick actions: banner anchors to dock gates, Give direction focuses composer, chips fill it
+  document.getElementById("giveDir")?.addEventListener("click",()=>document.getElementById("composerInput")?.focus());
+  document.getElementById("review-gates")?.addEventListener("click",()=>{
+    const g=document.querySelector(".dock .ev.gate");
+    if(g){g.scrollIntoView({behavior:"smooth",block:"center"});g.classList.add("flash");setTimeout(()=>g.classList.remove("flash"),2000)}
+  });
+  document.querySelectorAll(".chips button").forEach(c=>c.addEventListener("click",()=>{const i=document.getElementById("composerInput");if(i){i.value=c.getAttribute("data-cmd");i.focus()}}));
 </script>
 </body>
 </html>

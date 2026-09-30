@@ -499,11 +499,11 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## W. Revision 3 — founder feedback on mock v2 (open)
 
-> **Status: APPLIED — 9 founder items recorded and applied to mock v2
-> (2026-09-30; items 6–9 are the founder's Rev-4 pass).** The founder reviews
-> `marketing/headquarters-mock-v2.html` and lists changes (colors, wording,
-> layout). Each item is recorded here as it arrives, then applied to the mock
-> **before** implementation begins.
+> **Status: APPLIED — 13 items recorded and applied to mock v2
+> (2026-09-30; items 6–9 founder Rev-4 pass, 10–13 founder-approved UX
+> pass).** The founder reviews `marketing/headquarters-mock-v2.html` and
+> lists changes (colors, wording, layout). Each item is recorded here as
+> it arrives, then applied to the mock before implementation begins.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|
@@ -516,6 +516,10 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 | 7 | Dashboard | **Org chart embedded on the dashboard** between the "2 approvals are holding work" banner and the "Company now" section (founder loves the org chart). Compact variant with an "Open full org chart →" link; full page remains in People. | APPLIED |
 | 8 | Dashboard / Company now | **Four departments** — Research, Engineering, Communications, **Growth (new; fixes Milo's role)**. Grid wraps to the next line on narrow screens and the page scrolls. | APPLIED |
 | 9 | Constitution, Departments, Files, Notifications | **Remaining pages mocked** with R3/R4 feedback baked in: Constitution (6 articles, EA-bound note), Departments (4 dept cards + Atlas-proposes-new), Files (per-department folders + dropzone), Notifications (event list with gates on top). | APPLIED |
+| 10 | Dashboard | **Org chart removed from the dashboard** (stays as its own People page — founder prefers the dedicated page). Approvals de-duplicated: banner is now a slim anchor ("Review" scrolls to and flashes the dock gates); dock gates are **compact one-tap decision rows** (Reject/Approve). Full context stays in the Approvals page. | APPLIED |
+| 11 | Dashboard | **Org chart vs Company now split by job:** Company now retitled "What's happening now" = activity (task, elapsed time, thin progress meter per working employee); structure lives only on the Org chart page. | APPLIED |
+| 12 | Dashboard | **Stats strip slimmed to 4** (Active goals, Employees, Credits+meter, Health with /100 scale + bar); approvals and in-progress no longer duplicate as stat cards. | APPLIED |
+| 13 | EA dock | **"Working now" strip pinned** under Atlas's header (never scrolls away); composer gains **/hire /budget /pause command chips**; the "Give direction" button now focuses the composer input. | APPLIED |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit

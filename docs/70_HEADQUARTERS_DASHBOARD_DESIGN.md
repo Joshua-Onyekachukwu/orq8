@@ -184,4 +184,7 @@ Phase 1 + 2 is the "log in and see your company breathing" moment.
   departments** (Research, Engineering, Communications, Growth — Growth
   absorbs Milo); full-screen layout; and the last four pages are mocked
   (Constitution, Departments, Files, Notifications) so every nav item now
-  renders. Mock totals 18 screens.
+  renders. Mock totals 18 screens. UX pass (founder-approved): dashboard
+  de-duplicated — org chart lives on its own page, approvals decided in one
+  place (dock rows, banner anchors), stats slimmed to 4, EA dock pinned
+  "Working now" strip + /hire /budget /pause chips.
