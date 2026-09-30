@@ -4,10 +4,14 @@ Status: **PLAN — awaiting founder approval. No implementation has started.**
 When approved, phases execute in order and status moves to `docs/68`.
 
 Updated 2026-09-30. **Revision 2** — the founder supplied a detailed page-by-page
-build brief (§V below). Where §A–U and the brief disagree, **the brief wins**;
+build brief (§V below). **Revision 3 — open:** the founder is reviewing mock v2
+and will list changes (colors, wording, layout); they are recorded in §W as
+they arrive and must be applied to `marketing/headquarters-mock-v2.html`
+**before** any further page mocks are produced. Where §A–U and the briefs
+disagree, **the latest founder revision wins**;
 this document records both and flags every change Revision 2 makes. Earlier
 reference material: 8 Headquarters screenshots (dark mock built from them at
-`marketing/headquarters-mock.html`), 1 agent-node popover screenshot.
+`marketing/headquarters-mock.html`) + 1 agent-node popover screenshot.
 
 ---
 
@@ -490,6 +494,25 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 9. Marketing site pixel-unchanged (diff-checked).
 10. docs/68 rows + changelog updated; this doc's status flips to
     IMPLEMENTED per phase.
+
+---
+
+## W. Revision 3 — founder feedback on mock v2 (open)
+
+> **Status: OPEN — awaiting the founder's change list.** The founder reviews
+> `marketing/headquarters-mock-v2.html` and lists changes (colors, wording,
+> layout). Each item is recorded here as it arrives, then applied to the mock
+> **before** any remaining pages (Constitution, Departments, Files,
+> Notifications) are mocked with the feedback baked in.
+
+| # | Screen | Change (colors / wording / layout) | Status |
+|---|--------|------------------------------------|--------|
+| — | —      | *(no feedback recorded yet)*       | —      |
+
+**Process for each entry:** record it here → mirror it in docs/70 §7 → apply
+it to mock v2 → re-verify (all screens render, zero console errors) → commit
++ push. When the founder confirms the list is complete, flip this section's
+status to **APPLIED** and note the commit.
 
 ---
 

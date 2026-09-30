@@ -176,3 +176,7 @@ Phase 1 + 2 is the "log in and see your company breathing" moment.
   channel exists.
 - Default-model modal needs the "our picks" list — confirm which models ORQ8
   actually offers at launch (ties into `docs/22` model routing).
+- **Revision 3 (open):** the founder is reviewing mock v2 and will list
+  changes (colors, wording, layout). Each change is recorded in docs/71 §W
+  and applied to `headquarters-mock-v2.html` **before** the remaining pages
+  (Constitution, Departments, Files, Notifications) are mocked.
