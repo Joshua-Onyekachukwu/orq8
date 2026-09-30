@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   CheckCircle2,
   Loader2,
+  PlayCircle,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -42,6 +43,46 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Record<string, string>>({});
+  const [queuedBusy, setQueuedBusy] = useState(false);
+  const [queuedSummary, setQueuedSummary] = useState<string | null>(null);
+
+  /**
+   * Run this company's queued work (docs/66 §66.19).
+   *
+   * The batch runner had no caller anywhere, so queued work only moved when
+   * someone asked for one task by name — through curl. Work waiting on a human
+   * is in `awaiting_approval` rather than `pending`, so the API excludes it and
+   * pressing this can never answer a question on the founder's behalf.
+   */
+  const runQueued = useCallback(async () => {
+    setQueuedBusy(true);
+    setActionError(null);
+    setQueuedSummary(null);
+    try {
+      const res = await fetch("/api/commands/tasks/execute-pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(payload?.error?.message ?? "The queued work could not be run.");
+      }
+      const run = payload?.data as
+        | { executed: number; completed: number; failed: number; deferred: number }
+        | undefined;
+      setQueuedSummary(
+        !run || run.executed === 0
+          ? "Nothing was queued: every task is done, waiting on your decision, or already running."
+          : `Ran ${run.executed} task${run.executed === 1 ? "" : "s"}: ${run.completed} completed, ${run.failed} failed, ${run.deferred} still waiting on you.`,
+      );
+      await refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "The queued work could not be run.");
+    } finally {
+      setQueuedBusy(false);
+    }
+  }, [refresh]);
 
   const runAction = useCallback(
     async (item: AttentionItem, action: AttentionAction) => {
@@ -86,8 +127,8 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
       {/* Queue header: real counts, freshness, manual refresh */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-white p-4">
         <div className="flex items-center gap-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orq8-orange/10">
-            <AlertTriangle className="h-5 w-5 text-orq8-orange" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warm/10">
+            <AlertTriangle className="h-5 w-5 text-warm-ink" />
           </span>
           <div>
             <p className="text-sm font-semibold text-ink">
@@ -110,9 +151,19 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
           )}
           <button
             type="button"
+            onClick={() => void runQueued()}
+            disabled={queuedBusy}
+            title="Run the work this company has queued. Work waiting on your decision is not touched."
+            className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-brand-deep disabled:opacity-50"
+          >
+            <PlayCircle className={`h-3.5 w-3.5 ${queuedBusy ? "animate-pulse" : ""}`} />
+            {queuedBusy ? "Running queued work…" : "Run queued work"}
+          </button>
+          <button
+            type="button"
             onClick={() => void refresh()}
             disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-orq8-green disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-brand-deep disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -121,8 +172,14 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
       </div>
 
       {(error || actionError) && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">
           {actionError ?? error}
+        </p>
+      )}
+
+      {queuedSummary && (
+        <p className="rounded-lg border border-hairline bg-canvas px-4 py-3 text-sm text-ink">
+          {queuedSummary}
         </p>
       )}
 
@@ -159,7 +216,7 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
                       </span>
                       <span className="font-mono text-3xs uppercase text-muted">{waitingLabel(item.createdAt)}</span>
                       {resolved[item.id] && (
-                        <span className="flex items-center gap-1 font-mono text-3xs uppercase text-orq8-green">
+                        <span className="flex items-center gap-1 font-mono text-3xs uppercase text-brand-ink">
                           <CheckCircle2 className="h-3 w-3" />
                           {resolved[item.id]}
                         </span>
@@ -204,10 +261,10 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
                             disabled={busy !== null}
                             className={
                               isAsk
-                                ? "flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-orq8-green transition-colors hover:border-orq8-green disabled:opacity-50"
+                                ? "flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-brand-ink transition-colors hover:border-brand-deep disabled:opacity-50"
                                 : action.kind === "reject" || action.kind === "cancel"
-                                  ? "flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
-                                  : "flex items-center gap-1.5 rounded-lg bg-orq8-dark px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orq8-green disabled:opacity-50"
+                                  ? "flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-border-error hover:text-error-ink disabled:opacity-50"
+                                  : "flex items-center gap-1.5 rounded-lg ink px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-50"
                             }
                           >
                             {busy === key ? (
@@ -223,7 +280,7 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
                       })}
                       <Link
                         href={ATTENTION_SOURCE_HREFS[item.source]}
-                        className="ml-auto flex items-center gap-1 text-xs font-semibold text-orq8-green hover:underline"
+                        className="ml-auto flex items-center gap-1 text-xs font-semibold text-brand-ink hover:underline"
                       >
                         See the record
                         <ArrowUpRight className="h-3.5 w-3.5" />
@@ -244,8 +301,8 @@ export function AttentionBoard({ initial }: { initial: AttentionSnapshot | null 
 function QuietState({ onAsk }: { onAsk: () => void }) {
   return (
     <div className="rounded-xl border border-hairline bg-white p-8 text-center">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orq8-green/10">
-        <CheckCircle2 className="h-6 w-6 text-orq8-green" />
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-deep/10">
+        <CheckCircle2 className="h-6 w-6 text-brand-ink" />
       </span>
       <h2 className="mt-4 text-lg font-semibold text-ink">Nothing needs your decision</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm text-muted">
@@ -257,26 +314,26 @@ function QuietState({ onAsk }: { onAsk: () => void }) {
         <button
           type="button"
           onClick={onAsk}
-          className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green"
+          className="flex items-center gap-1.5 rounded-lg ink px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Ask what to work on next
         </button>
         <Link
           href="/app/goals"
-          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-orq8-green"
+          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-brand-deep"
         >
           Set a goal
         </Link>
         <Link
           href="/app/agents"
-          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-orq8-green"
+          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-brand-deep"
         >
           Hire an AI employee
         </Link>
         <Link
           href="/app/council"
-          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-orq8-green"
+          className="rounded-lg border border-hairline px-4 py-2 text-xs font-semibold text-ink transition-colors hover:border-brand-deep"
         >
           Run a decision council
         </Link>

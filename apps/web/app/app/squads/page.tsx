@@ -71,17 +71,17 @@ interface OrgAgent {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "completed": return { label: "Completed", cls: "bg-emerald-50 text-emerald-700" };
-    case "in_progress": return { label: "In progress", cls: "bg-blue-50 text-blue-700" };
-    case "failed": return { label: "Failed", cls: "bg-red-50 text-red-700" };
+    case "completed": return { label: "Completed", cls: "bg-brand-soft text-brand-ink" };
+    case "in_progress": return { label: "In progress", cls: "bg-brand-soft text-brand-deep" };
+    case "failed": return { label: "Failed", cls: "bg-error-soft text-error-ink" };
     default: return { label: "Pending", cls: "bg-muted/10 text-muted" };
   }
 }
 
 function squadStateBadge(status: string) {
   switch (status) {
-    case "active": return { label: "Active", cls: "bg-emerald-50 text-emerald-700" };
-    case "completed": return { label: "Completed", cls: "bg-blue-50 text-blue-700" };
+    case "active": return { label: "Active", cls: "bg-brand-soft text-brand-ink" };
+    case "completed": return { label: "Completed", cls: "bg-brand-soft text-brand-deep" };
     default: return { label: "Archived", cls: "bg-muted/10 text-muted" };
   }
 }
@@ -216,8 +216,8 @@ export default function SquadsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orq8-lime/10">
-                <Users aria-hidden="true" className="h-4.5 w-4.5 text-orq8-green" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-accent/10">
+                <Users aria-hidden="true" className="h-4.5 w-4.5 text-brand-ink" />
               </span>
               <h1 className="text-xl font-semibold tracking-tight text-ink">Cross-Agent Squads</h1>
             </div>
@@ -238,7 +238,7 @@ export default function SquadsPage() {
             <button
               type="button"
               onClick={() => setShowCreate(v => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
             >
               <Plus aria-hidden="true" className="h-3.5 w-3.5" />
               New squad
@@ -247,10 +247,10 @@ export default function SquadsPage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
           </div>
         )}
 
@@ -265,7 +265,7 @@ export default function SquadsPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Launch Squad"
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div>
@@ -274,7 +274,7 @@ export default function SquadsPage() {
                   value={purpose}
                   onChange={e => setPurpose(e.target.value)}
                   placeholder="Why does this squad exist?"
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div className="sm:col-span-2">
@@ -284,7 +284,7 @@ export default function SquadsPage() {
                   onChange={e => setObjective(e.target.value)}
                   placeholder="e.g. Launch our new mobile app by end of quarter — marketing, support and engineering in parallel"
                   rows={2}
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
             </div>
@@ -301,7 +301,7 @@ export default function SquadsPage() {
                       key={a.id}
                       type="button"
                       onClick={() => toggleAgent(a.id)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? "border-orq8-green bg-orq8-lime/10 text-orq8-green" : "border-hairline bg-white text-muted hover:text-ink"}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? "border-brand-deep bg-ink-accent/10 text-brand-ink" : "border-hairline bg-white text-muted hover:text-ink"}`}
                     >
                       <Bot className="h-3 w-3" aria-hidden="true" />
                       {a.name}
@@ -317,7 +317,7 @@ export default function SquadsPage() {
                 type="button"
                 onClick={createSquad}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
                 Create squad
@@ -331,7 +331,7 @@ export default function SquadsPage() {
         {showStart && selected && (
           <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
             <div className="flex items-center gap-2">
-              <Flag className="h-4 w-4 text-orq8-green" aria-hidden="true" />
+              <Flag className="h-4 w-4 text-brand-ink" aria-hidden="true" />
               <h2 className="text-sm font-semibold text-ink">Start “{selected.name}” — decompose the work</h2>
             </div>
             <p className="mt-1 text-xs text-muted">
@@ -344,23 +344,23 @@ export default function SquadsPage() {
                     value={row.title}
                     onChange={e => setTaskRows(prev => prev.map((r, j) => j === i ? { ...r, title: e.target.value } : r))}
                     placeholder="Task title"
-                    className="rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   />
                   <input
                     value={row.description}
                     onChange={e => setTaskRows(prev => prev.map((r, j) => j === i ? { ...r, description: e.target.value } : r))}
                     placeholder="Description (optional)"
-                    className="rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   />
                   <div className="flex gap-2">
                     <input
                       value={row.role}
                       onChange={e => setTaskRows(prev => prev.map((r, j) => j === i ? { ...r, role: e.target.value } : r))}
                       placeholder="Agent role"
-                      className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                      className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                     />
                     {taskRows.length > 1 && (
-                      <button type="button" onClick={() => setTaskRows(prev => prev.filter((_, j) => j !== i))} className="shrink-0 rounded-lg border border-hairline p-2 text-muted hover:text-red-600">
+                      <button type="button" onClick={() => setTaskRows(prev => prev.filter((_, j) => j !== i))} className="shrink-0 rounded-lg border border-hairline p-2 text-muted hover:text-error-ink">
                         <X className="h-4 w-4" aria-hidden="true" />
                       </button>
                     )}
@@ -372,7 +372,7 @@ export default function SquadsPage() {
               <button
                 type="button"
                 onClick={() => setTaskRows(prev => [...prev, { title: "", description: "", role: "" }])}
-                className="text-xs font-medium text-orq8-green hover:underline"
+                className="text-xs font-medium text-brand-ink hover:underline"
               >
                 + Add task
               </button>
@@ -382,7 +382,7 @@ export default function SquadsPage() {
                 type="button"
                 onClick={startSquad}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
                 Start squad
@@ -414,7 +414,7 @@ export default function SquadsPage() {
                     key={s.id}
                     type="button"
                     onClick={() => openSquad(s.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors ${selected?.id === s.id ? "border-orq8-green bg-orq8-lime/5" : "border-hairline bg-white hover:bg-canvas"}`}
+                    className={`w-full rounded-xl border p-4 text-left transition-colors ${selected?.id === s.id ? "border-brand-deep bg-ink-accent/5" : "border-hairline bg-white hover:bg-canvas"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -453,7 +453,7 @@ export default function SquadsPage() {
                       <button
                         type="button"
                         onClick={() => setShowStart(true)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
                       >
                         <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
                         Start this squad

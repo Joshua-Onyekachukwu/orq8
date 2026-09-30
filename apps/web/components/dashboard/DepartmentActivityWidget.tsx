@@ -74,9 +74,9 @@ function describe(e: RealtimeEvent): string | null {
 }
 
 function tone(type: string): string {
-  if (type.endsWith(".completed") || type.endsWith(".qa_passed") || type === "approval.decided") return "text-orq8-green";
-  if (type.endsWith(".failed") || type.endsWith(".qa_failed") || type.endsWith(".blocked")) return "text-red-500";
-  if (type.endsWith("escalated") || type.startsWith("approval")) return "text-amber-600";
+  if (type.endsWith(".completed") || type.endsWith(".qa_passed") || type === "approval.decided") return "text-brand-ink";
+  if (type.endsWith(".failed") || type.endsWith(".qa_failed") || type.endsWith(".blocked")) return "text-error-ink";
+  if (type.endsWith("escalated") || type.startsWith("approval")) return "text-warm-ink";
   return "text-muted";
 }
 
@@ -192,7 +192,7 @@ export function DepartmentActivityWidget() {
         </div>
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-            connected ? "bg-orq8-green/10 text-orq8-green" : "bg-muted/10 text-muted"
+            connected ? "bg-brand-deep/10 text-brand-ink" : "bg-muted/10 text-muted"
           }`}
           title={connected ? "Streaming live events" : lastPoll ? `Last synced ${timeAgo(lastPoll.toISOString())}` : "Connecting…"}
         >
@@ -210,7 +210,7 @@ export function DepartmentActivityWidget() {
             aria-selected={deptFilter === null}
             onClick={() => setDeptFilter(null)}
             className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold transition-colors ${
-              deptFilter === null ? "bg-orq8-dark text-orq8-green" : "bg-muted/10 text-muted hover:text-ink"
+              deptFilter === null ? "ink text-brand-ink" : "bg-muted/10 text-muted hover:text-ink"
             }`}
           >
             All
@@ -223,7 +223,7 @@ export function DepartmentActivityWidget() {
               aria-selected={deptFilter === d}
               onClick={() => setDeptFilter(d === deptFilter ? null : d)}
               className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold transition-colors ${
-                deptFilter === d ? "bg-orq8-dark text-orq8-green" : "bg-muted/10 text-muted hover:text-ink"
+                deptFilter === d ? "ink text-brand-ink" : "bg-muted/10 text-muted hover:text-ink"
               }`}
             >
               {d}
@@ -246,7 +246,7 @@ export function DepartmentActivityWidget() {
         <ol className="mt-3 space-y-2">
           {filteredEvents.slice(0, 8).map((e) => (
             <li key={e.id} className="flex items-start gap-2.5 text-xs">
-              <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${e.type.endsWith(".failed") ? "bg-red-500" : e.type.endsWith(".completed") ? "bg-orq8-green" : "bg-amber-400"}`} aria-hidden />
+              <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${e.type.endsWith(".failed") ? "bg-error-fill" : e.type.endsWith(".completed") ? "bg-brand-deep" : "bg-warm"}`} aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-ink">
                   {e.department && <span className="font-semibold text-ink">{e.department}</span>}
@@ -269,7 +269,7 @@ export function DepartmentActivityWidget() {
       )}
 
       <div className="mt-3 flex items-center justify-between">
-        <a href="/app/activity" className="text-2xs font-medium text-orq8-green hover:underline">
+        <a href="/app/activity" className="text-2xs font-medium text-brand-ink hover:underline">
           Full activity log →
         </a>
         <button

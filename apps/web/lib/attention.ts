@@ -76,14 +76,14 @@ export const ATTENTION_SEVERITY_DESCRIPTIONS: Record<AttentionSeverity, string> 
 
 /** Two font weights only: semibold for the label, regular for the body. */
 export const ATTENTION_SEVERITY_PILL: Record<AttentionSeverity, string> = {
-  critical: "bg-red-50 text-red-700",
-  warning: "bg-orq8-orange/10 text-orq8-orange",
+  critical: "bg-error-soft text-error-ink",
+  warning: "bg-warm/10 text-warm-ink",
   info: "bg-canvas text-muted",
 };
 
 export const ATTENTION_SEVERITY_ACCENT: Record<AttentionSeverity, string> = {
-  critical: "border-l-red-400",
-  warning: "border-l-orq8-orange",
+  critical: "border-l-error",
+  warning: "border-l-mark-warm",
   info: "border-l-hairline",
 };
 

@@ -15,6 +15,8 @@ import { loadConfig } from '@orq8/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ModelRouter,
+  PROVIDER_PRIORITY,
+  isDevelopmentProvider,
   modelSatisfiesRequirements,
   scoreModel,
   getDefaultRequirements,
@@ -71,6 +73,43 @@ describe('ModelRouter — provider initialization', () => {
     const router = new ModelRouter(config);
     const chain = router.getProviderChain();
     expect(chain.length).toBe(0);
+  });
+});
+
+// ─── Provider Priority (docs/22 §22.9) ──────────────────────────────────────
+
+describe('ModelRouter — provider priority', () => {
+  it('declares OpenRouter primary and NVIDIA as first fallback', () => {
+    expect(PROVIDER_PRIORITY).toEqual(['openrouter', 'nvidia', 'litellm', 'ollama']);
+    expect(PROVIDER_PRIORITY[0]).toBe('openrouter');
+    expect(PROVIDER_PRIORITY[1]).toBe('nvidia');
+  });
+
+  it('marks only LiteLLM and Ollama as development providers', () => {
+    expect(PROVIDER_PRIORITY.filter(isDevelopmentProvider)).toEqual(['litellm', 'ollama']);
+    expect(isDevelopmentProvider('openrouter')).toBe(false);
+    expect(isDevelopmentProvider('nvidia')).toBe(false);
+  });
+
+  it('orders a fully configured chain exactly as PROVIDER_PRIORITY declares', () => {
+    const config = makeConfig({
+      OPENROUTER_API_KEY: 'sk-or-test-123',
+      NVIDIA_API_KEY: 'nvapi-test-123',
+      LITELLM_BASE_URL: 'http://litellm.local',
+      OLLAMA_BASE_URL: 'http://ollama.local',
+    });
+    const router = new ModelRouter(config);
+    const chain = router.getProviderChain();
+    expect(chain.map((p) => p.id)).toEqual([...PROVIDER_PRIORITY]);
+  });
+
+  it('selects OpenRouter when it is available alongside NVIDIA', () => {
+    const config = makeConfig({
+      OPENROUTER_API_KEY: 'sk-or-test-123',
+      NVIDIA_API_KEY: 'nvapi-test-123',
+    });
+    const router = new ModelRouter(config);
+    expect(router.getProviderChain()[0]!.id).toBe('openrouter');
   });
 });
 

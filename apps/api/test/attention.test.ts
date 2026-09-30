@@ -132,6 +132,26 @@ describe('attention item shape', () => {
     expect(item.impact).toBe('High risk action');
   });
 
+  it('names the work a decision blocks, instead of asking the founder to rule on a sentence', () => {
+    const item = approval({
+      taskId: '22222222-2222-2222-2222-222222222222',
+      taskTitle: 'Roll out the onboarding sequence',
+    });
+
+    expect(item.why).toContain('Roll out the onboarding sequence');
+    expect(item.authority).toContain('approving resumes');
+    expect(item.authority).toContain('rejecting stops it');
+    // The reference stays the approval: the action endpoints must still work.
+    expect(item.entity.type).toBe('approval');
+  });
+
+  it('names the tool when the gate came from a tool call rather than a task', () => {
+    const item = approval({ toolId: 'github.create_pr', description: null, cost: 0 });
+
+    expect(item.why).toContain('github.create_pr');
+    expect(item.authority).toContain('authority profile');
+  });
+
   it('describes blocked work with its real age and cancel action', () => {
     const item = classifyBlockedTask(
       {
@@ -174,7 +194,11 @@ describe('attention item shape', () => {
     expect(item.source).toBe('failure');
     expect(item.severity).toBe('critical');
     expect(item.why).toBe('Last attempt failed: No model was available to run the task');
-    expect(item.actions.find((a) => a.kind === 'retry')?.payload).toEqual({ status: 'pending' });
+    // Retry is the endpoint that re-runs the work and reports the outcome, not
+    // a status patch that only requeues it.
+    const retry = item.actions.find((a) => a.kind === 'retry');
+    expect(retry?.method).toBe('POST');
+    expect(retry?.endpoint).toBe('/v1/commands/tasks/33333333-3333-3333-3333-333333333333/retry');
     expect(item.actions.find((a) => a.kind === 'cancel')?.payload).toEqual({ status: 'cancelled' });
   });
 

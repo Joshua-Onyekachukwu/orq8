@@ -39,7 +39,7 @@ export default async function RegisterPage({
           <div className="space-y-3">
             <Link
               href="/#waitlist"
-              className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+              className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand"
             >
               Join the waitlist
             </Link>

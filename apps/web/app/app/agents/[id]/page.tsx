@@ -72,9 +72,9 @@ function formatDate(iso: string): string {
 }
 
 function taskStatusIcon(status: string) {
-  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-orq8-green" />;
-  if (status === "in_progress") return <span className="h-2 w-2 rounded-full bg-blue-500" />;
-  if (status === "failed") return <span className="h-2 w-2 rounded-full bg-red-500" />;
+  if (status === "completed") return <span className="h-2 w-2 rounded-full bg-brand-deep" />;
+  if (status === "in_progress") return <span className="h-2 w-2 rounded-full bg-mark-active" />;
+  if (status === "failed") return <span className="h-2 w-2 rounded-full bg-error-fill" />;
   return <span className="h-2 w-2 rounded-full bg-hairline" />;
 }
 
@@ -165,13 +165,13 @@ export default function AgentDetailPage() {
         </Link>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="ml-auto text-xs text-red-500 hover:text-red-700"
+              className="ml-auto text-xs text-error-ink hover:text-error-ink"
             >
               Dismiss
             </button>
@@ -184,7 +184,7 @@ export default function AgentDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Agent not found</p>
             <Link
               href="/app/agents"
-              className="mt-2 inline-block text-sm text-orq8-green hover:underline"
+              className="mt-2 inline-block text-sm text-brand-ink hover:underline"
             >
               Return to AI Workforce
             </Link>
@@ -195,11 +195,11 @@ export default function AgentDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-xl font-bold text-orq8-green">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full ink text-xl font-bold text-brand-ink">
                     {agent.name.charAt(0)}
                   </span>
                   <div>
-                    <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+                    <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
                       {agent.department ?? "General"}
                       {agent.teamName ? ` · ${agent.teamName}` : ""}
                     </p>
@@ -216,7 +216,7 @@ export default function AgentDetailPage() {
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     agent.status === "active"
                       ? "border border-hairline bg-white text-ink hover:bg-canvas"
-                      : "bg-orq8-green text-white transition-colors hover:bg-orq8-green-dark"
+                      : "bg-brand-deep text-white transition-colors hover:bg-brand"
                   }`}
                 >
                   {processing ? (
@@ -236,8 +236,8 @@ export default function AgentDetailPage() {
               <p className="mt-3 flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-wide">
                 {agent.status === "active" ? (
                   <>
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-green" />
-                    <span className="text-orq8-green">Working now</span>
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-deep" />
+                    <span className="text-brand-ink">Working now</span>
                   </>
                 ) : (
                   <>
@@ -261,7 +261,7 @@ export default function AgentDetailPage() {
                   {agent.capabilities.map((cap) => (
                     <span
                       key={cap}
-                      className="rounded-full bg-orq8-dark/5 px-2.5 py-1 text-overline font-medium text-orq8-dark"
+                      className="rounded-full bg-ink-surface/5 px-2.5 py-1 text-overline font-medium text-ink"
                     >
                       {cap}
                     </span>
@@ -300,7 +300,7 @@ export default function AgentDetailPage() {
             {/* Contextual Executive Agent — knows this employee */}
             <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <div className="mb-3 flex items-center gap-2">
-                <Command className="h-4 w-4 text-orq8-green" />
+                <Command className="h-4 w-4 text-brand-ink" />
                 <p className="text-xs font-semibold text-muted">
                   Executive Agent <span className="font-normal text-muted">— directing “{agent.name}”</span>
                 </p>
@@ -361,7 +361,7 @@ export default function AgentDetailPage() {
                           <td className="px-5 py-3">
                             <Link
                               href={`/app/tasks/${t.id}`}
-                              className="text-sm font-medium text-ink hover:text-orq8-green"
+                              className="text-sm font-medium text-ink hover:text-brand-ink"
                             >
                               {t.title}
                             </Link>

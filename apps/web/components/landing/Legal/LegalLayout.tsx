@@ -14,9 +14,9 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
   children,
 }) => {
   return (
-    <section className="bg-orq8-dark pt-[120px] md:pt-[160px] lg:pt-[200px] pb-[60px] md:pb-[80px] lg:pb-[100px]">
+    <section className="ink pt-[120px] md:pt-[160px] lg:pt-[200px] pb-[60px] md:pb-[80px] lg:pb-[100px]">
       <div className="mx-auto max-w-[800px] px-[20px] md:px-[24px]">
-        <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-orq8-orange-bright">
+        <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-warm-ink">
           Legal
         </span>
         <h1 className="mb-[8px] text-[36px] md:text-[48px] lg:text-[56px] font-normal leading-[1.1] tracking-tight text-white">

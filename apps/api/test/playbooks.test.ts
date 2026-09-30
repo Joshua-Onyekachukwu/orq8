@@ -66,7 +66,7 @@ describe('playbooks — template integrity', () => {
 
 // ─── DB-gated seeding behavior (skipped without Postgres) ───────────────────
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 let dbUp = false;
 try {
   const probe = new Pool({ connectionString: config.DATABASE_URL, connectionTimeoutMillis: 1500 });

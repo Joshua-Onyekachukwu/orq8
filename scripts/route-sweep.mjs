@@ -17,12 +17,30 @@ import { readFileSync } from "node:fs";
 const argBase = process.argv.indexOf("--base");
 const BASE =
   argBase > -1 ? process.argv[argBase + 1] : "https://orq8.vercel.app";
-const env = Object.fromEntries(
-  readFileSync(new URL("./.env.demo.local", import.meta.url), "utf8")
-    .split(/\r?\n/)
-    .filter((l) => l.includes("=") && !l.startsWith("#"))
-    .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()])
+const envArg = Object.fromEntries(
+  process.argv
+    .map((a, i, all) => (a === "--email" || a === "--password" ? [a.slice(2).toUpperCase(), all[i + 1]] : null))
+    .filter(Boolean)
 );
+// The demo identity. The local review stack seeds the same account from the
+// same file (scripts/.env.demo.local); when the file is absent both sides fall
+// back to the same default. They used to disagree — the stack seeded
+// founder@orq8.test while this logged in as demo@orq8.test — which made a
+// healthy app report "redirected to /login" on every /app route.
+const env = (() => {
+  try {
+    return Object.fromEntries(
+      readFileSync(new URL("./.env.demo.local", import.meta.url), "utf8")
+        .split(/\r?\n/)
+        .filter((l) => l.includes("=") && !l.startsWith("#"))
+        .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()])
+    );
+  } catch {
+    return {};
+  }
+})();
+const EMAIL = envArg.EMAIL ?? env.DEMO_EMAIL ?? env.E2E_EMAIL ?? "founder@orq8.test";
+const PASSWORD = envArg.PASSWORD ?? env.DEMO_PASSWORD ?? env.E2E_PASSWORD ?? "ReviewPass123!";
 
 const ROUTES = [
   "/app", "/app/health", "/app/jobs", "/app/approvals", "/app/report",
@@ -64,10 +82,10 @@ page.on("response", (r) => {
 });
 
 try {
-  console.log("=== login ===");
+  console.log(`=== login (as ${EMAIL}) ===`);
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle", timeout: 60_000 });
-  await page.fill("#email", env.DEMO_EMAIL ?? env.E2E_EMAIL);
-  await page.fill("#password", env.DEMO_PASSWORD ?? env.E2E_PASSWORD);
+  await page.fill("#email", EMAIL);
+  await page.fill("#password", PASSWORD);
   await Promise.all([
     page.waitForURL(/\/app(\b|$)/, { timeout: 60_000 }).catch(() => {}),
     page.click('button[type="submit"]'),

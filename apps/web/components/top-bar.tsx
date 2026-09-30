@@ -76,7 +76,7 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
       {/* Email verification nudge — renders nothing once verified */}
       <UnverifiedEmailBanner />
       {/* Top bar */}
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-100 bg-white/95 backdrop-blur-sm px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-hairline-light bg-white/95 backdrop-blur-sm px-4 sm:px-6 lg:px-8">
         {/* Left: breadcrumb */}
         <div className="flex items-center gap-3">
           {/* Mobile menu toggle — sits in the sticky top bar so it is always
@@ -84,14 +84,14 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
           <button
             onClick={() => window.dispatchEvent(new Event("orq8:toggle-sidebar"))}
             aria-label="Toggle navigation menu"
-            className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 lg:hidden"
+            className="rounded-lg p-2 text-ink transition-colors hover:bg-surface-secondary lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="hidden lg:flex items-center gap-2 text-2sm text-gray-500">
+          <div className="hidden lg:flex items-center gap-2 text-2sm text-ink-muted">
             <Building2 className="h-4 w-4" />
             <span>{orgName}</span>
-            <span className="text-gray-300">·</span>
+            <span className="text-ink-faint">·</span>
             <span className="capitalize">{plan}</span>
           </div>
         </div>
@@ -101,11 +101,11 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
           {/* Search trigger */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-2sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-100"
+            className="flex items-center gap-2 rounded-lg border border-hairline bg-surface-secondary px-3 py-1.5 text-2sm text-ink transition-colors hover:border-hairline-strong"
           >
-            <Search className="h-3.5 w-3.5 text-gray-600" />
+            <Search className="h-3.5 w-3.5 text-ink-muted" />
             <span className="hidden sm:inline">Search</span>
-            <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-3xs font-medium text-gray-500">
+            <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-hairline bg-white px-1.5 py-0.5 text-3xs font-medium text-ink-muted">
               ⌘K
             </kbd>
           </button>
@@ -120,9 +120,9 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-50"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-secondary"
             >
-              <div className="h-8 w-8 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-xs font-bold text-orq8-lime">
+              <div className="h-8 w-8 overflow-hidden rounded-full bg-brand-deep flex items-center justify-center text-xs font-bold text-ink-accent">
                 {userAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -135,33 +135,33 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
                   initials
                 )}
               </div>
-              <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`h-4 w-4 text-ink-muted transition-transform ${profileOpen ? "rotate-180" : ""}`} />
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-100 bg-white py-2 shadow-lg">
-                <div className="border-b border-gray-100 px-4 py-3">
-                  <p className="text-2sm font-medium text-gray-900">{userName}</p>
-                  <p className="text-overline text-gray-500">{orgName}</p>
+              <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-hairline-light bg-white py-2 shadow-lg">
+                <div className="border-b border-hairline-light px-4 py-3">
+                  <p className="text-2sm font-medium text-ink">{userName}</p>
+                  <p className="text-overline text-ink-muted">{orgName}</p>
                 </div>
                 <div className="py-1">
-                  <Link href="/app/profile" className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-700 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>
-                    <User className="h-4 w-4 text-gray-500" /> Profile
+                  <Link href="/app/profile" className="flex items-center gap-2 px-4 py-2 text-2sm text-ink hover:bg-surface-secondary" onClick={() => setProfileOpen(false)}>
+                    <User className="h-4 w-4 text-ink-muted" /> Profile
                   </Link>
-                  <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-2sm text-gray-700 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>
-                    <Settings className="h-4 w-4 text-gray-500" /> Settings
+                  <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-2sm text-ink hover:bg-surface-secondary" onClick={() => setProfileOpen(false)}>
+                    <Settings className="h-4 w-4 text-ink-muted" /> Settings
                   </Link>
                   {platformRole === "admin" && (
-                    <Link href="/admin" className="flex items-center gap-2 px-4 py-2 text-2sm text-orq8-orange hover:bg-orq8-orange/5" onClick={() => setProfileOpen(false)}>
+                    <Link href="/admin" className="flex items-center gap-2 px-4 py-2 text-2sm text-warm-ink hover:bg-warm/5" onClick={() => setProfileOpen(false)}>
                       <Command className="h-4 w-4" /> Admin Dashboard
                     </Link>
                   )}
                 </div>
-                <div className="border-t border-gray-100 pt-1">
+                <div className="border-t border-hairline-light pt-1">
                   <form action="/api/auth/logout" method="post">
                     <button
                       type="submit"
-                      className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-gray-600 hover:bg-gray-100"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-ink-muted hover:bg-surface-secondary"
                       // NOTE: do not close the dropdown here — unmounting the
                       // form during click dispatch cancels the HTML form
                       // submission and sign-out silently does nothing. The
@@ -171,7 +171,7 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
                         resetAnalytics();
                       }}
                     >
-                      <LogOut className="h-4 w-4 text-gray-500" /> Sign out
+                      <LogOut className="h-4 w-4 text-ink-muted" /> Sign out
                     </button>
                   </form>
                 </div>
@@ -185,22 +185,22 @@ export function TopBar({ userName, userAvatarUrl, orgName, plan, userRole, platf
       {searchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
           <div className="fixed inset-0 bg-black/40" onClick={() => setSearchOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-gray-100 px-4">
-              <Search className="h-5 w-5 text-gray-500" />
+          <div className="relative w-full max-w-lg rounded-2xl border border-hairline bg-white shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-hairline-light px-4">
+              <Search className="h-5 w-5 text-ink-muted" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search commands, agents, goals..."
-                className="flex-1 bg-transparent py-4 text-md text-gray-900 outline-none placeholder:text-gray-500"
+                className="flex-1 bg-transparent py-4 text-md text-ink outline-none placeholder:text-ink-muted"
               />
-              <button onClick={() => setSearchOpen(false)} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100">
+              <button onClick={() => setSearchOpen(false)} className="rounded-lg p-1 text-ink-muted hover:bg-surface-secondary">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="px-4 py-3 text-2sm text-gray-500">
+            <div className="px-4 py-3 text-2sm text-ink-muted">
               Type to search across your organization...
             </div>
           </div>

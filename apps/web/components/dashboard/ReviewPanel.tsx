@@ -47,10 +47,10 @@ export function ReviewPanel({
 
   if (submitted) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center">
-        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-600" />
-        <p className="text-sm font-semibold text-emerald-800">Review submitted</p>
-        <p className="mt-1 text-xs text-emerald-600">
+      <div className="rounded-xl border border-brand-soft bg-brand-soft p-5 text-center">
+        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-brand-deep" />
+        <p className="text-sm font-semibold text-brand-ink">Review submitted</p>
+        <p className="mt-1 text-xs text-brand-deep">
           {decision === "approve" && "Work approved and marked complete."}
           {decision === "reject" && "Work rejected. Agent will be notified."}
           {decision === "revision" && "Revision requested. Agent will revise and resubmit."}
@@ -65,9 +65,9 @@ export function ReviewPanel({
         <h3 className="text-sm font-semibold text-ink">Review Work</h3>
         {qaVerdict && (
           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-medium ${
-            qaVerdict === "pass" ? "bg-emerald-50 text-emerald-700" :
-            qaVerdict === "pass_with_warnings" ? "bg-amber-50 text-amber-700" :
-            "bg-red-50 text-red-700"
+            qaVerdict === "pass" ? "bg-brand-soft text-brand-ink" :
+            qaVerdict === "pass_with_warnings" ? "bg-warm-soft text-warm-ink" :
+            "bg-error-soft text-error-ink"
           }`}>
             QA: {qaVerdict.replace(/_/g, " ")} {qaScore != null && `(${qaScore})`}
           </span>
@@ -86,8 +86,8 @@ export function ReviewPanel({
           onClick={() => setDecision("approve")}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             decision === "approve"
-              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-              : "border-hairline bg-white text-ink hover:border-emerald-300"
+              ? "border-brand-deep bg-brand-soft text-brand-ink"
+              : "border-hairline bg-white text-ink hover:border-brand"
           }`}
         >
           <CheckCircle2 className="h-4 w-4" />
@@ -97,8 +97,8 @@ export function ReviewPanel({
           onClick={() => setDecision("revision")}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             decision === "revision"
-              ? "border-amber-500 bg-amber-50 text-amber-700"
-              : "border-hairline bg-white text-ink hover:border-amber-300"
+              ? "border-warm bg-warm-soft text-warm-ink"
+              : "border-hairline bg-white text-ink hover:border-warm"
           }`}
         >
           <RotateCcw className="h-4 w-4" />
@@ -108,8 +108,8 @@ export function ReviewPanel({
           onClick={() => setDecision("reject")}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             decision === "reject"
-              ? "border-red-500 bg-red-50 text-red-700"
-              : "border-hairline bg-white text-ink hover:border-red-300"
+              ? "border-border-error bg-error-soft text-error-ink"
+              : "border-hairline bg-white text-ink hover:border-border-error"
           }`}
         >
           <XCircle className="h-4 w-4" />
@@ -134,7 +134,7 @@ export function ReviewPanel({
                 ? "What needs to change? Be specific."
                 : "Why is this work being rejected?"
             }
-            className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-1 focus:ring-orq8-green/20 resize-none"
+            className="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand-deep focus:outline-none focus:ring-1 focus:ring-brand-deep/20 resize-none"
             rows={3}
           />
         </div>
@@ -144,7 +144,7 @@ export function ReviewPanel({
       <button
         onClick={handleSubmit}
         disabled={!decision || submitting || (decision === "revision" && !feedback.trim())}
-        className="w-full flex items-center justify-center gap-2 rounded-lg bg-orq8-dark px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-2 rounded-lg ink px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-surface/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Send className="h-4 w-4" />
         {submitting ? "Submitting..." : "Submit Review"}

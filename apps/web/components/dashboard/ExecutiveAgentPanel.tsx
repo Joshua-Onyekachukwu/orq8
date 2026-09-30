@@ -65,7 +65,7 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       icon: Clock,
       text: `${pendingApprovals.length} decision${pendingApprovals.length !== 1 ? "s" : ""} waiting for your approval`,
       href: "/app/approvals",
-      color: "text-orq8-orange",
+      color: "text-warm-ink",
     });
   }
   if (dashboard && dashboard.total_goals > 0) {
@@ -76,7 +76,7 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       icon: Target,
       text: `${dashboard.active_goals} active goals · ${completionRate}% task completion`,
       href: "/app/goals",
-      color: "text-orq8-green",
+      color: "text-brand-ink",
     });
   }
   if (activeAgents.length > 0) {
@@ -84,7 +84,7 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       icon: Users,
       text: `${activeAgents.length} AI employee${activeAgents.length !== 1 ? "s" : ""} active`,
       href: "/app/agents",
-      color: "text-orq8-lime",
+      color: "text-ink-accent",
     });
   }
 
@@ -93,17 +93,17 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-green">
-            <Bot aria-hidden="true" className="h-4 w-4 text-orq8-lime" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-deep">
+            <Bot aria-hidden="true" className="h-4 w-4 text-ink-accent" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-ink">Executive Agent</h2>
             <p className="text-xs text-muted">Your Chief of Staff</p>
           </div>
         </div>
-        <span className="flex items-center gap-1.5 rounded-full bg-orq8-lime/10 px-2.5 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-orq8-lime animate-pulse" />
-          <span className="font-mono text-2xs font-semibold text-orq8-green">ONLINE</span>
+        <span className="flex items-center gap-1.5 rounded-full bg-ink-accent/10 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-soft animate-pulse" />
+          <span className="font-mono text-2xs font-semibold text-brand-ink">ONLINE</span>
         </span>
       </div>
 
@@ -119,15 +119,15 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
           <div className="space-y-2">
             {workingAgents.slice(0, 3).map(agent => (
               <div key={agent.id} className="flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orq8-green text-3xs font-bold text-orq8-lime">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-deep text-3xs font-bold text-ink-accent">
                   {agent.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-ink truncate">{agent.name}</p>
                   <p className="text-3xs text-muted truncate">{agent.currentTask}</p>
                 </div>
-                <span className="flex items-center gap-1 text-3xs text-orq8-orange">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orq8-orange animate-pulse" />
+                <span className="flex items-center gap-1 text-3xs text-warm-ink">
+                  <span className="h-1.5 w-1.5 rounded-full bg-warm animate-pulse" />
                   Working
                 </span>
               </div>
@@ -170,7 +170,7 @@ export function ExecutiveAgentPanel({ agents, approvals, dashboard }: ExecutiveA
           <p className="text-2xs font-medium uppercase tracking-wide text-muted">Done</p>
         </div>
         <div className="rounded-lg bg-canvas px-3 py-2 text-center">
-          <p className="font-mono text-lg font-bold text-orq8-orange">{pendingApprovals.length}</p>
+          <p className="font-mono text-lg font-bold text-warm-ink">{pendingApprovals.length}</p>
           <p className="text-2xs font-medium uppercase tracking-wide text-muted">Pending</p>
         </div>
       </div>

@@ -44,6 +44,53 @@ function divider(): string {
   return `<hr style="border:none;border-top:1px solid ${HAIRLINE};margin:20px 0;" />`;
 }
 
+/**
+ * Invitation to join an organization.
+ *
+ * Carries the accept link (the only place the plaintext token exists) and says
+ * who invited whom as what, so a teammate who receives it can tell a real
+ * invitation from phishing before clicking.
+ */
+export function invitationEmail(input: {
+  orgName: string;
+  role: string;
+  acceptUrl: string;
+  invitedBy?: string;
+  expiresInDays?: number;
+}): { subject: string; text: string; html: string } {
+  const days = input.expiresInDays ?? 14;
+  const subject = `You've been invited to join ${input.orgName} on ORQ8`;
+  const inviter = input.invitedBy ? `${input.invitedBy} invited you` : 'You have been invited';
+  const text = [
+    `${inviter} to join ${input.orgName} on ORQ8 as ${input.role}.`,
+    '',
+    'Open this link to accept:',
+    input.acceptUrl,
+    '',
+    `The link can be used once and expires in ${days} days. It only works for this email address, so it cannot be forwarded to someone else.`,
+    "If you weren't expecting this, you can ignore this email.",
+    '',
+    'ORQ8 — the AI organization operating system.',
+  ].join('\n');
+
+  const html = shell(
+    'invitation · join a company',
+    [
+      p(`${inviter} to join <strong>${input.orgName}</strong> on ORQ8 as <strong>${input.role}</strong>.`),
+      cta(input.acceptUrl, 'Accept invitation'),
+      p(
+        `<span style="color:${MUTED};font-size:13px;">The link can be used once and expires in ${days} days. It is tied to this email address, so forwarding it will not let anyone else in.</span>`,
+      ),
+      divider(),
+      p(
+        `<span style="color:${MUTED};font-size:12px;">If the button does not work, paste this into your browser:<br /><span style="word-break:break-all;">${input.acceptUrl}</span></span>`,
+      ),
+    ].join(''),
+  );
+
+  return { subject, text, html };
+}
+
 // ─── Password Reset ─────────────────────────────────────────────────────────
 
 /** Email-verification link email — sent at signup and on resend. */

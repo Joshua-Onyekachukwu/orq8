@@ -22,9 +22,10 @@ import {
   UserCog,
   Users,
   X,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
+
+import { LogoMark } from "../branding/logo-mark";
 
 type NavItem = {
   label: string;
@@ -110,13 +111,8 @@ export function AdminSidebar() {
     <div className="flex h-full flex-col bg-white">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-hairline px-5">
-        <Link href="/admin" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-dark">
-            <Zap className="h-4 w-4 text-orq8-lime" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-orq8-dark">
-            ORQ8
-          </span>
+        <Link href="/admin" className="flex items-center gap-2 text-ink" aria-label="ORQ8 admin home">
+          <LogoMark className="h-8 w-auto" dotColor="var(--orq-brand-deep)" />
         </Link>
         <button
           onClick={() => setMobileOpen(false)}
@@ -128,7 +124,7 @@ export function AdminSidebar() {
 
       {/* Admin badge */}
       <div className="border-b border-hairline px-5 py-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-orq8-dark px-2.5 py-1 text-3xs font-semibold uppercase tracking-wider text-orq8-lime">
+        <span className="inline-flex items-center gap-1.5 rounded-full ink px-2.5 py-1 text-3xs font-semibold uppercase tracking-wider text-ink-accent">
           <Shield className="h-3 w-3" />
           Admin Panel
         </span>
@@ -163,13 +159,13 @@ export function AdminSidebar() {
                           onClick={() => setMobileOpen(false)}
                           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
                             active
-                              ? "bg-orq8-dark text-white"
+                              ? "ink text-white"
                               : "text-muted hover:bg-canvas hover:text-ink"
                           }`}
                         >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-orq8-lime" : "text-muted/50"
+                              active ? "text-ink-accent" : "text-muted/50"
                             }`}
                           />
                           <span className="flex-1 truncate">{item.label}</span>
@@ -197,7 +193,7 @@ export function AdminSidebar() {
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium text-muted transition-colors hover:bg-error-soft hover:text-error-ink"
           >
             <LogOut className="h-4 w-4 shrink-0 text-muted/50" />
             Sign out

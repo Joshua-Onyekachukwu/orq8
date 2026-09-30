@@ -2,10 +2,41 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SettingsShell } from "../../components/settings-shell";
-import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell, Download } from "lucide-react";
+import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell, Download, Mail, XCircle } from "lucide-react";
+
+// Mail delivery, as the API reports it (docs/66 §66.18). Key names only: this
+// type exists so the section can be honest about what is missing without ever
+// holding a credential.
+interface MailStatus {
+  provider: "resend" | "smtp" | "dev-log" | "none";
+  delivers: boolean;
+  from: string;
+  configuredKeys: string[];
+  missingKeys: string[];
+  notes: string[];
+  environment: string;
+  canSendTest: boolean;
+}
+
+interface MailStep {
+  id: "configuration" | "reachability" | "delivery";
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+interface MailDiagnosis {
+  ok: boolean;
+  delivered: boolean;
+  provider: string;
+  from: string;
+  to: string;
+  steps: MailStep[];
+  failure: { reason: string; fix: string; message: string } | null;
+}
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-orq8-green";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-deep";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
@@ -57,6 +88,13 @@ interface NotificationPrefs {
   soundEnabled: boolean;
 }
 
+const MAIL_PROVIDER_LABEL: Record<MailStatus["provider"], string> = {
+  resend: "Resend",
+  smtp: "SMTP",
+  "dev-log": "Log only (development)",
+  none: "No provider configured",
+};
+
 export default function SettingsPage() {
   const [me, setMe] = useState<MeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +117,52 @@ export default function SettingsPage() {
   });
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
+
+  // Mail delivery: the configuration is read once (it cannot change without a
+  // redeploy), and the three-step proof runs only when the founder asks for it —
+  // it sends a real message, so it must never fire on a page load.
+  const [mail, setMail] = useState<MailStatus | null>(null);
+  const [mailResult, setMailResult] = useState<MailDiagnosis | null>(null);
+  const [mailChecking, setMailChecking] = useState(false);
+  const [mailError, setMailError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/mail");
+        const json = await res.json().catch(() => null);
+        if (!cancelled && res.ok) setMail(json?.data ?? null);
+      } catch {
+        // The section renders its unavailable state; nothing else depends on it.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const checkMail = useCallback(async () => {
+    setMailChecking(true);
+    setMailError(null);
+    setMailResult(null);
+    try {
+      const res = await fetch("/api/settings/mail/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error?.message ?? "The mail check could not run.");
+      }
+      setMailResult(json?.data ?? null);
+    } catch (err) {
+      setMailError(err instanceof Error ? err.message : "The mail check could not run.");
+    } finally {
+      setMailChecking(false);
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -200,14 +284,14 @@ export default function SettingsPage() {
   if (error) {
     return (
       <SettingsShell title="Account settings" description="Your profile, company details, and how ORQ8 addresses you.">
-        <div className="max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6">
+        <div className="max-w-3xl rounded-xl border border-border-error bg-error-soft p-6">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
           </div>
           <button
             onClick={fetchData}
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:underline"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-error-ink hover:underline"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Retry
           </button>
@@ -236,7 +320,7 @@ export default function SettingsPage() {
 
         <div className="mt-6 flex items-center gap-4">
           <span className="relative h-16 w-16 overflow-hidden rounded-full border border-hairline">
-            <span className="flex h-full w-full items-center justify-center bg-orq8-dark text-lg font-bold text-orq8-green">
+            <span className="flex h-full w-full items-center justify-center ink text-lg font-bold text-brand-ink">
               {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
             </span>
           </span>
@@ -382,14 +466,14 @@ export default function SettingsPage() {
           </p>
           <div className="flex items-center gap-3">
             {saveSuccess && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-orq8-green">
+              <span className="inline-flex items-center gap-1.5 text-sm text-brand-ink">
                 <CheckCircle2 className="h-4 w-4" /> Saved
               </span>
             )}
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
                 <>
@@ -424,6 +508,114 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Mail delivery — self-diagnosing */}
+      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+        <div className="flex items-center gap-2">
+          <Mail className="h-5 w-5 text-muted" />
+          <h2 className="text-lg font-semibold text-ink">Mail delivery</h2>
+        </div>
+        <p className="mt-1 text-sm text-muted">
+          Confirmations, invitations and briefings leave through this provider. When it does not
+          work, nobody can confirm their address, so check it here rather than discovering it from
+          a locked-out teammate.
+        </p>
+
+        {!mail ? (
+          <p className="mt-4 text-sm text-muted">Reading the mail configuration…</p>
+        ) : (
+          <>
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-hairline px-2.5 py-1 font-mono text-3xs font-semibold uppercase tracking-wide text-ink">
+                {MAIL_PROVIDER_LABEL[mail.provider]}
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-1 font-mono text-3xs font-semibold uppercase tracking-wide ${
+                  mail.delivers ? "bg-brand-deep/10 text-brand-ink" : "bg-error-soft text-error-ink"
+                }`}
+              >
+                {mail.delivers ? "Delivering" : "Not delivering"}
+              </span>
+              <span className="text-xs text-muted">from {mail.from}</span>
+            </div>
+
+            {mail.missingKeys.length > 0 && (
+              <p className="mt-3 font-mono text-2xs break-words text-muted">
+                Not set: {mail.missingKeys.join(", ")}
+              </p>
+            )}
+
+            <ul className="mt-3 space-y-1">
+              {mail.notes.map((note) => (
+                <li key={note} className="text-xs text-muted">
+                  {note}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={checkMail}
+                disabled={mailChecking || !mail.canSendTest}
+                className="inline-flex items-center gap-2 rounded-full border border-hairline px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink/30 disabled:opacity-50"
+              >
+                {mailChecking ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+                {mailChecking ? "Sending a test message…" : "Send a test email to me"}
+              </button>
+              {!mail.canSendTest && (
+                <span className="text-xs text-muted">
+                  Only an owner or admin can send the test.
+                </span>
+              )}
+            </div>
+
+            {mailError && (
+              <div className="mt-4 rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">
+                {mailError}
+              </div>
+            )}
+
+            {mailResult && (
+              <div className="mt-4 rounded-lg border border-hairline bg-canvas p-4">
+                <p className="text-sm font-medium text-ink">
+                  {mailResult.ok
+                    ? `Delivered: the provider accepted a message for ${mailResult.to}`
+                    : "Not delivering yet"}
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {mailResult.steps.map((step) => (
+                    <li key={step.id} className="flex items-start gap-2">
+                      {step.ok ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" />
+                      ) : (
+                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-error-ink" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ink">{step.label}</p>
+                        <p className="text-xs break-words text-muted">{step.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {mailResult.failure && (
+                  <div className="mt-3 rounded-lg bg-warm-soft px-4 py-3">
+                    <p className="text-sm font-medium text-warm-ink">{mailResult.failure.reason}</p>
+                    <p className="mt-1 text-xs text-warm-ink">{mailResult.failure.fix}</p>
+                    <p className="mt-2 font-mono text-2xs break-words text-warm-ink/80">
+                      {mailResult.failure.message}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Notification Preferences */}
       <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
         <div className="flex items-center gap-2">
@@ -450,7 +642,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-orq8-green" : "bg-gray-200"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-brand-deep" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
               >
@@ -471,9 +663,9 @@ export default function SettingsPage() {
               {typeof window !== "undefined" && "Notification" in window ? (
                 <>
                   <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
-                    Notification.permission === "granted" ? "bg-orq8-lime/10 text-orq8-green" :
-                    Notification.permission === "denied" ? "bg-red-50 text-red-600" :
-                    "bg-amber-50 text-amber-700"
+                    Notification.permission === "granted" ? "bg-ink-accent/10 text-brand-ink" :
+                    Notification.permission === "denied" ? "bg-error-soft text-error-ink" :
+                    "bg-warm-soft text-warm-ink"
                   }`}>
                     {Notification.permission === "granted" ? "Allowed" :
                      Notification.permission === "denied" ? "Blocked" : "Not requested"}
@@ -485,14 +677,14 @@ export default function SettingsPage() {
                         // Force re-render to update the badge
                         setNotifPrefs((prev) => ({ ...prev }));
                       })}
-                      className="text-xs font-medium text-orq8-green hover:underline"
+                      className="text-xs font-medium text-brand-ink hover:underline"
                     >
                       Enable
                     </button>
                   )}
                 </>
               ) : (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-3xs uppercase text-gray-500">
+                <span className="rounded-full bg-surface-secondary px-2 py-0.5 font-mono text-3xs uppercase text-ink-muted">
                   Not supported
                 </span>
               )}
@@ -530,14 +722,14 @@ export default function SettingsPage() {
                     });
                   } catch { /* silent */ }
                 }}
-                className="text-xs font-medium text-orq8-green hover:underline"
+                className="text-xs font-medium text-brand-ink hover:underline"
               >
                 Test sound
               </button>
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-orq8-green" : "bg-gray-200"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-brand-deep" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs.soundEnabled}
               >
@@ -565,7 +757,7 @@ export default function SettingsPage() {
               setNotifSaving(false);
             }}
             disabled={notifSaving}
-            className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
           >
             {notifSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : notifSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
             {notifSaved ? "Saved" : "Save preferences"}

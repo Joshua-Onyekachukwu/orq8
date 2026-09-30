@@ -1,6 +1,6 @@
 import { createLogger, loadConfig } from '@orq8/core';
 import { and, count, eq } from 'drizzle-orm';
-import { auditEvents, createDb, secretRecords, userProviderKeys } from '@orq8/db';
+import { auditEvents, createDb, secretRecords, userProviderKeys, users } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { buildApp } from '../src/app.js';
 import { upsertProvider } from '../src/services/providers.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 // DB-gated like auth.integration.test.ts — green on machines without Docker.
 let dbUp = false;
@@ -79,6 +79,12 @@ run('provider keys (docs/23)', () => {
     const body = res.json();
     const token = body.data.token as string;
     expect(token).toBeTruthy();
+    // Confirm the address, as the emailed link does: requireAuth refuses an
+    // unverified account (403), and every key operation below mutates.
+    await deps.db
+      .update(users)
+      .set({ emailVerifiedAt: new Date() })
+      .where(eq(users.email, email.toLowerCase()));
     // the API returns the token in the body; emulate the web cookie
     cookie = `orq8_session=${token}`;
     const headers = await csrfHeaders(cookie);
@@ -158,6 +164,13 @@ run('provider keys (docs/23)', () => {
       url: '/v1/auth/register',
       payload: { email, password: 'password123', name: 'Other', org_name: 'Other Co' },
     });
+    // The second tenant has to be a confirmed account too, or its request is
+    // refused for the wrong reason (403 email_not_verified) and the isolation
+    // assertion passes without ever reaching the key.
+    await deps.db
+      .update(users)
+      .set({ emailVerifiedAt: new Date() })
+      .where(eq(users.email, email.toLowerCase()));
     const otherHeaders = await csrfHeaders(`orq8_session=${reg.json().data.token}`);
     const res = await app.inject({ method: 'GET', url: `/v1/providers/keys/${keyId}`, headers: { cookie: otherHeaders.cookie } });
     expect(res.statusCode).toBe(404);

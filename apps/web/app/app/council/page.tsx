@@ -83,8 +83,8 @@ const ROUND_NAMES: Record<number, string> = {
 };
 
 function confidenceColor(c: string) {
-  if (c === "high") return "text-orq8-green";
-  if (c === "low" || c === "none") return "text-red-500";
+  if (c === "high") return "text-brand-ink";
+  if (c === "low" || c === "none") return "text-error-ink";
   return "text-muted";
 }
 
@@ -96,16 +96,16 @@ function councilStatus(session: { status: string; actualOutcome: string | null; 
   label: string;
   className: string;
 } {
-  if (session.status === "validated") return { label: "validated by outcome", className: "text-orq8-green" };
-  if (session.status === "reversed") return { label: "reversed by outcome", className: "text-red-500" };
+  if (session.status === "validated") return { label: "validated by outcome", className: "text-brand-ink" };
+  if (session.status === "reversed") return { label: "reversed by outcome", className: "text-error-ink" };
   if (session.status === "archived") return { label: "archived", className: "text-muted" };
   if (session.status === "pending") return { label: "pending", className: "text-muted" };
   // active:
   if (session.actualOutcome) {
-    if (session.predictionAccuracy === "accurate") return { label: "outcome filed — prediction accurate", className: "text-orq8-green" };
-    if (session.predictionAccuracy === "inaccurate") return { label: "outcome filed — prediction inaccurate", className: "text-red-500" };
-    if (session.predictionAccuracy === "partially_accurate") return { label: "outcome filed — partially accurate", className: "text-amber-600" };
-    return { label: "outcome filed", className: "text-orq8-green" };
+    if (session.predictionAccuracy === "accurate") return { label: "outcome filed — prediction accurate", className: "text-brand-ink" };
+    if (session.predictionAccuracy === "inaccurate") return { label: "outcome filed — prediction inaccurate", className: "text-error-ink" };
+    if (session.predictionAccuracy === "partially_accurate") return { label: "outcome filed — partially accurate", className: "text-warm-ink" };
+    return { label: "outcome filed", className: "text-brand-ink" };
   }
   return { label: "awaiting outcome", className: "text-muted" };
 }
@@ -138,7 +138,7 @@ function Chips({ items, tone }: { items: string[]; tone: "risk" | "unknown" | "n
     return <p className="text-xs text-muted italic">None recorded</p>;
   }
   const toneClass =
-    tone === "risk" ? "bg-red-50 text-red-600" : tone === "unknown" ? "bg-amber-50 text-amber-700" : "bg-muted/10 text-ink";
+    tone === "risk" ? "bg-error-soft text-error-ink" : tone === "unknown" ? "bg-warm-soft text-warm-ink" : "bg-muted/10 text-ink";
   return (
     <div className="flex flex-wrap gap-1">
       {items.map((item, i) => (
@@ -201,7 +201,7 @@ function FounderVerdictPanel({
       <div className="rounded-lg border border-hairline bg-muted/5 p-3">
         <span className="text-2xs font-semibold text-muted uppercase tracking-wide">Founder decision</span>
         <p className="mt-1 text-xs">
-          <span className={shownVerdict === "approved" ? "font-semibold text-orq8-green" : "font-semibold text-red-500"}>
+          <span className={shownVerdict === "approved" ? "font-semibold text-brand-ink" : "font-semibold text-error-ink"}>
             {shownVerdict === "approved" ? "Approved" : "Rejected"}
           </span>
           {shownAt && <span className="text-muted"> · {formatTimeAgo(shownAt)}</span>}
@@ -221,13 +221,13 @@ function FounderVerdictPanel({
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => { setVerdict("approved"); setMode("editing"); }}
-            className="rounded-lg bg-orq8-green px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 transition-opacity"
+            className="rounded-lg bg-brand-deep px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 transition-opacity"
           >
             Approve
           </button>
           <button
             onClick={() => { setVerdict("rejected"); setMode("editing"); }}
-            className="rounded-lg border border-red-200 px-3 py-1.5 text-2xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+            className="rounded-lg border border-border-error px-3 py-1.5 text-2xs font-semibold text-error-ink hover:bg-error-soft transition-colors"
           >
             Reject
           </button>
@@ -247,14 +247,14 @@ function FounderVerdictPanel({
         rows={2}
         maxLength={2000}
         placeholder="Optional note — why you decided this (recorded in Decision Memory)"
-        className="mt-2 w-full rounded-lg border border-hairline px-2.5 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-orq8-green/50"
+        className="mt-2 w-full rounded-lg border border-hairline px-2.5 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-brand-deep/50"
       />
-      {error && <p className="mt-1 text-2xs text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-2xs text-error-ink">{error}</p>}
       <div className="mt-2 flex items-center gap-2">
         <button
           onClick={record}
           disabled={saving}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-orq8-dark px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="inline-flex items-center gap-1.5 rounded-lg ink px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {saving && <Loader2 className="h-3 w-3 animate-spin" />}
           {verdict === "approved" ? "Confirm approval" : "Confirm rejection"}
@@ -288,7 +288,7 @@ function SessionCard({
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/5 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <Scale className="h-4 w-4 shrink-0 text-purple-500" />
+        <Scale className="h-4 w-4 shrink-0 text-brand-deep" />
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-ink truncate">{session.title}</h4>
           <div className="flex items-center gap-2 mt-0.5 text-2xs text-muted">
@@ -400,7 +400,7 @@ function SessionDetail({ id, onClose }: { id: string; onClose: () => void }) {
         <div className="flex items-start justify-between gap-3 border-b border-hairline px-5 py-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Scale className="h-4 w-4 text-purple-500" />
+              <Scale className="h-4 w-4 text-brand-deep" />
               <h3 className="text-sm font-semibold text-ink truncate">{meta?.title ?? "Council session"}</h3>
             </div>
             {meta && (
@@ -478,7 +478,7 @@ function SessionDetail({ id, onClose }: { id: string; onClose: () => void }) {
                   <span>Stop reason: {detail.stoppedReason.replace(/_/g, " ")}</span>
                   <span>Budget: ${detail.budgetUsd.toFixed(2)}</span>
                   <span>Tokens used: {detail.totalTokensUsed.toLocaleString()}</span>
-                  {detail.requiresFounderApproval && <span className="font-semibold text-orq8-orange">Founder approval required</span>}
+                  {detail.requiresFounderApproval && <span className="font-semibold text-warm-ink">Founder approval required</span>}
                 </div>
               </Section>
 
@@ -510,9 +510,9 @@ function SessionDetail({ id, onClose }: { id: string; onClose: () => void }) {
                                       key={j}
                                       className={`rounded-full px-1.5 py-0.5 text-3xs ${
                                         c.kind === "evidence"
-                                          ? "bg-orq8-green/10 text-orq8-green"
+                                          ? "bg-brand-deep/10 text-brand-ink"
                                           : c.kind === "assumption"
-                                            ? "bg-amber-50 text-amber-700"
+                                            ? "bg-warm-soft text-warm-ink"
                                             : "bg-muted/10 text-muted"
                                       }`}
                                     >
@@ -635,7 +635,7 @@ function DecisionCouncilPage() {
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askCouncil(); } }}
               placeholder={'Ask the council something significant — e.g. "Should we launch at $399 or run a two-week beta first?"'}
-              className="min-w-0 flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-purple-400"
+              className="min-w-0 flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               maxLength={1000}
               disabled={asking}
               aria-label="Question for the decision council"
@@ -643,14 +643,14 @@ function DecisionCouncilPage() {
             <button
               onClick={askCouncil}
               disabled={asking || question.trim().length < 8}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-soft px-3 py-2 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-deep/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {asking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Scale className="h-3.5 w-3.5" />}
               {asking ? "Deliberating…" : "Convene council"}
             </button>
           </div>
           {progressLabel && <p className="mt-1.5 text-2xs text-muted" role="status">{progressLabel}</p>}
-          {askError && <p className="mt-1.5 text-2xs text-red-600" role="alert">{askError}</p>}
+          {askError && <p className="mt-1.5 text-2xs text-error-ink" role="alert">{askError}</p>}
         </div>
 
         <div className="mt-6 space-y-3">

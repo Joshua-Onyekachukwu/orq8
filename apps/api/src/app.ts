@@ -23,6 +23,7 @@ import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerOAuthRoutes } from './routes/oauth.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerReadinessRoutes } from './routes/readiness.js';
 import { registerProviderRoutes } from './routes/providers.js';
 import { registerCommandRoutes } from './routes/commands.js';
 import { registerCommandStreamRoutes } from './routes/command-stream.js';
@@ -294,6 +295,7 @@ export async function buildApp(
   });
 
   registerHealthRoutes(app, deps);
+  registerReadinessRoutes(app, deps);
   registerAuthRoutes(app, deps);
   registerOAuthRoutes(app, deps);
   registerAgentRoutes(app, deps);

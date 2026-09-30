@@ -19,7 +19,7 @@ import { createSession } from '../src/services/sessions.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -52,7 +52,7 @@ beforeAll(async () => {
 
   const [orgRow] = await deps.db.insert(organizations).values({ name: `deleg-${randomUUID()}`, slug: `deleg-${randomUUID()}` }).returning();
   orgId = orgRow!.id;
-  const [userRow] = await deps.db.insert(users).values({ email: `deleg-${randomUUID()}@example.com`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active' }).returning();
+  const [userRow] = await deps.db.insert(users).values({ email: `deleg-${randomUUID()}@example.com`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() }).returning();
   userId = userRow!.id;
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });
 

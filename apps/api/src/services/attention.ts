@@ -280,6 +280,12 @@ export interface ApprovalRow {
   createdAt: Date;
   agentName: string | null;
   agentRole: string | null;
+  // The work this gate holds (migration 0036). Optional so the classifier stays
+  // callable without a join, but when it is present the founder is told what
+  // their decision actually moves instead of being asked to rule on a sentence.
+  taskId?: string | null;
+  taskTitle?: string | null;
+  toolId?: string | null;
 }
 
 export function classifyApproval(row: ApprovalRow, eaName: string): AttentionItem {
@@ -288,9 +294,21 @@ export function classifyApproval(row: ApprovalRow, eaName: string): AttentionIte
   const who = row.agentName ?? 'Executive Agent';
   const costImpact = row.cost > 0 ? `${formatCents(row.cost)} of Work Credits at stake` : null;
   const riskImpact = row.riskLevel === 'high' ? 'High risk action' : row.riskLevel === 'medium' ? 'Medium risk action' : null;
-  const why = excerpt(row.description) ?? (source === 'permission'
+  // A gate that does not name the work it gates asks the founder to rule on
+  // nothing (docs/66.14 Gap A). Name the task when the row carries one, and the
+  // tool when the gate came from a tool call.
+  const blocked = row.taskTitle ? `“${row.taskTitle}”` : null;
+  const viaTool = row.toolId ? `the \`${row.toolId}\` tool` : null;
+  const whatItBlocks = blocked ?? viaTool;
+  const base = excerpt(row.description) ?? (source === 'permission'
     ? `${who} asked for permission to run a gated tool.`
     : `${who} is waiting on a decision before it can proceed.`);
+  // The blocked work leads, whether or not the agent recorded context: what the
+  // decision moves is the first thing the founder needs, and the agent's note is
+  // the second.
+  const why = whatItBlocks
+    ? `${who} is stopped on ${whatItBlocks} until you decide. ${base}`
+    : base;
 
   return {
     id: `${source}:${row.id}`,
@@ -299,9 +317,13 @@ export function classifyApproval(row: ApprovalRow, eaName: string): AttentionIte
     what: row.action,
     why,
     who,
-    authority: source === 'permission'
-      ? `${who} cannot run this tool under its authority profile until you approve it.`
-      : 'Nothing is executed before your decision; approving records the decision and releases the action.',
+    authority: blocked
+      ? `Nothing runs until you decide: approving resumes ${blocked} and spends the grant; rejecting stops it and keeps your reason.`
+      : viaTool
+        ? `${who} cannot run ${viaTool} under its authority profile until you approve it.`
+        : source === 'permission'
+          ? `${who} cannot run this tool under its authority profile until you approve it.`
+          : 'Nothing is executed before your decision; approving records the decision and releases the action.',
     impact: costImpact ?? riskImpact,
     next: 'Approve or reject this request.',
     entity: { type: 'approval', id: row.id },
@@ -388,11 +410,15 @@ export function classifyFailedTask(row: TaskRow, now: Date, eaName: string): Att
     dueAt: row.dueDate ? row.dueDate.toISOString() : null,
     actions: [
       {
+        // The real retry path (docs/66 §66.19): it re-runs the work and reports
+        // the outcome. Patching the status back to `pending` only requeued it,
+        // so the button claimed a retry and then left the founder to trigger it
+        // a second time from the batch runner.
         kind: 'retry',
         label: 'Retry',
-        endpoint: `/v1/tasks/${row.id}`,
-        method: 'PATCH',
-        payload: { status: 'pending' },
+        endpoint: `/v1/commands/tasks/${row.id}/retry`,
+        method: 'POST',
+        payload: {},
       },
       {
         kind: 'cancel',
@@ -575,9 +601,13 @@ export async function collectAttention(
       createdAt: approvals.createdAt,
       agentName: agents.name,
       agentRole: agents.role,
+      taskId: approvals.taskId,
+      toolId: approvals.toolId,
+      taskTitle: tasks.title,
     })
     .from(approvals)
     .leftJoin(agents, eq(approvals.agentId, agents.id))
+    .leftJoin(tasks, eq(approvals.taskId, tasks.id))
     .where(and(eq(approvals.orgId, orgId), eq(approvals.status, 'pending')))
     .orderBy(approvals.createdAt)
     .limit(limits.approvals + 1);

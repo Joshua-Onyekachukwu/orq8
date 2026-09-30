@@ -190,7 +190,9 @@ async function main(): Promise<number> {
     /* background SSE pump + pool shutdown races must never crash the harness */
   });
 
-  await killStaleEmbeddedPostgres();
+  // Scoped to this harness's data root so the slice never stops the embedded
+  // Postgres behind a running review stack or dev stack on the same machine.
+  await killStaleEmbeddedPostgres(".integration-suite-data");
 
   stage(1, 7, "booting embedded Postgres with the production migration lineage");
   const pg = await bootEmbeddedDatabase({ dbName: DB_NAME, dirPrefix: "slice" });

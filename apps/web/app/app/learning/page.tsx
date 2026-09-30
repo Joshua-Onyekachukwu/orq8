@@ -116,24 +116,24 @@ interface Briefing {
 }
 
 const VERDICT_STYLES: Record<string, string> = {
-  outperforming: "bg-emerald-50 text-emerald-700",
-  on_track: "bg-blue-50 text-blue-700",
-  underperforming: "bg-red-50 text-red-700",
-  insufficient_data: "bg-gray-100 text-gray-500",
+  outperforming: "bg-brand-soft text-brand-ink",
+  on_track: "bg-brand-soft text-brand-deep",
+  underperforming: "bg-error-soft text-error-ink",
+  insufficient_data: "bg-surface-secondary text-ink-muted",
 };
 
 const RELIABILITY_STYLES: Record<string, string> = {
-  reliable: "bg-emerald-50 text-emerald-700",
-  mixed: "bg-amber-50 text-amber-700",
-  degraded: "bg-red-50 text-red-700",
-  insufficient_data: "bg-gray-100 text-gray-500",
+  reliable: "bg-brand-soft text-brand-ink",
+  mixed: "bg-warm-soft text-warm-ink",
+  degraded: "bg-error-soft text-error-ink",
+  insufficient_data: "bg-surface-secondary text-ink-muted",
 };
 
 const ACCURACY_STYLES: Record<string, string> = {
-  accurate: "bg-emerald-50 text-emerald-700",
-  partially_accurate: "bg-amber-50 text-amber-700",
-  inaccurate: "bg-red-50 text-red-700",
-  unclassified: "bg-gray-100 text-gray-500",
+  accurate: "bg-brand-soft text-brand-ink",
+  partially_accurate: "bg-warm-soft text-warm-ink",
+  inaccurate: "bg-error-soft text-error-ink",
+  unclassified: "bg-surface-secondary text-ink-muted",
 };
 
 function accuracyLabel(key: string): string {
@@ -191,11 +191,11 @@ export default function LearningPage() {
       <div className="mx-auto max-w-5xl">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
               Organizational intelligence
             </p>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              <GraduationCap className="h-6 w-6 text-orq8-green" />
+              <GraduationCap className="h-6 w-6 text-brand-ink" />
               Learning
             </h1>
             <p className="mt-1 text-sm text-muted">
@@ -216,9 +216,9 @@ export default function LearningPage() {
         </header>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
           </div>
         )}
 
@@ -241,7 +241,7 @@ export default function LearningPage() {
             {/* ── Decision prediction accuracy ── */}
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Target className="h-4 w-4 text-orq8-green" />
+                <Target className="h-4 w-4 text-brand-ink" />
                 Decision prediction accuracy
               </h2>
               {!summary || summary.totalDecisions === 0 ? (
@@ -299,7 +299,7 @@ export default function LearningPage() {
                         <span
                           key={key}
                           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                            ACCURACY_STYLES[key] ?? "bg-gray-100 text-gray-500"
+                            ACCURACY_STYLES[key] ?? "bg-surface-secondary text-ink-muted"
                           }`}
                         >
                           {accuracyLabel(key)}
@@ -341,7 +341,7 @@ export default function LearningPage() {
                                 {d.predictionAccuracy ? (
                                   <span
                                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                      ACCURACY_STYLES[d.predictionAccuracy] ?? "bg-gray-100 text-gray-500"
+                                      ACCURACY_STYLES[d.predictionAccuracy] ?? "bg-surface-secondary text-ink-muted"
                                     }`}
                                   >
                                     {accuracyLabel(d.predictionAccuracy)}
@@ -364,7 +364,7 @@ export default function LearningPage() {
             {/* ── Agent reliability ── */}
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Users className="h-4 w-4 text-orq8-green" />
+                <Users className="h-4 w-4 text-brand-ink" />
                 Agent reliability vs organization baseline
               </h2>
               {!signals || signals.agents.length === 0 ? (
@@ -392,7 +392,7 @@ export default function LearningPage() {
                       </div>
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          VERDICT_STYLES[a.verdict] ?? "bg-gray-100 text-gray-500"
+                          VERDICT_STYLES[a.verdict] ?? "bg-surface-secondary text-ink-muted"
                         }`}
                       >
                         {a.verdict.replace(/_/g, " ")}
@@ -403,7 +403,7 @@ export default function LearningPage() {
               )}
               <p className="mt-3 text-xs text-muted">
                 Deep per-employee profiles:{" "}
-                <a href="/app/performance" className="inline-flex items-center gap-0.5 text-orq8-green hover:underline">
+                <a href="/app/performance" className="inline-flex items-center gap-0.5 text-brand-ink hover:underline">
                   Performance <ArrowRight className="h-3 w-3" />
                 </a>
               </p>
@@ -412,7 +412,7 @@ export default function LearningPage() {
             {/* ── Model performance ── */}
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Cpu className="h-4 w-4 text-orq8-green" />
+                <Cpu className="h-4 w-4 text-brand-ink" />
                 Model performance (rolling 30 days)
               </h2>
               {!models || models.stats.models.length === 0 ? (
@@ -473,7 +473,7 @@ export default function LearningPage() {
             {/* ── What the organization has learned ── */}
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <BookOpen className="h-4 w-4 text-orq8-green" />
+                <BookOpen className="h-4 w-4 text-brand-ink" />
                 What the organization has learned
               </h2>
               {lessons.length === 0 ? (
@@ -497,7 +497,7 @@ export default function LearningPage() {
               )}
               <p className="mt-3 text-xs text-muted">
                 Full history:{" "}
-                <a href="/app/quality" className="inline-flex items-center gap-0.5 text-orq8-green hover:underline">
+                <a href="/app/quality" className="inline-flex items-center gap-0.5 text-brand-ink hover:underline">
                   Quality &amp; Learning <ArrowRight className="h-3 w-3" />
                 </a>
               </p>
@@ -506,13 +506,13 @@ export default function LearningPage() {
             {/* ── Latest scheduled briefing ── */}
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <Newspaper className="h-4 w-4 text-orq8-green" />
+                <Newspaper className="h-4 w-4 text-brand-ink" />
                 Latest executive briefing
               </h2>
               <p className="mt-1 text-xs text-muted">
                 Generated by the scheduled briefing job from your organization&apos;s
                 real activity. Job health:{" "}
-                <a href="/app/jobs" className="text-orq8-green hover:underline">
+                <a href="/app/jobs" className="text-brand-ink hover:underline">
                   Scheduled Jobs <ArrowRight className="h-3 w-3" />
                 </a>
               </p>
@@ -545,7 +545,7 @@ export default function LearningPage() {
                           <ul className="mt-1 space-y-1">
                             {s.items.map((item, j) => (
                               <li key={j} className="flex items-start gap-2 text-sm text-ink">
-                                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orq8-green" />
+                                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-brand-deep" />
                                 {item}
                               </li>
                             ))}

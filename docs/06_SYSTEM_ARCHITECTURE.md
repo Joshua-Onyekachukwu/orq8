@@ -132,12 +132,12 @@ Package manager: **pnpm** (fast, disk-efficient, free).
 
 ## 6.6 Architecture Decision Records (key decisions)
 
-> Full standalone records live in **`docs/adr/`** (ADR-001–021); the index is 56_ADR_INDEX.md. Each ADR below carries context, decision, and consequences.
+> Full standalone records live in **`docs/adr/`** (ADR-001–023); the index is 56_ADR_INDEX.md. Each ADR below carries context, decision, and consequences.
 
 - **ADR-001 — Fastify over NestJS/Express.** Modular plugin architecture, minimal overhead, freedom to compose domain modules. If a heavier framework is ever needed, domain boundaries are preserved so it can migrate.
 - **ADR-002 — Drizzle over Prisma.** TS-first, lightweight, first-class pgvector support, no codegen lock-in.
 - **ADR-003 — pg-boss first, Temporal later.** The brief names Temporal as a candidate; per its own guidance ("do not over-engineer infrastructure before workload requires it"), we define a `WorkflowRuntime` interface and ship a pg-boss adapter (durable, Postgres-backed, free). Temporal adapter implements the same interface when scale/features justify it. Zero domain-code changes.
-- **ADR-004 — LiteLLM as the model gateway.** Common interface, routing/fallback, virtual keys, cost tracking, multi-provider — and self-hostable OSS. Ollama added as a provider so the platform runs with zero model cost.
+- **ADR-004 — LiteLLM as the model gateway.** Common interface, routing/fallback, virtual keys, cost tracking, multi-provider — and self-hostable OSS. Ollama added as a provider so the platform runs with zero model cost. **Superseded by ADR-023:** the common interface and the "domain code never calls a provider SDK" rule stand, but the head of the chain is now **OpenRouter** (one key, many vendors, no self-hosted hop), NVIDIA NIM is the first fallback, and LiteLLM/Ollama are development-only. See 22_MODEL_ROUTING.md §22.9.
 - **ADR-005 — MinIO, not R2/S3 directly.** Same S3 API; self-hosted now (free), swap endpoint config later (funded). No rework.
 - **ADR-006 — App-level authorization first, RLS as Phase-16 hardening.** Deterministic AuthzService checks in the API layer now; Postgres RLS added as defense-in-depth when tenants scale.
 - **ADR-007 — Session auth, not JWT.** Server-side sessions are revocable (kill switches, membership changes) and avoid token-revocation complexity. OIDC/SSO is a later adapter.

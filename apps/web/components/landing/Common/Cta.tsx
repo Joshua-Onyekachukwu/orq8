@@ -33,7 +33,7 @@ const Cta: React.FC = () => {
   return (
     <div id="waitlist" className="relative z-[1] py-[80px] md:py-[120px]">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
-        <div className="relative overflow-hidden rounded-[20px] bg-orq8-dark border border-white/[0.06]">
+        <div className="relative overflow-hidden rounded-[20px] ink border border-white/[0.06]">
           {/* Grid texture */}
           <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",backgroundSize:"40px 40px"}} />
 
@@ -41,8 +41,8 @@ const Cta: React.FC = () => {
             {status === "done" ? (
               /* ── Success State ── */
               <div className="max-w-lg mx-auto">
-                <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-orq8-lime/10 border border-orq8-lime/20">
-                  <svg className="h-[36px] w-[36px] text-orq8-lime" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-ink-accent/10 border border-ink-accent/20">
+                  <svg className="h-[36px] w-[36px] text-ink-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
@@ -52,15 +52,15 @@ const Cta: React.FC = () => {
                 <p className="text-white/60 lg:text-base leading-relaxed !mb-[20px]">
                   We&apos;ve saved your spot. When your cohort opens, you&apos;ll receive an email with next steps.
                 </p>
-                <div className="inline-flex items-center gap-[8px] rounded-full bg-orq8-lime/10 border border-orq8-lime/20 px-[20px] py-[10px]">
-                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime animate-pulse" />
-                  <span className="text-xs font-medium text-orq8-lime">First Cohort · Priority Access</span>
+                <div className="inline-flex items-center gap-[8px] rounded-full bg-ink-accent/10 border border-ink-accent/20 px-[20px] py-[10px]">
+                  <span className="h-[6px] w-[6px] rounded-full bg-ink-accent animate-pulse" />
+                  <span className="text-xs font-medium text-ink-accent">First Cohort · Priority Access</span>
                 </div>
               </div>
             ) : (
               <>
                 {/* Badge */}
-                <span className="inline-block py-[6px] px-[14px] font-bold text-3xs bg-orq8-lime/10 border border-orq8-lime/20 rounded-full text-orq8-lime tracking-[0.15em] uppercase mb-[24px]">
+                <span className="inline-block py-[6px] px-[14px] font-bold text-3xs bg-ink-accent/10 border border-ink-accent/20 rounded-full text-ink-accent tracking-[0.15em] uppercase mb-[24px]">
                   Join the first cohort
                 </span>
 
@@ -84,12 +84,12 @@ const Cta: React.FC = () => {
                       name="email"
                       autoComplete="email"
                       spellCheck={false}
-                      className="flex-1 h-[52px] rounded-full border border-white/15 bg-white/[0.03] px-[24px] text-md text-white placeholder:text-white/30 outline-0 focus:border-orq8-lime focus:bg-white/[0.05] transition-colors"
+                      className="flex-1 h-[52px] rounded-full border border-white/15 bg-white/[0.03] px-[24px] text-md text-white placeholder:text-white/30 outline-0 focus:border-ink-accent focus:bg-white/[0.05] transition-colors"
                     />
                     <button
                       type="submit"
                       disabled={status === "loading"}
-                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-orq8-orange text-white font-bold uppercase text-overline tracking-[0.15em] px-[28px] h-[52px] hover:bg-orq8-orange-dark disabled:opacity-60 transition-colors"
+                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-brand-deep text-white font-bold uppercase text-overline tracking-[0.15em] px-[28px] h-[52px] hover:bg-brand disabled:opacity-60 transition-colors"
                     >
                       {status === "loading" ? (
                         <>
@@ -109,7 +109,7 @@ const Cta: React.FC = () => {
                 <ul className="mt-[20px] md:mt-[24px] flex flex-wrap justify-center gap-x-[24px] gap-y-[10px]">
                   {["7 days free on every plan", "Priority access when the cohort opens", "Leave the list any time"].map((item) => (
                     <li key={item} className="flex items-center gap-[8px] text-2sm text-white/40">
-                      <span className="w-[5px] h-[5px] rounded-full bg-orq8-lime/60 shrink-0" />
+                      <span className="w-[5px] h-[5px] rounded-full bg-ink-accent/60 shrink-0" />
                       {item}
                     </li>
                   ))}

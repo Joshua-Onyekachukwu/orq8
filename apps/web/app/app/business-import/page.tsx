@@ -48,12 +48,12 @@ interface BusinessImport {
 }
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  analysis: { label: "Analyzed", cls: "bg-amber-100 text-amber-800" },
-  pending_approval: { label: "Awaiting your approval", cls: "bg-blue-100 text-blue-800" },
-  approved: { label: "Approved", cls: "bg-blue-100 text-blue-800" },
-  applied: { label: "Applied", cls: "bg-emerald-100 text-emerald-800" },
-  rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700" },
-  failed: { label: "Failed", cls: "bg-rose-100 text-rose-700" },
+  analysis: { label: "Analyzed", cls: "bg-warm-soft text-warm-ink" },
+  pending_approval: { label: "Awaiting your approval", cls: "bg-brand-soft text-brand-deep" },
+  approved: { label: "Approved", cls: "bg-brand-soft text-brand-deep" },
+  applied: { label: "Applied", cls: "bg-brand-soft text-brand-ink" },
+  rejected: { label: "Rejected", cls: "bg-error-soft text-text-error" },
+  failed: { label: "Failed", cls: "bg-error-soft text-text-error" },
 };
 
 function errorMessage(json: { error?: { message?: string } | string } | null, fallback: string): string {
@@ -182,7 +182,7 @@ function BusinessImportDashboard() {
             </button>
           </div>
         </div>
-        {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-text-error">{error}</p>}
       </div>
 
       {/* Current import detail */}
@@ -209,7 +209,7 @@ function BusinessImportDashboard() {
           </div>
 
           {current.websiteError && (
-            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <p className="mt-3 rounded-lg border border-warm bg-warm-soft p-3 text-xs text-warm-ink">
               Website could not be read ({current.websiteError}) — facts below come from your description. You can retry later.
             </p>
           )}
@@ -231,7 +231,7 @@ function BusinessImportDashboard() {
                     <span className="text-sm text-foreground">{fact.value}</span>
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                        fact.sourceType === "website" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"
+                        fact.sourceType === "website" ? "bg-brand-soft text-brand-deep" : "bg-surface-secondary text-ink-muted"
                       }`}
                     >
                       {fact.sourceType === "website" ? "from website" : "founder description"}
@@ -253,30 +253,30 @@ function BusinessImportDashboard() {
 
           {/* Proposal */}
           {current.proposal ? (
-            <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-blue-900">
+            <div className="mt-5 rounded-lg border border-brand-soft bg-brand-soft/50 p-4">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-brand-deep">
                 <Sparkles className="h-4 w-4" /> Proposed organization
               </h3>
-              <p className="mt-1 text-sm text-blue-900">
+              <p className="mt-1 text-sm text-brand-deep">
                 Recommended model: <span className="font-semibold">{current.proposal.recommendedPlaybookName}</span>
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-blue-900/80">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-brand-deep/80">
                 {current.proposal.reasons.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
               </ul>
               <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
-                <div className="rounded-lg border border-blue-100 bg-white p-2.5">
-                  <p className="font-semibold text-blue-900">Departments</p>
-                  <p className="mt-1 text-blue-900/70">{current.proposal.willCreate.departments.length || "—"}</p>
+                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
+                  <p className="font-semibold text-brand-deep">Departments</p>
+                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.departments.length || "—"}</p>
                 </div>
-                <div className="rounded-lg border border-blue-100 bg-white p-2.5">
-                  <p className="font-semibold text-blue-900">AI employees</p>
-                  <p className="mt-1 text-blue-900/70">{current.proposal.willCreate.agents.length || "—"}</p>
+                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
+                  <p className="font-semibold text-brand-deep">AI employees</p>
+                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.agents.length || "—"}</p>
                 </div>
-                <div className="rounded-lg border border-blue-100 bg-white p-2.5">
-                  <p className="font-semibold text-blue-900">Initial goals</p>
-                  <p className="mt-1 text-blue-900/70">{current.proposal.willCreate.goals.length || "—"}</p>
+                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
+                  <p className="font-semibold text-brand-deep">Initial goals</p>
+                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.goals.length || "—"}</p>
                 </div>
               </div>
             </div>
@@ -299,7 +299,7 @@ function BusinessImportDashboard() {
               <button
                 onClick={() => runAction("approve")}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-2 text-xs font-semibold text-white hover:bg-brand-ink disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsUp className="h-3.5 w-3.5" />}
                 Approve & apply organization
@@ -307,7 +307,7 @@ function BusinessImportDashboard() {
               <button
                 onClick={() => runAction("reject")}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-error px-3 py-2 text-xs font-semibold text-text-error hover:bg-error-soft disabled:opacity-50"
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsDown className="h-3.5 w-3.5" />}
                 Reject proposal
@@ -317,13 +317,13 @@ function BusinessImportDashboard() {
           )}
 
           {current.status === "applied" && (
-            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-emerald-700">
+            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-brand-ink">
               <CheckCircle2 className="h-4 w-4" /> Applied — the organization was built and the extracted facts were
               recorded into Company Brain with their provenance.
             </p>
           )}
           {current.status === "rejected" && (
-            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-rose-600">
+            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-text-error">
               <XCircle className="h-4 w-4" /> Rejected — nothing was applied or persisted to Company Brain.
             </p>
           )}

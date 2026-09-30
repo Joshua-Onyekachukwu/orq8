@@ -103,7 +103,7 @@ export default function UsagePage() {
       <div className="mx-auto max-w-4xl">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
               Governance
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -125,22 +125,22 @@ export default function UsagePage() {
         </header>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
           </div>
         )}
 
         {/* Reached limits banner */}
         {!loading && !error && reached.length > 0 && (
-          <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="mt-4 rounded-xl border border-warm bg-warm-soft px-4 py-3">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warm-ink" />
               <div>
-                <p className="text-sm font-semibold text-amber-800">
+                <p className="text-sm font-semibold text-warm-ink">
                   {reached.length === 1 ? "A plan limit has been reached" : "Plan limits have been reached"}
                 </p>
-                <p className="mt-0.5 text-sm text-amber-700">
+                <p className="mt-0.5 text-sm text-warm-ink">
                   {reached.map((r) => r.label).join(", ")} — archive inactive items to free capacity, or upgrade your plan.
                 </p>
               </div>
@@ -151,7 +151,7 @@ export default function UsagePage() {
         {/* Plan summary */}
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-hairline bg-white p-5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/10 text-brand-ink">
               <Gauge className="h-4 w-4" />
             </span>
             <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -166,7 +166,7 @@ export default function UsagePage() {
           </div>
 
           <div className="rounded-xl border border-hairline bg-white p-5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
               <ShieldCheck className="h-4 w-4" />
             </span>
             <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -181,7 +181,7 @@ export default function UsagePage() {
           </div>
 
           <div className="rounded-xl border border-hairline bg-white p-5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-green/10 text-orq8-green">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-deep/10 text-brand-ink">
               <Wallet className="h-4 w-4" />
             </span>
             <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -207,10 +207,10 @@ export default function UsagePage() {
               const Icon = RESOURCE_ICONS[r.resource];
               const pct = r.limit > 0 ? Math.min((r.used / r.limit) * 100, 100) : 0;
               const barColor = r.reached
-                ? "bg-red-500"
+                ? "bg-error-fill"
                 : r.limit > 0 && r.used / r.limit >= 0.8
-                  ? "bg-amber-400"
-                  : "bg-orq8-green";
+                  ? "bg-warm"
+                  : "bg-brand-deep";
               return (
                 <div key={r.resource}>
                   <div className="flex items-center gap-3">
@@ -225,7 +225,7 @@ export default function UsagePage() {
                             <>
                               {r.used.toLocaleString()} / {r.limit.toLocaleString()}
                               {r.reached && (
-                                <span className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-3xs font-semibold uppercase text-red-600">
+                                <span className="ml-1.5 rounded-full bg-error-soft px-1.5 py-0.5 text-3xs font-semibold uppercase text-error-ink">
                                   Full
                                 </span>
                               )}
@@ -233,7 +233,7 @@ export default function UsagePage() {
                           ) : (
                             <>
                               {r.used.toLocaleString()} used
-                              <span className="ml-1.5 rounded-full bg-orq8-lime/10 px-1.5 py-0.5 text-3xs font-semibold uppercase text-orq8-green">
+                              <span className="ml-1.5 rounded-full bg-ink-accent/10 px-1.5 py-0.5 text-3xs font-semibold uppercase text-brand-ink">
                                 Unlimited
                               </span>
                             </>
@@ -267,7 +267,7 @@ export default function UsagePage() {
             </p>
             <a
               href="/"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand"
             >
               View plans <ArrowUpRight className="h-3.5 w-3.5" />
             </a>

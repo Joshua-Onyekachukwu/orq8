@@ -98,18 +98,18 @@ interface GoalIntelligence {
 
 function priorityBadge(priority: string) {
   switch (priority) {
-    case "urgent": return "bg-red-100 text-red-700";
-    case "high": return "bg-amber-50 text-amber-700";
-    case "normal": return "bg-blue-50 text-blue-700";
+    case "urgent": return "bg-error-soft text-error-ink";
+    case "high": return "bg-warm-soft text-warm-ink";
+    case "normal": return "bg-brand-soft text-brand-deep";
     default: return "bg-hairline text-ink-muted";
   }
 }
 
 function statusBadge(status: string) {
   switch (status) {
-    case "completed": return "bg-orq8-lime/10 text-orq8-green";
-    case "active": return "bg-blue-50 text-blue-700";
-    case "paused": return "bg-amber-50 text-amber-700";
+    case "completed": return "bg-ink-accent/10 text-brand-ink";
+    case "active": return "bg-brand-soft text-brand-deep";
+    case "paused": return "bg-warm-soft text-warm-ink";
     case "cancelled": return "bg-hairline text-muted";
     default: return "bg-hairline text-ink-muted";
   }
@@ -117,9 +117,9 @@ function statusBadge(status: string) {
 
 function taskStatusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-orq8-green" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-orq8-orange" />;
-    case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case "completed": return <CheckCircle2 className="h-4 w-4 text-brand-ink" />;
+    case "in_progress": return <Clock className="h-4 w-4 text-warm-ink" />;
+    case "failed": return <AlertCircle className="h-4 w-4 text-error-ink" />;
     default: return <Clock className="h-4 w-4 text-muted" />;
   }
 }
@@ -172,7 +172,7 @@ function getGoalHealth(
   tasks: Task[]
 ): { label: string; icon: React.ElementType; color: string; bg: string; description: string } {
   if (goal.status === "completed") {
-    return { label: "Achieved", icon: CheckCircle2, color: "text-orq8-green", bg: "bg-orq8-lime/10", description: "This goal has been completed." };
+    return { label: "Achieved", icon: CheckCircle2, color: "text-brand-ink", bg: "bg-ink-accent/10", description: "This goal has been completed." };
   }
   if (goal.status === "cancelled") {
     return { label: "Cancelled", icon: AlertCircle, color: "text-muted", bg: "bg-hairline", description: "This goal has been cancelled." };
@@ -187,26 +187,26 @@ function getGoalHealth(
     const due = new Date(goal.dueDate);
     const now = new Date();
     if (due < now && goal.progress < 100) {
-      return { label: "Overdue", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50", description: "This goal is past its deadline and not yet complete." };
+      return { label: "Overdue", icon: AlertTriangle, color: "text-error-ink", bg: "bg-error-soft", description: "This goal is past its deadline and not yet complete." };
     }
   }
 
   // Check blocked (failed tasks)
   if (failed > 0 && completed === 0) {
-    return { label: "At Risk", icon: TrendingDown, color: "text-red-500", bg: "bg-red-50", description: "Tasks are failing with no completions yet." };
+    return { label: "At Risk", icon: TrendingDown, color: "text-error-ink", bg: "bg-error-soft", description: "Tasks are failing with no completions yet." };
   }
 
   // Check stalled
   if (inProgress === 0 && completed === 0 && tasks.length > 0) {
-    return { label: "Stalled", icon: Minus, color: "text-amber-600", bg: "bg-amber-50", description: "No tasks are in progress." };
+    return { label: "Stalled", icon: Minus, color: "text-warm-ink", bg: "bg-warm-soft", description: "No tasks are in progress." };
   }
 
   // On track
   if (goal.progress >= 50) {
-    return { label: "On Track", icon: TrendingUp, color: "text-orq8-green", bg: "bg-orq8-lime/10", description: "Making good progress toward completion." };
+    return { label: "On Track", icon: TrendingUp, color: "text-brand-ink", bg: "bg-ink-accent/10", description: "Making good progress toward completion." };
   }
 
-  return { label: "In Progress", icon: Clock, color: "text-blue-600", bg: "bg-blue-50", description: "Work is underway." };
+  return { label: "In Progress", icon: Clock, color: "text-brand-deep", bg: "bg-brand-soft", description: "Work is underway." };
 }
 
 /* ── Tab type ── */
@@ -313,13 +313,13 @@ export default function GoalDetailPage() {
         </Link>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="ml-auto text-xs text-red-500 hover:text-red-700"
+              className="ml-auto text-xs text-error-ink hover:text-error-ink"
             >
               Dismiss
             </button>
@@ -332,7 +332,7 @@ export default function GoalDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Goal not found</p>
             <Link
               href="/app/goals"
-              className="mt-2 inline-block text-sm text-orq8-green hover:underline"
+              className="mt-2 inline-block text-sm text-brand-ink hover:underline"
             >
               Return to Goals & Tasks
             </Link>
@@ -343,8 +343,8 @@ export default function GoalDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orq8-lime/10">
-                    <Target aria-hidden="true" className="h-5 w-5 text-orq8-green" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink-accent/10">
+                    <Target aria-hidden="true" className="h-5 w-5 text-brand-ink" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -409,9 +409,9 @@ export default function GoalDetailPage() {
                 <div className="mt-1.5 h-2.5 rounded-full bg-muted/10 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      goal.progress >= 80 ? "bg-orq8-green" :
-                      goal.progress >= 40 ? "bg-orq8-lime" :
-                      "bg-orq8-orange"
+                      goal.progress >= 80 ? "bg-brand-deep" :
+                      goal.progress >= 40 ? "bg-brand" :
+                      "bg-mark-warm"
                     }`}
                     style={{ width: `${goal.progress}%` }}
                   />
@@ -422,7 +422,7 @@ export default function GoalDetailPage() {
             {/* ── Contextual Executive Agent — knows this goal ── */}
             <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <div className="mb-3 flex items-center gap-2">
-                <Command className="h-4 w-4 text-orq8-green" />
+                <Command className="h-4 w-4 text-brand-ink" />
                 <p className="text-xs font-semibold text-muted">
                   Executive Agent <span className="font-normal text-muted">— working on “{goal.title}”</span>
                 </p>
@@ -454,19 +454,19 @@ export default function GoalDetailPage() {
                   <div className="mt-4 space-y-2">
                     {completedTasks.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-orq8-green" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-brand-ink" />
                         <span className="text-xs text-ink">{completedTasks.length} completed</span>
                         <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
-                          <div className="h-full rounded-full bg-orq8-green" style={{ width: `${(completedTasks.length / tasks.length) * 100}%` }} />
+                          <div className="h-full rounded-full bg-brand-deep" style={{ width: `${(completedTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
                     )}
                     {inProgressTasks.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-orq8-orange" />
+                        <Clock className="h-3.5 w-3.5 text-warm-ink" />
                         <span className="text-xs text-ink">{inProgressTasks.length} in progress</span>
                         <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
-                          <div className="h-full rounded-full bg-orq8-orange" style={{ width: `${(inProgressTasks.length / tasks.length) * 100}%` }} />
+                          <div className="h-full rounded-full bg-warm" style={{ width: `${(inProgressTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
                     )}
@@ -481,10 +481,10 @@ export default function GoalDetailPage() {
                     )}
                     {failedTasks.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                        <AlertCircle className="h-3.5 w-3.5 text-error-ink" />
                         <span className="text-xs text-ink">{failedTasks.length} failed</span>
                         <div className="flex-1 h-1.5 rounded-full bg-hairline overflow-hidden">
-                          <div className="h-full rounded-full bg-red-400" style={{ width: `${(failedTasks.length / tasks.length) * 100}%` }} />
+                          <div className="h-full rounded-full bg-error" style={{ width: `${(failedTasks.length / tasks.length) * 100}%` }} />
                         </div>
                       </div>
                     )}
@@ -516,15 +516,15 @@ export default function GoalDetailPage() {
 
                       return (
                         <div key={agent.id} className="flex items-center gap-3 rounded-lg border border-hairline p-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-green text-xs font-bold text-orq8-lime">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-deep text-xs font-bold text-ink-accent">
                             {agent.name.charAt(0)}
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-medium text-ink">{agent.name}</p>
                               {isWorking && (
-                                <span className="flex items-center gap-1 text-3xs text-orq8-orange">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-orq8-orange animate-pulse" />
+                                <span className="flex items-center gap-1 text-3xs text-warm-ink">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-warm animate-pulse" />
                                   Working
                                 </span>
                               )}
@@ -556,7 +556,7 @@ export default function GoalDetailPage() {
             <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-orq8-green" />
+                  <Shield className="h-4 w-4 text-brand-ink" />
                   <h2 className="text-sm font-semibold text-ink">Goal Intelligence</h2>
                   <span className="rounded-full bg-muted/10 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-muted">
                     Why is this goal {intelligence?.health ?? "—"}?
@@ -579,18 +579,18 @@ export default function GoalDetailPage() {
                     <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Blockers & overdue work</p>
                     <div className="mt-2 space-y-2">
                       {intelligence.tasks.filter(t => t.blocked || t.overdue).length === 0 && (
-                        <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
-                          <p className="text-xs text-emerald-800">No blocked or overdue tasks detected.</p>
+                        <div className="flex items-center gap-2 rounded-lg border border-brand-soft bg-brand-soft/50 px-3 py-2.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-brand-deep" aria-hidden="true" />
+                          <p className="text-xs text-brand-ink">No blocked or overdue tasks detected.</p>
                         </div>
                       )}
                       {intelligence.tasks.filter(t => t.blocked || t.overdue).map(t => (
-                        <div key={t.id} className="rounded-lg border border-amber-200 bg-amber-50/50 px-3 py-2.5">
+                        <div key={t.id} className="rounded-lg border border-warm bg-warm-soft/50 px-3 py-2.5">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-medium text-ink">{t.title}</p>
                             <div className="flex shrink-0 gap-1">
-                              {t.overdue && <span className="rounded-full bg-red-100 px-2 py-0.5 text-3xs font-semibold uppercase text-red-700">Overdue</span>}
-                              {t.blocked && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-3xs font-semibold uppercase text-amber-700">Blocked {t.daysSinceUpdate}d</span>}
+                              {t.overdue && <span className="rounded-full bg-error-soft px-2 py-0.5 text-3xs font-semibold uppercase text-error-ink">Overdue</span>}
+                              {t.blocked && <span className="rounded-full bg-warm-soft px-2 py-0.5 text-3xs font-semibold uppercase text-warm-ink">Blocked {t.daysSinceUpdate}d</span>}
                             </div>
                           </div>
                           {t.agent && <p className="mt-1 text-3xs text-muted">Assigned to {t.agent.name}</p>}
@@ -610,7 +610,7 @@ export default function GoalDetailPage() {
                       )}
                       {intelligence.anomalies.map(a => (
                         <div key={a.detectedAt + a.message} className="flex items-start gap-2 rounded-lg border border-hairline bg-canvas/50 px-3 py-2.5">
-                          <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.severity === "critical" ? "text-red-500" : a.severity === "warning" ? "text-amber-500" : "text-muted"}`} aria-hidden="true" />
+                          <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.severity === "critical" ? "text-error-ink" : a.severity === "warning" ? "text-warm-ink" : "text-muted"}`} aria-hidden="true" />
                           <p className="text-xs text-ink">{a.message}</p>
                         </div>
                       ))}
@@ -620,15 +620,15 @@ export default function GoalDetailPage() {
               )}
 
               {intelligence && (
-                <div className="mt-4 rounded-lg border border-orq8-lime/30 bg-orq8-lime/5 p-4">
+                <div className="mt-4 rounded-lg border border-ink-accent/30 bg-ink-accent/5 p-4">
                   <div className="flex items-center gap-1.5">
-                    <RefreshCw className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
-                    <p className="text-3xs font-semibold uppercase tracking-wide text-orq8-green">Recovery proposal</p>
+                    <RefreshCw className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
+                    <p className="text-3xs font-semibold uppercase tracking-wide text-brand-ink">Recovery proposal</p>
                   </div>
                   <div className="mt-2 space-y-2.5">
                     {intelligence.recoveryProposal.map((item, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-orq8-green" aria-hidden="true" />
+                        <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-ink" aria-hidden="true" />
                         <div>
                           <p className="text-xs font-medium text-ink">{item.action}</p>
                           <p className="mt-0.5 text-3xs text-muted">{item.reason}</p>
@@ -664,7 +664,7 @@ export default function GoalDetailPage() {
                         onClick={() => setActiveTab(tab)}
                         className={`rounded-full px-2.5 py-1 text-3xs font-semibold uppercase transition-colors ${
                           activeTab === tab
-                            ? "bg-orq8-dark text-white"
+                            ? "ink text-white"
                             : "bg-hairline text-muted hover:bg-hairline"
                         }`}
                       >
@@ -691,7 +691,7 @@ export default function GoalDetailPage() {
                     <Link
                       key={t.id}
                       href={`/app/tasks/${t.id}`}
-                      className="block rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-orq8-green/30 hover:bg-orq8-green/5"
+                      className="block rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-brand-deep/30 hover:bg-brand-deep/5"
                     >
                       <div className="flex items-start gap-3">
                         <span className="mt-0.5 shrink-0">{taskStatusIcon(t.status)}</span>
@@ -709,7 +709,7 @@ export default function GoalDetailPage() {
                           )}
                           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-3xs text-muted">
                             {t.agentId && agentMap.get(t.agentId) && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-orq8-dark/5 px-2 py-0.5 font-medium text-orq8-dark">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-ink-surface/5 px-2 py-0.5 font-medium text-ink">
                                 <Bot aria-hidden="true" className="h-2.5 w-2.5" />
                                 {agentMap.get(t.agentId)!.name}
                               </span>
@@ -728,8 +728,8 @@ export default function GoalDetailPage() {
                             )}
                           </div>
                           {t.result && (
-                            <div className="mt-2 rounded-lg bg-orq8-lime/5 border border-orq8-lime/20 px-3 py-2">
-                              <p className="font-mono text-2xs font-semibold uppercase text-orq8-green mb-0.5">Result</p>
+                            <div className="mt-2 rounded-lg bg-ink-accent/5 border border-ink-accent/20 px-3 py-2">
+                              <p className="font-mono text-2xs font-semibold uppercase text-brand-ink mb-0.5">Result</p>
                               <p className="text-xs text-ink leading-relaxed">{t.result}</p>
                             </div>
                           )}
@@ -758,13 +758,13 @@ export default function GoalDetailPage() {
                     const task = tasks.find(t => t.id === event.taskId);
                     return (
                       <div key={event.id} className="flex items-start gap-3 px-4 py-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orq8-green/10 mt-0.5">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-deep/10 mt-0.5">
                           {event.type === "completed" ? (
-                            <CheckCircle2 className="h-3 w-3 text-orq8-green" />
+                            <CheckCircle2 className="h-3 w-3 text-brand-ink" />
                           ) : event.type === "failed" ? (
-                            <AlertCircle className="h-3 w-3 text-red-500" />
+                            <AlertCircle className="h-3 w-3 text-error-ink" />
                           ) : (
-                            <Clock className="h-3 w-3 text-orq8-orange" />
+                            <Clock className="h-3 w-3 text-warm-ink" />
                           )}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -772,7 +772,7 @@ export default function GoalDetailPage() {
                           <div className="mt-0.5 flex items-center gap-2 text-3xs text-muted">
                             {agent && <span className="font-medium">{agent.name}</span>}
                             {task && (
-                              <Link href={`/app/tasks/${task.id}`} className="hover:text-orq8-green">
+                              <Link href={`/app/tasks/${task.id}`} className="hover:text-brand-ink">
                                 {task.title}
                               </Link>
                             )}

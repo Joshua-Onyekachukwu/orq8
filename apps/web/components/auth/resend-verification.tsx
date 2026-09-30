@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[color:var(--orq-ink-accent)] focus:ring-2 focus:ring-[color:var(--orq-ink-accent)]/25 disabled:opacity-50";
 
 /**
  * Requests a new confirmation email. Two shapes:
@@ -80,7 +80,7 @@ export function ResendVerification({ defaultEmail }: { defaultEmail?: string | n
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
+          className="rounded-lg border border-border-error/30 bg-error/10 px-3 py-2.5 text-sm text-error-ink"
         >
           {error}
         </div>

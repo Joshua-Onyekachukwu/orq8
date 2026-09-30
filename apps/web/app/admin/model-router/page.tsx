@@ -67,13 +67,13 @@ async function fetchRouterStats(token: string) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-    healthy: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", label: "Healthy" },
-    degraded: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Degraded" },
-    down: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500", label: "Down" },
-    not_configured: { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400", label: "Not Configured" },
-    closed: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", label: "Closed" },
-    open: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500", label: "Open" },
-    half_open: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Half-Open" },
+    healthy: { bg: "bg-brand-soft", text: "text-brand-ink", dot: "bg-brand-deep", label: "Healthy" },
+    degraded: { bg: "bg-warm-soft", text: "text-warm-ink", dot: "bg-warm", label: "Degraded" },
+    down: { bg: "bg-error-soft", text: "text-error-ink", dot: "bg-error-fill", label: "Down" },
+    not_configured: { bg: "bg-surface-secondary", text: "text-ink", dot: "bg-ink-faint", label: "Not Configured" },
+    closed: { bg: "bg-brand-soft", text: "text-brand-ink", dot: "bg-brand-deep", label: "Closed" },
+    open: { bg: "bg-error-soft", text: "text-error-ink", dot: "bg-error-fill", label: "Open" },
+    half_open: { bg: "bg-warm-soft", text: "text-warm-ink", dot: "bg-warm", label: "Half-Open" },
   };
   const fallback = styles.not_configured!;
   const s = styles[status] ?? fallback;
@@ -86,11 +86,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ProviderIcon({ slug }: { slug: string }) {
-  if (slug === "nvidia") return <Zap className="h-5 w-5 text-emerald-600" />;
-  if (slug === "openrouter") return <Activity className="h-5 w-5 text-purple-600" />;
-  if (slug === "ollama") return <Server className="h-5 w-5 text-blue-600" />;
-  if (slug === "litellm") return <Wifi className="h-5 w-5 text-orange-600" />;
-  return <Server className="h-5 w-5 text-gray-500" />;
+  if (slug === "nvidia") return <Zap className="h-5 w-5 text-brand-deep" />;
+  if (slug === "openrouter") return <Activity className="h-5 w-5 text-brand-deep" />;
+  if (slug === "ollama") return <Server className="h-5 w-5 text-brand-deep" />;
+  if (slug === "litellm") return <Wifi className="h-5 w-5 text-warm-ink" />;
+  return <Server className="h-5 w-5 text-ink-muted" />;
 }
 
 export default async function ModelRouterPage() {
@@ -121,23 +121,23 @@ export default async function ModelRouterPage() {
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Healthy
+            <CheckCircle2 className="h-4 w-4 text-brand-deep" /> Healthy
           </div>
-          <p className="mt-2 text-2xl font-bold text-emerald-600 tabular-nums">{summary.healthy}</p>
+          <p className="mt-2 text-2xl font-bold text-brand-deep tabular-nums">{summary.healthy}</p>
           <p className="text-xs text-ink-muted">providers responding</p>
         </div>
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
-            <AlertTriangle className="h-4 w-4 text-amber-500" /> Degraded
+            <AlertTriangle className="h-4 w-4 text-warm-ink" /> Degraded
           </div>
-          <p className="mt-2 text-2xl font-bold text-amber-600 tabular-nums">{summary.degraded}</p>
+          <p className="mt-2 text-2xl font-bold text-warm-ink tabular-nums">{summary.degraded}</p>
           <p className="text-xs text-ink-muted">partial issues</p>
         </div>
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2 text-xs text-ink-muted font-semibold">
-            <XCircle className="h-4 w-4 text-red-500" /> Down
+            <XCircle className="h-4 w-4 text-error-ink" /> Down
           </div>
-          <p className="mt-2 text-2xl font-bold text-red-600 tabular-nums">{summary.down}</p>
+          <p className="mt-2 text-2xl font-bold text-error-ink tabular-nums">{summary.down}</p>
           <p className="text-xs text-ink-muted">unreachable</p>
         </div>
         <div className="rounded-xl border border-hairline bg-white p-5">
@@ -157,7 +157,7 @@ export default async function ModelRouterPage() {
         </div>
         <div className="divide-y divide-hairline-light">
           {providers.map((p) => (
-            <div key={p.slug} className="px-6 py-5 hover:bg-gray-50 transition-colors">
+            <div key={p.slug} className="px-6 py-5 hover:bg-surface-secondary transition-colors">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1 min-w-0">
                   <div className="mt-0.5">
@@ -173,14 +173,14 @@ export default async function ModelRouterPage() {
                     </div>
                     <p className="text-xs text-ink-muted mt-1 font-mono truncate">{p.baseUrl}</p>
                     {p.error && (
-                      <p className="text-xs text-red-600 mt-1 max-w-lg truncate">{p.error}</p>
+                      <p className="text-xs text-error-ink mt-1 max-w-lg truncate">{p.error}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-6 flex-shrink-0">
                   <div className="text-right">
                     <p className="text-xs text-ink-muted">Latency</p>
-                    <p className={`text-sm font-medium tabular-nums ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : "text-ink"}`}>
+                    <p className={`text-sm font-medium tabular-nums ${p.latencyMs > 5000 ? "text-error-ink" : p.latencyMs > 2000 ? "text-warm-ink" : "text-ink"}`}>
                       {p.latencyMs > 0 ? `${p.latencyMs}ms` : "—"}
                     </p>
                   </div>
@@ -195,7 +195,7 @@ export default async function ModelRouterPage() {
                   {p.circuitBreaker && (
                     <div className="text-right">
                       <p className="text-xs text-ink-muted">Circuit</p>
-                      <p className={`text-sm font-medium ${p.circuitBreaker.failureCount > 0 ? "text-amber-600" : "text-ink"}`}>
+                      <p className={`text-sm font-medium ${p.circuitBreaker.failureCount > 0 ? "text-warm-ink" : "text-ink"}`}>
                         {p.circuitBreaker.failureCount} failures
                       </p>
                     </div>
@@ -205,12 +205,12 @@ export default async function ModelRouterPage() {
               {p.modelsAvailable.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {p.modelsAvailable.slice(0, 8).map((model) => (
-                    <span key={model} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs font-mono text-gray-700">
+                    <span key={model} className="inline-flex items-center rounded-md bg-surface-secondary px-2 py-0.5 text-3xs font-mono text-ink">
                       {model}
                     </span>
                   ))}
                   {p.modelsAvailable.length > 8 && (
-                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-3xs text-gray-700">
+                    <span className="inline-flex items-center rounded-md bg-surface-secondary px-2 py-0.5 text-3xs text-ink">
                       +{p.modelsAvailable.length - 8} more
                     </span>
                   )}

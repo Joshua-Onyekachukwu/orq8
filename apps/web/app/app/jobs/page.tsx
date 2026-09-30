@@ -128,11 +128,11 @@ function detailSummary(detail: Record<string, unknown>): string {
 function statusMeta(status: JobRun["status"] | "never") {
   switch (status) {
     case "success":
-      return { icon: CheckCircle2, cls: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200", label: "Healthy" };
+      return { icon: CheckCircle2, cls: "text-brand-deep", bg: "bg-brand-soft border-brand-soft", label: "Healthy" };
     case "error":
-      return { icon: XCircle, cls: "text-red-600", bg: "bg-red-50 border-red-200", label: "Failed" };
+      return { icon: XCircle, cls: "text-error-ink", bg: "bg-error-soft border-border-error", label: "Failed" };
     case "partial":
-      return { icon: AlertTriangle, cls: "text-amber-600", bg: "bg-amber-50 border-amber-200", label: "Partial" };
+      return { icon: AlertTriangle, cls: "text-warm-ink", bg: "bg-warm-soft border-warm", label: "Partial" };
     default:
       return { icon: Clock, cls: "text-muted", bg: "bg-muted/5 border-hairline", label: "Never run" };
   }
@@ -176,8 +176,8 @@ export default function ScheduledJobsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orq8-lime/10">
-                <CalendarClock aria-hidden="true" className="h-4.5 w-4.5 text-orq8-green" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-accent/10">
+                <CalendarClock aria-hidden="true" className="h-4.5 w-4.5 text-brand-ink" />
               </span>
               <h1 className="text-xl font-semibold tracking-tight text-ink">Scheduled Jobs</h1>
             </div>
@@ -199,10 +199,10 @@ export default function ScheduledJobsPage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
           </div>
         )}
 
@@ -214,11 +214,11 @@ export default function ScheduledJobsPage() {
         ) : (
           <>
             {!hadAnyRun && (
-              <div className="mt-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <div className="mt-6 flex items-start gap-3 rounded-xl border border-warm bg-warm-soft px-4 py-3">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warm-ink" />
                 <div>
-                  <p className="text-sm font-medium text-amber-800">No scheduled jobs have run yet</p>
-                  <p className="mt-1 text-xs text-amber-700">
+                  <p className="text-sm font-medium text-warm-ink">No scheduled jobs have run yet</p>
+                  <p className="mt-1 text-xs text-warm-ink">
                     The job log starts populating on the next scheduled run (event processing fires every 5 minutes;
                     consolidation, anomaly scan and briefings fire daily). Use the refresh button after the next run.
                   </p>
@@ -254,7 +254,7 @@ export default function ScheduledJobsPage() {
                         </p>
                         <p className="mt-1 text-muted">
                           {run.status === "error" ? (
-                            <span className="text-red-600">{run.error ?? "Job failed"}</span>
+                            <span className="text-error-ink">{run.error ?? "Job failed"}</span>
                           ) : (
                             <>
                               {run.orgsProcessed > 0 && `${run.orgsProcessed} org(s) · `}

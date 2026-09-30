@@ -10,10 +10,14 @@
  *   - Key pool state (rate limits, cooldowns, concurrency)
  *   - Model capabilities and compatibility
  *
- * Providers:
- *   - NVIDIA NIM (existing)
- *   - OpenRouter (new)
- *   - Future providers via adapter pattern
+ * Providers, in the order they are tried (see PROVIDER_PRIORITY below and
+ * docs/22 §22.9 for the decision):
+ *   - OpenRouter   — primary. One key fronts many vendors, so a pinned model id
+ *                    is honoured exactly, and routing stays deterministic.
+ *   - NVIDIA NIM   — first fallback, used when a workspace has NIM credentials.
+ *   - LiteLLM      — development only.
+ *   - Ollama       — development only.
+ *   Future providers join through the adapter pattern.
  */
 
 import type { AppConfig } from '@orq8/core';
@@ -81,6 +85,36 @@ export interface TaskRequirements {
 export type ProviderId = 'nvidia' | 'openrouter' | 'litellm' | 'ollama';
 
 /**
+ * The order providers are attempted in. This is the single source of truth for
+ * the routing priority — `getProviderChain` reads it, and so do the tests.
+ *
+ * **OpenRouter is primary.** One credential fronts many vendors, so a caller
+ * that  pins a model id gets that exact model, and the default route is one
+ * behaviour rather than "whichever provider happens to be configured". An
+ * earlier revision had NVIDIA first, which meant an unpinned request was served
+ * by NIM — whose model entitlements vary per account and which, in testing, was
+ * both slower and, for a bogus model id, silently answered by a different model.
+ *
+ * **LiteLLM and Ollama are development providers.** They exist so a contributor
+ * can run the whole stack locally, offline. They are deliberately last: neither
+ * should ever serve a production request just because it is configured.
+ *
+ * Changing this order changes what every unpinned call in the product does, so
+ * it is a decision rather than a detail (docs/22 §22.9).
+ */
+export const PROVIDER_PRIORITY: readonly ProviderId[] = [
+  'openrouter',
+  'nvidia',
+  'litellm',
+  'ollama',
+];
+
+/** True for providers that exist only for local development. */
+export function isDevelopmentProvider(id: ProviderId): boolean {
+  return id === 'litellm' || id === 'ollama';
+}
+
+/**
  * Runtime state of an API key.
  */
 export interface KeyState {
@@ -131,6 +165,12 @@ export interface ProviderAdapter {
   defaultModel: string;
   /** Model fallbacks (tried when default fails) */
   modelFallbacks: string[];
+  /**
+   * Whether this provider needs an API key to be usable. Providers that serve
+   * local models without auth (Ollama) set this to `false` so they still appear
+   * in the chain with an empty key pool. Defaults to `true` when omitted.
+   */
+  requiresAuth?: boolean;
 
   /**
    * Send a chat completion request.
@@ -190,6 +230,12 @@ export interface RouterResult {
   keySuffix: string;
   latencyMs: number;
   fallbacksUsed: number;
+  /**
+   * Every provider/model pair attempted, in order, with the reason each failed.
+   * This is the audit trail for one model call: without it a request that fell
+   * through three providers looks identical to one that succeeded first try.
+   */
+  attempts?: Array<{ provider: ProviderId; model: string; error?: string }>;
   error?: string;
   /** Warnings surfaced during routing (e.g. NVIDIA scope issues) */
   warnings?: Array<{
@@ -381,6 +427,15 @@ function uniqueKeys(keys: Array<string | undefined>): string[] {
  */
 function keySuffix(key: string): string {
   return key.slice(-6);
+}
+
+/**
+ * A provider is configured when it has at least one usable credential — or when
+ * it needs no credential at all (Ollama serves local models without auth).
+ */
+function isConfiguredProvider(provider: ProviderAdapter | undefined): provider is ProviderAdapter {
+  if (!provider) return false;
+  return provider.keys.length > 0 || provider.requiresAuth === false;
 }
 
 /**
@@ -591,12 +646,9 @@ export class ModelRouter {
   getProviderChain(): ProviderAdapter[] {
     const chain: ProviderAdapter[] = [];
 
-    // Priority: NVIDIA → OpenRouter → LiteLLM → Ollama
-    const priority: ProviderId[] = ['nvidia', 'openrouter', 'litellm', 'ollama'];
-
-    for (const id of priority) {
+    for (const id of PROVIDER_PRIORITY) {
       const provider = this.providers.get(id);
-      if (provider && provider.keys.length > 0) {
+      if (isConfiguredProvider(provider)) {
         chain.push(provider);
       }
     }
@@ -655,7 +707,7 @@ export class ModelRouter {
     if (chain.length === 0) {
       return {
         response: null,
-        provider: 'nvidia',
+        provider: 'openrouter',
         model: options.model || 'unknown',
         keySuffix: '',
         latencyMs: 0,
@@ -679,6 +731,15 @@ export class ModelRouter {
       }
     }
 
+    // A caller-supplied hint is authoritative: it decides the first provider
+    // attempted. The hint used to be accepted and then ignored, so a caller
+    // asking for OpenRouter was served by whichever provider happened to sit
+    // first in the static priority list.
+    const hintedProvider = options.providerHint
+      ? this.providers.get(options.providerHint)
+      : undefined;
+    const hintedIsUsable = isConfiguredProvider(hintedProvider);
+
     // If no specific model, use requirements to select
     if (!targetProvider && options.requirements) {
       const selected = this.selectModel(options.requirements);
@@ -686,6 +747,13 @@ export class ModelRouter {
         targetModel = selected.model.id;
         targetProvider = selected.provider;
       }
+    }
+
+    // A hinted provider comes before the static priority order, and carries the
+    // pinned model through so the caller's model id is what gets requested.
+    if (!targetProvider && hintedIsUsable) {
+      targetProvider = hintedProvider;
+      targetModel = targetModel || hintedProvider!.defaultModel;
     }
 
     // If still no provider, use the first in chain
@@ -696,6 +764,7 @@ export class ModelRouter {
 
     // Build the attempt order: target provider first, then fallbacks
     const attempts: Array<{ provider: ProviderAdapter; model: string }> = [];
+    const pinnedModel = Boolean(options.model);
 
     // Add target provider with its model
     if (targetModel && targetProvider) {
@@ -709,16 +778,22 @@ export class ModelRouter {
       }
     }
 
-    // Add other providers as ultimate fallbacks
-    for (const provider of chain) {
-      if (!targetProvider || provider.id !== targetProvider.id) {
-        attempts.push({ provider, model: provider.defaultModel });
+    // Cross-provider fallback is only allowed when the router chose the model
+    // itself. When the caller pinned a model id, answering from another
+    // provider's default model is not a fallback — it is a different model
+    // reported as success. Those requests must fail with a real error instead.
+    if (!pinnedModel) {
+      for (const provider of chain) {
+        if (!targetProvider || provider.id !== targetProvider.id) {
+          attempts.push({ provider, model: provider.defaultModel });
+        }
       }
     }
 
     // Execute attempts
     let fallbacksUsed = 0;
     let lastError = '';
+    const attemptLog: Array<{ provider: ProviderId; model: string; error?: string }> = [];
 
     for (const attempt of attempts) {
       const startTime = Date.now();
@@ -737,6 +812,7 @@ export class ModelRouter {
         if (result.response) {
           // Success
           attempt.provider.recordSuccess(result.keyUsed, latencyMs);
+          attemptLog.push({ provider: attempt.provider.id, model: attempt.model });
 
           return {
             response: result.response,
@@ -745,6 +821,7 @@ export class ModelRouter {
             keySuffix: result.keyUsed,
             latencyMs,
             fallbacksUsed,
+            attempts: attemptLog,
           };
         }
 
@@ -752,6 +829,9 @@ export class ModelRouter {
         if (result.error) {
           attempt.provider.recordFailure(result.keyUsed, result.error);
           lastError = result.error;
+          attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: result.error });
+        } else {
+          attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: 'empty response' });
         }
 
         fallbacksUsed++;
@@ -759,6 +839,7 @@ export class ModelRouter {
         const latencyMs = Date.now() - startTime;
         const errorMsg = err instanceof Error ? err.message : 'unknown error';
         lastError = errorMsg;
+        attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: errorMsg });
         fallbacksUsed++;
       }
     }
@@ -766,11 +847,12 @@ export class ModelRouter {
     // All attempts failed
     return {
       response: null,
-      provider: targetProvider?.id ?? 'nvidia',
+      provider: targetProvider?.id ?? chain[0]?.id ?? 'openrouter',
       model: targetModel || 'unknown',
       keySuffix: '',
       latencyMs: 0,
       fallbacksUsed,
+      attempts: attemptLog,
       error: lastError || 'All providers failed',
     };
   }
@@ -914,12 +996,22 @@ class NvidiaAdapter implements ProviderAdapter {
       clearTimeout(timer);
 
       if (!response.ok) {
-        const error = `HTTP ${response.status}`;
+        const detail = await readProviderError(response);
+        const error = `HTTP ${response.status}${detail ? `: ${detail}` : ''}`;
         this.recordFailure(suffix, error, response.status);
         return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
       }
 
       const data = (await response.json()) as ChatCompletionResponse;
+
+      // A 200 with no usable choice is still a failure: reporting it as success
+      // would let an empty reply be persisted as real agent work.
+      if (!data.choices?.length) {
+        const error = 'provider returned no choices';
+        this.recordFailure(suffix, error);
+        return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
+      }
+
       this.recordSuccess(suffix, Date.now() - startTime);
 
       return {
@@ -1101,6 +1193,37 @@ class NvidiaAdapter implements ProviderAdapter {
 
 // ─── OpenRouter Adapter ─────────────────────────────────────────────────────
 
+/**
+ * Providers put the real reason in the error envelope —
+ * {"error":{"message":"...","code":400}} — while the status code alone cannot
+ * tell an invalid model id from a rate limit or an upstream outage. Reading the
+ * body turns an opaque "HTTP 400" into something a log or the founder can act
+ * on. The body never contains the API key.
+ */
+async function readProviderError(response: Response): Promise<string> {
+  try {
+    const text = await response.text();
+    if (!text) return '';
+    try {
+      const parsed = JSON.parse(text) as {
+        error?: { message?: string; code?: string | number } | string;
+        message?: string;
+      };
+      const err = parsed.error;
+      if (typeof err === 'string') return err;
+      if (err?.message) {
+        return typeof err.code !== 'undefined' ? `${err.message} (code ${err.code})` : err.message;
+      }
+      if (parsed.message) return parsed.message;
+    } catch {
+      // Not JSON — fall through to the raw body.
+    }
+    return text.replace(/\s+/g, ' ').slice(0, 300);
+  } catch {
+    return '';
+  }
+}
+
 class OpenRouterAdapter implements ProviderAdapter {
   id: ProviderId = 'openrouter';
   label = 'OpenRouter';
@@ -1200,12 +1323,22 @@ class OpenRouterAdapter implements ProviderAdapter {
       clearTimeout(timer);
 
       if (!response.ok) {
-        const error = `HTTP ${response.status}`;
+        const detail = await readProviderError(response);
+        const error = `HTTP ${response.status}${detail ? `: ${detail}` : ''}`;
         this.recordFailure(suffix, error, response.status);
         return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
       }
 
       const data = (await response.json()) as ChatCompletionResponse;
+
+      // A 200 with no usable choice is still a failure: reporting it as success
+      // would let an empty reply be persisted as real agent work.
+      if (!data.choices?.length) {
+        const error = 'provider returned no choices';
+        this.recordFailure(suffix, error);
+        return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
+      }
+
       this.recordSuccess(suffix, Date.now() - startTime);
 
       return {
@@ -1468,12 +1601,22 @@ class LiteLLMAdapter implements ProviderAdapter {
       clearTimeout(timer);
 
       if (!response.ok) {
-        const error = `HTTP ${response.status}`;
+        const detail = await readProviderError(response);
+        const error = `HTTP ${response.status}${detail ? `: ${detail}` : ''}`;
         this.recordFailure(suffix, error, response.status);
         return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
       }
 
       const data = (await response.json()) as ChatCompletionResponse;
+
+      // A 200 with no usable choice is still a failure: reporting it as success
+      // would let an empty reply be persisted as real agent work.
+      if (!data.choices?.length) {
+        const error = 'provider returned no choices';
+        this.recordFailure(suffix, error);
+        return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error };
+      }
+
       this.recordSuccess(suffix, Date.now() - startTime);
 
       return {
@@ -1609,6 +1752,8 @@ class LiteLLMAdapter implements ProviderAdapter {
 class OllamaAdapter implements ProviderAdapter {
   id: ProviderId = 'ollama';
   label = 'Ollama (Local)';
+  /** Local models — no API key required, so it stays usable with an empty pool. */
+  requiresAuth = false;
   baseUrl: string;
   keys: string[];
   models: ModelDefinition[];

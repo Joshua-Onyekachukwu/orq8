@@ -19,8 +19,8 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
       <div className="max-w-md text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-          <AlertTriangle className="h-8 w-8 text-red-500" />
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error-soft">
+          <AlertTriangle className="h-8 w-8 text-error-ink" />
         </div>
         <h2 className="text-xl font-semibold text-ink">
           Something went wrong
@@ -38,7 +38,7 @@ export default function DashboardError({
         <div className="mt-6 flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 rounded-lg bg-orq8-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand"
           >
             <RefreshCw aria-hidden="true" className="h-4 w-4" />
             Try again

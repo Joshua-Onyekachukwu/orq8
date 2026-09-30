@@ -249,7 +249,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     // Check Redis
     const redisHealthy = deps.redis?.isConnected?.() ?? false;
 
-    // LLM fallback chain (docs/22): NVIDIA NIM → LiteLLM → Ollama → structured fallback
+    // LLM fallback chain (docs/22 §22.9): OpenRouter → NVIDIA NIM → LiteLLM → Ollama → structured fallback
     const llmChain = buildProviderChain(deps.config);
 
     // Aggregate subsystems
@@ -260,11 +260,11 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       { name: 'Auth', status: 'operational', latencyMs: null },
       { name: 'Agent Execution', status: 'operational', latencyMs: null },
       {
-        // Multi-provider chain (docs/22): NVIDIA NIM → LiteLLM → Ollama → structured fallback
+        // Multi-provider chain (docs/22 §22.9): OpenRouter → NVIDIA NIM → LiteLLM → Ollama
         name: 'AI Models',
-        status: llmChain.length > 0 ? (llmChain[0]?.id === 'nvidia' ? 'operational' : 'configured') : 'not_configured',
+        status: llmChain.length > 0 ? (llmChain[0]?.id === 'openrouter' ? 'operational' : 'configured') : 'not_configured',
         latencyMs: null,
-        detail: llmChain.length > 0 ? llmChain.map((p) => p.label).join(' → ') : 'Set NVIDIA_API_KEY, LITELLM_BASE_URL, or OLLAMA_BASE_URL',
+        detail: llmChain.length > 0 ? llmChain.map((p) => p.label).join(' → ') : 'Set OPENROUTER_API_KEY, NVIDIA_API_KEY, LITELLM_BASE_URL, or OLLAMA_BASE_URL',
       },
       { name: 'Email (SMTP)', status: process.env.SMTP_HOST ? 'operational' : 'not_configured', latencyMs: null },
       { name: 'Stripe Billing', status: process.env.STRIPE_SECRET_KEY ? 'operational' : 'not_configured', latencyMs: null },

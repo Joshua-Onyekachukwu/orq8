@@ -6,6 +6,17 @@
 
 ---
 
+## Where to start reading
+
+| You want | Read |
+| --- | --- |
+| The map of every document, and which one is authoritative | `docs/00_INDEX.md` |
+| What is built, what it is worth, and what is next | `docs/66_ORQ8_MVP_MASTER.md` |
+| The requirement-by-requirement status, with evidence | `docs/68_REQUIREMENT_MATRIX.md` |
+| How the product should look and behave | `docs/67_ORQ8_PRODUCT_EXPERIENCE_SPEC.md` |
+| How to deploy it | `docs/58_DEPLOYMENT.md` |
+| The most recent reconciliation of the whole ecosystem | `docs/69_ECOSYSTEM_RECONCILIATION_REPORT.md` |
+
 ## What ORQ8 Does
 
 A solo founder or lean team CEO directs their AI organization through natural language. The Executive Agent decomposes instructions into tasks, selects the right AI employees, executes work, routes sensitive actions through approval gates, records results in persistent memory, and reports outcomes at an executive level.

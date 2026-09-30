@@ -46,6 +46,7 @@ export default async function AppLayout({
   let me: MeData | null = null;
   let apiError: string | null = null;
   let isApiReachable = true;
+  let sessionExpired = false;
 
   try {
     const res = await fetch(`${API_URL}/v1/auth/me`, {
@@ -60,8 +61,8 @@ export default async function AppLayout({
       const data = (await res.json()) as { data?: MeData };
       me = data?.data ?? null;
     } else if (res.status === 401) {
-      // Session expired or invalid → clear cookie and redirect to login
-      redirect("/login?next=/app");
+      // Session expired or invalid → clear cookie and go to login.
+      sessionExpired = true;
     } else {
       // API returned an error (500, 503, etc.)
       isApiReachable = false;
@@ -73,6 +74,14 @@ export default async function AppLayout({
     apiError = "Could not connect to the API. The service may be temporarily unavailable.";
   }
 
+  // The redirect happens OUTSIDE the try, and that is the whole point: `redirect()`
+  // works by throwing a signal that Next catches further up, so calling it inside
+  // the try made this block's own `catch` swallow it. An expired session — the
+  // most ordinary thing that can happen to a founder — then rendered "Service
+  // Unavailable: could not connect to the API", inventing an outage and hiding
+  // the login form that would have fixed it.
+  if (sessionExpired) redirect("/login?next=/app");
+
   // SECURITY: Always require valid session. No dev fallback to sample data.
   if (!me) {
     if (!isApiReachable) {
@@ -80,15 +89,15 @@ export default async function AppLayout({
       return (
         <div id="main" className="min-h-screen bg-canvas flex items-center justify-center">
           <div className="max-w-md text-center px-6">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-error-soft">
+              <svg className="h-8 w-8 text-error-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
             <h1 className="text-xl font-semibold text-ink">Service Unavailable</h1>
             <p className="mt-2 text-sm text-muted">{apiError}</p>
             <p className="mt-4 text-sm text-muted">Please try again in a few moments, or contact support if the issue persists.</p>
-            <a href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-orq8-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-dark">
+            <a href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg ink px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-surface">
               Return to Login
             </a>
           </div>

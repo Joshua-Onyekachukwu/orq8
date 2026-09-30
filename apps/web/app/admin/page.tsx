@@ -57,16 +57,16 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Health banner */}
-      <div className="mb-6 flex items-center gap-3 rounded-xl border border-orq8-green/20 bg-orq8-green/5 px-5 py-3">
-        <CheckCircle2 className="h-5 w-5 text-orq8-green" />
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand-deep/20 bg-brand-deep/5 px-5 py-3">
+        <CheckCircle2 className="h-5 w-5 text-brand-ink" />
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">All systems operational</p>
           <p className="text-xs text-muted">
             API · Database · Auth · Agent execution · {configuredProviders}/{providers.length} providers configured
           </p>
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-orq8-green">
-          <span className="h-1.5 w-1.5 rounded-full bg-orq8-green animate-pulse" />
+        <span className="flex items-center gap-1.5 text-xs text-brand-ink">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-deep animate-pulse" />
           Live
         </span>
       </div>
@@ -74,10 +74,10 @@ export default async function AdminDashboardPage() {
       {/* Core metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {[
-          { label: "Users", value: u.total ?? 0, sub: `${u.newThisWeek ?? 0} new this week`, icon: Users, color: "bg-orq8-green/10 text-orq8-green" },
-          { label: "Organizations", value: o.total ?? 0, sub: `${o.active ?? 0} active`, icon: Building2, color: "bg-orq8-lime/10 text-orq8-green" },
-          { label: "AI Employees", value: a.total ?? 0, sub: `${a.active ?? 0} active, ${a.paused ?? 0} paused`, icon: Bot, color: "bg-orq8-orange/10 text-orq8-orange" },
-          { label: "Pending Approvals", value: ap.pending ?? 0, sub: ap.pending > 0 ? "Needs attention" : "All clear", icon: ShieldCheck, color: ap.pending > 0 ? "bg-orq8-orange/10 text-orq8-orange" : "bg-canvas text-muted" },
+          { label: "Users", value: u.total ?? 0, sub: `${u.newThisWeek ?? 0} new this week`, icon: Users, color: "bg-brand-deep/10 text-brand-ink" },
+          { label: "Organizations", value: o.total ?? 0, sub: `${o.active ?? 0} active`, icon: Building2, color: "bg-ink-accent/10 text-brand-ink" },
+          { label: "AI Employees", value: a.total ?? 0, sub: `${a.active ?? 0} active, ${a.paused ?? 0} paused`, icon: Bot, color: "bg-warm/10 text-warm-ink" },
+          { label: "Pending Approvals", value: ap.pending ?? 0, sub: ap.pending > 0 ? "Needs attention" : "All clear", icon: ShieldCheck, color: ap.pending > 0 ? "bg-warm/10 text-warm-ink" : "bg-canvas text-muted" },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -134,19 +134,19 @@ export default async function AdminDashboardPage() {
             <h2 className="text-sm font-semibold text-ink">AI Provider Health</h2>
             <p className="text-3xs text-muted mt-0.5">Real-time status from live provider probes</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-3xs font-medium text-emerald-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-3xs font-medium text-brand-ink">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-deep animate-pulse" />
             Live
           </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {providers.map((p) => {
-            const statusColor = p.status === "healthy" ? "bg-emerald-500" :
-              p.status === "degraded" ? "bg-amber-500" :
-              p.status === "down" ? "bg-red-500" : "bg-gray-300";
-            const statusBg = p.status === "healthy" ? "bg-emerald-50 text-emerald-700" :
-              p.status === "degraded" ? "bg-amber-50 text-amber-700" :
-              p.status === "down" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-500";
+            const statusColor = p.status === "healthy" ? "bg-brand-deep" :
+              p.status === "degraded" ? "bg-warm" :
+              p.status === "down" ? "bg-error-fill" : "bg-disabled-surface";
+            const statusBg = p.status === "healthy" ? "bg-brand-soft text-brand-ink" :
+              p.status === "degraded" ? "bg-warm-soft text-warm-ink" :
+              p.status === "down" ? "bg-error-soft text-error-ink" : "bg-surface-secondary text-ink-muted";
             const statusLabel = p.status === "healthy" ? "Healthy" :
               p.status === "degraded" ? "Degraded" :
               p.status === "down" ? "Down" : "Off";
@@ -162,16 +162,16 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-center gap-3 text-3xs text-muted">
                   <span>{p.keyCount} key(s)</span>
                   {p.latencyMs !== undefined && p.latencyMs > 0 && (
-                    <span className={`font-mono ${p.latencyMs > 5000 ? "text-red-600" : p.latencyMs > 2000 ? "text-amber-600" : ""}`}>
+                    <span className={`font-mono ${p.latencyMs > 5000 ? "text-error-ink" : p.latencyMs > 2000 ? "text-warm-ink" : ""}`}>
                       {p.latencyMs}ms
                     </span>
                   )}
                   {p.circuitBreaker && p.circuitBreaker.state !== "closed" && (
-                    <span className="text-amber-600">CB: {p.circuitBreaker.state}</span>
+                    <span className="text-warm-ink">CB: {p.circuitBreaker.state}</span>
                   )}
                 </div>
                 {p.error && (
-                  <p className="text-3xs text-red-600 truncate">{p.error}</p>
+                  <p className="text-3xs text-error-ink truncate">{p.error}</p>
                 )}
                 {p.modelsAvailable && p.modelsAvailable.length > 0 && (
                   <div className="flex flex-wrap gap-1">
@@ -201,16 +201,16 @@ export default async function AdminDashboardPage() {
             <Link
               key={link.href}
               href={link.href}
-              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-orq8-green/30 hover:bg-orq8-green/5"
+              className="group flex items-center gap-3 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-brand-deep/30 hover:bg-brand-deep/5"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:bg-orq8-green/10 group-hover:text-orq8-green">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-canvas text-muted group-hover:bg-brand-deep/10 group-hover:text-brand-ink">
                 <Icon className="h-5 w-5" />
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium text-ink">{link.label}</p>
                 <p className="text-overline text-muted">{link.desc}</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-orq8-green" />
+              <ArrowUpRight className="h-4 w-4 text-muted group-hover:text-brand-ink" />
             </Link>
           );
         })}

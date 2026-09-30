@@ -20,7 +20,7 @@ import type { AppDeps } from '../src/types.js';
  * rows the test itself inserted — the same guarantee the product makes.
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;

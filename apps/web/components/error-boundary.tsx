@@ -45,8 +45,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-hairline bg-white p-8">
           <div className="text-center max-w-sm">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-              <AlertTriangle className="h-6 w-6 text-red-500" />
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-error-soft">
+              <AlertTriangle className="h-6 w-6 text-error-ink" />
             </div>
 
             <h3 className="mt-4 text-base font-semibold text-ink">
@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <summary className="cursor-pointer text-xs font-medium text-muted hover:text-ink">
                   Error details
                 </summary>
-                <pre className="mt-2 max-h-40 overflow-auto font-mono text-overline text-red-600 whitespace-pre-wrap break-all">
+                <pre className="mt-2 max-h-40 overflow-auto font-mono text-overline text-error-ink whitespace-pre-wrap break-all">
                   {this.state.error.message}
                   {"\n\n"}
                   {this.state.error.stack}
@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orq8-green-dark"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 Try again

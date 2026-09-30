@@ -1,5 +1,13 @@
-import { and, eq, sql } from 'drizzle-orm';
-import { approvals as approvalsTable, repositoryPrs as repositoryPrsTable } from '@orq8/db';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import {
+  activityEvents as activityEventsTable,
+  agents as agentsTable,
+  approvals as approvalsTable,
+  repositoryPrs as repositoryPrsTable,
+  tasks as tasksTable,
+  type Approval,
+  type Db,
+} from '@orq8/db';
 import { z } from 'zod';
 import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -23,6 +31,79 @@ const createApprovalBody = z.object({
   risk_level: z.enum(['low', 'medium', 'high']).default('low'),
   agent_id: z.string().uuid().optional(),
 });
+
+/** An approval with the work it gates resolved to something a human reads. */
+type NamedApproval = Approval & {
+  /** The requesting agent's name, so a card never shows a bare uuid. */
+  agentName: string | null;
+  gatedWork: {
+    taskId: string | null;
+    taskTitle: string | null;
+    taskStatus: string | null;
+    toolId: string | null;
+    toolParams: unknown;
+  } | null;
+};
+
+/**
+ * Name the work each approval gates (docs/66.14 Gap A, migration 0036).
+ *
+ * The decision now resumes or stops a task, but a card that shows only the
+ * `action` sentence still leaves the founder guessing what moves when they press
+ * approve. This resolves the gated task's title and status — and the tool, when
+ * the gate came from a tool call — for the whole page in two queries rather than
+ * one per row. It resolves the agent's *name* for the same reason: the page used
+ * to print `Agent #1f80cc03`, an identifier the founder has never seen, on the
+ * one screen whose entire job is to say who is asking to do what.
+ */
+async function withGatedWork(
+  db: Db,
+  orgId: string,
+  rows: Approval[],
+): Promise<NamedApproval[]> {
+  const taskIds = [
+    ...new Set(rows.map((row) => row.taskId).filter((id): id is string => Boolean(id))),
+  ];
+  const gated = new Map<string, { title: string; status: string }>();
+
+  if (taskIds.length > 0) {
+    const found = await db
+      .select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.orgId, orgId), inArray(tasksTable.id, taskIds)));
+    for (const task of found) gated.set(task.id, { title: task.title, status: task.status });
+  }
+
+  const agentIds = [...new Set(rows.map((row) => row.agentId).filter((id): id is string => Boolean(id)))];
+  const agents = new Map<string, string>();
+  if (agentIds.length > 0) {
+    const found = await db
+      .select({ id: agentsTable.id, name: agentsTable.name })
+      .from(agentsTable)
+      .where(and(eq(agentsTable.orgId, orgId), inArray(agentsTable.id, agentIds)));
+    for (const agent of found) agents.set(agent.id, agent.name);
+  }
+
+  return rows.map((row) => {
+    const task = row.taskId ? gated.get(row.taskId) : undefined;
+    const toolId = row.toolId ?? null;
+
+    return {
+      ...row,
+      agentName: row.agentId ? (agents.get(row.agentId) ?? null) : null,
+      gatedWork:
+        row.taskId || toolId
+          ? {
+              taskId: row.taskId ?? null,
+              taskTitle: task?.title ?? null,
+              taskStatus: task?.status ?? null,
+              toolId,
+              toolParams: row.toolParams ?? null,
+            }
+          : null,
+    };
+  });
+}
 
 export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { db } = deps;
@@ -87,7 +168,10 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       .from(approvalsTable)
       .where(and(...conditions));
     const list = await approvals.findByOrg(db, ctx.orgId, { status, limit, offset });
-    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+    return {
+      data: await withGatedWork(db, ctx.orgId, list),
+      meta: { limit, offset, total: totalRow?.count ?? 0 },
+    };
   });
 
   /** Get a single approval. */
@@ -98,7 +182,8 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       reply.code(404);
       return { error: { code: 'not_found', message: 'Approval not found' } };
     }
-    return { data: approval };
+    const [named] = await withGatedWork(db, ctx.orgId, [approval]);
+    return { data: named };
   });
 
   /** Decide on an approval (approve/reject/modify). */
@@ -108,6 +193,26 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       const ctx = await requireAuth(request, deps);
       const parsed = decideBody.safeParse(request.body);
       if (!parsed.success) throw validation(parsed.error.flatten());
+
+      const existing = await approvals.findById(db, ctx.orgId, request.params.id);
+      if (!existing) {
+        reply.code(404);
+        return { error: { code: 'not_found', message: 'Approval not found' } };
+      }
+
+      // Stopping a piece of work without saying why is the thing that makes an
+      // autonomous organization feel arbitrary. If this decision is the one
+      // holding a task, the founder has to give a reason — the agent reads it
+      // and so does the next person who asks what happened here.
+      if (parsed.data.status === 'rejected' && existing.taskId && !parsed.data.note) {
+        reply.code(400);
+        return {
+          error: {
+            code: 'reason_required',
+            message: 'Give a reason for stopping this work: the AI employee is told why, and the task record keeps it.',
+          },
+        };
+      }
 
       const decided = await approvals.decide(
         db,
@@ -129,6 +234,77 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         action: `approval.${parsed.data.status}`,
         outcome: 'success',
       });
+
+      // ── Release the work this decision gates (Gap A, docs/66 §66.14) ──
+      //
+      // Before this, a decision was recorded and went nowhere: the founder
+      // approved a request and the task it was about stayed exactly where it
+      // was. Every resolved gate now leaves the task in a settled state — it
+      // either runs, or it is cancelled with the reason attached. `modified`
+      // releases the work like `approved` does, so no gate can strand a task in
+      // `awaiting_approval` after its only decision has been spent.
+      let resumed: { taskId: string; status: string } | null = null;
+      if (decided.taskId) {
+        if (parsed.data.status === 'rejected') {
+          const reason = `Rejected by founder: ${parsed.data.note}`;
+          await db
+            .update(tasksTable)
+            .set({ status: 'cancelled', result: reason.slice(0, 2000), updatedAt: new Date() })
+            .where(and(eq(tasksTable.id, decided.taskId), eq(tasksTable.orgId, ctx.orgId)));
+          await db.insert(activityEventsTable).values({
+            orgId: ctx.orgId,
+            agentId: decided.agentId,
+            taskId: decided.taskId,
+            type: 'rejected',
+            summary: reason.slice(0, 500),
+            reason: parsed.data.note ?? null,
+            cost: 0,
+            department: null,
+          });
+          broadcastToOrg(ctx.orgId, { type: 'task.cancelled', taskId: decided.taskId, reason });
+          notifyAttentionChanged(ctx.orgId, 'task.cancelled');
+
+          // The mirror of `approval.resumed_work`. A decision that stops work is
+          // as consequential as one that releases it, and the audit row has to
+          // name the work it stopped — otherwise the trail says a question was
+          // answered and never says what that answer did.
+          await appendAudit(db, {
+            orgId: ctx.orgId,
+            actorType: 'user',
+            actorId: ctx.userId,
+            action: 'approval.stopped_work',
+            outcome: 'success',
+            // Structured references, not only a string: the audit row can be
+            // queried by approval or by task, so "what did this decision stop?"
+            // is answerable without parsing prose.
+            approvalId: decided.id,
+            taskId: decided.taskId,
+            resultRef: `approval:${decided.id} → task:${decided.taskId} (cancelled)`,
+          });
+        } else {
+          // Resume the stopped task. The executor consumes this same approval as
+          // it proceeds (single-use), so an autonomy gate cannot re-block it.
+          try {
+            const { executeTask } = await import('../services/task-executor.js');
+            const outcome = await executeTask(deps.config, db, ctx.orgId, decided.taskId);
+            resumed = { taskId: decided.taskId, status: outcome.status };
+            await appendAudit(db, {
+              orgId: ctx.orgId,
+              actorType: 'user',
+              actorId: ctx.userId,
+              action: 'approval.resumed_work',
+              outcome: 'success',
+              approvalId: decided.id,
+              taskId: decided.taskId,
+              resultRef: `approval:${decided.id} → task:${decided.taskId} (${outcome.status})`,
+            });
+          } catch (error) {
+            // The decision is already persisted and the task stays awaiting —
+            // the founder can retry the work without re-deciding the question.
+            request.log.error({ err: error }, 'resuming approved work failed');
+          }
+        }
+      }
 
       // Engineering merge approvals: an approved decision advances the linked PR
       // to 'approved' (the merge itself stays gated on this approval record and
@@ -177,7 +353,7 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
         }
       } catch { /* notification failure is non-fatal */ }
 
-      return { data: decided };
+      return { data: decided, resumed };
     },
   );
 }

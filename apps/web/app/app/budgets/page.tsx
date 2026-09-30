@@ -74,7 +74,7 @@ export default function BudgetsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -96,16 +96,16 @@ export default function BudgetsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
         </div>
       )}
 
       {/* Balance cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/10 text-brand-ink">
             <Wallet className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -120,7 +120,7 @@ export default function BudgetsPage() {
         </div>
 
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
             <BarChart3 className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -134,8 +134,8 @@ export default function BudgetsPage() {
           </p>
         </div>
 
-        <div className={`rounded-xl border bg-white p-5 ${isCritical ? "border-red-300" : isLow ? "border-amber-300" : "border-hairline"}`}>
-          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${isCritical ? "bg-red-100 text-red-700" : isLow ? "bg-amber-50 text-amber-700" : "bg-hairline text-ink-muted"}`}>
+        <div className={`rounded-xl border bg-white p-5 ${isCritical ? "border-border-error" : isLow ? "border-warm" : "border-hairline"}`}>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${isCritical ? "bg-error-soft text-error-ink" : isLow ? "bg-warm-soft text-warm-ink" : "bg-hairline text-ink-muted"}`}>
             {isCritical ? <AlertTriangle className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -159,7 +159,7 @@ export default function BudgetsPage() {
           </div>
           <div className="h-3 rounded-full bg-muted/10 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isLow ? "bg-amber-400" : "bg-orq8-green"}`}
+              className={`h-full rounded-full transition-all ${isCritical ? "bg-error-fill" : isLow ? "bg-warm" : "bg-brand-deep"}`}
               style={{ width: `${Math.min(utilization, 100)}%` }}
             />
           </div>
@@ -184,7 +184,7 @@ export default function BudgetsPage() {
                   </span>
                   <div className="flex-1 h-2 rounded-full bg-muted/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-indigo-500"
+                      className="h-full rounded-full bg-mark-active"
                       style={{
                         width: `${(credits / (usage.totalUsed || 1)) * 100}%`,
                       }}
@@ -211,7 +211,7 @@ export default function BudgetsPage() {
                 <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                   <span className="font-mono text-3xs text-muted">{day.credits}</span>
                   <div
-                    className="w-full rounded-t bg-orq8-green/60 min-h-[2px]"
+                    className="w-full rounded-t bg-brand-deep/60 min-h-[2px]"
                     style={{ height: `${Math.max(height, 2)}%` }}
                   />
                   <span className="font-mono text-2xs text-muted">
@@ -234,7 +234,7 @@ export default function BudgetsPage() {
           </p>
           <a
             href="/"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             View plans <ArrowUpRight className="h-3.5 w-3.5" />
           </a>

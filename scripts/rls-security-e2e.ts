@@ -22,7 +22,7 @@
  * Run: pnpm exec tsx scripts/rls-security-e2e.ts
  */
 import path from "node:path";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
 import { Pool } from "pg";
@@ -256,6 +256,16 @@ async function main() {
     }
     await new Promise((r) => setTimeout(r, 2_000));
   }
+
+  // A previous run's data directory must go before `initdb` runs, not after.
+  // `initdb` refuses a non-empty directory, and this harness names its data
+  // directory rather than deriving it from the clock — so a run that was killed
+  // mid-boot left `.rls-e2e-pg` behind and every run after it failed at initdb
+  // for a reason that had nothing to do with RLS. A proof that can never pass
+  // again once it has been interrupted is worse than no proof: it reads as a
+  // security regression. `auth-e2e.ts`, `waitlist-e2e.ts` and `load-scale.ts`
+  // already wipe their directory here; this one did not.
+  rmSync(DB_DIR, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
 
   const pg = new EmbeddedPostgres({
     databaseDir: DB_DIR,
@@ -813,6 +823,11 @@ async function main() {
     try {
       await pg.stop();
     } catch { /* shutdown races */ }
+    // Leave nothing behind: the next run wipes it anyway, but a data directory
+    // sitting in the working tree is how the last one was mistaken for state.
+    try {
+      rmSync(DB_DIR, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
+    } catch { /* Windows may still hold a handle; the next run wipes it */ }
   }
 
   console.log(`\n${passCount} passed, ${failures.length} failed`);

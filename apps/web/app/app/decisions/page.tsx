@@ -83,30 +83,30 @@ interface DecisionSummary {
 
 function typeColor(t: string) {
   const map: Record<string, string> = {
-    strategic: "bg-purple-100 text-purple-700",
-    operational: "bg-blue-50 text-blue-700",
-    hiring: "bg-amber-50 text-amber-700",
-    resource_allocation: "bg-orange-50 text-orange-700",
-    technical: "bg-cyan-50 text-cyan-700",
-    partnership: "bg-green-50 text-green-700",
-    product: "bg-indigo-50 text-indigo-700",
-    marketing: "bg-pink-50 text-pink-700",
-    financial: "bg-emerald-50 text-emerald-700",
+    strategic: "bg-brand-soft text-brand-deep",
+    operational: "bg-brand-soft text-brand-deep",
+    hiring: "bg-warm-soft text-warm-ink",
+    resource_allocation: "bg-warm-soft text-warm-ink",
+    technical: "bg-brand-soft text-brand-deep",
+    partnership: "bg-brand-soft text-brand-ink",
+    product: "bg-brand-soft text-brand-deep",
+    marketing: "bg-error-soft text-text-error",
+    financial: "bg-brand-soft text-brand-ink",
   };
   return map[t] ?? "bg-hairline text-muted";
 }
 
 function statusIcon(s: string) {
-  if (s === "validated") return <CheckCircle2 className="h-4 w-4 text-orq8-green" />;
-  if (s === "reversed") return <XCircle className="h-4 w-4 text-red-500" />;
-  if (s === "active") return <Clock className="h-4 w-4 text-orq8-orange" />;
-  if (s === "pending") return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+  if (s === "validated") return <CheckCircle2 className="h-4 w-4 text-brand-ink" />;
+  if (s === "reversed") return <XCircle className="h-4 w-4 text-error-ink" />;
+  if (s === "active") return <Clock className="h-4 w-4 text-warm-ink" />;
+  if (s === "pending") return <AlertTriangle className="h-4 w-4 text-warm-ink" />;
   return <Clock className="h-4 w-4 text-muted" />;
 }
 
 function confidenceColor(c: string) {
-  if (c === "high") return "text-orq8-green";
-  if (c === "low") return "text-red-500";
+  if (c === "high") return "text-brand-ink";
+  if (c === "low") return "text-error-ink";
   return "text-muted";
 }
 
@@ -249,7 +249,7 @@ function DecisionCard({ decision, onUpdate }: { decision: Decision; onUpdate: (i
               <span className="text-2xs font-semibold text-muted uppercase tracking-wide">Reversal Conditions</span>
               <div className="mt-1 flex flex-wrap gap-1">
                 {decision.reversalConditions.map((rc, i) => (
-                  <span key={i} className="rounded-full bg-red-50 px-2 py-0.5 text-2xs text-red-600">{rc}</span>
+                  <span key={i} className="rounded-full bg-error-soft px-2 py-0.5 text-2xs text-error-ink">{rc}</span>
                 ))}
               </div>
             </div>
@@ -257,8 +257,8 @@ function DecisionCard({ decision, onUpdate }: { decision: Decision; onUpdate: (i
 
           {/* Lessons */}
           {decision.lessonsLearned && (
-            <div className="rounded-lg bg-orq8-green/5 border border-orq8-green/20 p-3">
-              <span className="text-2xs font-semibold text-orq8-green uppercase">Lessons Learned</span>
+            <div className="rounded-lg bg-brand-deep/5 border border-brand-deep/20 p-3">
+              <span className="text-2xs font-semibold text-brand-ink uppercase">Lessons Learned</span>
               <p className="text-xs text-ink mt-1">{decision.lessonsLearned}</p>
             </div>
           )}
@@ -281,7 +281,7 @@ function DecisionCard({ decision, onUpdate }: { decision: Decision; onUpdate: (i
                 onChange={e => setActualOutcome(e.target.value)}
                 placeholder="What actually happened?"
                 rows={2}
-                className="w-full rounded border border-hairline px-2 py-1.5 text-xs text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+                className="w-full rounded border border-hairline px-2 py-1.5 text-xs text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
               />
               <div className="flex items-center gap-2">
                 <select value={status} onChange={e => setStatus(e.target.value)} className="rounded border border-hairline px-2 py-1 text-2xs text-ink">
@@ -294,9 +294,9 @@ function DecisionCard({ decision, onUpdate }: { decision: Decision; onUpdate: (i
                   value={lessons}
                   onChange={e => setLessons(e.target.value)}
                   placeholder="Lessons learned (optional)"
-                  className="flex-1 rounded border border-hairline px-2 py-1 text-2xs text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+                  className="flex-1 rounded border border-hairline px-2 py-1 text-2xs text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
                 />
-                <button onClick={saveOutcome} className="rounded bg-orq8-green px-2 py-1 text-2xs font-semibold text-white">Save</button>
+                <button onClick={saveOutcome} className="rounded bg-brand-deep px-2 py-1 text-2xs font-semibold text-white">Save</button>
               </div>
             </div>
           )}
@@ -361,10 +361,10 @@ function ConfidenceCalibrationCard({
                     b.accuracyPct === null
                       ? "h-full bg-muted/30"
                       : b.accuracyPct >= 70
-                        ? "h-full rounded-full bg-orq8-green"
+                        ? "h-full rounded-full bg-brand-deep"
                         : b.accuracyPct >= 40
-                          ? "h-full rounded-full bg-amber-500"
-                          : "h-full rounded-full bg-red-500"
+                          ? "h-full rounded-full bg-warm"
+                          : "h-full rounded-full bg-error-fill"
                     }
                   style={{ width: b.accuracyPct === null ? "0%" : `${b.accuracyPct}%` }}
                 />
@@ -378,13 +378,13 @@ function ConfidenceCalibrationCard({
             {gap === null ? (
               "Not enough resolved decisions in both high and low bands yet — the trust gap cannot honestly be computed."
             ) : gap > 0 ? (
-              <span className="text-orq8-green">
+              <span className="text-brand-ink">
                 High-confidence predictions are outperforming low-confidence ones by {gap} points — confidence is calibrated so far.
               </span>
             ) : gap === 0 ? (
               "High and low confidence are equally accurate so far — declared confidence is not yet predictive."
             ) : (
-              <span className="text-red-500">
+              <span className="text-error-ink">
                 Low-confidence predictions are outperforming high-confidence ones by {Math.abs(gap)} points — treat high-confidence claims with extra scrutiny.
               </span>
             )}
@@ -395,7 +395,7 @@ function ConfidenceCalibrationCard({
             </p>
           )}
           {summary_routing && (
-            <p className={`text-2xs ${summary_routing.active ? "font-semibold text-orq8-orange" : "text-muted"}`}>
+            <p className={`text-2xs ${summary_routing.active ? "font-semibold text-warm-ink" : "text-muted"}`}>
               Routing consequence: {summary_routing.reason}
             </p>
           )}
@@ -474,7 +474,7 @@ export default function DecisionsPage() {
           </div>
           <button
             onClick={() => { setFormTitle(""); setFormWhat(""); setFormRationale(""); setFormExpected(""); setFormReversal(""); setShowNew(true); }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" /> Record Decision
           </button>
@@ -488,22 +488,22 @@ export default function DecisionsPage() {
               <div className="text-2xs text-muted mt-1">Total Decisions</div>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-5">
-              <div className="text-2xl font-bold text-orq8-green font-mono">{summary.validatedDecisions}</div>
+              <div className="text-2xl font-bold text-brand-ink font-mono">{summary.validatedDecisions}</div>
               <div className="text-2xs text-muted mt-1">Validated</div>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-5">
-              <div className="text-2xl font-bold text-red-500 font-mono">{summary.reversedDecisions}</div>
+              <div className="text-2xl font-bold text-error-ink font-mono">{summary.reversedDecisions}</div>
               <div className="text-2xs text-muted mt-1">Reversed</div>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-5">
               <div className="flex items-center gap-1.5">
-                <TrendingUp className={`h-4 w-4 ${summary.learningScore >= 70 ? "text-orq8-green" : summary.learningScore >= 40 ? "text-amber-500" : "text-red-500"}`} />
+                <TrendingUp className={`h-4 w-4 ${summary.learningScore >= 70 ? "text-brand-ink" : summary.learningScore >= 40 ? "text-warm-ink" : "text-error-ink"}`} />
                 <span className="text-2xl font-bold text-ink font-mono">{summary.learningScore}%</span>
               </div>
               <div className="text-2xs text-muted mt-1">Learning Score</div>
               <div className="mt-2 h-1.5 rounded-full bg-muted/10 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${summary.learningScore >= 70 ? "bg-orq8-green" : summary.learningScore >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                  className={`h-full rounded-full ${summary.learningScore >= 70 ? "bg-brand-deep" : summary.learningScore >= 40 ? "bg-warm" : "bg-error-fill"}`}
                   style={{ width: `${summary.learningScore}%` }}
                 />
               </div>
@@ -555,7 +555,7 @@ export default function DecisionsPage() {
               </p>
               <button
                 onClick={() => setShowNew(true)}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90 transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" /> Record Decision
               </button>
@@ -575,14 +575,14 @@ export default function DecisionsPage() {
               value={formTitle}
               onChange={e => setFormTitle(e.target.value)}
               placeholder="Decision title (e.g., Launch with $49 pricing)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
             />
             <textarea
               value={formWhat}
               onChange={e => setFormWhat(e.target.value)}
               placeholder="What was decided? (the actual decision)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <div className="flex gap-3">
               <select value={formType} onChange={e => setFormType(e.target.value)} className="rounded-lg border border-hairline px-3 py-2 text-xs text-ink">
@@ -607,24 +607,24 @@ export default function DecisionsPage() {
               onChange={e => setFormRationale(e.target.value)}
               placeholder="Rationale — why this decision? (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <textarea
               value={formExpected}
               onChange={e => setFormExpected(e.target.value)}
               placeholder="Expected outcome (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <input
               value={formReversal}
               onChange={e => setFormReversal(e.target.value)}
               placeholder="Reversal conditions (comma-separated)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
             />
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNew(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-              <button onClick={createDecision} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Record</button>
+              <button onClick={createDecision} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Record</button>
             </div>
           </div>
         </Modal>

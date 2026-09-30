@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
 import { approvals, type Approval, type NewApproval, type Db } from '@orq8/db';
 import { captureDecisionFromApproval } from './knowledge-graph.js';
 
@@ -82,6 +82,60 @@ export async function decide(
   }
 
   return row;
+}
+
+/**
+ * The open decision gating a task, if one exists (migration 0036).
+ *
+ * Checked before raising a gate so that re-entering a blocked task cannot stack
+ * duplicate requests in the founder's queue — the database enforces the same
+ * invariant with a partial unique index, and this returns the existing row
+ * instead of provoking that conflict.
+ */
+export async function findOpenGate(
+  db: Db,
+  orgId: string,
+  taskId: string,
+): Promise<Approval | undefined> {
+  const rows = await db
+    .select()
+    .from(approvals)
+    .where(and(eq(approvals.orgId, orgId), eq(approvals.taskId, taskId), eq(approvals.status, 'pending')))
+    .limit(1);
+  return rows[0];
+}
+
+/**
+ * A go-ahead decision for this task that the work has not yet consumed.
+ *
+ * `modified` counts: the founder changed something and let it proceed, which is
+ * a yes. Only a rejection is a no. `releasedAt` stays null until the executor
+ * actually proceeds, so a founder saying yes releases the work once — not forever.
+ */
+export async function findGrantedGate(
+  db: Db,
+  orgId: string,
+  taskId: string,
+): Promise<Approval | undefined> {
+  const rows = await db
+    .select()
+    .from(approvals)
+    .where(
+      and(
+        eq(approvals.orgId, orgId),
+        eq(approvals.taskId, taskId),
+        inArray(approvals.status, ['approved', 'modified']),
+        isNull(approvals.releasedAt),
+      ),
+    )
+    .orderBy(desc(approvals.decidedAt))
+    .limit(1);
+  return rows[0];
+}
+
+/** Stamp the grant as spent. Called as the gated work resumes. */
+export async function markGateReleased(db: Db, approvalId: string): Promise<void> {
+  await db.update(approvals).set({ releasedAt: new Date() }).where(eq(approvals.id, approvalId));
 }
 
 /** Count pending approvals for an org. */

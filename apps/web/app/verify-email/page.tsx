@@ -13,7 +13,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-orq8-dark">
+        <div className="flex min-h-screen items-center justify-center ink">
           <Loader2 className="h-6 w-6 animate-spin text-white/40" aria-label="Checking the link" />
         </div>
       }
@@ -113,14 +113,14 @@ function VerifyEmailInner() {
           className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4"
         >
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-ink" aria-hidden />
             <p className="text-sm text-white/70">
               Confirmation recorded. Your company is unlocked.
             </p>
           </div>
           <Link
             href="/login"
-            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand"
           >
             Continue to sign in
           </Link>
@@ -159,7 +159,7 @@ function VerifyEmailInner() {
       <div className="space-y-4">
         <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warm-ink" aria-hidden />
             <p className="text-sm text-white/70">
               {message ??
                 "The link is not valid any more. Request a new confirmation email below."}

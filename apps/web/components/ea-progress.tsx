@@ -28,21 +28,21 @@ export function ExecutiveAgentProgress({
       {stages.map((s) => (
         <div key={s.stage} className="flex items-center gap-2 text-sm">
           {s.status === "completed" ? (
-            <Check className="h-3.5 w-3.5 shrink-0 text-orq8-green" aria-hidden />
+            <Check className="h-3.5 w-3.5 shrink-0 text-brand-ink" aria-hidden />
           ) : s.status === "failed" ? (
-            <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" aria-hidden />
+            <XCircle className="h-3.5 w-3.5 shrink-0 text-error-ink" aria-hidden />
           ) : s.status === "skipped" ? (
-            <Minus className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden />
+            <Minus className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
           ) : (
-            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-gray-400" aria-hidden />
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-ink-faint" aria-hidden />
           )}
           <span
             className={
               s.status === "started" || s.status === "in_progress"
-                ? "font-medium text-gray-800"
+                ? "font-medium text-ink"
                 : s.status === "failed"
-                  ? "text-red-600"
-                  : "text-gray-500"
+                  ? "text-error-ink"
+                  : "text-ink-muted"
             }
           >
             {s.label}

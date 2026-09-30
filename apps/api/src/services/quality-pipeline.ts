@@ -43,7 +43,9 @@ export interface QualityPipelineResult {
   agentReliability: ReliabilityProfile | null;
 
   // Final status
-  finalStatus: 'completed' | 'revision_required' | 'failed' | 'escalated' | 'blocked';
+  // awaiting_approval/deferred: nothing was produced to review — the work is
+  // stopped on a founder decision or a spent execution budget.
+  finalStatus: 'completed' | 'revision_required' | 'failed' | 'escalated' | 'blocked' | 'awaiting_approval' | 'deferred';
 
   // Metadata
   totalDurationMs: number;
@@ -78,6 +80,37 @@ export async function executeWithQuality(
     return await handleExecutionFailure(
       config, db, orgId, taskId, executionResult, lessonsRetrieved, startTime, revisionCount,
     );
+  }
+
+  // 3a. The task never produced work. `awaiting_approval` is a task stopped on a
+  //     founder decision and `deferred` is one whose budget ran out — in both
+  //     cases there is nothing to evaluate, and letting them fall through to QA
+  //     meant an empty result could be scored, passed and reported as reviewed
+  //     work. Stop here and say which of the two happened.
+  if (executionResult.status === 'awaiting_approval' || executionResult.status === 'deferred') {
+    return {
+      executionResult,
+      qaEvaluation: {
+        verdict: 'blocked',
+        score: 0,
+        criteria: [], // nothing was evaluated, and inventing criteria would be a verdict on air
+        warnings: [executionResult.result],
+        revisionInstructions: null,
+        failureCategory: null,
+        failureReason: null,
+        estimatedRevisionEffort: 'trivial',
+        requiresFounderReview: executionResult.status === 'awaiting_approval',
+        timestamp: new Date().toISOString(),
+      },
+      failureAnalysis: null,
+      learningEvent: null,
+      agentReliability: null,
+      finalStatus: executionResult.status === 'awaiting_approval' ? 'awaiting_approval' : 'deferred',
+      totalDurationMs: Date.now() - startTime,
+      revisionCount,
+      creditsUsed: executionResult.cost,
+      lessonsRetrieved,
+    };
   }
 
   // 4. Run QA (unless skipped for low-risk tasks)

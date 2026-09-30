@@ -45,3 +45,55 @@ Cheap models for: classification, routing, summarization, simple extraction, rou
 ## 22.8 Gateway
 
 LiteLLM (self-hosted, free) provides the unified interface, virtual keys, cost tracking, routing/fallback (ADR-004). Domain code never calls provider SDKs directly.
+
+> **Amended by §22.9.** LiteLLM is now a **development-only** gateway. The production unified interface is OpenRouter, which plays the same role (one API, many vendors, token/cost metadata) without a self-hosted hop. Domain code still never calls provider SDKs directly — it calls the provider chain, whose head is OpenRouter.
+
+## 22.9 Provider Priority — OpenRouter Primary (decision)
+
+**Decision.** OpenRouter is the primary model provider. NVIDIA NIM is the first
+fallback. LiteLLM and Ollama are development-only and always last.
+
+| # | Provider | Role | Credentials |
+|---|----------|------|-------------|
+| 1 | OpenRouter | **Primary.** One key fronts many vendors. | `OPENROUTER_API_KEY` / `OPENROUTER_API_KEYS` |
+| 2 | NVIDIA NIM | First fallback, for workspaces holding NIM credentials. | `NVIDIA_API_KEY` / `NVIDIA_API_KEYS` |
+| 3 | LiteLLM | Development gateway only. | `LITELLM_BASE_URL` (+ `LITELLM_MASTER_KEY`) |
+| 4 | Ollama | Development local models. No auth. | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` |
+
+**Why.**
+
+- *One credential, many vendors.* A pinned model id (`openai/gpt-4o-mini`, `anthropic/claude-…`) is honoured exactly by whichever vendor serves it, so "run this task on that model" means what it says.
+- *Deterministic unpinned routing.* Without OpenRouter the provider that serves a call depends on which credentials a workspace happens to hold. With it, the default destination is one predictable path.
+- *NVIDIA NIM is demoted, not deleted.* NIM gives direct, cheap access to Nemotron/Llama models and is a genuinely useful second attempt, so it stays as the first fallback.
+- *Development providers must never lead.* A configured local LiteLLM/Ollama endpoint can still serve dev traffic, but it is tried last — so a stray local URL cannot decide what a production request does.
+
+**Single source of truth.** `PROVIDER_PRIORITY` in
+`apps/api/src/services/model-router.ts`:
+
+```ts
+export const PROVIDER_PRIORITY: readonly ProviderId[] = [
+  'openrouter', 'nvidia', 'litellm', 'ollama',
+];
+```
+
+`ModelRouter.getProviderChain()` derives its order from it, and
+`isDevelopmentProvider()` marks `litellm`/`ollama`. `buildProviderChain()` in
+`apps/api/src/services/llm.ts` — the direct HTTP chain behind `chatCompletion`
+— pushes the same four providers in the same order. Only configured providers
+are included; changing the order changes what every unpinned call in the
+product does, so it is a decision rather than a detail.
+
+**Coverage.** `apps/api/test/llm-fallback.test.ts` and
+`apps/api/test/model-router.test.ts` assert the declared order, the fallback
+walk, and that the development providers stay last.
+
+**Record.** The decision is written up as **[ADR-023 — OpenRouter Is the
+Production Model Gateway](adr/ADR-023.md)**, which **supersedes ADR-004**
+(LiteLLM as the model gateway). ADR-004's own rule — domain code never calls a
+vendor SDK directly — is retained; what changed is which service sits at the head
+of the chain, and that LiteLLM/Ollama are development-only.
+
+**Fallbacks stay bounded.** On failure the chain advances, emits
+`model.fallback_used` / `model.provider_down` (§22.7), and escalates when the
+whole chain is exhausted. With nothing configured, a request degrades to the
+structured fallback path instead of failing hard.

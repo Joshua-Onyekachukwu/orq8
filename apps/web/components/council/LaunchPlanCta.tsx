@@ -153,17 +153,17 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
 
   if (phase === "idle") {
     return (
-      <div className="rounded-lg border border-orq8-green/30 bg-orq8-green/5 p-3">
+      <div className="rounded-lg border border-brand-deep/30 bg-brand-deep/5 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <span className="text-2xs font-semibold text-orq8-green uppercase tracking-wide">Approved — ready to execute</span>
+            <span className="text-2xs font-semibold text-brand-ink uppercase tracking-wide">Approved — ready to execute</span>
             <p className="mt-0.5 text-2xs text-muted">
               Hand this recommendation to the Executive Agent to plan and execute it.
             </p>
           </div>
           <button
             onClick={delegate}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 transition-opacity"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-1.5 text-2xs font-semibold text-white hover:opacity-90 transition-opacity"
           >
             <Rocket className="h-3 w-3" /> Create the launch plan
           </button>
@@ -185,8 +185,8 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
 
   if (phase === "delegated") {
     return (
-      <div className="rounded-lg border border-orq8-green/30 bg-orq8-green/5 p-3">
-        <span className="text-2xs font-semibold text-orq8-green uppercase tracking-wide flex items-center gap-1.5">
+      <div className="rounded-lg border border-brand-deep/30 bg-brand-deep/5 p-3">
+        <span className="text-2xs font-semibold text-brand-ink uppercase tracking-wide flex items-center gap-1.5">
           <Check className="h-3 w-3" /> Execution delegated
         </span>
         <p className="mt-1 text-2xs text-ink">
@@ -198,14 +198,14 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
             : "Delegation could not be recorded in Decision Memory — the execution itself succeeded."}
         </p>
         {error && (
-          <p className="mt-1 text-2xs text-amber-600">Execution status from the EA: {error}</p>
+          <p className="mt-1 text-2xs text-warm-ink">Execution status from the EA: {error}</p>
         )}
         {resultMessage && (
           <p className="mt-1 whitespace-pre-line text-2xs text-muted">{resultMessage.slice(0, 400)}</p>
         )}
         <a
           href="/app/goals"
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-orq8-green/40 px-3 py-1.5 text-2xs font-semibold text-orq8-green hover:bg-orq8-green/10 transition-colors"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-deep/40 px-3 py-1.5 text-2xs font-semibold text-brand-ink hover:bg-brand-deep/10 transition-colors"
         >
           View in Goals &amp; Tasks
         </a>
@@ -215,8 +215,8 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
 
   // failed | stream_lost
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50/50 p-3">
-      <span className="text-2xs font-semibold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
+    <div className="rounded-lg border border-border-error bg-error-soft/50 p-3">
+      <span className="text-2xs font-semibold text-error-ink uppercase tracking-wide flex items-center gap-1.5">
         <XCircle className="h-3 w-3" /> {phase === "failed" ? "Delegation failed" : "Connection lost mid-delegation"}
       </span>
       <p className="mt-1 text-2xs text-ink">{error}</p>
@@ -229,7 +229,7 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
       {phase === "failed" && (
         <button
           onClick={delegate}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-2xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border-error px-3 py-1.5 text-2xs font-semibold text-error-ink hover:bg-error-soft transition-colors"
         >
           <RefreshCw className="h-3 w-3" /> Try again
         </button>

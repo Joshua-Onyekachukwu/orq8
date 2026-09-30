@@ -37,12 +37,12 @@ export default async function SecurityPage() {
 
       {/* Status banner */}
       <div className={`mb-6 flex items-center gap-3 rounded-xl border px-5 py-3 ${
-        status === "elevated" ? "border-amber-200 bg-amber-50" : "border-orq8-green/20 bg-orq8-green/5"
+        status === "elevated" ? "border-warm bg-warm-soft" : "border-brand-deep/20 bg-brand-deep/5"
       }`}>
         {status === "elevated" ? (
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertTriangle className="h-5 w-5 text-warm-ink" />
         ) : (
-          <CheckCircle className="h-5 w-5 text-orq8-green" />
+          <CheckCircle className="h-5 w-5 text-brand-ink" />
         )}
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">
@@ -78,7 +78,7 @@ export default async function SecurityPage() {
         <h2 className="text-sm font-semibold text-ink mb-4">Failed Login Attempts</h2>
         {failedDetails.length === 0 ? (
           <div className="text-center py-8">
-            <CheckCircle className="mx-auto h-8 w-8 text-orq8-green/30" />
+            <CheckCircle className="mx-auto h-8 w-8 text-brand-ink/30" />
             <p className="mt-2 text-sm text-muted">No failed login attempts recorded.</p>
           </div>
         ) : (
@@ -96,7 +96,7 @@ export default async function SecurityPage() {
                   <tr key={i} className="hover:bg-canvas/50">
                     <td className="px-4 py-2.5 text-sm text-ink">{d.email}</td>
                     <td className="px-4 py-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold ${d.failedCount >= 5 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-3xs font-semibold ${d.failedCount >= 5 ? "bg-error-soft text-error-ink" : "bg-warm-soft text-warm-ink"}`}>
                         {d.failedCount} attempts
                       </span>
                     </td>

@@ -241,7 +241,8 @@ export async function calculateCompanyProgress(
     attentionNeeded.push(`${understaffed.map(d => d.departmentName).join(', ')} ha${understaffed.length === 1 ? 's' : 've'} tasks but no active agents`);
   }
   if (blockedTasks > 0) {
-    attentionNeeded.push(`${blockedTasks} task${blockedTasks !== 1 ? 's' : ''} failed and need attention`);
+    // The verb agrees with the count too: "1 task failed and needs attention".
+    attentionNeeded.push(`${blockedTasks} task${blockedTasks !== 1 ? 's' : ''} failed and ${blockedTasks !== 1 ? 'need' : 'needs'} attention`);
   }
   if (unassignedAgents.length > 0) {
     attentionNeeded.push(`${unassignedAgents.length} AI employee${unassignedAgents.length !== 1 ? 's' : ''} not assigned to any department`);

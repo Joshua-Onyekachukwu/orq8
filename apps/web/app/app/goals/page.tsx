@@ -52,18 +52,18 @@ const fetchTasks = async () => (await fetchWithAuth<Task[]>("/v1/tasks?order=des
 
 function priorityBadge(priority: string) {
   switch (priority) {
-    case "urgent": return "bg-red-100 text-red-700";
-    case "high": return "bg-amber-50 text-amber-700";
-    case "normal": return "bg-blue-50 text-blue-700";
+    case "urgent": return "bg-error-soft text-error-ink";
+    case "high": return "bg-warm-soft text-warm-ink";
+    case "normal": return "bg-brand-soft text-brand-deep";
     default: return "bg-hairline text-ink-muted";
   }
 }
 
 function statusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-orq8-green" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-orq8-orange" />;
-    case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case "completed": return <CheckCircle2 className="h-4 w-4 text-brand-ink" />;
+    case "in_progress": return <Clock className="h-4 w-4 text-warm-ink" />;
+    case "failed": return <AlertCircle className="h-4 w-4 text-error-ink" />;
     default: return <Clock className="h-4 w-4 text-muted" />;
   }
 }
@@ -93,8 +93,8 @@ function dueDateBadge(dateStr: string | null) {
     const now = new Date();
     const diff = d.getTime() - now.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days < 0) return "bg-red-50 text-red-600";
-    if (days <= 2) return "bg-amber-50 text-amber-700";
+    if (days < 0) return "bg-error-soft text-error-ink";
+    if (days <= 2) return "bg-warm-soft text-warm-ink";
     return "bg-hairline text-ink-muted";
   } catch {
     return "bg-hairline text-ink-muted";
@@ -122,7 +122,7 @@ export default async function GoalsPage() {
       {/* Goals grid */}
       <section className="mt-6">
         <div className="flex items-center gap-2 mb-4">
-          <Target aria-hidden="true" className="h-4 w-4 text-orq8-green" />
+          <Target aria-hidden="true" className="h-4 w-4 text-brand-ink" />
           <h2 className="text-sm font-semibold text-ink">Company Goals</h2>
           <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
             {goals.length}
@@ -149,7 +149,7 @@ export default async function GoalsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Link href={`/app/goals/${goal.id}`} className="group">
-                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-orq8-green transition-colors">
+                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-brand-ink transition-colors">
                           {goal.title}
                         </h3>
                       </Link>
@@ -181,7 +181,7 @@ export default async function GoalsPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-muted/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-orq8-green transition-all"
+                      className="h-full rounded-full bg-brand-deep transition-all"
                       style={{ width: `${goal.progress}%` }}
                     />
                   </div>
@@ -213,8 +213,8 @@ export default async function GoalsPage() {
                         {flowSteps.map((step, i) => (
                           <div key={i} className="flex items-center gap-1">
                             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                              step.done ? "bg-orq8-green/10 text-orq8-green" :
-                              step.active ? "bg-orq8-orange/10 text-orq8-orange" :
+                              step.done ? "bg-brand-deep/10 text-brand-ink" :
+                              step.active ? "bg-warm/10 text-warm-ink" :
                               "bg-hairline text-muted"
                             }`}>
                               {step.done && !step.active ? "✓" : step.active ? "●" : "○"} {step.label}
@@ -229,11 +229,11 @@ export default async function GoalsPage() {
                         {goalTasks.slice(0, 3).map((task) => (
                           <li key={task.id} className="flex items-center gap-2 text-xs">
                             {statusIcon(task.status)}
-                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-orq8-green">
+                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-brand-ink">
                               {task.title}
                             </Link>
                             {task.agentId && agentMap.get(task.agentId) && (
-                              <span className="shrink-0 rounded-full bg-orq8-green/10 px-1.5 py-0.5 text-2xs font-medium text-orq8-green">
+                              <span className="shrink-0 rounded-full bg-brand-deep/10 px-1.5 py-0.5 text-2xs font-medium text-brand-ink">
                                 {agentMap.get(task.agentId)!.name}
                               </span>
                             )}
@@ -248,7 +248,7 @@ export default async function GoalsPage() {
                       <div className="mt-2 flex items-center gap-3 text-3xs text-muted">
                         {assignedAgents.size > 0 && <span>{assignedAgents.size} agent{assignedAgents.size !== 1 ? "s" : ""} assigned</span>}
                         {totalCost > 0 && <span className="font-mono">${(totalCost / 100).toFixed(2)} total cost</span>}
-                        {failed > 0 && <span className="text-red-500">{failed} failed</span>}
+                        {failed > 0 && <span className="text-error-ink">{failed} failed</span>}
                       </div>
                     </div>
                   );
@@ -304,7 +304,7 @@ export default async function GoalsPage() {
                     <div className="flex items-center gap-2">
                       {statusIcon(task.status)}
                       <div>
-                        <Link href={`/app/tasks/${task.id}`} className="hover:text-orq8-green">
+                        <Link href={`/app/tasks/${task.id}`} className="hover:text-brand-ink">
                           <p className="text-sm font-medium text-ink">{task.title}</p>
                           {task.description && (
                             <p className="text-xs text-muted truncate max-w-[300px]">
@@ -317,7 +317,7 @@ export default async function GoalsPage() {
                   </td>
                   <td className="px-5 py-3">
                     {task.agentId && agentMap.get(task.agentId) ? (
-                      <span className="rounded-full bg-orq8-dark/5 px-2 py-0.5 text-3xs font-medium text-orq8-dark">
+                      <span className="rounded-full bg-ink-surface/5 px-2 py-0.5 text-3xs font-medium text-ink">
                         {agentMap.get(task.agentId)!.name}
                       </span>
                     ) : (

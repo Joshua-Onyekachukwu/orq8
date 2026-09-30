@@ -25,11 +25,11 @@ function formatTime(iso: string): string {
 }
 
 function typeColor(type: string) {
-  if (type.includes("approved")) return "bg-orq8-lime/10 text-orq8-green";
-  if (type.includes("rejected")) return "bg-red-50 text-red-600";
-  if (type.includes("deployed") || type.includes("executed")) return "bg-blue-50 text-blue-600";
-  if (type.includes("created") || type.includes("hired")) return "bg-purple-50 text-purple-600";
-  return "bg-gray-100 text-gray-600";
+  if (type.includes("approved")) return "bg-ink-accent/10 text-brand-ink";
+  if (type.includes("rejected")) return "bg-error-soft text-error-ink";
+  if (type.includes("deployed") || type.includes("executed")) return "bg-brand-soft text-brand-deep";
+  if (type.includes("created") || type.includes("hired")) return "bg-brand-soft text-brand-deep";
+  return "bg-surface-secondary text-ink-muted";
 }
 
 export function AdminActivityFeed({ activity }: { activity: ActivityEvent[] }) {
@@ -39,8 +39,8 @@ export function AdminActivityFeed({ activity }: { activity: ActivityEvent[] }) {
     <div className="rounded-xl border border-hairline bg-white">
       <div className="flex items-center justify-between border-b border-hairline px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50">
-            <Activity className="h-4.5 w-4.5 text-indigo-600" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft">
+            <Activity className="h-4.5 w-4.5 text-brand-deep" />
           </span>
           <div>
             <h2 className="text-sm font-semibold text-ink">Recent Activity</h2>
@@ -49,7 +49,7 @@ export function AdminActivityFeed({ activity }: { activity: ActivityEvent[] }) {
         </div>
         <Link
           href="/admin/activity"
-          className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
         >
           View all <ArrowUpRight className="h-3 w-3" />
         </Link>

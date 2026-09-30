@@ -6,10 +6,18 @@ import type { Db } from '@orq8/db';
  * LLM client — multi-provider, multi-key chat completions with automatic
  * failover, designed to keep concurrent tasks flowing without hiccups.
  *
- * Provider chain (docs/22): NVIDIA NIM → LiteLLM → Ollama → structured fallback.
- * - NVIDIA NIM is used when NVIDIA_API_KEY / NVIDIA_API_KEYS is set.
- * - LiteLLM is used when LITELLM_BASE_URL is set (OpenAI-compatible gateway).
- * - Ollama (local models) is used when OLLAMA_BASE_URL is set.
+ * Provider chain (docs/22 §22.9): OpenRouter → NVIDIA NIM → LiteLLM → Ollama →
+ * structured fallback.
+ * - OpenRouter is primary; used when OPENROUTER_API_KEY / OPENROUTER_API_KEYS
+ *   is set. It fronts many vendors, so the product's default route is one
+ *   predictable path rather than whichever provider happens to be configured.
+ * - NVIDIA NIM is the first fallback; used when NVIDIA_API_KEY /
+ *   NVIDIA_API_KEYS is set.
+ * - LiteLLM is a development provider; used when LITELLM_BASE_URL is set
+ *   (OpenAI-compatible gateway) so the stack runs offline.
+ * - Ollama (local models) is a development provider; used when
+ *   OLLAMA_BASE_URL is set. Neither development provider should serve a
+ *   production request: they sit last for exactly that reason.
  *
  * NVIDIA key pool:
  * - NVIDIA_API_KEY plus the comma-separated NVIDIA_API_KEYS list form a key
@@ -22,7 +30,7 @@ import type { Db } from '@orq8/db';
  * - If a key is invalid (401/403) or lacks a model (404), it is failed over
  *   to the next key immediately. Rate limits (429) respect Retry-After and
  *   retry on the same key before escalating. When the whole pool is
- *   exhausted, the call escalates to the next provider (LiteLLM → Ollama).
+ *   exhausted, the call escalates to the next provider in the priority order.
  *
  * Timeouts (docs/22): unprovisioned provider functions sometimes HANG instead
  * of returning 404. Each attempt uses a two-stage timeout — a short
@@ -82,28 +90,18 @@ type NvidiaConfig = Pick<
 /**
  * Build the ordered provider chain from configuration.
  * Only providers that are actually configured are included, in priority order:
- * NVIDIA NIM → LiteLLM → Ollama.
+ * **OpenRouter → NVIDIA NIM → LiteLLM → Ollama** (docs/22 §22.9).
+ *
+ * OpenRouter leads because one credential fronts many vendors: a pinned model id
+ * is honoured exactly and an unpinned call has one predictable destination.
+ * NVIDIA NIM is the first fallback for workspaces that hold NIM credentials.
+ * LiteLLM and Ollama are development providers, kept last so that being
+ * configured locally can never decide what a production request does.
  */
 export function buildProviderChain(config: NvidiaConfig): LLMProviderSpec[] {
   const chain: LLMProviderSpec[] = [];
 
-  const nvidiaKeys = uniqueKeys([
-    config.NVIDIA_API_KEY,
-    ...(config.NVIDIA_API_KEYS?.split(',').map((k) => k.trim()) ?? []),
-  ]);
-
-  if (nvidiaKeys.length > 0) {
-    chain.push({
-      id: 'nvidia',
-      label: 'NVIDIA NIM',
-      baseUrl: config.NVIDIA_BASE_URL,
-      apiKeys: nvidiaKeys,
-      defaultModel: config.NVIDIA_MODEL,
-      modelFallbacks: uniqueKeys(config.NVIDIA_MODEL_FALLBACKS?.split(',') ?? []).filter((m) => m !== config.NVIDIA_MODEL),
-    });
-  }
-
-  // OpenRouter — sits between NVIDIA and LiteLLM in priority
+  // OpenRouter — primary provider.
   const openrouterKeys = uniqueKeys([
     config.OPENROUTER_API_KEY,
     ...(config.OPENROUTER_API_KEYS?.split(',').map((k) => k.trim()) ?? []),
@@ -120,6 +118,24 @@ export function buildProviderChain(config: NvidiaConfig): LLMProviderSpec[] {
     });
   }
 
+  // NVIDIA NIM — first fallback.
+  const nvidiaKeys = uniqueKeys([
+    config.NVIDIA_API_KEY,
+    ...(config.NVIDIA_API_KEYS?.split(',').map((k) => k.trim()) ?? []),
+  ]);
+
+  if (nvidiaKeys.length > 0) {
+    chain.push({
+      id: 'nvidia',
+      label: 'NVIDIA NIM',
+      baseUrl: config.NVIDIA_BASE_URL,
+      apiKeys: nvidiaKeys,
+      defaultModel: config.NVIDIA_MODEL,
+      modelFallbacks: uniqueKeys(config.NVIDIA_MODEL_FALLBACKS?.split(',') ?? []).filter((m) => m !== config.NVIDIA_MODEL),
+    });
+  }
+
+  // LiteLLM — development only.
   if (config.LITELLM_BASE_URL) {
     chain.push({
       id: 'litellm',
@@ -130,6 +146,7 @@ export function buildProviderChain(config: NvidiaConfig): LLMProviderSpec[] {
     });
   }
 
+  // Ollama — development only. Local models, no auth.
   if (config.OLLAMA_BASE_URL) {
     chain.push({
       id: 'ollama',
@@ -485,7 +502,8 @@ export function buildNvidia404Hint(accountId?: string): string {
 /**
  * Send a chat completion request through the provider + key fallback chain.
  *
- * Order: for each configured provider (NVIDIA → LiteLLM → Ollama), try its key
+ * Order: for each configured provider in priority order (OpenRouter → NVIDIA →
+ * LiteLLM → Ollama, docs/22 §22.9), try its key
  * pool — starting at a round-robin cursor for NVIDIA so concurrent calls use
  * different keys. Within a key, up to `retries + 1` attempts with exponential
  * backoff; 429s respect Retry-After; other 4xx and timeouts fail that key fast

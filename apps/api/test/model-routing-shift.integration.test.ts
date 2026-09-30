@@ -16,7 +16,7 @@ import { getRoutingShift } from '../src/services/model-insights.js';
  * Postgres; CI runs it against the real stack and acts as arbiter).
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;

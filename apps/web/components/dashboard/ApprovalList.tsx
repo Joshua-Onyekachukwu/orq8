@@ -4,6 +4,14 @@ import Link from "next/link";
 import { ArrowUpRight, ClipboardCheck } from "lucide-react";
 import { ApprovalActions } from "../approval-actions";
 
+interface GatedWork {
+  taskId: string | null;
+  taskTitle: string | null;
+  taskStatus: string | null;
+  toolId: string | null;
+  toolParams: unknown;
+}
+
 interface Approval {
   id: string;
   agentId: string | null;
@@ -15,6 +23,8 @@ interface Approval {
   decisionNote: string | null;
   decidedAt: string | null;
   createdAt: string;
+  // Resolved by the API (migration 0036): what approving or rejecting moves.
+  gatedWork?: GatedWork | null;
 }
 
 function formatCost(cents: number): string {
@@ -22,9 +32,9 @@ function formatCost(cents: number): string {
 }
 
 function riskBadge(risk: string) {
-  if (risk === "high") return "bg-red-100 text-red-700";
-  if (risk === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-orq8-lime/10 text-orq8-green";
+  if (risk === "high") return "bg-error-soft text-error-ink";
+  if (risk === "medium") return "bg-warm-soft text-warm-ink";
+  return "bg-ink-accent/10 text-brand-ink";
 }
 
 interface ApprovalListProps {
@@ -44,7 +54,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
         </h2>
         <Link
           href="/app/approvals"
-          className="inline-flex items-center gap-1 font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-orq8-green"
+          className="inline-flex items-center gap-1 font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-brand-ink"
         >
           All requests <ArrowUpRight className="h-3 w-3" />
         </Link>
@@ -91,6 +101,22 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
                         </span>
                       )}
                     </p>
+                    {(a.gatedWork?.taskTitle || a.gatedWork?.toolId) && (
+                      <p className="mt-0.5 font-mono text-3xs uppercase tracking-wide text-muted">
+                        blocks{" "}
+                        {a.gatedWork.taskTitle && (
+                          <Link
+                            href={`/app/tasks/${a.gatedWork.taskId}`}
+                            className="normal-case text-brand-ink hover:underline"
+                          >
+                            {a.gatedWork.taskTitle}
+                          </Link>
+                        )}
+                        {a.gatedWork.toolId && (
+                          <span className="normal-case"> · {a.gatedWork.toolId}</span>
+                        )}
+                      </p>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5">
                     <span

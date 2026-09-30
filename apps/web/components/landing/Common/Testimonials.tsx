@@ -4,9 +4,6 @@ import React from "react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation } from "swiper/modules";
-// Bundler-emitted so the icon survives even if the /images/* static-copy
-// class is dropped from deployment output (see Navbar.tsx note).
-import quoteIconSrc from "@/public/images/icons/quote.svg";
 
 const testimonials = [
   {
@@ -44,18 +41,18 @@ const users = [
 
 const Testimonials: React.FC = () => {
   return (
-    <div className="bg-gray-50">
+    <div className="relative">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
         {/* Header — Trezo style */}
         <div className="mb-[30px] md:mb-[40px] lg:mb-[50px] mx-auto text-center md:max-w-[495px] lg:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[1.8px] text-xs text-orq8-orange mb-[10px] lg:mb-[15px]">
+          <span className="inline-flex items-center gap-[8px] uppercase font-bold tracking-[1.8px] text-xs text-warm-ink mb-[10px] lg:mb-[15px]"><span className="h-[6px] w-[6px] bg-brand-deep" aria-hidden="true" />
             Testimonials
           </span>
           <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
             Early users share their{" "}
-            <span className="text-orq8-green">experience</span>
+            <span className="text-brand-ink">experience</span>
           </h2>
-          <p className="text-gray-700 text-2sm mt-[12px] !mb-0">
+          <p className="text-ink text-2sm mt-[12px] !mb-0">
             Demo profiles from our design process — real testimonials coming soon.
           </p>
         </div>
@@ -63,7 +60,7 @@ const Testimonials: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
           {/* Swiper carousel — Trezo style */}
           <div
-            className="bg-gray-50 py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
+            className="bg-surface-white border border-hairline py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
             id="orq8TestimonialsSlides"
           >
             <Swiper
@@ -80,13 +77,22 @@ const Testimonials: React.FC = () => {
             >
               {testimonials.map((t) => (
                 <SwiperSlide key={t.id}>
-                  <Image
-                    src={quoteIconSrc}
-                    className="mb-[15px] md:mb-[25px] xl:mb-[40px]"
-                    alt="quote"
+                  {/* Inline glyph: it is part of the layout, not an asset, so it
+                      cannot fall out of the deployment's static copy. */}
+                  <svg
+                    className="mb-[15px] md:mb-[25px] xl:mb-[40px] text-brand-ink"
                     width={36}
                     height={27}
-                  />
+                    viewBox="0 0 36 27"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M0.005 27v-8.523c0-2.32.473-4.652 1.42-6.996.947-2.343 2.143-4.509 3.587-6.498C6.456 2.994 7.912 1.384 9.38.153l8.097 4.12c-1.231 2.06-2.19 4.214-2.877 6.463-.663 2.249-.982 4.83-.959 7.742V27H.005Zm17.756 0v-8.523c0-2.32.473-4.652 1.42-6.996.947-2.343 2.143-4.509 3.587-6.498C24.212 2.994 25.668 1.384 27.136.153l8.096 4.12c-1.231 2.06-2.19 4.214-2.876 6.463-.663 2.249-.983 4.83-.959 7.742V27H17.761Z"
+                      fill="currentColor"
+                    />
+                  </svg>
                   <p className="font-light text-md md:text-lg lg:text-xl xl:text-xl -tracking-[.44px] lg:-tracking-[1px] xl:-tracking-[1.44px] text-black !leading-[1.5]">
                     {t.quote}
                   </p>
@@ -102,7 +108,7 @@ const Testimonials: React.FC = () => {
                       <h3 className="!text-base md:!text-md !font-semibold !mb-[5px]">
                         {t.name}
                       </h3>
-                      <span className="block text-gray-700 text-sm">
+                      <span className="block text-ink text-sm">
                         {t.position}
                       </span>
                     </div>
@@ -137,7 +143,7 @@ const Testimonials: React.FC = () => {
                   />
                 ))}
               </div>
-              EARLY USERS
+              <span className="inline-flex items-center gap-[8px]"><span className="h-[6px] w-[6px] rounded-full bg-warm" aria-hidden="true" />EARLY USERS</span>
             </div>
           </div>
         </div>

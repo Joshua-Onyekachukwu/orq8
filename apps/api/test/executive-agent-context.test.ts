@@ -88,7 +88,7 @@ describe('formatOrgStructure', () => {
 
 // ─── DB-gated integration test ──────────────────────────────────────────────
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 try {

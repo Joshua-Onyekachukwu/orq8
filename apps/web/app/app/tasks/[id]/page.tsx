@@ -9,7 +9,10 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Loader2,
+  PlayCircle,
   RefreshCw,
+  RotateCcw,
   Target,
   FileText,
 } from "lucide-react";
@@ -42,9 +45,9 @@ interface Agent {
 
 function priorityBadge(priority: string) {
   switch (priority) {
-    case "urgent": return "bg-red-100 text-red-700";
-    case "high": return "bg-amber-50 text-amber-700";
-    case "normal": return "bg-blue-50 text-blue-700";
+    case "urgent": return "bg-error-soft text-error-ink";
+    case "high": return "bg-warm-soft text-warm-ink";
+    case "normal": return "bg-brand-soft text-brand-deep";
     default: return "bg-hairline text-ink-muted";
   }
 }
@@ -52,15 +55,15 @@ function priorityBadge(priority: string) {
 function statusConfig(status: string) {
   switch (status) {
     case "completed":
-      return { label: "Completed", cls: "bg-orq8-lime/10 text-orq8-green", icon: CheckCircle2 };
+      return { label: "Completed", cls: "bg-ink-accent/10 text-brand-ink", icon: CheckCircle2 };
     case "in_progress":
-      return { label: "In progress", cls: "bg-blue-50 text-blue-700", icon: Clock };
+      return { label: "In progress", cls: "bg-brand-soft text-brand-deep", icon: Clock };
     case "failed":
-      return { label: "Failed", cls: "bg-red-100 text-red-600", icon: AlertCircle };
+      return { label: "Failed", cls: "bg-error-soft text-error-ink", icon: AlertCircle };
     case "cancelled":
       return { label: "Cancelled", cls: "bg-hairline text-muted", icon: AlertCircle };
     default:
-      return { label: "Pending", cls: "bg-amber-50 text-amber-700", icon: Clock };
+      return { label: "Pending", cls: "bg-warm-soft text-warm-ink", icon: Clock };
   }
 }
 
@@ -89,6 +92,12 @@ export default function TaskDetailPage() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Running and retrying work from the product (docs/66 §66.19). Before this,
+  // both existed only as API endpoints: a founder whose task sat in `pending` or
+  // failed had to ask a developer with curl to move it.
+  const [acting, setActing] = useState<null | "execute" | "retry">(null);
+  const [actionNote, setActionNote] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -120,6 +129,35 @@ export default function TaskDetailPage() {
     }
   }, [id]);
 
+  const runAction = useCallback(
+    async (kind: "execute" | "retry") => {
+      setActing(kind);
+      setActionError(null);
+      setActionNote(null);
+      try {
+        const res = await fetch(`/api/commands/tasks/${id}/${kind}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          // The API's refusal is the explanation: "waiting on your decision" is
+          // the answer, not a generic failure.
+          throw new Error(payload?.error?.message ?? "The task could not be started.");
+        }
+        const outcome = payload?.status ?? payload?.data?.status ?? "started";
+        setActionNote(`The task is now ${String(outcome).replace(/_/g, " ")}.`);
+        await fetchAll();
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "The task could not be started.");
+      } finally {
+        setActing(null);
+      }
+    },
+    [fetchAll, id],
+  );
+
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
@@ -149,14 +187,34 @@ export default function TaskDetailPage() {
           <ArrowLeft className="h-3.5 w-3.5" /> Back to {task?.goalId ? "Goal" : "Goals & Tasks"}
         </Link>
 
+        {actionNote && (
+          <div className="mt-4 rounded-xl border border-hairline bg-canvas px-4 py-3 text-sm text-ink">
+            {actionNote}
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{actionError}</p>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              className="ml-auto text-xs text-error-ink"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="ml-auto text-xs text-red-500 hover:text-red-700"
+              className="ml-auto text-xs text-error-ink hover:text-error-ink"
             >
               Dismiss
             </button>
@@ -169,7 +227,7 @@ export default function TaskDetailPage() {
             <p className="mt-4 text-sm font-medium text-ink">Task not found</p>
             <Link
               href="/app/goals"
-              className="mt-2 inline-block text-sm text-orq8-green hover:underline"
+              className="mt-2 inline-block text-sm text-brand-ink hover:underline"
             >
               Return to Goals & Tasks
             </Link>
@@ -180,8 +238,8 @@ export default function TaskDetailPage() {
             <div className="mt-4 rounded-xl border border-hairline bg-white p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orq8-dark/5">
-                    <FileText className="h-5 w-5 text-orq8-dark" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink-surface/5">
+                    <FileText className="h-5 w-5 text-ink" />
                   </span>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -200,15 +258,56 @@ export default function TaskDetailPage() {
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={fetchAll}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
-                >
-                  <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {task.status === "pending" && (
+                    <button
+                      type="button"
+                      onClick={() => void runAction("execute")}
+                      disabled={acting !== null}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {acting === "execute" ? (
+                        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <PlayCircle aria-hidden="true" className="h-3.5 w-3.5" />
+                      )}
+                      {acting === "execute" ? "Running…" : "Run now"}
+                    </button>
+                  )}
+                  {task.status === "failed" && (
+                    <button
+                      type="button"
+                      onClick={() => void runAction("retry")}
+                      disabled={acting !== null}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {acting === "retry" ? (
+                        <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+                      )}
+                      {acting === "retry" ? "Retrying…" : "Retry this task"}
+                    </button>
+                  )}
+                  {task.status === "awaiting_approval" && (
+                    <Link
+                      href="/app/approvals"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-warm bg-warm-soft px-3 py-2 text-xs font-semibold text-warm-ink transition-opacity hover:opacity-90"
+                    >
+                      <Clock aria-hidden="true" className="h-3.5 w-3.5" />
+                      Waiting on your decision
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={fetchAll}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+                  >
+                    <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </button>
+                </div>
               </div>
 
               {task.description && (
@@ -222,7 +321,7 @@ export default function TaskDetailPage() {
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {agent ? (
-                      <Link href={`/app/agents/${agent.id}`} className="hover:text-orq8-green">
+                      <Link href={`/app/agents/${agent.id}`} className="hover:text-brand-ink">
                         {agent.name}
                       </Link>
                     ) : (
@@ -236,7 +335,7 @@ export default function TaskDetailPage() {
                   </dt>
                   <dd className="mt-0.5 truncate text-sm font-medium text-ink">
                     {goal ? (
-                      <Link href={`/app/goals/${goal.id}`} className="hover:text-orq8-green">
+                      <Link href={`/app/goals/${goal.id}`} className="hover:text-brand-ink">
                         {goal.title}
                       </Link>
                     ) : (

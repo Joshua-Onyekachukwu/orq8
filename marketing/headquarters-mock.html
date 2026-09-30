@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORQ8 — Headquarters (dark mock)</title>
+<style>
+  :root{
+    --bg:#0b0d14; --panel:#10131d; --panel2:#141827; --line:#232838;
+    --line2:#2c3247; --ink:#e7eaf3; --dim:#9aa3b8; --faint:#5d6579;
+    --violet:#8b5cf6; --violet-soft:rgba(139,92,246,.14);
+    --green:#22c55e; --green-soft:rgba(34,197,94,.12);
+    --gold:#eab308; --gold-soft:rgba(234,179,8,.12);
+    --red:#ef4444; --cyan:#67e8f9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;height:100vh;overflow:hidden}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  .caps{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px;letter-spacing:.02em}
+
+  /* ---------- frame ---------- */
+  .top{display:flex;align-items:center;gap:14px;height:52px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.02em}
+  .logo .mark{width:26px;height:26px;border-radius:8px;background:var(--violet-soft);border:1px solid var(--line2);display:grid;place-items:center;color:var(--violet);font-size:13px}
+  .orgswitch{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+  .status-badge{background:rgba(239,68,68,.14);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+  .status-badge.live{background:var(--green-soft);color:#4ade80;border-color:rgba(34,197,94,.3)}
+  .spacer{flex:1}
+  .usage{display:flex;align-items:center;gap:10px}
+  .usage .bar{width:110px;height:4px;border-radius:99px;background:var(--line2);overflow:hidden}
+  .usage .bar i{display:block;height:100%;width:42%;background:var(--violet)}
+  .seg{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+  .seg button{padding:4px 12px;font-size:12px;color:var(--dim)}
+  .seg button.on{background:var(--violet);color:#fff}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--panel2);border:1px solid var(--line2);display:grid;place-items:center;font-size:11px;color:var(--dim)}
+
+  .navrow{display:flex;align-items:center;gap:4px;height:44px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel);overflow-x:auto}
+  .navrow a{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:8px;color:var(--dim);font-size:13px;text-decoration:none;white-space:nowrap}
+  .navrow a.on{color:var(--ink);background:var(--panel2);border:1px solid var(--line2)}
+  .navrow a:hover{color:var(--ink)}
+  .navrow .pro{background:var(--panel2);border:1px solid var(--line2);color:var(--faint);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700}
+  .navrow .count{background:var(--green-soft);color:#4ade80;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:700}
+  .navrow .sep{width:1px;height:18px;background:var(--line2);margin:0 8px}
+
+  .body{display:grid;grid-template-columns:280px 1fr 380px;height:calc(100vh - 96px)}
+  .rail-l{border-right:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:16px}
+  .rail-r{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+
+  /* ---------- left rail ---------- */
+  .pause{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line2);border-radius:10px;padding:9px;color:var(--dim);font-size:13px;margin-bottom:18px}
+  .pause:hover{color:var(--ink);border-color:var(--faint)}
+  .section{margin-bottom:22px}
+  .section .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .section .head .caps{display:flex;align-items:center;gap:7px}
+  .section .head .caps::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--violet)}
+  .section .head a{color:var(--faint);font-size:11px;text-decoration:none}
+  .todo{display:flex;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
+  .todo .dot{margin-top:3px;width:14px;height:14px;border-radius:4px;background:var(--violet-soft);color:var(--violet);font-size:9px;display:grid;place-items:center;flex-shrink:0}
+  .todo b{display:block;font-size:13px;font-weight:600;color:#f1a8ff}
+  .todo span{font-size:12px;color:var(--dim)}
+  .count-red{background:var(--red);color:#fff;font-size:10px;min-width:16px;height:16px;border-radius:99px;display:inline-grid;place-items:center;padding:0 4px}
+  .empty{border:1px dashed var(--line2);border-radius:10px;padding:22px 12px;text-align:center;color:var(--faint);font-size:12px}
+  .empty .ico{font-size:18px;margin-bottom:6px;color:var(--dim)}
+  .empty b{display:block;color:var(--dim);font-weight:600;font-size:12.5px;margin-bottom:2px}
+  .grow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .grow:last-child{border-bottom:0}
+  .grow .v{color:var(--dim);font-size:12px}
+  .grow .v.pub{color:var(--red)}
+
+  /* ---------- canvas ---------- */
+  .canvas-wrap{display:flex;flex-direction:column;overflow:hidden}
+  .banner{display:flex;align-items:center;gap:12px;margin:14px 16px 0;padding:12px 16px;border-radius:12px;border:1px solid rgba(139,92,246,.35);background:linear-gradient(90deg,rgba(139,92,246,.16),rgba(139,92,246,.05))}
+  .banner .bell{width:30px;height:30px;border-radius:8px;background:var(--violet-soft);display:grid;place-items:center;color:#c4b5fd}
+  .banner b{font-size:13.5px}
+  .banner p{font-size:12px;color:var(--dim)}
+  .banner .btn{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--violet);color:#fff;padding:8px 16px;border-radius:9px;font-weight:600;font-size:13px}
+  .banner.green{border-color:rgba(34,197,94,.35);background:linear-gradient(90deg,rgba(34,197,94,.14),rgba(34,197,94,.04))}
+  .banner.green .bell{background:var(--green-soft);color:#4ade80}
+  .banner.green .btn{background:var(--green);color:#052e16}
+  .canvas{flex:1;position:relative;background-image:radial-gradient(var(--line2) 1px,transparent 1px);background-size:26px 26px;display:grid;place-items:center;overflow:auto}
+  .canvas .toolbar{position:absolute;top:12px;right:14px;display:flex;gap:8px}
+  .canvas .toolbar button{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--panel);padding:6px 12px;border-radius:8px;font-size:12px;color:var(--dim)}
+  .node{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .node .ring{position:relative;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:26px}
+  .node .ring.idle{background:var(--panel2);border:2px dashed var(--line2);color:var(--dim)}
+  .node .ring.work{background:var(--gold-soft);border:2px solid var(--gold);color:var(--gold);box-shadow:0 0 0 6px rgba(234,179,8,.06),0 0 30px rgba(234,179,8,.18)}
+  .node .ring.alert{background:var(--violet-soft);border:2px solid var(--violet);color:#c4b5fd;box-shadow:0 0 0 6px rgba(139,92,246,.07)}
+  .node .ring .n{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:99px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px;border:2px solid var(--bg)}
+  .node .name{font-weight:700;font-size:13px}
+  .node .sub{font-size:11px;color:var(--faint);margin-top:-6px}
+  .node .state{font-size:11px;color:var(--gold);font-weight:600}
+  .node .state.resp{color:#c4b5fd}
+  .node .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--panel);padding:4px 10px;border-radius:8px;font-size:11px;color:var(--dim)}
+  .node .chip.pri{border-color:rgba(139,92,246,.4);color:#c4b5fd}
+  .node .model{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+  .node .model i{width:12px;height:12px;border-radius:50%;background:conic-gradient(from 40deg,#22d3ee,#818cf8,#e879f9,#22d3ee)}
+  .crown{position:absolute;top:2px;font-size:22px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+  .canvas .stack{display:flex;flex-direction:column;align-items:center;gap:34px}
+  .term{border-top:1px solid var(--line);background:var(--panel);padding:10px 16px 12px}
+  .term .head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .term .head .lnk{margin-left:auto;color:var(--faint);font-size:11px}
+  .term pre{font:11.5px/1.7 "JetBrains Mono",ui-monospace,Consolas,monospace;color:var(--dim);overflow:hidden;max-height:72px}
+  .term .t{color:var(--faint)} .term .ty{color:var(--cyan)} .term .ty.ap{color:#c4b5fd} .term .ty.ok{color:#4ade80}
+
+  /* ---------- right rail (cockpit) ---------- */
+  .chat-head{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .chat-head .crown{position:static;filter:none;font-size:15px}
+  .chat-head b{font-size:13.5px}
+  .chat-head .mx{margin-left:auto;color:var(--faint);font-size:11px;display:flex;align-items:center;gap:5px}
+  .cards{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .card{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px 14px}
+  .card .ty{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  .card .ty .ic{color:var(--dim)}
+  .card .ty a{margin-left:auto;font-size:11.5px;font-weight:500;text-decoration:none}
+  .card .meta{font-size:11.5px;color:var(--dim);margin-top:3px;word-break:break-all}
+  .card .meta code{font:11px "JetBrains Mono",monospace;color:var(--cyan);background:rgba(103,232,249,.07);padding:1px 5px;border-radius:4px}
+  .card.msg{background:transparent;border:0;padding:2px 4px}
+  .card.msg .bubble{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;font-size:13px;color:#d7dcea}
+  .card.approval{border-color:rgba(139,92,246,.4)}
+  .card.approval .who{font-size:12.5px;font-weight:700;color:#c4b5fd}
+  .card.approval .what{font-size:13px;font-weight:600;margin-top:5px}
+  .card.approval .desc{font-size:12px;color:var(--dim);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card.approval .acts{display:flex;gap:8px;margin-top:10px}
+  .card.approval .acts button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line2);border-radius:8px;padding:7px;font-size:12.5px;font-weight:600;color:var(--dim)}
+  .card.approval .acts .ap{background:var(--violet);border-color:var(--violet);color:#fff}
+  .card.approval .auto{width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--faint)}
+  .card.active{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.06)}
+  .card.active .who{font-size:12.5px;font-weight:700;color:#4ade80}
+  .card.active .what{font-size:13px;font-weight:600;margin-top:4px}
+  .card.active .think{font-size:12px;color:var(--dim);margin-top:4px;display:flex;align-items:center;gap:6px}
+  .card.active .open{margin-top:8px;text-align:right;font-size:12px;color:#4ade80;text-decoration:none;display:inline-block}
+  .think .dots::after{content:"···";animation:d 1.2s steps(3) infinite}
+  @keyframes d{0%{content:"·"}33%{content:"··"}66%{content:"···"}}
+  .composer{border-top:1px solid var(--line);padding:12px 14px}
+  .composer .box{border:1px solid var(--line2);border-radius:12px;background:var(--panel2);padding:11px 13px}
+  .composer .box .hint{color:var(--faint);font-size:13px}
+  .composer .row{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .composer .row .model{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+  .composer .row .model i{width:12px;height:12px;border-radius:50%;background:conic-gradient(from 40deg,#22d3ee,#818cf8,#e879f9,#22d3ee)}
+  .composer .send{margin-left:auto;width:30px;height:30px;border-radius:9px;background:var(--green);display:grid;place-items:center;color:#052e16}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="logo"><span class="mark">◈</span></div>
+    <div class="orgswitch">ORQ8 <span style="color:var(--faint);font-size:10px">▾</span>
+      <span class="badge status-badge">NEEDS APPROVAL</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="usage"><span class="caps">Daily usage</span><span class="bar"><i></i></span><span style="font-size:12px;color:var(--dim)">42%</span></div>
+    <div class="seg"><button class="on">Daily</button><button>Weekly</button></div>
+    <div class="avatar">JF</div>
+  </header>
+
+  <nav class="navrow">
+    <a class="on" href="#">◎ Headquarters</a><a href="#">⌂ Site</a><a href="#">▤ Plan</a>
+    <span class="sep"></span>
+    <a href="#">☰ Tasks <span class="count">1</span></a><a href="#">▤ Files</a><a href="#">✉ Inbox <span class="pro">PRO</span></a><a href="#">◮ Ads <span class="pro">PRO</span></a><a href="#">▦ Finance <span class="pro">PRO</span></a>
+    <span class="sep"></span>
+    <a href="#">⚙ Settings</a>
+  </nav>
+
+  <div class="body">
+    <!-- ============ LEFT RAIL ============ -->
+    <aside class="rail-l">
+      <button class="pause">⏸&nbsp; Pause business</button>
+
+      <div class="section">
+        <div class="head"><span class="caps">Todo list</span><span class="count-red">2</span></div>
+        <div class="todo"><span class="dot">1</span><div><b>Hire employee</b><span>AI systems architect</span></div></div>
+        <div class="todo"><span class="dot">2</span><div><b>Hire employee</b><span>engineer</span></div></div>
+      </div>
+
+      <div class="section">
+        <div class="head"><span class="caps">Latest tasks</span><a href="#">View all ›</a></div>
+        <div class="empty"><div class="ico">⧉</div><b>No tasks yet</b>Ask the lead to create one</div>
+      </div>
+
+      <div class="section">
+        <div class="head"><span class="caps">Integrations</span><a href="#">Manage ›</a></div>
+        <div class="empty" style="padding:14px"><div class="ico" style="font-size:14px;letter-spacing:6px">◍ ◮ ◉</div>No integrations connected</div>
+      </div>
+
+      <div class="section">
+        <div class="head"><span class="caps">Growth</span><span class="pro" style="background:var(--panel2);border:1px solid var(--line2);color:var(--faint);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700">PRO</span></div>
+        <div class="grow">◮ Ads <span class="v" style="color:#4ade80">Promote on ChatGPT</span></div>
+        <div class="grow">▦ Finance <span class="v">$0.00</span></div>
+        <div class="grow">⌂ Site <span class="v pub">● Unpublished</span></div>
+      </div>
+
+      <div style="margin-top:26px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-size:12px;color:var(--dim)">joshuavfxb@gmail.com</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;color:var(--faint)">FREE <span>⇕</span></div>
+      </div>
+    </aside>
+
+    <!-- ============ CANVAS ============ -->
+    <main class="canvas-wrap">
+      <div class="banner">
+        <div class="bell">🔔</div>
+        <div><b>2 actions need your approval</b><p>Review to keep your agents moving</p></div>
+        <button class="btn">🔍 Review</button>
+      </div>
+
+      <div class="canvas">
+        <div class="toolbar"><button>⊞ View as grid</button><button>＋ Hire employee</button></div>
+        <div class="stack">
+          <div class="node">
+            <div class="ring idle">◈</div>
+            <div class="name" style="color:#7ee7c7">AI systems architect</div>
+            <div class="sub">No recent task · Auto model</div>
+          </div>
+          <div class="node">
+            <div class="ring alert"><span class="n">2</span>👑</div>
+            <div class="name" style="color:#c4b5fd">CTO</div>
+            <div class="state resp">Responding…</div>
+            <div class="model"><i></i> DeepSeek V4.1 Flash ▾</div>
+            <button class="chip pri">🔍 Review approvals</button>
+          </div>
+          <div class="node">
+            <div class="ring idle">Ⓐ</div>
+            <div class="name" style="color:#93c5fd">engineer</div>
+            <div class="sub">No recent task · Auto model</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="term">
+        <div class="head"><span class="caps" style="color:var(--dim)">› Live activity</span><span class="lnk">⤢ &nbsp;⌄</span></div>
+        <pre><span class="t">[21:41:25]</span> <span class="ty">TOOL</span>     — CTO: Check team status
+<span class="t">[21:41:31]</span> <span class="ty">TOOL</span>     — CTO: Update plan
+<span class="t">[21:41:35]</span> <span class="ty ap">APPROVAL</span> — Approval needed: Hire employee
+<span class="t">[21:41:35]</span> <span class="ty ap">APPROVAL</span> — Approval needed: Hire employee</pre>
+      </div>
+    </main>
+
+    <!-- ============ RIGHT RAIL ============ -->
+    <aside class="rail-r">
+      <div class="chat-head">
+        <span class="crown">👑</span><b>CTO</b>
+        <a class="mx" href="#">⤢ Maximise</a>
+      </div>
+      <div class="cards">
+        <div class="card msg"><div class="bubble">…or three ways it currently handles things badly. Those answers go straight into this spec — everything else the team can work out.</div></div>
+
+        <div class="card">
+          <div class="ty"><span class="ic">▤</span> Update business plan <span style="color:#7ee7c7">(version 1)</span><a href="#" style="color:var(--dim)">View plan ›</a></div>
+          <div class="meta">Initial plan. ORQ8 starts as an agent-system design — a written system spec plus a clickable…</div>
+        </div>
+
+        <div class="card">
+          <div class="ty"><span class="ic">💡</span> Finished thinking<a href="#" style="color:var(--dim)">View thoughts ›</a></div>
+        </div>
+
+        <div class="card msg"><div class="bubble">Plan is saved. Hiring the two roles this MVP actually needs.</div></div>
+
+        <div class="card approval">
+          <div class="who">Hire employee</div>
+          <div class="what">AI systems architect</div>
+          <div class="desc">Designs agent system architecture: agent roles and responsibilities, tool/permission…</div>
+          <div class="acts"><button>🔍 Review</button><button class="ap">✓ Approve</button></div>
+        </div>
+
+        <div class="card approval">
+          <div class="who">Hire employee</div>
+          <div class="what">engineer</div>
+          <div class="desc">Full-stack builder covering frontend, backend and infrastructure. Builds the team…</div>
+          <div class="acts"><button>🔍 Review</button><button class="ap">✓ Approve</button></div>
+          <button class="auto">⚡ Auto approve all</button>
+        </div>
+
+        <div class="card active">
+          <div class="who">Active task</div>
+          <div class="what">AI systems architect</div>
+          <div class="meta" style="margin-top:2px">Write Part I of the ORQ8 operating-system spec…</div>
+          <div class="think">◌ Thinking <span class="dots"></span><a class="open" href="#">→ Open task</a></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="box">
+          <div class="hint">Chat or type / for commands</div>
+          <div class="row">
+            <span class="model"><i></i> DeepSeek V4.1 Flash ▾</span>
+            <span style="color:var(--faint);font-size:12px">↺ Reset chat</span>
+            <button class="send">↑</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

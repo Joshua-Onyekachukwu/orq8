@@ -66,23 +66,23 @@ const ENTITY_TYPES = [
 ];
 
 const OUTCOME_STYLES: Record<string, string> = {
-  approved: "bg-emerald-50 border-emerald-200 text-emerald-700",
-  rejected: "bg-red-50 border-red-200 text-red-600",
-  modified: "bg-amber-50 border-amber-200 text-amber-700",
+  approved: "bg-brand-soft border-brand-soft text-brand-ink",
+  rejected: "bg-error-soft border-border-error text-error-ink",
+  modified: "bg-warm-soft border-warm text-warm-ink",
   pending: "bg-muted/10 border-hairline text-muted",
 };
 
 function entityColor(type: string): string {
   switch (type) {
-    case "customer": return "bg-sky-50 border-sky-200 text-sky-700";
-    case "product": return "bg-violet-50 border-violet-200 text-violet-700";
-    case "project": return "bg-indigo-50 border-indigo-200 text-indigo-700";
-    case "goal": return "bg-emerald-50 border-emerald-200 text-emerald-700";
-    case "department": return "bg-blue-50 border-blue-200 text-blue-700";
-    case "agent": return "bg-cyan-50 border-cyan-200 text-cyan-700";
-    case "decision": return "bg-amber-50 border-amber-200 text-amber-700";
-    case "initiative": return "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700";
-    case "integration": return "bg-teal-50 border-teal-200 text-teal-700";
+    case "customer": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "product": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "project": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "goal": return "bg-brand-soft border-brand-soft text-brand-ink";
+    case "department": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "agent": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "decision": return "bg-warm-soft border-warm text-warm-ink";
+    case "initiative": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "integration": return "bg-brand-soft border-brand-soft text-brand-deep";
     default: return "bg-muted/10 border-hairline text-muted";
   }
 }
@@ -264,7 +264,7 @@ export default function KnowledgePage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">
             {error}
           </div>
         )}
@@ -372,7 +372,7 @@ export default function KnowledgePage() {
                 className="rounded-lg border border-hairline bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
               />
             </div>
-            {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-2 text-sm text-error-ink">{formError}</p>}
             <div className="mt-3 flex items-center gap-2">
               <button type="button" onClick={() => void saveEntity()} disabled={saving || !newEntity.name.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Create entity
@@ -425,7 +425,7 @@ export default function KnowledgePage() {
                 className="rounded-lg border border-hairline bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
               />
             </div>
-            {formError && <p className="mt-2 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-2 text-sm text-error-ink">{formError}</p>}
             <div className="mt-3 flex items-center gap-2">
               <button type="button" onClick={() => void saveDecision()} disabled={saving || !newDecision.title.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Record decision

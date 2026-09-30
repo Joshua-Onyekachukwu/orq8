@@ -25,7 +25,7 @@ export function AgentRoster({ agents }: AgentRosterProps) {
         <h2 className="text-sm font-semibold text-ink">AI Workforce</h2>
         <Link
           href="/app/agents"
-          className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-orq8-green"
+          className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-ink-muted hover:text-brand-ink"
         >
           View all
         </Link>
@@ -39,7 +39,7 @@ export function AgentRoster({ agents }: AgentRosterProps) {
           </p>
           <Link
             href="/app/agents"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             <Users className="h-3.5 w-3.5" /> Hire an agent
           </Link>
@@ -48,7 +48,7 @@ export function AgentRoster({ agents }: AgentRosterProps) {
         <ul className="mt-4 space-y-3">
           {agents.slice(0, 5).map((a) => (
             <li key={a.id} className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-green text-xs font-bold text-orq8-lime">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-deep text-xs font-bold text-ink-accent">
                 {a.name.charAt(0)}
               </span>
               <div className="min-w-0 flex-1">
@@ -59,7 +59,7 @@ export function AgentRoster({ agents }: AgentRosterProps) {
               </div>
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
-                  a.status === "active" ? "bg-orq8-lime" : "bg-hairline"
+                  a.status === "active" ? "bg-mark-active" : "bg-hairline"
                 }`}
                 title={a.status}
               />

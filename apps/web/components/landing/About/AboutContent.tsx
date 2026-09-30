@@ -47,14 +47,14 @@ const features = [
 
 const AboutContent: React.FC = () => {
   return (
-    <section className="bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
+    <section className="ink py-[80px] md:py-[120px] lg:py-[160px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 gap-[60px] lg:grid-cols-2 lg:gap-[80px] items-center">
           {/* Content */}
           <div className="space-y-[32px]">
             {features.map((feature, index) => (
               <div key={index} className="flex gap-[20px]">
-                <div className="mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.03] text-orq8-lime">
+                <div className="mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.03] text-ink-accent">
                   {feature.icon}
                 </div>
                 <div>
@@ -79,19 +79,19 @@ const AboutContent: React.FC = () => {
                   <span className="text-white/40">· Command Center</span>
                 </span>
                 <span className="flex items-center gap-[6px]">
-                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime animate-pulse" />
-                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime/60 animate-pulse" />
-                  <span className="h-[6px] w-[6px] rounded-full bg-orq8-lime/30" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-ink-accent animate-pulse" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-ink-accent/60 animate-pulse" />
+                  <span className="h-[6px] w-[6px] rounded-full bg-ink-accent/30" />
                 </span>
               </div>
 
               {/* Approval Card */}
-              <div className="mb-[12px] rounded-[12px] border border-orq8-lime/20 bg-white/[0.03] p-[20px]">
+              <div className="mb-[12px] rounded-[12px] border border-ink-accent/20 bg-white/[0.03] p-[20px]">
                 <div className="mb-[12px] flex items-center justify-between">
                   <span className="text-3xs font-semibold uppercase tracking-widest text-white/40">
                     Approval Required
                   </span>
-                  <span className="text-3xs font-semibold uppercase tracking-widest text-orq8-lime">
+                  <span className="text-3xs font-semibold uppercase tracking-widest text-ink-accent">
                     Spend · $250
                   </span>
                 </div>
@@ -99,7 +99,7 @@ const AboutContent: React.FC = () => {
                   Marketing requests $250 for a LinkedIn campaign.
                 </p>
                 <div className="mt-[16px] flex gap-[8px]">
-                  <span className="rounded-[8px] bg-orq8-lime px-[12px] py-[6px] text-overline font-bold uppercase tracking-wider text-orq8-dark">
+                  <span className="rounded-[8px] bg-ink-accent px-[12px] py-[6px] text-overline font-bold uppercase tracking-wider text-ink-surface">
                     Approve
                   </span>
                   <span className="rounded-[8px] border border-white/[0.08] px-[12px] py-[6px] text-overline font-bold uppercase tracking-wider text-white/50">
@@ -120,13 +120,13 @@ const AboutContent: React.FC = () => {
                   <span className="text-2sm text-white/50">
                     Researcher · Analyzing
                   </span>
-                  <span className="h-[5px] w-[5px] rounded-full bg-orq8-lime animate-pulse" />
+                  <span className="h-[5px] w-[5px] rounded-full bg-ink-accent animate-pulse" />
                 </div>
                 <div className="mt-[8px] flex items-center justify-between">
                   <span className="text-2sm text-white/50">
                     Writer · Drafting launch post
                   </span>
-                  <span className="h-[5px] w-[5px] rounded-full bg-orq8-lime animate-pulse" />
+                  <span className="h-[5px] w-[5px] rounded-full bg-ink-accent animate-pulse" />
                 </div>
               </div>
 
@@ -140,7 +140,7 @@ const AboutContent: React.FC = () => {
                     $14.20
                   </span>
                 </div>
-                <p className="mt-[4px] text-2sm text-orq8-lime">within budget</p>
+                <p className="mt-[4px] text-2sm text-ink-accent">within budget</p>
               </div>
             </div>
           </div>

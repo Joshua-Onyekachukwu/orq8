@@ -20,6 +20,9 @@ out/
 # Vercel CLI/build artifacts
 .vercel/
 
+# Landing recovery oracle — local verification material, not part of the codebase
+.recovery/
+
 # Reference pack — local only; not part of the codebase
 /Trezo/
 
@@ -65,8 +68,11 @@ secrets.env
 # Migration-parity fingerprints and probes (local evidence, never committed)
 .lineage-parity/
 
-# Local review stack data (never committed)
-.review-stack-data/
+# Local review stack data (never committed). One root per stack, scoped by port,
+# so two stacks can run side by side without killing each other's database.
+.review-stack-data*/
 .review-stack.log
 .review-stack.err
+.review-stack*.log
+.review-stack*.err
 .supabase-setup.json

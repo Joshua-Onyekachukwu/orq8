@@ -10,7 +10,7 @@ import { createEmailTransport } from '../src/email/transport.js';
 import { enqueueDrip, processDueWaitlistEmails } from '../src/email/waitlist-drip.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', INTERNAL_TOKEN: 'test-internal-token' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', INTERNAL_TOKEN: 'test-internal-token', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 // Only run against the local Postgres (infra compose) — skips cleanly otherwise.
 let dbUp = false;

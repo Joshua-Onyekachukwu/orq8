@@ -44,7 +44,7 @@ const SESSION_CACHE_TRUST_WINDOW_MS = 5 * 60 * 1000;
 // cache entries are treated as misses and re-resolved from the DB instead of
 // guessing the wrong value (guessing 'unverified' would lock out every
 // confirmed founder until their entry expired).
-const SESSION_CACHE_PREFIX = 'session:v4:';
+export const SESSION_CACHE_PREFIX = 'session:v4:';
 
 export async function createSession(
   db: Db,
@@ -154,7 +154,15 @@ export async function findSessionByToken(
     .innerJoin(users, eq(sessions.userId, users.id))
     .innerJoin(
       memberships,
-      and(eq(memberships.orgId, sessions.orgId), eq(memberships.userId, sessions.userId)),
+      and(
+        eq(memberships.orgId, sessions.orgId),
+        eq(memberships.userId, sessions.userId),
+        // The membership must be ACTIVE. Without this the join only proved a
+        // membership row existed, so a removed member's session kept
+        // authenticating with the role they used to hold — removing somebody
+        // took them off the member list and left their access untouched.
+        eq(memberships.status, 'active'),
+      ),
     )
     .where(eq(sessions.tokenHash, tokenHash))
     .limit(1);
@@ -205,6 +213,19 @@ export async function findSessionByToken(
  * 30-day cache TTL. If Redis is unavailable the DB revocation still applies and
  * the cache self-heals via `verifySessionAt`'s revokedAt re-check.
  */
+/**
+ * Move a session's active organization.
+ *
+ * The session, not the user, carries the active org (plugins/auth.ts reads
+ * `session.orgId`), and login binds a new session to the caller's first
+ * membership. So without this, a teammate who accepts an invitation holds a
+ * membership they can never act in: their session still points at the company
+ * they registered. Callers must verify membership before calling.
+ */
+export async function switchOrg(db: Db, sessionId: string, orgId: string): Promise<void> {
+  await db.update(sessions).set({ orgId }).where(eq(sessions.id, sessionId));
+}
+
 export async function revokeSession(
   db: Db,
   sessionId: string,
@@ -228,6 +249,52 @@ export async function revokeSession(
     } catch {
       // Cache invalidation failed — not critical, TTL will handle it
     }
+  }
+}
+
+/**
+ * Revoke every session that acts in one organization.
+ *
+ * Used when a membership ends. A session is bound to one organization, so
+ * revoking exactly those sessions ends that access and leaves the person's other
+ * memberships alone; the next sign-in binds a session to a company they still
+ * belong to. Cache entries are deleted first, because a cached session would
+ * otherwise keep authenticating the dead token (the cache stores the role it was
+ * written with, and nothing in it knows about membership status).
+ */
+export async function revokeOrgSessions(
+  db: Db,
+  userId: string,
+  orgId: string,
+  redis: RedisClient | null,
+): Promise<number> {
+  try {
+    const rows = await db
+      .select({ id: sessions.id, tokenHash: sessions.tokenHash, revokedAt: sessions.revokedAt, expiresAt: sessions.expiresAt })
+      .from(sessions)
+      .where(and(eq(sessions.userId, userId), eq(sessions.orgId, orgId)));
+
+    if (redis?.isConnected() && rows.length > 0) {
+      const keys = rows.map((s) => `${SESSION_CACHE_PREFIX}${s.tokenHash}`);
+      await redis.del(...keys);
+    }
+
+    const now = new Date();
+    let revoked = 0;
+    for (const row of rows) {
+      const unrevoked = !row.revokedAt;
+      const unexpired = row.expiresAt.getTime() > now.getTime();
+      if (unrevoked && unexpired) {
+        await revokeSession(db, row.id, redis);
+        revoked += 1;
+      }
+    }
+    return revoked;
+  } catch {
+    // The membership is deactivated regardless; the membership-status check in
+    // findSessionByToken refuses the session on the next database read even if
+    // this failed. Never fail the removal because bookkeeping did.
+    return 0;
   }
 }
 

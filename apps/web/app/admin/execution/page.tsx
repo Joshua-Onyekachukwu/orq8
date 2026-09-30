@@ -53,8 +53,8 @@ export default async function ExecutionMonitoringPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orq8-green/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-orq8-green" />
+            <div className="w-10 h-10 rounded-lg bg-brand-deep/10 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-brand-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">{allAgents.length}</p>
@@ -65,11 +65,11 @@ export default async function ExecutionMonitoringPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-lg bg-brand-soft flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-brand-deep" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-emerald-600">{completedTasks.length}</p>
+              <p className="text-2xl font-bold text-brand-deep">{completedTasks.length}</p>
               <p className="text-xs text-ink-muted">Completed</p>
             </div>
           </div>
@@ -77,11 +77,11 @@ export default async function ExecutionMonitoringPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <XCircle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg bg-error-soft flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-error-ink" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600">{failedTasks.length}</p>
+              <p className="text-2xl font-bold text-error-ink">{failedTasks.length}</p>
               <p className="text-xs text-ink-muted">Failed</p>
             </div>
           </div>
@@ -89,11 +89,11 @@ export default async function ExecutionMonitoringPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-lg bg-warm-soft flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-warm-ink" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-amber-600">{feedbackEvents.length}</p>
+              <p className="text-2xl font-bold text-warm-ink">{feedbackEvents.length}</p>
               <p className="text-xs text-ink-muted">Feedback Events</p>
             </div>
           </div>
@@ -107,8 +107,8 @@ export default async function ExecutionMonitoringPage() {
             <h2 className="text-sm font-semibold text-ink">Recent Activity</h2>
             <p className="text-xs text-ink-muted">Live agent execution events</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand-ink">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-deep animate-pulse" />
             Live
           </span>
         </div>
@@ -130,13 +130,13 @@ export default async function ExecutionMonitoringPage() {
               const isFeedback = event.type === "completion" || event.type === "blocker" || event.type === "escalation";
 
               return (
-                <div key={event.id ?? i} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div key={event.id ?? i} className="px-6 py-4 hover:bg-surface-secondary transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
-                      {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                      {isFailed && <XCircle className="w-4 h-4 text-red-500" />}
-                      {isDelegated && <Zap className="w-4 h-4 text-amber-500" />}
-                      {isFeedback && <AlertTriangle className="w-4 h-4 text-blue-500" />}
+                      {isCompleted && <CheckCircle2 className="w-4 h-4 text-brand-deep" />}
+                      {isFailed && <XCircle className="w-4 h-4 text-error-ink" />}
+                      {isDelegated && <Zap className="w-4 h-4 text-warm-ink" />}
+                      {isFeedback && <AlertTriangle className="w-4 h-4 text-brand-deep" />}
                       {!isCompleted && !isFailed && !isDelegated && !isFeedback && (
                         <Activity className="w-4 h-4 text-ink-muted" />
                       )}
@@ -163,10 +163,10 @@ export default async function ExecutionMonitoringPage() {
                     </div>
                     <div className="flex-shrink-0">
                       <span className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full ${
-                        isCompleted ? "bg-emerald-50 text-emerald-700" :
-                        isFailed ? "bg-red-50 text-red-700" :
-                        isDelegated ? "bg-amber-50 text-amber-700" :
-                        "bg-gray-100 text-ink-muted"
+                        isCompleted ? "bg-brand-soft text-brand-ink" :
+                        isFailed ? "bg-error-soft text-error-ink" :
+                        isDelegated ? "bg-warm-soft text-warm-ink" :
+                        "bg-surface-secondary text-ink-muted"
                       }`}>
                         {event.type || event.action?.split(".")[1] || "event"}
                       </span>
@@ -191,11 +191,11 @@ export default async function ExecutionMonitoringPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-ink-muted">Tasks completed</span>
-              <span className="text-sm font-medium text-emerald-600">{completedTasks.length}</span>
+              <span className="text-sm font-medium text-brand-deep">{completedTasks.length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-ink-muted">Tasks failed</span>
-              <span className="text-sm font-medium text-red-600">{failedTasks.length}</span>
+              <span className="text-sm font-medium text-error-ink">{failedTasks.length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-ink-muted">Success rate</span>
@@ -218,10 +218,10 @@ export default async function ExecutionMonitoringPage() {
               feedbackEvents.slice(0, 5).map((event: any, i: number) => (
                 <div key={event.id ?? i} className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    event.type === "escalation" ? "bg-red-500" :
-                    event.type === "blocker" ? "bg-amber-500" :
-                    event.type === "completion" ? "bg-emerald-500" :
-                    "bg-blue-500"
+                    event.type === "escalation" ? "bg-error-fill" :
+                    event.type === "blocker" ? "bg-warm" :
+                    event.type === "completion" ? "bg-brand-deep" :
+                    "bg-brand-soft"
                   }`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-ink truncate">

@@ -75,8 +75,8 @@ export default async function ConnectionsPage() {
   ];
 
   const statusClass = (status: string): string => {
-    if (status === "connected") return "bg-orq8-lime/10 text-orq8-green";
-    if (status === "connecting" || status === "error") return "bg-amber-50 text-amber-700";
+    if (status === "connected") return "bg-ink-accent/10 text-brand-ink";
+    if (status === "connecting" || status === "error") return "bg-warm-soft text-warm-ink";
     if (status.startsWith("Not connected") || status === "Bring your own key") return "bg-canvas text-muted";
     return "bg-canvas text-muted";
   };
@@ -96,7 +96,7 @@ export default async function ConnectionsPage() {
       <div className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-orq8-dark text-orq8-green">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg ink text-brand-ink">
               <Plug className="h-5 w-5" />
             </span>
             <div>
@@ -109,13 +109,13 @@ export default async function ConnectionsPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/settings/providers"
-              className="inline-flex items-center gap-1.5 rounded-full bg-orq8-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-lime hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full ink px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-ink-accent hover:text-ink-surface"
             >
               <KeyRound className="h-3.5 w-3.5" /> Manage keys
             </Link>
             <Link
               href="/app/integrations"
-              className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
             >
               Event rules <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>

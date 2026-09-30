@@ -27,7 +27,7 @@ import { createSession } from '../src/services/sessions.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -116,12 +116,12 @@ beforeAll(async () => {
 
   const [userARow] = await deps.db
     .insert(users)
-    .values({ email: `eng-a-${randomUUID()}@example.com`, name: 'User A', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `eng-a-${randomUUID()}@example.com`, name: 'User A', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userA = userARow!.id;
   const [userBRow] = await deps.db
     .insert(users)
-    .values({ email: `eng-b-${randomUUID()}@example.com`, name: 'User B', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `eng-b-${randomUUID()}@example.com`, name: 'User B', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userB = userBRow!.id;
 

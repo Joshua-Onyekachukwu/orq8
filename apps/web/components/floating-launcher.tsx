@@ -46,7 +46,7 @@ export interface FloatingLauncherProps {
   floatingId?: string;
   /** Whether the launcher is in an active/toggled-on state (changes icon styling) */
   isActive?: boolean;
-  /** Button color when not active — defaults to bg-orq8-dark */
+  /** Button color when not active — defaults to ink */
   buttonBg?: string;
   /** Button color when active */
   buttonBgActive?: string;
@@ -89,7 +89,7 @@ export function FloatingLauncher({
   className = "",
   floatingId = "ea",
   isActive = false,
-  buttonBg = "bg-orq8-dark",
+  buttonBg = "ink",
   buttonBgActive,
   zIndex = 40,
 }: FloatingLauncherProps) {
@@ -151,7 +151,7 @@ export function FloatingLauncher({
       data-ea-launcher="true"
       data-launcher-id={floatingId}
       onClick={handleClick}
-      className={`group fixed flex h-12 w-12 touch-none select-none items-center justify-center rounded-full text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-orq8-orange/70 focus-visible:ring-offset-2 ${posClasses} ${stateClasses} ${className} ${isActive && buttonBgActive ? buttonBgActive : buttonBg}`}
+      className={`group fixed flex h-12 w-12 touch-none select-none items-center justify-center rounded-full text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-warm/70 focus-visible:ring-offset-2 ${posClasses} ${stateClasses} ${className} ${isActive && buttonBgActive ? buttonBgActive : buttonBg}`}
       style={{ zIndex: zIndex, ...(isDragging && tempPosition ? dragPreviewStyle(tempPosition) : {}) }}
       title={`${label} (\u2318\u21E7E)`}
       aria-label={`Open ${label}`}
@@ -164,7 +164,7 @@ export function FloatingLauncher({
         aria-hidden="true"
         className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
       >
-        <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 text-gray-600" fill="currentColor">
+        <svg viewBox="0 0 8 8" className="h-2.5 w-2.5 text-ink-muted" fill="currentColor">
           <circle cx="2" cy="2" r="1" />
           <circle cx="6" cy="2" r="1" />
           <circle cx="2" cy="6" r="1" />

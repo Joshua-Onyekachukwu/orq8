@@ -86,7 +86,7 @@ const Pricing: React.FC = () => {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <div className="relative z-[2] bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
+    <div className="relative z-[2] ink py-[80px] md:py-[120px] lg:py-[160px]">
       {/* Subtle grid */}
       <div
         className="absolute inset-0 opacity-[0.03]"
@@ -100,12 +100,12 @@ const Pricing: React.FC = () => {
       <div className="relative container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         {/* Header */}
         <div className="mb-[50px] md:mb-[60px] lg:mb-[70px] mx-auto text-center md:max-w-[600px]">
-          <span className="block uppercase font-bold tracking-[0.2em] text-overline text-orq8-orange-bright mb-[16px]">
+          <span className="block uppercase font-bold tracking-[0.2em] text-overline text-warm-ink mb-[16px]">
             Pricing
           </span>
           <h2 className="!text-white !mb-[16px] md:!mb-[20px] !font-normal !text-[32px] md:!text-[40px] lg:!text-[48px] -tracking-[0.5px] md:-tracking-[1px]">
             Your AI workforce.{" "}
-            <span className="text-orq8-lime">One operating system.</span>
+            <span className="text-ink-accent">One operating system.</span>
           </h2>
           <p className="!mb-0 mt-[16px] text-white/50 md:text-base">
             Start with a 7-day trial. Build your AI organization, delegate
@@ -125,14 +125,14 @@ const Pricing: React.FC = () => {
               type="button"
               onClick={() => setAnnual(!annual)}
               className={`relative w-[52px] h-[28px] rounded-full transition-colors ${
-                annual ? "bg-orq8-lime" : "bg-white/20"
+                annual ? "bg-ink-accent" : "bg-white/20"
               }`}
               aria-label={`Switch to ${annual ? "monthly" : "annual"} billing`}
             >
               <span
                 className={`absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 ${
                   annual
-                    ? "left-[27px] bg-orq8-dark"
+                    ? "left-[27px] bg-ink-surface"
                     : "left-[3px] bg-white"
                 }`}
               />
@@ -145,7 +145,7 @@ const Pricing: React.FC = () => {
               Annual
             </span>
             {annual && (
-              <span className="text-3xs font-bold uppercase tracking-wider bg-orq8-lime/15 text-orq8-lime px-[12px] py-[4px] rounded-full">
+              <span className="text-3xs font-bold uppercase tracking-wider bg-ink-accent/15 text-ink-accent px-[12px] py-[4px] rounded-full">
                 Save ~20%
               </span>
             )}
@@ -163,13 +163,13 @@ const Pricing: React.FC = () => {
                 key={index}
                 className={`relative border rounded-[16px] py-[32px] px-[28px] transition-all duration-300 group ${
                   popular
-                    ? "border-orq8-lime bg-white/[0.04] xl:-mt-[16px] xl:pb-[48px] hover:bg-white/[0.07]"
+                    ? "border-ink-accent bg-white/[0.04] xl:-mt-[16px] xl:pb-[48px] hover:bg-white/[0.07]"
                     : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.05]"
                 }`}
               >
                 {popular && (
-                  <div className="absolute -top-[14px] left-1/2 -translate-x-1/2 flex items-center gap-[6px] bg-orq8-orange text-white text-3xs font-bold uppercase tracking-[0.12em] rounded-full px-[18px] py-[7px] shadow-[0_4px_12px_rgba(232,106,51,0.3)]">
-                    <span className="w-[4px] h-[4px] rounded-full bg-white animate-pulse" />
+                  <div className="absolute -top-[14px] left-1/2 -translate-x-1/2 flex items-center gap-[6px] bg-warm text-ink-surface text-3xs font-bold uppercase tracking-[0.12em] rounded-full px-[18px] py-[7px] shadow-[0_4px_12px_rgb(53_98_103_/_0.22)]">
+                    <span className="w-[4px] h-[4px] rounded-full bg-ink-surface animate-pulse" />
                     Most popular
                   </div>
                 )}
@@ -177,7 +177,7 @@ const Pricing: React.FC = () => {
                 {/* Plan name */}
                 <span
                   className={`block mb-[8px] uppercase font-bold tracking-[0.15em] text-overline ${
-                    popular ? "text-orq8-lime" : "text-orq8-orange-bright"
+                    popular ? "text-ink-accent" : "text-warm-ink"
                   }`}
                 >
                   {plan.title}
@@ -207,7 +207,7 @@ const Pricing: React.FC = () => {
                 </div>
 
                 {annual && (
-                  <p className="text-orq8-lime/70 text-xs font-medium">
+                  <p className="text-ink-accent/70 text-xs font-medium">
                     ${plan.title === "Founder" ? "390" : plan.title === "Team" ? "948" : "2388"}/year billed annually
                   </p>
                 )}
@@ -223,7 +223,7 @@ const Pricing: React.FC = () => {
                       key={featureIndex}
                       className="relative pl-[28px] text-white text-md"
                     >
-                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-orq8-lime text-lg" />
+                      <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-ink-accent text-lg" />
                       {feature.text}
                     </li>
                   ))}
@@ -234,8 +234,8 @@ const Pricing: React.FC = () => {
                   href={plan.cta.href}
                   className={`block w-full rounded-[60px] p-[12px] uppercase text-overline font-bold tracking-[0.15em] transition-all duration-300 ${
                     popular
-                      ? "bg-orq8-lime text-orq8-dark hover:bg-orq8-lime hover:shadow-[0_4px_20px_rgba(184,255,102,0.25)]"
-                      : "bg-white/[0.06] text-white hover:bg-orq8-lime hover:text-orq8-dark hover:shadow-[0_4px_20px_rgba(184,255,102,0.15)]"
+                      ? "bg-brand-deep text-white hover:bg-brand hover:shadow-[0_4px_20px_rgb(53_98_103_/_0.25)]"
+                      : "bg-white/[0.06] text-white hover:bg-ink-accent hover:text-ink-surface hover:shadow-[0_4px_20px_rgb(53_98_103_/_0.18)]"
                   }`}
                 >
                   <span className="flex items-center justify-center gap-[12px]">
@@ -252,7 +252,7 @@ const Pricing: React.FC = () => {
         <div className="mt-[24px] border border-white/[0.08] rounded-[16px] bg-white/[0.02] px-[28px] md:px-[36px] py-[28px] md:py-[36px] transition-all hover:border-white/[0.15] hover:bg-white/[0.04]">
           <div className="flex flex-col lg:flex-row lg:items-center gap-[28px] md:gap-[36px] lg:gap-[50px]">
             <div className="lg:max-w-[300px] lg:flex-shrink-0">
-              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-overline text-orq8-orange-bright">
+              <span className="block mb-[12px] uppercase font-bold tracking-[0.15em] text-overline text-warm-ink">
                 Enterprise
               </span>
               <h3 className="!mb-0 !font-normal !text-[24px] md:!text-[28px] -tracking-[0.5px] !text-white">
@@ -279,7 +279,7 @@ const Pricing: React.FC = () => {
                   key={featureIndex}
                   className="relative pl-[28px] text-white text-md"
                 >
-                  <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-orq8-lime text-lg" />
+                  <i className="ri-check-double-line absolute top-1/2 -translate-y-1/2 left-0 text-ink-accent text-lg" />
                   {feature}
                 </li>
               ))}
@@ -287,7 +287,7 @@ const Pricing: React.FC = () => {
             <div className="lg:flex-shrink-0">
               <Link
                 href="/contact"
-                className="block w-full lg:w-auto rounded-[60px] bg-white/[0.06] hover:bg-orq8-lime hover:text-orq8-dark p-[12px] lg:px-[28px] uppercase text-overline font-bold text-white tracking-[0.15em] transition-all duration-300"
+                className="block w-full lg:w-auto rounded-[60px] bg-white/[0.06] hover:bg-ink-accent hover:text-ink-surface p-[12px] lg:px-[28px] uppercase text-overline font-bold text-white tracking-[0.15em] transition-all duration-300"
               >
                 <span className="flex items-center justify-center gap-[12px]">
                   Contact us{" "}

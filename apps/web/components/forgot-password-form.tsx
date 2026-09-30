@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[color:var(--orq-ink-accent)] focus:ring-2 focus:ring-[color:var(--orq-ink-accent)]/25 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm text-white/70";
 
 export function ForgotPasswordForm() {
@@ -37,7 +37,7 @@ export function ForgotPasswordForm() {
     return (
       <div aria-live="polite" className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-ink" aria-hidden />
           <div>
             <p className="text-sm text-white">Check your email</p>
             <p className="mt-1 text-xs text-white/60">
@@ -79,7 +79,7 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

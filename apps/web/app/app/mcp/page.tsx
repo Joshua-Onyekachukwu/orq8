@@ -64,19 +64,19 @@ interface ExecuteResult {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "connected": return { label: "Connected", cls: "bg-emerald-50 text-emerald-700" };
-    case "degraded": return { label: "Degraded", cls: "bg-amber-50 text-amber-700" };
-    case "error": return { label: "Error", cls: "bg-red-50 text-red-700" };
-    default: return { label: "Unconfigured", cls: "bg-slate-100 text-slate-600" };
+    case "connected": return { label: "Connected", cls: "bg-brand-soft text-brand-ink" };
+    case "degraded": return { label: "Degraded", cls: "bg-warm-soft text-warm-ink" };
+    case "error": return { label: "Error", cls: "bg-error-soft text-error-ink" };
+    default: return { label: "Unconfigured", cls: "bg-surface-secondary text-ink-muted" };
   }
 }
 
 function riskBadge(risk: string) {
   switch (risk) {
-    case "low": return { label: "Low", cls: "bg-emerald-50 text-emerald-700" };
-    case "medium": return { label: "Medium", cls: "bg-blue-50 text-blue-700" };
-    case "high": return { label: "High", cls: "bg-orange-50 text-orange-700" };
-    default: return { label: "Critical", cls: "bg-red-50 text-red-700" };
+    case "low": return { label: "Low", cls: "bg-brand-soft text-brand-ink" };
+    case "medium": return { label: "Medium", cls: "bg-brand-soft text-brand-deep" };
+    case "high": return { label: "High", cls: "bg-warm-soft text-warm-ink" };
+    default: return { label: "Critical", cls: "bg-error-soft text-error-ink" };
   }
 }
 
@@ -223,7 +223,7 @@ function McpPage() {
         </div>
       </div>
 
-      {error && <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mb-6 rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">{error}</div>}
 
       {/* Register modal */}
       {showRegister && (
@@ -256,7 +256,7 @@ function McpPage() {
               placeholder={registerForm.provider === "custom" ? "e.g. Internal analytics API" : "e.g. GitHub MCP"}
               className="mb-4 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            {registerError && <p className="mb-3 text-sm text-red-600">{registerError}</p>}
+            {registerError && <p className="mb-3 text-sm text-error-ink">{registerError}</p>}
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowRegister(false)} className="rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-muted">
                 Cancel
@@ -292,7 +292,7 @@ function McpPage() {
               return (
                 <div key={server.id} className="rounded-xl border bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
                       <Layers className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -312,7 +312,7 @@ function McpPage() {
                       <span key={tool.id} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
                         <Wrench className="h-3 w-3" />
                         {tool.name}
-                        {tool.requiresApproval && <Lock className="h-2.5 w-2.5 text-amber-600" />}
+                        {tool.requiresApproval && <Lock className="h-2.5 w-2.5 text-warm-ink" />}
                       </span>
                     ))}
                   </div>
@@ -352,7 +352,7 @@ function McpPage() {
         </div>
 
         {execResult && (
-          <div className={`mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${execResult.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+          <div className={`mb-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${execResult.ok ? "border-brand-soft bg-brand-soft text-brand-ink" : "border-border-error bg-error-soft text-error-ink"}`}>
             {execResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
             <span className="font-medium">{execResult.tool}:</span> {execResult.message}
           </div>
@@ -389,11 +389,11 @@ function McpPage() {
                       </td>
                       <td className="px-4 py-3">
                         {tool.requiresApproval ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-warm-ink">
                             <Lock className="h-3 w-3" /> Approval
                           </span>
                         ) : (
-                          <span className="text-xs text-emerald-600">Auto</span>
+                          <span className="text-xs text-brand-deep">Auto</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

@@ -168,12 +168,12 @@ export function DashboardRealtime({
     <>
       {/* Real-time flash notification */}
       {flash && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-orq8-lime/20 bg-orq8-lime/5 px-4 py-2.5 text-sm text-orq8-green animate-in fade-in slide-in-from-top-2">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-ink-accent/20 bg-ink-accent/5 px-4 py-2.5 text-sm text-brand-ink animate-in fade-in slide-in-from-top-2">
           <Zap className="h-4 w-4" />
           {flash}
           <button
             onClick={() => setFlash(null)}
-            className="ml-auto text-orq8-green/50 hover:text-orq8-green"
+            className="ml-auto text-brand-ink/50 hover:text-brand-ink"
           >
             ×
           </button>
@@ -184,19 +184,19 @@ export function DashboardRealtime({
       <div className="mb-4 flex items-center justify-end gap-2">
         <span
           className={`flex items-center gap-1.5 text-3xs font-medium ${
-            connected ? "text-orq8-green" : "text-gray-600"
+            connected ? "text-brand-ink" : "text-ink-muted"
           }`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              connected ? "bg-orq8-lime animate-pulse" : "bg-gray-300"
+              connected ? "bg-mark-active animate-pulse" : "bg-disabled-surface"
             }`}
           />
           {connected ? "Live" : "Offline"}
         </span>
         <button
           onClick={refetchData}
-          className="rounded p-1 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          className="rounded p-1 text-ink-muted transition-colors hover:bg-surface-secondary hover:text-ink"
           title="Refresh data"
         >
           <RefreshCw className="h-3 w-3" />
@@ -218,14 +218,14 @@ export function DashboardRealtime({
           {stats.totalGoals > 0 && (
             <Link
               href="/app/goals"
-              className="rounded-xl border border-gray-100 bg-white p-5 transition-colors hover:border-orq8-lime/30"
+              className="rounded-xl border border-hairline-light bg-white p-5 transition-colors hover:border-ink-accent/30"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Goals Progress</h3>
-                <ArrowUpRight className="h-4 w-4 text-gray-500" />
+                <h3 className="text-sm font-semibold text-ink">Goals Progress</h3>
+                <ArrowUpRight className="h-4 w-4 text-ink-muted" />
               </div>
               <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <div className="flex items-center justify-between text-xs text-ink-muted mb-1">
                   <span>{stats.activeGoals} active goals</span>
                   <span className="font-mono">
                     {stats.totalTasks > 0
@@ -234,9 +234,9 @@ export function DashboardRealtime({
                     % task completion
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-surface-secondary overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-orq8-green transition-all"
+                    className="h-full rounded-full bg-brand-deep transition-all"
                     style={{
                       width: `${
                         stats.totalTasks > 0
@@ -246,7 +246,7 @@ export function DashboardRealtime({
                     }}
                   />
                 </div>
-              </div>                <p className="mt-3 text-xs text-gray-500">
+              </div>                <p className="mt-3 text-xs text-ink-muted">
                 {stats.completedTasks} of {stats.totalTasks} tasks completed
               </p>
             </Link>
@@ -255,38 +255,38 @@ export function DashboardRealtime({
           {stats.credits && (
             <Link
               href="/app/budgets"
-              className={`rounded-xl border bg-white p-5 transition-colors hover:border-orq8-lime/30 ${
+              className={`rounded-xl border bg-white p-5 transition-colors hover:border-ink-accent/30 ${
                 stats.credits.isCritical
-                  ? "border-red-200"
+                  ? "border-border-error"
                   : stats.credits.isLow
-                  ? "border-amber-200"
-                  : "border-gray-100"
+                  ? "border-warm"
+                  : "border-hairline-light"
               }`}
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Work Credits</h3>
-                <ArrowUpRight className="h-4 w-4 text-gray-500" />
+                <h3 className="text-sm font-semibold text-ink">Work Credits</h3>
+                <ArrowUpRight className="h-4 w-4 text-ink-muted" />
               </div>
               <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <div className="flex items-center justify-between text-xs text-ink-muted mb-1">
                   <span>
                     {stats.credits.used} of {stats.credits.total} used
                   </span>
                   <span className="font-mono">{stats.credits.utilizationPercent}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-surface-secondary overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       stats.credits.isCritical
-                        ? "bg-red-500"
+                        ? "bg-error-fill"
                         : stats.credits.isLow
-                        ? "bg-amber-400"
-                        : "bg-orq8-green"
+                        ? "bg-warm"
+                        : "bg-brand-deep"
                     }`}
                     style={{ width: `${Math.min(stats.credits.utilizationPercent, 100)}%` }}
                   />
                 </div>
-              </div>                <p className="mt-3 text-xs text-gray-500">
+              </div>                <p className="mt-3 text-xs text-ink-muted">
                 {stats.credits.remaining} credits remaining
                 {stats.credits.daysRemaining != null &&
                   ` · ~${stats.credits.daysRemaining} days left`}

@@ -159,8 +159,8 @@ export default async function AdminJobsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orq8-green/10 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-orq8-green" />
+            <div className="w-10 h-10 rounded-lg bg-brand-deep/10 flex items-center justify-center">
+              <Activity className="w-5 h-5 text-brand-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">{jobs.length}</p>
@@ -171,8 +171,8 @@ export default async function AdminJobsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orq8-lime/20 flex items-center justify-center">
-              <Play className="w-5 h-5 text-orq8-green" />
+            <div className="w-10 h-10 rounded-lg bg-ink-accent/20 flex items-center justify-center">
+              <Play className="w-5 h-5 text-brand-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">{activeJobs}</p>
@@ -183,8 +183,8 @@ export default async function AdminJobsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orq8-lime/20 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-orq8-green" />
+            <div className="w-10 h-10 rounded-lg bg-ink-accent/20 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-brand-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">{totalRuns}</p>
@@ -195,8 +195,8 @@ export default async function AdminJobsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <XCircle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg bg-error-soft flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-error-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">{totalFails}</p>
@@ -213,18 +213,18 @@ export default async function AdminJobsPage() {
         </div>
         <div className="divide-y divide-hairline-light">
           {jobs.map((job) => (
-            <div key={job.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+            <div key={job.id} className="px-6 py-4 hover:bg-surface-secondary transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div
                     className={`w-2 h-2 rounded-full flex-shrink-0 ${
                       job.status === "running"
-                        ? "bg-orq8-lime animate-pulse"
+                        ? "bg-mark-active animate-pulse"
                         : job.status === "failed"
-                          ? "bg-red-500"
+                          ? "bg-error-fill"
                           : job.status === "paused"
-                            ? "bg-orq8-orange"
-                            : "bg-gray-300"
+                            ? "bg-warm"
+                            : "bg-disabled-surface"
                     }`}
                   />
                   <div className="min-w-0">
@@ -243,10 +243,10 @@ export default async function AdminJobsPage() {
                     <span
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
                         job.type === "cron"
-                          ? "bg-orq8-green/10 text-orq8-green"
+                          ? "bg-brand-deep/10 text-brand-ink"
                           : job.type === "event"
-                            ? "bg-orq8-orange/10 text-orq8-orange"
-                            : "bg-orq8-dark/10 text-ink"
+                            ? "bg-warm/10 text-warm-ink"
+                            : "bg-ink-surface/10 text-ink"
                       }`}
                     >
                       {job.type === "cron" && <Clock className="w-3 h-3" />}
@@ -266,7 +266,7 @@ export default async function AdminJobsPage() {
                   <div className="text-right">
                     <p className="text-xs text-ink-muted">Failures</p>
                     <p
-                      className={`text-sm font-medium ${job.failCount > 0 ? "text-red-600" : "text-ink"}`}
+                      className={`text-sm font-medium ${job.failCount > 0 ? "text-error-ink" : "text-ink"}`}
                     >
                       {job.failCount}
                     </p>
@@ -289,12 +289,12 @@ export default async function AdminJobsPage() {
                   <span
                     className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
                       job.status === "running"
-                        ? "bg-orq8-lime/20 text-orq8-green"
+                        ? "bg-ink-accent/20 text-brand-ink"
                         : job.status === "failed"
-                          ? "bg-red-50 text-red-700"
+                          ? "bg-error-soft text-error-ink"
                           : job.status === "paused"
-                            ? "bg-orq8-orange/10 text-orq8-orange"
-                            : "bg-gray-100 text-ink-muted"
+                            ? "bg-warm/10 text-warm-ink"
+                            : "bg-surface-secondary text-ink-muted"
                     }`}
                   >
                     {job.status === "running" && <Play className="w-3 h-3" />}
@@ -321,7 +321,7 @@ export default async function AdminJobsPage() {
           Background jobs are managed by the ORQ8 API server. No external cron
           scheduler is currently configured.
         </p>
-        <div className="rounded-lg bg-gray-50 border border-hairline p-4">
+        <div className="rounded-lg bg-surface-secondary border border-hairline p-4">
           <p className="text-xs font-mono text-ink-muted">
             Status: Jobs execute on-demand via API triggers and event hooks.
             <br />

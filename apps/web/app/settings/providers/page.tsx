@@ -31,7 +31,7 @@ export default async function SettingsProvidersPage() {
           </a>
           <a
             href="/app"
-            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-orq8-green hover:text-orq8-green"
+            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-muted transition-colors hover:border-brand-deep hover:text-brand-ink"
           >
             ← Back to app
           </a>

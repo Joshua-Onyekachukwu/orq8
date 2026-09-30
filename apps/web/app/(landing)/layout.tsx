@@ -14,13 +14,19 @@ export default function LandingLayout({
 }) {
   return (
     <>
-      <Navbar />
-      <main id="main" className="overflow-x-hidden">
-        {children}
-      </main>
-      <Footer />
-      <GoTop />
-      <CookieConsent />
+      {/* The marketing site uses the same tokens as the product (docs/65_COLOR_SYSTEM.md).
+        * The page is the pale mint environment, cards are white against it, and the
+        * hero, the platform section, the pricing band and the footer are deliberate
+        * black moments in a light system. */}
+      <div className="bg-surface-marketing">
+        <Navbar />
+        <main id="main" className="overflow-x-hidden">
+          {children}
+        </main>
+        <Footer />
+        <GoTop />
+        <CookieConsent />
+      </div>
     </>
   );
 }

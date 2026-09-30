@@ -66,12 +66,12 @@ export function WaitlistForm({
   const field =
     dark
       ? "border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-white/50 focus:bg-white/15"
-      : "border-hairline bg-white text-ink placeholder:text-muted focus:border-navy-700 focus:ring-2 focus:ring-navy-700/20";
+      : "border-hairline bg-white text-ink placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/20";
 
   const btn =
     dark
-      ? "bg-orq8-green text-white hover:bg-orq8-green-300"
-      : "bg-orq8-green text-white hover:bg-orq8-green-dark";
+      ? "bg-brand-deep text-white hover:bg-brand"
+      : "bg-brand-deep text-white hover:bg-brand";
 
   // Premium waitlist confirmation screen
   if (status === "done" && waitlistNumber) {
@@ -81,18 +81,18 @@ export function WaitlistForm({
           role="status"
           className={`relative overflow-hidden rounded-2xl border p-8 text-center ${
             dark
-              ? "border-lime/30 bg-gradient-to-b from-lime/5 to-transparent"
-              : "border-orq8-green-200 bg-gradient-to-b from-emerald-50/80 to-white"
+              ? "border-brand-soft/30 bg-gradient-to-b from-brand-soft/5 to-transparent"
+              : "border-brand-soft bg-gradient-to-b from-brand-soft/80 to-white"
           }`}
         >
           {/* Animated checkmark */}
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-orq8-lime/10 animate-fade-in">
-            <svg className="h-8 w-8 text-orq8-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-ink-accent/10 animate-fade-in">
+            <svg className="h-8 w-8 text-brand-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
 
-          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-orq8-dark"}`}>
+          <h3 className={`text-xl font-semibold ${dark ? "text-white" : "text-ink"}`}>
             {isAlready ? "You're already on the list" : "You're officially on the list"}
           </h3>
 
@@ -102,20 +102,20 @@ export function WaitlistForm({
               Your place
             </p>
             <p className={`text-5xl font-bold tracking-tight tabular-nums animate-fade-in ${
-              dark ? "text-orq8-green" : "text-orq8-green"
+              dark ? "text-brand-ink" : "text-brand-ink"
             }`}>
               #{waitlistNumber.toLocaleString()}
             </p>
           </div>
 
-          <p className={`text-sm leading-relaxed max-w-sm mx-auto ${dark ? "text-white/70" : "text-gray-700"}`}>
+          <p className={`text-sm leading-relaxed max-w-sm mx-auto ${dark ? "text-white/70" : "text-ink"}`}>
             {isAlready
               ? "We have your details. We'll be in touch when your cohort opens."
               : "Congratulations. We're building ORQ8 for you. Your place in the first cohort is reserved. We'll email you when it's your turn."}
           </p>
 
-          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-orq8-green/80" : "text-orq8-green"}`}>
-            <span className="h-1.5 w-1.5 rounded-full bg-orq8-green animate-pulse" />
+          <div className={`mt-6 flex items-center justify-center gap-2 text-xs font-medium ${dark ? "text-brand-ink/80" : "text-brand-ink"}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-deep animate-pulse" />
             <span>Company of One · First Cohort</span>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function WaitlistForm({
         </div>
       </form>
       {status === "error" && (
-        <p className={`mt-2 text-sm ${dark ? "text-red-200" : "text-red-700"}`}>{message}</p>
+        <p className={`mt-2 text-sm ${dark ? "text-error-ink" : "text-error-ink"}`}>{message}</p>
       )}
     </div>
   );

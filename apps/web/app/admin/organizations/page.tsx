@@ -19,15 +19,15 @@ async function fetchOrgs(token: string) {
 
 function planBadge(plan: string) {
   switch (plan) {
-    case "pro": return "bg-orq8-orange/10 text-orq8-orange";
-    case "business": return "bg-orq8-green/10 text-orq8-green";
-    case "enterprise": return "bg-purple-50 text-purple-600";
+    case "pro": return "bg-warm/10 text-warm-ink";
+    case "business": return "bg-brand-deep/10 text-brand-ink";
+    case "enterprise": return "bg-brand-soft text-brand-deep";
     default: return "bg-canvas text-muted";
   }
 }
 
 function statusDot(status: string) {
-  return status === "active" ? "bg-orq8-green" : "bg-gray-300";
+  return status === "active" ? "bg-brand-deep" : "bg-disabled-surface";
 }
 
 export default async function AdminOrganizationsPage() {
@@ -93,7 +93,7 @@ export default async function AdminOrganizationsPage() {
                 <tr key={org.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-dark text-xs font-bold text-orq8-lime">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg ink text-xs font-bold text-ink-accent">
                         {(org.name ?? "O").charAt(0).toUpperCase()}
                       </span>
                       <div>

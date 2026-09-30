@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { validation } from '@orq8/core';
+import { and, eq } from 'drizzle-orm';
+import { tasks } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as executiveAgent from '../services/executive-agent.js';
-import { getTaskStatus, executeTask } from '../services/task-executor.js';
+import { getTaskStatus, executeTask, executePendingTasks, retryTask } from '../services/task-executor.js';
 import { executeWithQuality } from '../services/quality-pipeline.js';
 import { getRecentTraces, getTraceSummary } from '../services/llm-tracer.js';
 import type { AppDeps } from '../types.js';
@@ -186,12 +188,63 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
       const qualityResult = await executeWithQuality(config, db, ctx.orgId, request.params.taskId);
       return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
     } catch (error) {
-      // Failures must be visible and actionable — log the real cause instead of
-      // collapsing it into a generic 500 envelope.
+      // Failures must be visible and actionable — log the real cause, put it on
+      // the task, and tell the founder what it was. This used to log and return
+      // a bare 500, which left the task `pending` with nothing recorded: the run
+      // had thrown, the work was not running, and the only copy of the reason
+      // was a log line the founder could not read. A failed task with a reason
+      // is retryable from the product ("Retry this task"); a pending task that
+      // threw is not.
       request.log.error({ err: error }, 'task execution failed');
+      const reason = (error instanceof Error ? error.message : 'Unknown execution error').slice(0, 200);
+      await db
+        .update(tasks)
+        .set({ status: 'failed', result: `Execution failed: ${reason}`, updatedAt: new Date() })
+        .where(and(eq(tasks.id, request.params.taskId), eq(tasks.orgId, ctx.orgId)))
+        .catch(() => undefined);
       reply.code(500);
-      return { error: { code: 'execution.failed', message: 'Task execution failed' } };
+      return { error: { code: 'execution.failed', message: `Task execution failed: ${reason}` } };
     }
+  });
+
+  /**
+   * POST /v1/commands/tasks/:taskId/retry — Re-run a task the system stopped.
+   *
+   * Gap C (docs/66 §66.14): `retryTask` is the explicit founder path back into
+   * work that failed. It refuses anything a person already settled — a rejected
+   * task is cancelled, and re-running it would undo the founder's own answer.
+   */
+  app.post<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId/retry', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const outcome = await retryTask(config, db, ctx.orgId, request.params.taskId);
+
+    if ('refused' in outcome) {
+      reply.code(outcome.status === 'missing' ? 404 : 409);
+      return { error: { code: 'retry.refused', message: outcome.refused }, data: { status: outcome.status } };
+    }
+    return { data: outcome.result };
+  });
+
+  /**
+   * POST /v1/commands/tasks/execute-pending — Run the org's queued work.
+   *
+   * The batch runner existed but nothing could reach it, so queued work only
+   * ever moved when someone asked for one task by name. Gated work is excluded
+   * by construction — `awaiting_approval` is not `pending`, and a background
+   * pass must never answer a question that was put to a person.
+   */
+  app.post('/v1/commands/tasks/execute-pending', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const results = await executePendingTasks(config, db, ctx.orgId);
+    return {
+      data: {
+        executed: results.length,
+        completed: results.filter((r) => r.status === 'completed').length,
+        failed: results.filter((r) => r.status === 'failed').length,
+        deferred: results.filter((r) => r.status === 'deferred').length,
+        results,
+      },
+    };
   });
 
   /**

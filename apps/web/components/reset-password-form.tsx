@@ -7,14 +7,14 @@ import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { scorePassword, type StrengthLabel } from "@/lib/password-strength";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[color:var(--orq-ink-accent)] focus:ring-2 focus:ring-[color:var(--orq-ink-accent)]/25 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm text-white/70";
 
 const meterColors: Record<StrengthLabel, string> = {
-  weak: "bg-red-400",
-  fair: "bg-amber-400",
-  good: "bg-[#5f9f75]",
-  strong: "bg-[#7fbf8f]",
+  weak: "bg-error",
+  fair: "bg-warm",
+  good: "bg-[color:var(--orq-brand)]",
+  strong: "bg-[color:var(--orq-ink-accent)]",
 };
 
 function PasswordInput({
@@ -152,7 +152,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     return (
       <div aria-live="polite" className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-orq8-green-tint" aria-hidden />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-ink" aria-hidden />
           <div>
             <p className="text-sm text-white">Password updated</p>
             <p className="mt-1 text-xs text-white/60">
@@ -161,7 +161,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
             <button
               type="button"
               onClick={() => router.push("/login")}
-              className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+              className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand"
             >
               Sign in
             </button>
@@ -176,13 +176,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
+          className="rounded-lg border border-border-error/30 bg-error/10 px-3 py-2.5 text-sm text-error-ink"
         >
           <p>{error}</p>
           {helpResend && (
             <Link
               href="/forgot-password"
-              className="mt-2 inline-block text-xs text-red-100 underline decoration-red-200/40 underline-offset-2 transition-colors hover:decoration-red-100"
+              className="mt-2 inline-block text-xs text-error-ink underline decoration-error-ink/40 underline-offset-2 transition-colors hover:decoration-error-ink"
             >
               Request a new reset link
             </Link>
@@ -235,7 +235,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? (
           <>

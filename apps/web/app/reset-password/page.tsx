@@ -37,15 +37,15 @@ export default async function ResetPasswordPage({
       {token ? (
         <ResetPasswordForm token={token} />
       ) : (
-        <div className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-4">
-          <p className="text-sm text-red-200">This reset link is incomplete</p>
-          <p className="mt-1 text-xs text-red-200/80">
+        <div className="rounded-lg border border-border-error/30 bg-error/10 px-4 py-4">
+          <p className="text-sm text-error-ink">This reset link is incomplete</p>
+          <p className="mt-1 text-xs text-error-ink/80">
             The link that opened this page is missing its token. Request a new link and use the
             one from that email.
           </p>
           <Link
             href="/forgot-password"
-            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand"
           >
             Request a new link
           </Link>

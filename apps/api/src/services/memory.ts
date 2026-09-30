@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, ilike, or } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql, ilike, or } from 'drizzle-orm';
 import { companyMemory, type CompanyMemoryEntry, type NewCompanyMemoryEntry, type Db } from '@orq8/db';
 import type { AppConfig } from '@orq8/core';
 import { generateEmbedding, searchSemantic } from './embeddings.js';
@@ -36,6 +36,46 @@ export interface MemoryStats {
 }
 
 /**
+ * Words that carry no retrieval signal. Deliberately small and generic: it only
+ * has to keep a natural-language task description from being treated as one
+ * giant search string.
+ */
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'about', 'over',
+  'our', 'your', 'their', 'its', 'his', 'her', 'are', 'was', 'were', 'been',
+  'has', 'have', 'had', 'not', 'but', 'all', 'any', 'can', 'will', 'would',
+  'should', 'could', 'may', 'might', 'must', 'than', 'then', 'them', 'they',
+  'you', 'our', 'out', 'off', 'per', 'via', 'use', 'using', 'get', 'got',
+  'make', 'made', 'new', 'one', 'two', 'how', 'what', 'when', 'where', 'which',
+  'who', 'why', 'please', 'need', 'needs', 'want', 'wants', 'some', 'also',
+]);
+
+/**
+ * The salient terms of a search query.
+ *
+ * The previous keyword fallback matched the ENTIRE query string as a single
+ * substring of the memory content, so a natural-language query ("review the
+ * Acme renewal paperwork") matched nothing unless a memory happened to contain
+ * that exact sentence. With no embedding provider configured that was the only
+ * retrieval path, which meant a task could never find the knowledge the founder
+ * had taught the company. Terms are lowercased, split on non-alphanumerics, and
+ * capped so the SQL stays bounded.
+ */
+export function significantTerms(query: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const raw of query.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (raw.length < 3) continue;
+    if (STOPWORDS.has(raw)) continue;
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    terms.push(raw);
+    if (terms.length >= 12) break;
+  }
+  return terms;
+}
+
+/**
  * Find memory entries for an org with optional filtering.
  *
  * When `query` is provided and an embedding provider is configured, results are
@@ -70,22 +110,63 @@ export async function findByOrg(
   if (opts.agentId) {
     conditions.push(eq(companyMemory.agentId, opts.agentId));
   }
-  if (opts.query) {
+
+  // Keyword path: match on the query's salient terms and rank by how many of
+  // them an entry contains, so a memory written in the founder's words still
+  // surfaces for a task phrased differently. A query made only of noise words
+  // degrades to importance+recency rather than matching nothing.
+  const terms = opts.query ? significantTerms(opts.query) : [];
+  if (terms.length > 0) {
     conditions.push(
       or(
-        ilike(companyMemory.content, `%${opts.query}%`),
+        ...terms.map((t) => ilike(companyMemory.content, `%${t}%`)),
         ilike(companyMemory.source, `%${opts.query}%`),
       )!,
     );
   }
 
+  const relevance = terms.length > 0
+    ? sql<number>`(${sql.join(
+        terms.map((t) => sql`(case when lower(${companyMemory.content}) like ${`%${t}%`} then 1 else 0 end)`),
+        sql` + `,
+      )})`
+    : null;
+
   return db
     .select()
     .from(companyMemory)
     .where(and(...conditions))
-    .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
+    .orderBy(
+      ...(relevance ? [desc(relevance)] : []),
+      desc(companyMemory.importance),
+      desc(companyMemory.createdAt),
+    )
     .limit(opts.limit ?? 50)
     .offset(opts.offset ?? 0);
+}
+
+/**
+ * Record that these entries were put in front of an employee (Gap D, docs/66
+ * §66.14). Best-effort: a bookkeeping failure must never break the work that is
+ * already retrieving its context.
+ *
+ * Only the context builders call this — a founder browsing `/v1/memory` is not
+ * the company using the knowledge, so reads through the API alone leave the
+ * counters alone.
+ */
+export async function stampMemoryUsage(db: Db, ids: Array<string | number>): Promise<void> {
+  if (ids.length === 0) return;
+  try {
+    await db
+      .update(companyMemory)
+      .set({
+        useCount: sql`${companyMemory.useCount} + 1`,
+        lastUsedAt: new Date(),
+      })
+      .where(inArray(companyMemory.id, ids as string[]));
+  } catch {
+    // Never fail a task because the usage counter could not be written.
+  }
 }
 
 /** Find a single memory entry by id, scoped to org. */
@@ -256,26 +337,32 @@ export async function retrieveSemanticForContext(
   config?: AppConfig,
 ): Promise<CompanyMemoryEntry[]> {
   const maxEntries = Math.min(opts.maxEntries ?? 12, 30);
-  if (opts.query?.trim()) {
+  const rows = opts.query?.trim()
     // findByOrg does semantic search when an embedding is available and
-    // transparently degrades to ilike keyword matching otherwise.
-    return findByOrg(db, orgId, {
-      query: opts.query.trim().slice(0, 500),
-      category: opts.category,
-      minImportance: opts.minImportance,
-      limit: maxEntries,
-    }, config);
-  }
-  // No query → deterministic importance-first ordering (still category-aware).
-  const conditions = [eq(companyMemory.orgId, orgId)];
-  if (opts.category) conditions.push(eq(companyMemory.category, opts.category));
-  if (opts.minImportance) conditions.push(sql`${companyMemory.importance} >= ${opts.minImportance}`);
-  return db
-    .select()
-    .from(companyMemory)
-    .where(and(...conditions))
-    .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
-    .limit(maxEntries);
+    // transparently degrades to term-matched keyword search otherwise.
+    ? await findByOrg(db, orgId, {
+        query: opts.query.trim().slice(0, 500),
+        category: opts.category,
+        minImportance: opts.minImportance,
+        limit: maxEntries,
+      }, config)
+    // No query → deterministic importance-first ordering (still category-aware).
+    : await (async () => {
+        const conditions = [eq(companyMemory.orgId, orgId)];
+        if (opts.category) conditions.push(eq(companyMemory.category, opts.category));
+        if (opts.minImportance) conditions.push(sql`${companyMemory.importance} >= ${opts.minImportance}`);
+        return db
+          .select()
+          .from(companyMemory)
+          .where(and(...conditions))
+          .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
+          .limit(maxEntries);
+      })();
+
+  // These entries are about to be handed to an employee as working knowledge —
+  // that is the moment the company "uses" the memory, so record it.
+  await stampMemoryUsage(db, rows.map((r) => String(r.id)));
+  return rows;
 }
 
 /**

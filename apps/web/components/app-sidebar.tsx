@@ -277,12 +277,12 @@ export function AppSidebar({
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
             active
-              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright border border-orq8-orange/20"
+              ? "bg-warm/15 text-warm-ink border border-warm/20"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
           }`}
         >
           <Icon
-            className={`h-4 w-4 shrink-0 ${active ? "text-orq8-orange-bright" : "text-white/30"}`}
+            className={`h-4 w-4 shrink-0 ${active ? "text-warm-ink" : "text-white/30"}`}
           />
           <span className="flex-1 truncate">{item.label}</span>
         </Link>
@@ -291,11 +291,11 @@ export function AppSidebar({
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-orq8-dark">
+    <div className="flex h-full flex-col ink">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-white/[0.06] px-5">
         <Link href="/app" className="flex items-center gap-2.5 text-white">
-          <LogoMark className="h-8 w-auto" wordmarkColor="currentColor" dotColor="#B8FF66" ariaLabel={`${orgName} home`} />
+          <LogoMark className="h-8 w-auto" wordmarkColor="currentColor" dotColor="var(--orq-brand-deep)" ariaLabel={`${orgName} home`} />
         </Link>
         <button
           onClick={() => setMobileOpen(false)}
@@ -309,7 +309,7 @@ export function AppSidebar({
       {/* Plan badge */}
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
-          <div className="h-2 w-2 rounded-full bg-orq8-orange-bright" />
+          <div className="h-2 w-2 rounded-full bg-warm" />
           <span className="text-overline font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
         </div>
       </div>
@@ -331,7 +331,7 @@ export function AppSidebar({
               >
                 <span
                   className={`text-3xs font-semibold uppercase tracking-[0.15em] ${
-                    areaActive ? "text-orq8-orange-bright" : "text-white/40"
+                    areaActive ? "text-warm-ink" : "text-white/40"
                   }`}
                 >
                   {area.title}
@@ -388,22 +388,22 @@ export function AppSidebar({
           href="/settings"
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings")
-              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright"
+              ? "bg-warm/15 text-warm-ink"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-orq8-orange-bright" : "text-white/30"}`} />
+          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-warm-ink" : "text-white/30"}`} />
           Settings
         </Link>
         <Link
           href="/settings/providers"
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings/providers")
-              ? "bg-orq8-orange-bright/15 text-orq8-orange-bright"
+              ? "bg-warm/15 text-warm-ink"
               : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
           }`}
         >
-          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-orq8-orange-bright" : "text-white/30"}`} />
+          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-warm-ink" : "text-white/30"}`} />
           Provider Keys
         </Link>
 
@@ -416,7 +416,7 @@ export function AppSidebar({
             aria-haspopup="menu"
             aria-label="User account menu"
           >
-            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-orq8-green flex items-center justify-center text-overline font-bold text-white">
+            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-brand-deep flex items-center justify-center text-overline font-bold text-white">
               {userAvatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -437,7 +437,7 @@ export function AppSidebar({
           </button>
 
           {userMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 bg-orq8-dark/95 backdrop-blur-xl py-2 shadow-2xl">
+            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 bg-ink-surface/95 backdrop-blur-xl py-2 shadow-2xl">
               <div className="border-b border-white/[0.06] px-4 py-3">
                 <p className="text-xs font-medium text-white/80 truncate">{userName}</p>
                 <p className="text-3xs text-white/40 truncate">{orgName}</p>
@@ -460,7 +460,7 @@ export function AppSidebar({
                 {platformRole === "admin" && (
                   <Link
                     href="/admin"
-                    className="flex items-center gap-2 px-4 py-2 text-2sm text-orq8-orange hover:bg-orq8-orange/5"
+                    className="flex items-center gap-2 px-4 py-2 text-2sm text-warm-ink hover:bg-warm/5"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <Command className="h-4 w-4" /> Admin Dashboard

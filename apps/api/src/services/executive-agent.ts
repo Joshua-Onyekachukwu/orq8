@@ -139,7 +139,10 @@ export interface ExecutionResult {
   agentResults?: Array<{
     agentName: string;
     taskTitle: string;
-    status: 'pending' | 'completed' | 'failed' | 'deferred';
+    // awaiting_approval: the work stopped on a founder decision and is neither
+    // running nor broken. It must not be counted as failed, and it must not be
+    // reported as pending (nothing will happen until the founder answers).
+    status: 'pending' | 'completed' | 'failed' | 'deferred' | 'awaiting_approval';
     result?: string;
     llmUsed?: boolean;
   }>;
@@ -1948,10 +1951,16 @@ export async function executeCommand(
   const completedCount = taskExecutionResults.filter(r => r.status === 'completed').length;
   const failedCount = taskExecutionResults.filter(r => r.status === 'failed').length;
   const deferredCount = taskExecutionResults.filter(r => r.status === 'deferred').length;
+  // Work can also stop on a founder decision *after* the plan was accepted: an
+  // employee whose autonomy is "may run, but the founder decides" returns its
+  // task as `awaiting_approval`. Reporting that as `completed` told the founder
+  // their command was finished while the work was actually waiting on them —
+  // the plan flag alone was not enough to know.
+  const awaitingCount = taskExecutionResults.filter(r => r.status === 'awaiting_approval').length;
   const totalCount = taskExecutionResults.length;
 
   let status: ExecutionResult['status'];
-  if (intent.requiresApproval) {
+  if (intent.requiresApproval || awaitingCount > 0) {
     status = 'awaiting_approval';
   } else if (totalCount > 0 && completedCount === totalCount) {
     status = 'completed';
@@ -1982,6 +1991,11 @@ export async function executeCommand(
     const totalCost = taskExecutionResults.reduce((sum, r) => sum + r.cost, 0);
     const parts: string[] = [];
     parts.push(`**Execution:** ${completedCount}/${totalCount} tasks completed.`);
+    if (awaitingCount > 0) {
+      parts.push(
+        `${awaitingCount} task${awaitingCount > 1 ? 's' : ''} stopped and is waiting on your decision — approve or reject it in Approvals.`,
+      );
+    }
     if (failedCount > 0) {
       parts.push(`${failedCount} task${failedCount > 1 ? 's' : ''} failed.`);
     }

@@ -15,6 +15,7 @@
 
 import { eq, and, desc, sql, ilike, or } from 'drizzle-orm';
 import { companyMemory, type Db } from '@orq8/db';
+import { stampMemoryUsage } from './memory.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,11 @@ export async function storeAgentMemory(
 /**
  * Retrieve relevant memories for an agent.
  * Used during context building to give agents their accumulated knowledge.
+ *
+ * Returning a memory IS using it, so this records the use on the row
+ * (use_count / last_used_at). The returned `useCount` / `lastUsedAt` are the
+ * stored values as of this read — the increment this read caused is visible on
+ * the next one.
  */
 export async function retrieveAgentMemory(
   db: Db,
@@ -130,6 +136,9 @@ export async function retrieveAgentMemory(
     .orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt))
     .limit(opts.limit ?? 10);
 
+  // The agent is about to work from these — that is the use.
+  await stampMemoryUsage(db, entries.map((e) => String(e.id)));
+
   // Parse tags from content prefix
   return entries.map((e) => {
     const tagMatch = e.content.match(/^\[tags:([^\]]+)\]\s*/);
@@ -145,8 +154,8 @@ export async function retrieveAgentMemory(
       importance: e.importance,
       taskIds: e.taskId ? [e.taskId] : [],
       tags,
-      useCount: 0,
-      lastUsedAt: null,
+      useCount: e.useCount,
+      lastUsedAt: e.lastUsedAt,
       createdAt: e.createdAt,
       updatedAt: e.updatedAt,
     };

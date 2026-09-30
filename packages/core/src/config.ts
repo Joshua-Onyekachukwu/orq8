@@ -139,6 +139,33 @@ const envSchema = z.object({
   PLATFORM_ADMIN_EMAILS: z.string().optional(),
 });
 
+/**
+ * The configuration surface, in declaration order.
+ *
+ * This is the single source of truth for "what can be configured", so the
+ * `.env.example` files can be checked against it instead of drifting from it
+ * (docs/62.13 found 35 keys that no example mentioned, which is a deployer
+ * being unable to learn the surface rather than a cosmetic gap).
+ */
+export function envSurface(): string[] {
+  return Object.keys(envSchema.shape).sort();
+}
+
+/**
+ * The keys a real deployment must set, as opposed to the ones that may keep
+ * their development default.
+ *
+ * Only `DATABASE_URL` is boot-critical (everything else is optional or
+ * defaulted, which is what lets the API start and degrade in a minimal
+ * environment). The two secrets are not "boot-critical" but they are
+ * "deploy-critical": `loadConfig` refuses to boot in production while they
+ * still hold the dev-only values below, so a deployment that forgets them does
+ * not start at all.
+ */
+export function envRequiredInProduction(): string[] {
+  return ['DATABASE_URL', 'SESSION_SECRET', 'ENCRYPTION_KEY'];
+}
+
 export function platformAdminEmails(config: AppConfig): Set<string> {
   return new Set(
     (config.PLATFORM_ADMIN_EMAILS ?? '')
@@ -175,6 +202,264 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
 
   return config;
+}
+
+/**
+ * Capability readiness — the activation model, as data.
+ *
+ * docs/19 asks integrations to be switched on by configuration rather than by a
+ * code change. This is that contract in one place: every product capability
+ * that depends on external configuration names the environment keys it needs,
+ * so a deployment can be asked "what is not activated yet?" and answer
+ * truthfully without a developer reading the source (docs/69 §"infrastructure
+ * to build").
+ *
+ * Two rules the shape enforces:
+ *   - only KEY NAMES cross the boundary, never a value (docs/37: never expose
+ *     secrets), so a readiness report is safe to render in the product;
+ *   - `ready` is computed from the environment, so it cannot be claimed by
+ *     declaration alone.
+ */
+export type CapabilityStatus = 'ready' | 'configuration_required' | 'dev_only';
+
+export interface CapabilityReadiness {
+  id: string;
+  label: string;
+  status: CapabilityStatus;
+  /** Every key in this list must be set. */
+  requires: string[];
+  /** Each group is satisfied by any one of its keys (e.g. Resend OR SMTP). */
+  anyOf: string[][];
+  /** Keys that are set here (names only). */
+  configured: string[];
+  /** Keys this deployment is missing (names only). */
+  missing: string[];
+  /** Without it the product cannot serve the founder, so it blocks a release. */
+  productionCritical: boolean;
+  /** The product still runs, but a named behaviour is unavailable. */
+  degraded: boolean;
+  /** What the founder loses while this is not configured. */
+  impact: string;
+  /** Where the activation is documented. */
+  docs: string;
+}
+
+export interface CapabilityReadinessReport {
+  ready: number;
+  configurationRequired: number;
+  devOnly: number;
+  /** Ids of production-critical capabilities that are not ready. */
+  blocking: string[];
+  capabilities: CapabilityReadiness[];
+}
+
+type CapabilityDefinition = Omit<
+  CapabilityReadiness,
+  'status' | 'configured' | 'missing'
+> & { devAlternative?: string[] };
+
+const CAPABILITIES: CapabilityDefinition[] = [
+  {
+    id: 'database',
+    label: 'Database',
+    requires: ['DATABASE_URL'],
+    anyOf: [],
+    productionCritical: true,
+    degraded: false,
+    impact: 'The API cannot start.',
+    docs: 'docs/58',
+  },
+  {
+    id: 'secrets',
+    label: 'Session and encryption keys',
+    requires: ['SESSION_SECRET', 'ENCRYPTION_KEY'],
+    anyOf: [],
+    productionCritical: true,
+    degraded: false,
+    impact:
+      'A production boot refuses to start, and stored integration credentials cannot be decrypted.',
+    docs: 'docs/37',
+  },
+  {
+    id: 'web_origin',
+    label: 'Browser origin and CORS',
+    requires: ['APP_URL', 'ALLOWED_ORIGINS'],
+    anyOf: [],
+    productionCritical: true,
+    degraded: false,
+    impact:
+      'The deployed web app is not an allowed origin, so every request from the product is refused by the API.',
+    docs: 'docs/58.5',
+  },
+  {
+    id: 'model_gateway',
+    label: 'Model gateway (OpenRouter primary, NVIDIA fallback)',
+    requires: [],
+    anyOf: [
+      ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEYS'],
+      ['NVIDIA_API_KEY', 'NVIDIA_API_KEYS'],
+    ],
+    productionCritical: true,
+    degraded: false,
+    impact:
+      'AI employees cannot think: execution falls back to structured output and the work is marked failed.',
+    docs: 'docs/22',
+  },
+  {
+    id: 'email',
+    label: 'Transactional email',
+    requires: [],
+    anyOf: [['RESEND_API_KEY'], ['SMTP_HOST']],
+    productionCritical: true,
+    degraded: false,
+    impact:
+      'Confirmation and invitation mail is written to the log instead of delivered, so a new account can never confirm its address.',
+    docs: 'docs/66.18',
+  },
+  {
+    id: 'embeddings',
+    label: 'Embeddings (semantic memory)',
+    requires: ['EMBEDDING_BASE_URL'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact:
+      'Memory retrieval is keyword-only: relevant knowledge can be missed when the wording differs.',
+    docs: 'docs/21',
+  },
+  {
+    id: 'storage',
+    label: 'File storage',
+    requires: ['S3_ENDPOINT', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_BUCKET'],
+    anyOf: [],
+    devAlternative: ['LOCAL_STORAGE_DIR'],
+    productionCritical: false,
+    degraded: true,
+    impact:
+      'Uploads land on the instance disk and are lost when it is replaced.',
+    docs: 'docs/42',
+  },
+  {
+    id: 'realtime',
+    label: 'Realtime fan-out',
+    requires: ['REDIS_URL'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact:
+      'Live updates are published in-process only, so a second API instance does not see them.',
+    docs: 'docs/36',
+  },
+  {
+    id: 'scheduler',
+    label: 'Scheduled jobs',
+    requires: ['INTERNAL_TOKEN'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact:
+      'Scheduled jobs cannot authenticate, so consolidation, briefings and anomaly scans do not run.',
+    docs: 'docs/52',
+  },
+  {
+    id: 'search',
+    label: 'Web search',
+    requires: ['SERPAPI_KEY'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact: 'Research and prospecting tools refuse with a configuration error.',
+    docs: 'docs/25',
+  },
+  {
+    id: 'github_oauth',
+    label: 'GitHub (connect a repository)',
+    requires: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact: 'The engineering workspace cannot connect a repository.',
+    docs: 'docs/58.6',
+  },
+  {
+    id: 'google_oauth',
+    label: 'Google sign-in',
+    requires: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact: 'Only email and password sign-in is offered.',
+    docs: 'docs/37',
+  },
+  {
+    id: 'billing',
+    label: 'Billing (Stripe)',
+    requires: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact: 'Plans cannot be purchased; credits can only be granted by hand.',
+    docs: 'docs/24',
+  },
+  {
+    id: 'observability',
+    label: 'Tracing export',
+    requires: ['OTEL_EXPORTER_OTLP_ENDPOINT'],
+    anyOf: [],
+    productionCritical: false,
+    degraded: true,
+    impact: 'Traces stay in the process log; nothing is exported to a collector.',
+    docs: 'docs/39',
+  },
+];
+
+/**
+ * Which capabilities this configuration can actually serve.
+ *
+ * `dev_only` is deliberately distinct from `ready`: a capability kept alive by
+ * a local substitute (disk storage, an in-process queue, a LiteLLM or Ollama
+ * gateway on the developer's machine) works here and would not work once the
+ * deployment moves, and that difference must not be hidden.
+ */
+export function capabilityReadiness(config: AppConfig): CapabilityReadinessReport {
+  const env = config as unknown as Record<string, unknown>;
+  const present = (key: string): boolean => {
+    const value = env[key];
+    return typeof value === 'string' ? value.trim().length > 0 : value !== undefined && value !== null;
+  };
+
+  const capabilities: CapabilityReadiness[] = CAPABILITIES.map((definition) => {
+    const { devAlternative, ...rest } = definition;
+    const keys = [...definition.requires, ...definition.anyOf.flat()];
+    const configured = keys.filter(present);
+    const missing = keys.filter((key) => !present(key));
+    const requiresSatisfied = definition.requires.every(present);
+    // Each entry is one alternative provider (OpenRouter *or* NVIDIA, Resend
+    // *or* SMTP), so one satisfied group is enough; the unsatisfied ones are
+    // the fallbacks that are still open, and they stay in `missing` so a
+    // deployment can see its fallback path is untested.
+    const anyOfSatisfied = definition.anyOf.length === 0 || definition.anyOf.some((group) => group.some(present));
+    const devOnly =
+      !(requiresSatisfied && anyOfSatisfied) &&
+      (devAlternative ?? []).some(present);
+
+    return {
+      ...rest,
+      status: requiresSatisfied && anyOfSatisfied ? 'ready' : devOnly ? 'dev_only' : 'configuration_required',
+      configured,
+      missing,
+    };
+  });
+
+  return {
+    ready: capabilities.filter((c) => c.status === 'ready').length,
+    configurationRequired: capabilities.filter((c) => c.status === 'configuration_required').length,
+    devOnly: capabilities.filter((c) => c.status === 'dev_only').length,
+    blocking: capabilities
+      .filter((c) => c.productionCritical && c.status !== 'ready')
+      .map((c) => c.id),
+    capabilities,
+  };
 }
 
 export function allowedOrigins(config: AppConfig): string[] {

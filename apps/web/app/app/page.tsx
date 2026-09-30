@@ -231,17 +231,17 @@ function StatCard({
 }
 
 function decisionBadge(status: string): string {
-  if (status === "validated") return "bg-orq8-green/10 text-orq8-green";
-  if (status === "reversed") return "bg-red-50 text-red-600";
-  if (status === "active") return "bg-orq8-orange/10 text-orq8-orange";
-  if (status === "pending") return "bg-amber-50 text-amber-700";
+  if (status === "validated") return "bg-brand-deep/10 text-brand-ink";
+  if (status === "reversed") return "bg-error-soft text-error-ink";
+  if (status === "active") return "bg-warm/10 text-warm-ink";
+  if (status === "pending") return "bg-warm-soft text-warm-ink";
   return "bg-canvas text-muted";
 }
 
 function recommendationBadge(priority: string): string {
-  if (priority === "critical") return "bg-red-50 text-red-600";
-  if (priority === "high") return "bg-orq8-orange/10 text-orq8-orange";
-  if (priority === "medium") return "bg-amber-50 text-amber-700";
+  if (priority === "critical") return "bg-error-soft text-error-ink";
+  if (priority === "high") return "bg-warm/10 text-warm-ink";
+  if (priority === "medium") return "bg-warm-soft text-warm-ink";
   return "bg-canvas text-muted";
 }
 
@@ -352,7 +352,7 @@ export default async function AppPage() {
         : "I am here to help you turn your direction into an operating company. What are you building, and what would you like to accomplish with it?";
 
   const primaryActionClass =
-    "inline-flex items-center justify-center rounded-lg bg-orq8-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-dark/90";
+    "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink-surface/90";
   const secondaryActionClass =
     "inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-canvas";
 
@@ -365,21 +365,21 @@ export default async function AppPage() {
   if (approvalList.length > 0) {
     // Show the actual decisions waiting, not just a count.
     for (const a of approvalList.slice(0, 3)) {
-      attentionItems.push({ icon: ClipboardCheck, text: a.action, href: "/app/approvals", color: "text-orq8-orange" });
+      attentionItems.push({ icon: ClipboardCheck, text: a.action, href: "/app/approvals", color: "text-warm-ink" });
     }
     if (approvalList.length > 3) {
-      attentionItems.push({ icon: ClipboardCheck, text: `${approvalList.length - 3} more approval${approvalList.length - 3 !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-orq8-orange" });
+      attentionItems.push({ icon: ClipboardCheck, text: `${approvalList.length - 3} more approval${approvalList.length - 3 !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-warm-ink" });
     }
   } else if (pendingApprovals > 0) {
-    attentionItems.push({ icon: ClipboardCheck, text: `${pendingApprovals} approval${pendingApprovals !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-orq8-orange" });
+    attentionItems.push({ icon: ClipboardCheck, text: `${pendingApprovals} approval${pendingApprovals !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-warm-ink" });
   }
-  if (credits?.isCritical) attentionItems.push({ icon: Zap, text: "Work credits critically low. AI employees may pause.", href: "/app/budgets", color: "text-red-500" });
-  if (credits?.isLow && !credits?.isCritical) attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining`, href: "/app/budgets", color: "text-amber-600" });
+  if (credits?.isCritical) attentionItems.push({ icon: Zap, text: "Work credits critically low. AI employees may pause.", href: "/app/budgets", color: "text-error-ink" });
+  if (credits?.isLow && !credits?.isCritical) attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining`, href: "/app/budgets", color: "text-warm-ink" });
   const recentFailed = recentActivity.filter((e) => e.type.toLowerCase().includes("failed"));
-  if (recentFailed.length > 0) attentionItems.push({ icon: AlertTriangle, text: `${recentFailed.length} task${recentFailed.length !== 1 ? "s" : ""} failed recently`, href: "/app/goals", color: "text-red-500" });
-  if (blockedTasks > 0) attentionItems.push({ icon: AlertTriangle, text: `${blockedTasks} blocked task${blockedTasks !== 1 ? "s" : ""} need attention`, href: "/app/goals", color: "text-orq8-orange" });
+  if (recentFailed.length > 0) attentionItems.push({ icon: AlertTriangle, text: `${recentFailed.length} task${recentFailed.length !== 1 ? "s" : ""} failed recently`, href: "/app/goals", color: "text-error-ink" });
+  if (blockedTasks > 0) attentionItems.push({ icon: AlertTriangle, text: `${blockedTasks} blocked task${blockedTasks !== 1 ? "s" : ""} ${blockedTasks !== 1 ? "need" : "needs"} attention`, href: "/app/goals", color: "text-warm-ink" });
   if (activeAgents === 0 && agentList.length > 0) attentionItems.push({ icon: Bot, text: "All AI employees are paused", href: "/app/agents", color: "text-muted" });
-  if (agentList.length === 0) attentionItems.push({ icon: Bot, text: "No AI employees yet. Hire your first AI employee to get started", href: "/app/agents", color: "text-orq8-green" });
+  if (agentList.length === 0) attentionItems.push({ icon: Bot, text: "No AI employees yet. Hire your first AI employee to get started", href: "/app/agents", color: "text-brand-ink" });
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -388,10 +388,10 @@ export default async function AppPage() {
       <EAStageRegistrar stage={founderStage} route="/app" pageName="Dashboard" />
 
       {/* Welcome banner */}
-      <div className="rounded-xl bg-orq8-dark p-6 text-white sm:p-8">
+      <div className="rounded-xl ink p-6 text-white sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
               {today}
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -407,7 +407,7 @@ export default async function AppPage() {
 
             <div className="mt-6 flex flex-wrap gap-4">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-orange/15 text-orq8-orange">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-warm/15 text-warm-ink">
                   <ClipboardCheck className="h-4 w-4" />
                 </span>
                 <div>
@@ -418,7 +418,7 @@ export default async function AppPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/15 text-orq8-lime">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/15 text-ink-accent">
                   <Bot aria-hidden="true" className="h-4 w-4" />
                 </span>
                 <div>
@@ -448,8 +448,8 @@ export default async function AppPage() {
 
           {/* System status */}
           <div className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-center md:min-w-[160px]">
-            <p className="flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orq8-lime" />
+            <p className="flex items-center gap-1.5 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-accent" />
               System Online
             </p>
             <p className="text-2xl font-bold tracking-tight">
@@ -457,7 +457,7 @@ export default async function AppPage() {
               {isDemoOrg && (
                 <span
                   title="This organization contains staged demo content — its history is illustrative, not a record of live execution."
-                  className="ml-2 inline-flex items-center rounded-full border border-amber-300/40 bg-amber-400/15 px-2 py-0.5 align-middle font-sans text-3xs font-semibold uppercase tracking-wider text-amber-200"
+                  className="ml-2 inline-flex items-center rounded-full border border-warm/40 bg-warm/15 px-2 py-0.5 align-middle font-sans text-3xs font-semibold uppercase tracking-wider text-warm-ink"
                 >
                   Demo data
                 </span>
@@ -478,12 +478,12 @@ export default async function AppPage() {
           <div className="flex gap-4">
             <span
               aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orq8-orange/10 font-mono text-sm font-semibold text-orq8-orange"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warm/10 font-mono text-sm font-semibold text-warm-ink"
             >
               {EA_NAME.slice(0, 1)}
             </span>
             <div className="space-y-1.5">
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-orange">
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-warm-ink">
                 {EA_NAME} · Executive Agent
               </p>
               <p className="text-sm font-semibold text-ink">{eaTitle}</p>
@@ -494,7 +494,7 @@ export default async function AppPage() {
                   <ul className="mt-1 space-y-1">
                     {remainingSteps.map((step) => (
                       <li key={step} className="flex items-center gap-2 text-xs text-muted">
-                        <span className="h-1 w-1 rounded-full bg-orq8-orange" aria-hidden="true" />
+                        <span className="h-1 w-1 rounded-full bg-warm" aria-hidden="true" />
                         {step}
                       </li>
                     ))}
@@ -540,7 +540,7 @@ export default async function AppPage() {
             value={`${activeGoalsCount}/${totalGoals}`}
             subtext={activeGoalsCount > 0 ? "In progress" : totalGoals > 0 ? "None active" : "None yet"}
             icon={Target}
-            color="bg-orq8-green/10 text-orq8-green"
+            color="bg-brand-deep/10 text-brand-ink"
             href="/app/goals"
           />
           <StatCard
@@ -548,7 +548,7 @@ export default async function AppPage() {
             value={activeAgents}
             subtext={`${agentList.length} total`}
             icon={Bot}
-            color="bg-orq8-green/10 text-orq8-green"
+            color="bg-brand-deep/10 text-brand-ink"
             href="/app/agents"
           />
           <StatCard
@@ -556,7 +556,7 @@ export default async function AppPage() {
             value={pendingApprovals}
             subtext={pendingApprovals > 0 ? "Awaiting your decision" : "Nothing waiting"}
             icon={ClipboardCheck}
-            color="bg-orq8-orange/10 text-orq8-orange"
+            color="bg-warm/10 text-warm-ink"
             href="/app/approvals"
           />
           <StatCard
@@ -564,7 +564,7 @@ export default async function AppPage() {
             value={completedTasks}
             subtext={`${totalTasks} total${blockedTasks > 0 ? ` · ${blockedTasks} blocked` : ""}`}
             icon={CheckCircle2}
-            color="bg-orq8-orange/10 text-orq8-orange"
+            color="bg-warm/10 text-warm-ink"
             href="/app/goals"
           />
           <StatCard
@@ -572,7 +572,7 @@ export default async function AppPage() {
             value={credits ? credits.remaining : 0}
             subtext={credits ? `${credits.utilizationPercent}% used` : "Usage not available"}
             icon={Zap}
-            color="bg-orq8-green/10 text-orq8-green"
+            color="bg-brand-deep/10 text-brand-ink"
             href="/app/budgets"
           />
           <StatCard
@@ -580,22 +580,22 @@ export default async function AppPage() {
             value={formatCost(Math.round(weeklySpend * 100))}
             subtext="This week"
             icon={Wallet}
-            color="bg-orq8-orange/10 text-orq8-orange"
+            color="bg-warm/10 text-warm-ink"
             href="/app/budgets"
           />
         </div>
       </section>
 
       {/* C. Needs your attention */}
-      <div className="rounded-xl border border-orq8-orange/20 bg-orq8-orange/5 p-5">
+      <div className="rounded-xl border border-warm/20 bg-warm/5 p-5">
         <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-orq8-orange/15">
-            <AlertTriangle className="h-3.5 w-3.5 text-orq8-orange" />
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-warm/15">
+            <AlertTriangle className="h-3.5 w-3.5 text-warm-ink" />
           </span>
           <h2 className="text-sm font-semibold text-ink">Needs your attention</h2>
           <Link
             href="/app/attention"
-            className="ml-auto flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+            className="ml-auto flex items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
           >
             Open the attention queue
             <ArrowUpRight className="h-3.5 w-3.5" />
@@ -628,7 +628,7 @@ export default async function AppPage() {
       <section className="rounded-xl border border-hairline bg-white p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-ink">Active work</h2>
-          <Link href="/app/agents" className="text-xs font-medium text-orq8-green hover:underline">
+          <Link href="/app/agents" className="text-xs font-medium text-brand-ink hover:underline">
             View AI employees
           </Link>
         </div>
@@ -638,9 +638,9 @@ export default async function AppPage() {
               <Link
                 key={agent.id}
                 href={`/app/agents/${agent.id}`}
-                className="group flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 transition-colors hover:border-orq8-green/40"
+                className="group flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 transition-colors hover:border-brand-deep/40"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-green text-xs font-bold text-white">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-deep text-xs font-bold text-white">
                   {agent.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -652,7 +652,7 @@ export default async function AppPage() {
                   </p>
                   <p className="truncate text-xs text-muted">{agent.currentTask}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-orq8-orange/10 px-2 py-0.5 font-mono text-2xs uppercase text-orq8-orange">
+                <span className="shrink-0 rounded-full bg-warm/10 px-2 py-0.5 font-mono text-2xs uppercase text-warm-ink">
                   Working
                 </span>
               </Link>
@@ -671,7 +671,7 @@ export default async function AppPage() {
                   ? "Recommend an initial team for my company"
                   : "What should we work on next?"
               }
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
             >
               Ask {EA_NAME}
             </EAOpenButton>
@@ -684,7 +684,7 @@ export default async function AppPage() {
         <section className="rounded-xl border border-hairline bg-white p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-ink">Goals</h2>
-            <Link href="/app/goals" className="text-xs font-medium text-orq8-green hover:underline">
+            <Link href="/app/goals" className="text-xs font-medium text-brand-ink hover:underline">
               View all
             </Link>
           </div>
@@ -694,17 +694,17 @@ export default async function AppPage() {
                 <Link
                   key={goal.id}
                   href={`/app/goals/${goal.id}`}
-                  className="group block rounded-lg border border-hairline p-4 transition-colors hover:border-orq8-green/40"
+                  className="group block rounded-lg border border-hairline p-4 transition-colors hover:border-brand-deep/40"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm font-medium text-ink group-hover:text-orq8-green">
+                    <p className="truncate text-sm font-medium text-ink group-hover:text-brand-ink">
                       {goal.title}
                     </p>
                     <span className="shrink-0 font-mono text-2xs text-muted">{goal.progress}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-hairline">
                     <div
-                      className="h-full rounded-full bg-orq8-green"
+                      className="h-full rounded-full bg-brand-deep"
                       style={{ width: `${Math.min(Math.max(goal.progress, 0), 100)}%` }}
                     />
                   </div>
@@ -712,7 +712,7 @@ export default async function AppPage() {
                     <span
                       className={
                         goal.priority === "urgent" || goal.priority === "high"
-                          ? "font-medium text-orq8-orange"
+                          ? "font-medium text-warm-ink"
                           : undefined
                       }
                     >
@@ -731,7 +731,7 @@ export default async function AppPage() {
               </p>
               <EAOpenButton
                 prompt="Help me define my first goal"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
               >
                 Ask {EA_NAME}
               </EAOpenButton>
@@ -744,7 +744,7 @@ export default async function AppPage() {
             <h2 className="text-lg font-semibold text-ink">Recent decisions</h2>
             <Link
               href="/app/decisions"
-              className="text-xs font-medium text-orq8-green hover:underline"
+              className="text-xs font-medium text-brand-ink hover:underline"
             >
               View all
             </Link>
@@ -790,7 +790,7 @@ export default async function AppPage() {
       {priorities !== null && (
         <section className="rounded-xl border border-hairline bg-white p-5">
           <div className="mb-1">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
               From {EA_NAME}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-ink">Executive recommendations</h2>
@@ -813,7 +813,7 @@ export default async function AppPage() {
                     <p className="text-xs text-ink">Suggested: {item.suggestedAction}</p>
                     <EAOpenButton
                       prompt={`What should we do about "${item.title}"?`}
-                      className="shrink-0 self-start rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green sm:self-auto"
+                      className="shrink-0 self-start rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink sm:self-auto"
                     >
                       Discuss with {EA_NAME}
                     </EAOpenButton>
@@ -834,7 +834,7 @@ export default async function AppPage() {
       {recentActivity.length > 0 && (
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2 mb-3">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
               What happened recently
             </p>
           </div>
@@ -842,10 +842,10 @@ export default async function AppPage() {
             {recentActivity.slice(0, 5).map((event) => (
               <div key={event.id} className="flex items-start gap-3 rounded-lg bg-canvas/50 px-3 py-2">
                 <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-                  event.type.includes('completed') ? 'bg-emerald-400' :
-                  event.type.includes('failed') ? 'bg-red-400' :
-                  event.type.includes('created') ? 'bg-blue-400' :
-                  'bg-gray-300'
+                  event.type.includes('completed') ? 'bg-brand' :
+                  event.type.includes('failed') ? 'bg-error' :
+                  event.type.includes('created') ? 'bg-brand-soft' :
+                  'bg-disabled-surface'
                 }`} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-ink leading-snug">{event.summary}</p>
@@ -865,7 +865,7 @@ export default async function AppPage() {
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
                 Company Progress
               </p>
               <h2 className="mt-1 text-lg font-semibold text-ink">
@@ -881,7 +881,7 @@ export default async function AppPage() {
           {/* Progress bar */}
           <div className="h-3 rounded-full bg-hairline overflow-hidden mb-4">
             <div
-              className="h-full rounded-full bg-orq8-green transition-all duration-500"
+              className="h-full rounded-full bg-brand-deep transition-all duration-500"
               style={{ width: `${companyProgress.overallPct}%` }}
             />
           </div>
@@ -897,9 +897,9 @@ export default async function AppPage() {
                   <div className="flex-1 h-2 rounded-full bg-hairline overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        dept.progressPct >= 70 ? 'bg-emerald-400' :
-                        dept.progressPct >= 40 ? 'bg-amber-400' :
-                        dept.progressPct > 0 ? 'bg-orange-400' : 'bg-gray-200'
+                        dept.progressPct >= 70 ? 'bg-brand' :
+                        dept.progressPct >= 40 ? 'bg-warm' :
+                        dept.progressPct > 0 ? 'bg-warm' : 'bg-disabled-surface'
                       }`}
                       style={{ width: `${Math.max(dept.progressPct, 2)}%` }}
                     />
@@ -920,7 +920,7 @@ export default async function AppPage() {
             {companyProgress.blockedTasks > 0 && (
               <>
                 <span>·</span>
-                <span className="text-red-500">{companyProgress.blockedTasks} blocked</span>
+                <span className="text-error-ink">{companyProgress.blockedTasks} blocked</span>
               </>
             )}
             <span>·</span>
@@ -929,11 +929,11 @@ export default async function AppPage() {
 
           {/* Attention needed */}
           {companyProgress.attentionNeeded.length > 0 && (
-            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-              <p className="text-xs font-medium text-amber-800">Attention needed:</p>
+            <div className="mt-3 rounded-lg bg-warm-soft border border-warm px-3 py-2">
+              <p className="text-xs font-medium text-warm-ink">Attention needed:</p>
               <ul className="mt-1 space-y-0.5">
                 {companyProgress.attentionNeeded.map((item, i) => (
-                  <li key={i} className="text-xs text-amber-700">• {item}</li>
+                  <li key={i} className="text-xs text-warm-ink">• {item}</li>
                 ))}
               </ul>
             </div>

@@ -36,7 +36,7 @@ const CookieConsent: React.FC = () => {
       aria-label="Cookie consent"
       className="fixed bottom-0 left-0 right-0 z-[9999] p-[16px] md:p-[24px]"
     >
-      <div className="mx-auto max-w-[800px] rounded-[16px] border border-white/10 bg-orq8-dark/95 backdrop-blur-xl p-[24px] md:p-[32px] shadow-2xl">
+      <div className="mx-auto max-w-[800px] rounded-[16px] border border-white/10 bg-ink/95 backdrop-blur-xl p-[24px] md:p-[32px] shadow-2xl">
         <div className="flex flex-col md:flex-row md:items-start gap-[16px] md:gap-[24px]">
           <div className="flex-1">
             <h3 className="text-white font-semibold text-[16px] mb-[8px]">
@@ -48,11 +48,11 @@ const CookieConsent: React.FC = () => {
               launcher position). We do not use advertising or tracking cookies.
             </p>
             <p className="text-white/40 text-xs mt-[8px]">
-              <Link href="/privacy" className="underline hover:text-orq8-lime transition-colors">
+              <Link href="/privacy" className="underline hover:text-ink-accent transition-colors">
                 Privacy Policy
               </Link>{" "}
               ·{" "}
-              <Link href="/settings/cookies" className="underline hover:text-orq8-lime transition-colors">
+              <Link href="/settings/cookies" className="underline hover:text-ink-accent transition-colors">
                 Manage preferences
               </Link>
             </p>
@@ -66,7 +66,7 @@ const CookieConsent: React.FC = () => {
             </button>
             <button
               onClick={handleAcceptAll}
-              className="px-[20px] py-[10px] rounded-full bg-orq8-lime text-orq8-dark text-sm font-bold hover:brightness-110 transition-all"
+              className="px-[20px] py-[10px] rounded-full bg-brand-deep text-white text-sm font-bold hover:bg-brand transition-all"
             >
               Accept All
             </button>

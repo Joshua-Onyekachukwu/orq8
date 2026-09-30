@@ -23,15 +23,15 @@ async function fetchUsers(token: string, search?: string) {
 
 function statusBadge(status: string) {
   switch (status) {
-    case "active": return "bg-orq8-green/10 text-orq8-green";
-    case "disabled": return "bg-red-50 text-red-600";
-    case "suspended": return "bg-amber-50 text-amber-600";
+    case "active": return "bg-brand-deep/10 text-brand-ink";
+    case "disabled": return "bg-error-soft text-error-ink";
+    case "suspended": return "bg-warm-soft text-warm-ink";
     default: return "bg-canvas text-muted";
   }
 }
 
 function platformRoleBadge(role: string | null) {
-  if (role === "admin") return "bg-orq8-orange/10 text-orq8-orange";
+  if (role === "admin") return "bg-warm/10 text-warm-ink";
   return "bg-canvas text-muted";
 }
 
@@ -92,7 +92,7 @@ export default async function AdminUsersPage({
             name="search"
             defaultValue={params.search ?? ""}
             placeholder="Search by name or email..."
-            className="w-full rounded-lg border border-hairline bg-white pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-1 focus:ring-orq8-green/20"
+            className="w-full rounded-lg border border-hairline bg-white pl-10 pr-4 py-2.5 text-sm text-ink placeholder:text-muted focus:border-brand-deep focus:outline-none focus:ring-1 focus:ring-brand-deep/20"
           />
         </div>
       </form>
@@ -106,7 +106,7 @@ export default async function AdminUsersPage({
             href={s === "all" ? "/admin/users" : `/admin/users?status=${s}`}
             className={`rounded-full px-2.5 py-1 text-3xs font-semibold uppercase transition-colors ${
               (params.status ?? "all") === s
-                ? "bg-orq8-dark text-white"
+                ? "ink text-white"
                 : "bg-canvas text-muted hover:bg-hairline"
             }`}
           >
@@ -139,7 +139,7 @@ export default async function AdminUsersPage({
                 <tr key={user.id} className="hover:bg-canvas/50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-dark text-xs font-bold text-orq8-lime">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full ink text-xs font-bold text-ink-accent">
                         {(user.name ?? user.email ?? "U").charAt(0).toUpperCase()}
                       </span>
                       <span className="text-sm font-medium text-ink">{user.name ?? "—"}</span>

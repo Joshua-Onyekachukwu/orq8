@@ -32,12 +32,12 @@ export type KeyItem = {
 type Notice = { kind: "ok" | "err"; text: string } | null;
 
 const inputClass =
-  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-orq8-green focus:outline-none focus:ring-2 focus:ring-orq8-green/20";
+  "h-10 w-full rounded-md border border-hairline bg-white px-3 text-sm text-ink placeholder:text-muted focus:border-brand-deep focus:outline-none focus:ring-2 focus:ring-brand-deep/20";
 const labelClass = "mb-1 block text-sm font-medium text-ink";
 const btnPrimary =
-  "h-9 rounded-md bg-orq8-green px-4 text-sm font-medium text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50";
+  "h-9 rounded-md bg-brand-deep px-4 text-sm font-medium text-white transition-colors hover:bg-brand disabled:opacity-50";
 const btnGhost =
-  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-orq8-green hover:text-orq8-green disabled:opacity-50";
+  "h-9 rounded-md border border-hairline px-3 text-sm text-muted transition-colors hover:border-brand-deep hover:text-brand-ink disabled:opacity-50";
 
 export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: CatalogItem[]; keys: KeyItem[] }) {
   const [keys, setKeys] = useState<KeyItem[]>(initialKeys);
@@ -153,7 +153,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
         <div
           role="status"
           className={`rounded-md border px-3 py-2 text-sm ${
-            notice.kind === "ok" ? "border-green-300 bg-green-50 text-green-700" : "border-red-300 bg-red-50 text-red-700"
+            notice.kind === "ok" ? "border-brand bg-brand-soft text-brand-ink" : "border-border-error bg-error-soft text-error-ink"
           }`}
         >
           {notice.text}
@@ -238,7 +238,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                 type="checkbox"
                 checked={useEndpoint}
                 onChange={(e) => setUseEndpoint(e.target.checked)}
-                className="h-4 w-4 accent-navy-800"
+                className="h-4 w-4 accent-on-ink"
               />
               Custom OpenAI-compatible endpoint
             </label>
@@ -263,7 +263,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                     {p.doc_url ? (
                       <>
                         {" · "}
-                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-orq8-green">
+                        <a href={p.doc_url} target="_blank" rel="noreferrer" className="underline hover:text-brand-ink">
                           get a key
                         </a>
                       </>
@@ -272,7 +272,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    orgKeys.length > 0 ? "bg-green-50 text-green-700" : "bg-canvas text-muted"
+                    orgKeys.length > 0 ? "bg-brand-soft text-brand-ink" : "bg-canvas text-muted"
                   }`}
                 >
                   {orgKeys.length > 0 ? "Connected" : "Not connected"}
@@ -282,13 +282,13 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
               {/* Model availability */}
               {p.default_models.length > 0 && (
                 <div className="mt-3">
-                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">Available models</p>
+                  <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-ink-muted mb-1.5">Available models</p>
                   <div className="flex flex-wrap gap-1.5">
                     {p.default_models.slice(0, 4).map((m) => (
-                      <span key={m} className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-600">{m}</span>
+                      <span key={m} className="rounded-full bg-surface-secondary px-2 py-0.5 text-3xs font-medium text-ink-muted">{m}</span>
                     ))}
                     {p.default_models.length > 4 && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-3xs font-medium text-gray-500">+{p.default_models.length - 4}</span>
+                      <span className="rounded-full bg-surface-secondary px-2 py-0.5 text-3xs font-medium text-ink-muted">+{p.default_models.length - 4}</span>
                     )}
                   </div>
                 </div>
@@ -304,9 +304,9 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className={`h-2 w-2 rounded-full ${
-                              k.status === "active" ? "bg-green-500" :
-                              k.status === "error" ? "bg-red-500" :
-                              "bg-gray-300"
+                              k.status === "active" ? "bg-brand-deep" :
+                              k.status === "error" ? "bg-error-fill" :
+                              "bg-disabled-surface"
                             }`} />
                             <p className="truncate text-sm font-medium text-ink">
                               {k.name ?? k.provider_name}
@@ -327,7 +327,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                             Rotate
                           </button>
                           {confirmRevokeFor === k.id ? (
-                            <button className="h-9 rounded-md bg-red-700 px-3 text-sm font-medium text-white hover:bg-red-600" onClick={() => runAction(k.id, "revoke")}>
+                            <button className="h-9 rounded-md bg-error-fill px-3 text-sm font-medium text-white hover:bg-error-fill" onClick={() => runAction(k.id, "revoke")}>
                               Confirm
                             </button>
                           ) : (

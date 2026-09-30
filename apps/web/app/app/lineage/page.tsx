@@ -52,29 +52,29 @@ function typeIcon(type: string) {
 }
 
 function typeColor(type: string, status: string) {
-  if (status === "completed") return "text-orq8-green";
-  if (status === "failed" || status === "reversed") return "text-red-500";
+  if (status === "completed") return "text-brand-ink";
+  if (status === "failed" || status === "reversed") return "text-error-ink";
   if (status === "active" || status === "on_track") return "text-ink";
   return "text-muted";
 }
 
 function priorityDot(p: string) {
-  if (p === "critical") return "bg-red-500";
-  if (p === "high") return "bg-amber-500";
+  if (p === "critical") return "bg-error-fill";
+  if (p === "high") return "bg-warm";
   return "bg-muted/30";
 }
 
 function statusBadge(s: string) {
   const map: Record<string, string> = {
-    active: "bg-orq8-green/10 text-orq8-green",
-    completed: "bg-orq8-green/10 text-orq8-green",
-    on_track: "bg-orq8-green/10 text-orq8-green",
-    at_risk: "bg-amber-50 text-amber-600",
+    active: "bg-brand-deep/10 text-brand-ink",
+    completed: "bg-brand-deep/10 text-brand-ink",
+    on_track: "bg-brand-deep/10 text-brand-ink",
+    at_risk: "bg-warm-soft text-warm-ink",
     pending: "bg-hairline text-muted",
     draft: "bg-hairline text-muted",
-    paused: "bg-amber-50 text-amber-600",
-    behind: "bg-red-50 text-red-600",
-    failed: "bg-red-50 text-red-600",
+    paused: "bg-warm-soft text-warm-ink",
+    behind: "bg-error-soft text-error-ink",
+    failed: "bg-error-soft text-error-ink",
     proposed: "bg-hairline text-muted",
     archived: "bg-hairline text-muted",
   };
@@ -149,7 +149,7 @@ function TreeNode({ node, depth = 0 }: { node: LineageNode; depth?: number }) {
           <div className="shrink-0 flex items-center gap-1">
             <div className="w-10 h-1.5 rounded-full bg-muted/10 overflow-hidden">
               <div
-                className={`h-full rounded-full ${node.progress >= 80 ? "bg-orq8-green" : node.progress >= 50 ? "bg-amber-500" : "bg-muted/40"}`}
+                className={`h-full rounded-full ${node.progress >= 80 ? "bg-brand-deep" : node.progress >= 50 ? "bg-warm" : "bg-muted/40"}`}
                 style={{ width: `${node.progress}%` }}
               />
             </div>
@@ -161,9 +161,9 @@ function TreeNode({ node, depth = 0 }: { node: LineageNode; depth?: number }) {
         {node.type === "task" && (
           <span className="shrink-0">
             {node.status === "completed" ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-orq8-green" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-brand-ink" />
             ) : node.status === "failed" ? (
-              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+              <AlertTriangle className="h-3.5 w-3.5 text-error-ink" />
             ) : (
               <Clock className="h-3.5 w-3.5 text-muted" />
             )}
@@ -172,7 +172,7 @@ function TreeNode({ node, depth = 0 }: { node: LineageNode; depth?: number }) {
 
         {/* Agent */}
         {node.agentName && (
-          <span className="shrink-0 rounded-full bg-orq8-green/10 px-1.5 py-0.5 text-2xs font-medium text-orq8-green">
+          <span className="shrink-0 rounded-full bg-brand-deep/10 px-1.5 py-0.5 text-2xs font-medium text-brand-ink">
             {node.agentName}
           </span>
         )}
@@ -244,13 +244,13 @@ export default function LineagePage() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-hairline bg-white p-5">
             <div className="flex items-center gap-2 mb-2">
-              <GitBranch className="h-4 w-4 text-orq8-green" />
+              <GitBranch className="h-4 w-4 text-brand-ink" />
               <span className="text-xs font-medium text-muted">Lineage Score</span>
             </div>
             <div className="text-2xl font-bold text-ink font-mono">{score?.lineageScore ?? 0}%</div>
             <div className="mt-2 h-1.5 rounded-full bg-muted/10 overflow-hidden">
               <div
-                className={`h-full rounded-full ${(score?.lineageScore ?? 0) >= 70 ? "bg-orq8-green" : (score?.lineageScore ?? 0) >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                className={`h-full rounded-full ${(score?.lineageScore ?? 0) >= 70 ? "bg-brand-deep" : (score?.lineageScore ?? 0) >= 40 ? "bg-warm" : "bg-error-fill"}`}
                 style={{ width: `${score?.lineageScore ?? 0}%` }}
               />
             </div>
@@ -268,7 +268,7 @@ export default function LineagePage() {
           </div>
 
           <div className="rounded-xl border border-hairline bg-white p-5">
-            <div className="text-2xl font-bold text-orq8-orange font-mono">{nodeCounts["initiative"] ?? 0}</div>
+            <div className="text-2xl font-bold text-warm-ink font-mono">{nodeCounts["initiative"] ?? 0}</div>
             <div className="text-2xs text-muted mt-1">Initiatives</div>
             <div className="mt-2 text-xs text-muted">
               {(nodeCounts["task"] ?? 0)} tasks in tree
@@ -276,7 +276,7 @@ export default function LineagePage() {
           </div>
 
           <div className="rounded-xl border border-hairline bg-white p-5">
-            <div className="text-2xl font-bold text-red-500 font-mono">{score?.orphanedTasks ?? 0}</div>
+            <div className="text-2xl font-bold text-error-ink font-mono">{score?.orphanedTasks ?? 0}</div>
             <div className="text-2xs text-muted mt-1">Orphaned Tasks</div>
             <div className="mt-2 text-xs text-muted">
               Tasks without strategy linkage

@@ -154,7 +154,7 @@ export default function OrgPage() {
     <div className="mx-auto max-w-5xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Organization
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -175,9 +175,9 @@ export default function OrgPage() {
       </header>
 
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
         </div>
       )}
 
@@ -202,10 +202,10 @@ export default function OrgPage() {
           {/* Stats row */}
           <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
             {[
-              { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-orq8-lime/10 text-orq8-green" },
-              { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-purple-50 text-purple-700" },
-              { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-blue-50 text-blue-700" },
-              { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-amber-50 text-amber-700" },
+              { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-ink-accent/10 text-brand-ink" },
+              { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-brand-soft text-brand-deep" },
+              { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-brand-soft text-brand-deep" },
+              { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-warm-soft text-warm-ink" },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl border border-hairline bg-white p-4">
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.color}`}>
@@ -222,8 +222,8 @@ export default function OrgPage() {
             <h2 className="text-sm font-semibold text-ink mb-4">Organization Structure</h2>
 
             {/* Root: CEO / Founder */}
-            <div className="flex items-center gap-3 rounded-xl border-2 border-orq8-green/30 bg-orq8-green/5 px-5 py-4 mb-4">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-orq8-green text-lg font-bold text-white">
+            <div className="flex items-center gap-3 rounded-xl border-2 border-brand-deep/30 bg-brand-deep/5 px-5 py-4 mb-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-deep text-lg font-bold text-white">
                 CEO
               </span>
               <div>
@@ -271,7 +271,7 @@ export default function OrgPage() {
                 <div key={group.name} className="ml-6 mt-1 border-l-2 border-hairline pl-4">
                   {!singleTeam && (
                     <div className="flex items-center gap-2 py-1.5">
-                      <span className="rounded-md bg-orq8-dark/5 px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green">
+                      <span className="rounded-md bg-ink-surface/5 px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide text-brand-ink">
                         {group.name}
                       </span>
                       <span className="font-mono text-3xs text-muted">
@@ -289,13 +289,13 @@ export default function OrgPage() {
                       onClick={() => setSelectedAgent(selectedAgent?.id === agent.id ? null : agent)}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                         selectedAgent?.id === agent.id
-                          ? "bg-orq8-dark text-white"
+                          ? "ink text-white"
                           : "hover:bg-canvas"
                       }`}
                     >
                       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         agent.status === "active"
-                          ? "bg-orq8-green text-white"
+                          ? "bg-brand-deep text-white"
                           : "bg-hairline text-muted"
                       }`}>
                         {agent.name.charAt(0)}
@@ -327,7 +327,7 @@ export default function OrgPage() {
                 <p className="text-sm text-muted">
                   Hire agents and assign them to departments to see your org chart.
                 </p>
-                <a href="/app/agents" className="mt-2 inline-block text-xs font-medium text-orq8-green hover:underline">
+                <a href="/app/agents" className="mt-2 inline-block text-xs font-medium text-brand-ink hover:underline">
                   Hire agents →
                 </a>
               </div>
@@ -340,7 +340,7 @@ export default function OrgPage() {
               <h3 className="text-sm font-semibold text-ink">Teams</h3>
               <a
                 href="/app/teams"
-                className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
               >
                 Manage teams <ChevronRight className="h-3 w-3" />
               </a>
@@ -351,7 +351,7 @@ export default function OrgPage() {
                 <p className="mt-2 text-sm text-muted">
                   No teams yet — create teams to group AI employees around a mission.
                 </p>
-                <a href="/app/teams" className="mt-2 inline-block text-xs font-medium text-orq8-green hover:underline">
+                <a href="/app/teams" className="mt-2 inline-block text-xs font-medium text-brand-ink hover:underline">
                   Create your first team →
                 </a>
               </div>
@@ -361,10 +361,10 @@ export default function OrgPage() {
                   <a
                     key={team.id}
                     href="/app/teams"
-                    className="group rounded-lg border border-hairline bg-canvas/50 p-3.5 transition-colors hover:border-orq8-green/40"
+                    className="group rounded-lg border border-hairline bg-canvas/50 p-3.5 transition-colors hover:border-brand-deep/40"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-orq8-green">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full ink text-brand-ink">
                         <GitBranch className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
@@ -395,7 +395,7 @@ export default function OrgPage() {
                   <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Status</dt>
                   <dd className="mt-1 text-sm">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-3xs font-semibold uppercase ${
-                      selectedAgent.status === "active" ? "bg-orq8-lime/10 text-orq8-green" : "bg-hairline text-muted"
+                      selectedAgent.status === "active" ? "bg-ink-accent/10 text-brand-ink" : "bg-hairline text-muted"
                     }`}>
                       {selectedAgent.status}
                     </span>
@@ -426,17 +426,17 @@ export default function OrgPage() {
               <div className="space-y-2">
                 {data.goals.filter((g) => g.status === "active").map((goal) => (
                   <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2.5">
-                    <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-purple-500" />
+                    <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-deep" />
                     <span className="flex-1 text-sm text-ink">{goal.title}</span>
                     <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
-                      goal.priority === "urgent" ? "bg-red-100 text-red-600" :
-                      goal.priority === "high" ? "bg-amber-50 text-amber-700" :
+                      goal.priority === "urgent" ? "bg-error-soft text-error-ink" :
+                      goal.priority === "high" ? "bg-warm-soft text-warm-ink" :
                       "bg-hairline text-muted"
                     }`}>
                       {goal.priority}
                     </span>
                     <div className="h-2 w-16 rounded-full bg-muted/10 overflow-hidden">
-                      <div className="h-full rounded-full bg-orq8-green" style={{ width: `${goal.progress}%` }} />
+                      <div className="h-full rounded-full bg-brand-deep" style={{ width: `${goal.progress}%` }} />
                     </div>
                     <span className="font-mono text-3xs text-muted w-8 text-right">{goal.progress}%</span>
                   </div>

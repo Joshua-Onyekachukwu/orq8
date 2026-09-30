@@ -46,9 +46,9 @@ const KINDS = [
 ] as const;
 
 const KIND_STYLES: Record<string, string> = {
-  daily: "bg-orq8-green/10 text-orq8-green",
-  weekly: "bg-indigo-50 text-indigo-700",
-  monthly: "bg-purple-50 text-purple-700",
+  daily: "bg-brand-deep/10 text-brand-ink",
+  weekly: "bg-brand-soft text-brand-deep",
+  monthly: "bg-brand-soft text-brand-deep",
 };
 
 function periodLabel(row: BriefingRow): string {
@@ -100,7 +100,7 @@ function BriefingCard({ row, expanded, onToggle }: { row: BriefingRow; expanded:
       {expanded && (
         <div className="mt-4 space-y-4 border-t border-hairline pt-4">
           {row.status === "failed" ? (
-            <p className="text-xs text-red-500">This briefing failed to generate — the job run history (/app/jobs) has the error detail.</p>
+            <p className="text-xs text-error-ink">This briefing failed to generate — the job run history (/app/jobs) has the error detail.</p>
           ) : row.content?.quiet ? (
             <p className="text-xs text-muted italic">
               No significant activity in this period. Stats are still real counts for the period.
@@ -114,7 +114,7 @@ function BriefingCard({ row, expanded, onToggle }: { row: BriefingRow; expanded:
                 <ul className="mt-1.5 space-y-1">
                   {s.items.map((item, j) => (
                     <li key={j} className="flex items-start gap-2 text-xs leading-relaxed text-ink">
-                      <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orq8-green" />
+                      <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-brand-deep" />
                       {item}
                     </li>
                   ))}
@@ -181,7 +181,7 @@ export default function BriefingsPage() {
       <div className="mx-auto max-w-4xl">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
               Executive briefings · generated on schedule from real activity
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -212,7 +212,7 @@ export default function BriefingsPage() {
               aria-selected={kind === k.key}
               onClick={() => setKind(k.key)}
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                kind === k.key ? "bg-orq8-dark text-white" : "border border-hairline bg-white text-ink hover:bg-canvas"
+                kind === k.key ? "ink text-white" : "border border-hairline bg-white text-ink hover:bg-canvas"
               }`}
             >
               {k.label}
@@ -226,7 +226,7 @@ export default function BriefingsPage() {
         </div>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div className="mt-4 rounded-xl border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">{error}</div>
         )}
 
         {loading && (

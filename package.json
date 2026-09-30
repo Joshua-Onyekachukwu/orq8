@@ -20,6 +20,9 @@
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "build:packages": "pnpm -r --filter \"./packages/*\" build",
+    "audit:contrast": "tsx scripts/color-contrast-audit.ts",
+    "verify:env": "pnpm --filter @orq8/api exec vitest run test/env-surface.test.ts",
+    "audit:brand": "node scripts/brand-audit.mjs",
     "verify:prod": "node scripts/run.mjs"
   },
   "devDependencies": {

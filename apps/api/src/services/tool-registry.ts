@@ -22,6 +22,7 @@ import type { AppConfig } from '@orq8/core';
 import { appendAudit } from './audit.js';
 import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
 import { broadcastToOrg } from './realtime.js';
+import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
 import type { Db } from '@orq8/db';
 import { eq, and, sql } from 'drizzle-orm';
 import { agents, auditEvents } from '@orq8/db';
@@ -160,9 +161,17 @@ export function checkAuthority(
   ctx: ToolExecutionContext,
 ): string | null {
   const auth = ctx.authority;
+  // The authority profile is stored JSON, and nothing validates its shape: a row
+  // written before a field existed, or built by hand (a seeder, an import), can
+  // carry fewer fields than this contract declares. Reading a missing list as a
+  // list threw inside the tool call and reached the founder as a bare "Task
+  // execution failed", with the real cause only in a log. A missing list means
+  // no entry in it; a missing permission flag still means "not granted", which
+  // is the safe reading and the one the executor already uses.
+  const forbidden = auth.forbiddenActions ?? [];
 
   // Check forbidden actions
-  if (auth.forbiddenActions.includes(tool.id)) {
+  if (forbidden.includes(tool.id)) {
     return `Tool "${tool.name}" is explicitly forbidden for this agent.`;
   }
 
@@ -207,12 +216,15 @@ export function needsApproval(
   // Tool explicitly requires approval
   if (tool.requiresApproval) return true;
 
-  // Agent authority requires approval for this tool category
+  // Agent authority requires approval for this tool category. Same stored-JSON
+  // caveat as `checkAuthority`: a profile without the list has not declared a
+  // category, and an undeclared category is not an approval trigger.
   const auth = ctx.authority;
+  const approvalFor = auth.requiresApprovalFor ?? [];
   if (tool.riskLevel === 'critical') return true;
-  if (tool.riskLevel === 'high' && auth.requiresApprovalFor.includes('high_impact_decisions')) return true;
-  if (tool.category === 'communication' && auth.requiresApprovalFor.includes('external_communications')) return true;
-  if (tool.creditCost > 5 && auth.requiresApprovalFor.includes('financial_commitments')) return true;
+  if (tool.riskLevel === 'high' && approvalFor.includes('high_impact_decisions')) return true;
+  if (tool.category === 'communication' && approvalFor.includes('external_communications')) return true;
+  if (tool.creditCost > 5 && approvalFor.includes('financial_commitments')) return true;
 
   return false;
 }
@@ -279,6 +291,9 @@ export async function executeTool(
       orgId: ctx.orgId,
       actorType: 'agent',
       actorId: ctx.agentId,
+      // The task this call belongs to, so a task-scoped audit trail is complete:
+      // a denial that names no task is a denial nobody can trace back to work.
+      taskId: ctx.taskId ?? null,
       action: 'tool.denied',
       tool: toolId,
       cost: 0,
@@ -316,36 +331,69 @@ export async function executeTool(
   // 5. Check if approval is needed
   const approvalRequired = needsApproval(tool, ctx);
   if (approvalRequired) {
-    // Create approval request
-    const { approvals } = await import('@orq8/db');
-    const [approval] = await db.insert(approvals).values({
-      orgId: ctx.orgId,
-      agentId: ctx.agentId,
-      action: `Tool: ${tool.name}`,
-      description: `Agent "${ctx.agentName}" wants to use tool "${tool.name}". ${tool.approvalReason ?? ''}`,
-      cost: tool.creditCost,
-      riskLevel: tool.riskLevel === 'critical' ? 'high' : tool.riskLevel === 'high' ? 'high' : 'medium',
-      status: 'pending',
-    }).returning();
+    // A founder may already have answered this. When the gated task was resumed
+    // from the approval, re-asking the same question would block the work
+    // forever — the grant is single-use, so consume it and get on with the call.
+    const grant = ctx.taskId ? await findGrantedGate(db, ctx.orgId, ctx.taskId) : undefined;
+    if (grant) {
+      await markGateReleased(db, grant.id);
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: 'agent',
+        actorId: ctx.agentId,
+        taskId: ctx.taskId ?? null,
+        approvalId: grant.id,
+        action: 'approval.grant_consumed',
+        tool: toolId,
+        cost: 0,
+        outcome: 'success',
+        resultRef: `approval:${grant.id} → tool:${toolId}`,
+      }).catch(() => {});
+    } else {
+      // Name the work this decision gates (Gap A): the task, the tool, and the
+      // exact arguments. "Agent wants to use a tool" is not something a founder
+      // can meaningfully authorise. Re-entry reuses the open request instead of
+      // queueing a second question about the same task.
+      const { approvals } = await import('@orq8/db');
+      const open = ctx.taskId ? await findOpenGate(db, ctx.orgId, ctx.taskId) : undefined;
+      const approval = open ?? (
+        await db.insert(approvals).values({
+          orgId: ctx.orgId,
+          agentId: ctx.agentId,
+          taskId: ctx.taskId ?? null,
+          toolId,
+          toolParams: params,
+          action: `Tool: ${tool.name}`,
+          description: `Agent "${ctx.agentName}" wants to use tool "${tool.name}". ${tool.approvalReason ?? ''}`,
+          cost: tool.creditCost,
+          riskLevel: tool.riskLevel === 'critical' ? 'high' : tool.riskLevel === 'high' ? 'high' : 'medium',
+          status: 'pending',
+        }).returning()
+      )[0];
 
-    // Notify founder
-    broadcastToOrg(ctx.orgId, {
-      type: 'approval.required',
-      approvalId: approval?.id,
-      agentName: ctx.agentName,
-      toolName: tool.name,
-      riskLevel: tool.riskLevel,
-    });
+      // Notify founder
+      broadcastToOrg(ctx.orgId, {
+        type: 'approval.required',
+        approvalId: approval?.id,
+        agentName: ctx.agentName,
+        toolName: tool.name,
+        riskLevel: tool.riskLevel,
+      });
 
-    return {
-      success: true,
-      output: { message: `Approval required for "${tool.name}". Request sent to founder.` },
-      creditsConsumed: 0,
-      durationMs: Date.now() - startTime,
-      toolId,
-      approvalRequired: true,
-      approvalId: approval?.id,
-    };
+      // `success: true` here was a lie: the tool had not run, nothing was
+      // produced, and the caller carried on as though work had happened. The
+      // block is reported as a block, with the approval that lifts it.
+      return {
+        success: false,
+        output: { message: `Approval required for "${tool.name}". Request sent to founder.`, approvalId: approval?.id },
+        error: `Awaiting founder approval to use "${tool.name}".`,
+        creditsConsumed: 0,
+        durationMs: Date.now() - startTime,
+        toolId,
+        approvalRequired: true,
+        approvalId: approval?.id,
+      };
+    }
   }
 
   // 6. Execute the tool
@@ -385,7 +433,16 @@ export async function executeTool(
     }
   }
 
-  // 7. Consume credits
+  // 7. Consume credits — at the tool's own price, not the operation default.
+  //
+  // `tool.creditCost` is the number this tool is *sold* at: it is what the
+  // authority check compares against the agent's spending limit, what the
+  // affordability check requires, and what the approval card quotes the founder
+  // before they agree to the call. Charging `OPERATION_COSTS["tool.…"]` instead
+  // falls through to the table's default, so an approved action billed a
+  // different amount than the one the founder approved — and a tool could pass
+  // every pre-flight check and then fail on credits mid-execution. One number,
+  // one price: pass it explicitly.
   let creditsConsumed = 0;
   if (tool.creditCost > 0 && !executionError) {
     try {
@@ -396,6 +453,7 @@ export async function executeTool(
         `Tool: ${tool.name} by ${ctx.agentName}`,
         ctx.taskId,
         'tool',
+        { amount: tool.creditCost },
       );
       creditsConsumed = creditResult.consumed;
     } catch (err) {
@@ -413,6 +471,7 @@ export async function executeTool(
     orgId: ctx.orgId,
     actorType: 'agent',
     actorId: ctx.agentId,
+    taskId: ctx.taskId ?? null,
     action: success ? 'tool.executed' : 'tool.failed',
     tool: toolId,
     cost: creditsConsumed,

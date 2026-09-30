@@ -48,11 +48,11 @@ interface CompanyHealth {
 
 function gradeMeta(grade: CompanyHealth["grade"]) {
   switch (grade) {
-    case "excellent": return { label: "Excellent", color: "bg-emerald-500", text: "text-emerald-700", ring: "border-emerald-200" };
-    case "good": return { label: "Good", color: "bg-lime-500", text: "text-lime-700", ring: "border-lime-200" };
-    case "fair": return { label: "Fair", color: "bg-amber-500", text: "text-amber-700", ring: "border-amber-200" };
-    case "poor": return { label: "Poor", color: "bg-orange-500", text: "text-orange-700", ring: "border-orange-200" };
-    default: return { label: "Critical", color: "bg-red-500", text: "text-red-700", ring: "border-red-200" };
+    case "excellent": return { label: "Excellent", color: "bg-brand-deep", text: "text-brand-ink", ring: "border-brand-soft" };
+    case "good": return { label: "Good", color: "bg-brand", text: "text-brand-ink", ring: "border-brand-soft" };
+    case "fair": return { label: "Fair", color: "bg-warm", text: "text-warm-ink", ring: "border-warm" };
+    case "poor": return { label: "Poor", color: "bg-warm", text: "text-warm-ink", ring: "border-warm" };
+    default: return { label: "Critical", color: "bg-error-fill", text: "text-error-ink", ring: "border-border-error" };
   }
 }
 
@@ -70,9 +70,9 @@ function factorIcon(key: string) {
 
 function reasonBadge(kind: HealthReasonKind) {
   switch (kind) {
-    case "positive": return { icon: CheckCircle2, cls: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" };
-    case "warning": return { icon: AlertTriangle, cls: "text-amber-600", bg: "bg-amber-50 border-amber-200" };
-    case "critical": return { icon: AlertTriangle, cls: "text-red-600", bg: "bg-red-50 border-red-200" };
+    case "positive": return { icon: CheckCircle2, cls: "text-brand-deep", bg: "bg-brand-soft border-brand-soft" };
+    case "warning": return { icon: AlertTriangle, cls: "text-warm-ink", bg: "bg-warm-soft border-warm" };
+    case "critical": return { icon: AlertTriangle, cls: "text-error-ink", bg: "bg-error-soft border-border-error" };
     default: return { icon: Sparkles, cls: "text-muted", bg: "bg-muted/5 border-hairline" };
   }
 }
@@ -112,8 +112,8 @@ export default function HealthPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orq8-lime/10">
-                <HeartPulse aria-hidden="true" className="h-4.5 w-4.5 text-orq8-green" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-accent/10">
+                <HeartPulse aria-hidden="true" className="h-4.5 w-4.5 text-brand-ink" />
               </span>
               <h1 className="text-xl font-semibold tracking-tight text-ink">Company Health</h1>
             </div>
@@ -133,10 +133,10 @@ export default function HealthPage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
           </div>
         )}
 
@@ -214,7 +214,7 @@ export default function HealthPage() {
                       </div>
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/10">
                         <div
-                          className={`h-full rounded-full ${f.score >= 70 ? "bg-emerald-500" : f.score >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                          className={`h-full rounded-full ${f.score >= 70 ? "bg-brand-deep" : f.score >= 50 ? "bg-warm" : "bg-error-fill"}`}
                           style={{ width: `${f.score}%` }}
                         />
                       </div>

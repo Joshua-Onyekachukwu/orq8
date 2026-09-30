@@ -45,7 +45,7 @@ export function ApprovalActions({ approvalId, status, onDecision }: ApprovalActi
         aria-label="Approve"
         disabled={loading !== null}
         onClick={() => handleDecision("approved")}
-        className="rounded-lg border border-hairline p-1.5 text-orq8-green transition-colors hover:border-orq8-green hover:bg-orq8-green hover:text-white disabled:opacity-50"
+        className="rounded-lg border border-hairline p-1.5 text-brand-ink transition-colors hover:border-brand-deep hover:bg-brand-deep hover:text-white disabled:opacity-50"
       >
         {loading === "approved" ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -58,7 +58,7 @@ export function ApprovalActions({ approvalId, status, onDecision }: ApprovalActi
         title="Modify"
         aria-label="Modify"
         disabled={loading !== null}
-        className="rounded-lg border border-hairline p-1.5 text-orq8-green transition-colors hover:border-orq8-green disabled:opacity-50"
+        className="rounded-lg border border-hairline p-1.5 text-brand-ink transition-colors hover:border-brand-deep disabled:opacity-50"
       >
         <PencilLine className="h-3.5 w-3.5" />
       </button>
@@ -68,7 +68,7 @@ export function ApprovalActions({ approvalId, status, onDecision }: ApprovalActi
         aria-label="Reject"
         disabled={loading !== null}
         onClick={() => handleDecision("rejected")}
-        className="rounded-lg border border-hairline p-1.5 text-muted transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+        className="rounded-lg border border-hairline p-1.5 text-muted transition-colors hover:border-border-error hover:text-error-ink disabled:opacity-50"
       >
         {loading === "rejected" ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />

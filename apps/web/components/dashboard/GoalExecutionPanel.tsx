@@ -35,8 +35,8 @@ export function GoalExecutionPanel({
     <div className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orq8-orange/10">
-            <Target aria-hidden="true" className="h-4 w-4 text-orq8-orange" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warm/10">
+            <Target aria-hidden="true" className="h-4 w-4 text-warm-ink" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-ink">Goal Execution</h2>
@@ -56,7 +56,7 @@ export function GoalExecutionPanel({
       <div className="mt-4 flex items-center gap-5">
         <div className="relative h-16 w-16 shrink-0">
           <svg className="h-16 w-16 -rotate-90" viewBox="0 0 64 64">
-            <circle cx="32" cy="32" r="27" fill="none" stroke="#f3f4f6" strokeWidth="5" />
+            <circle cx="32" cy="32" r="27" fill="none" stroke="var(--orq-border)" strokeWidth="5" />
             <circle
               cx="32"
               cy="32"
@@ -67,9 +67,9 @@ export function GoalExecutionPanel({
               strokeDasharray={`${(completionRate / 100) * 169.6} 169.6`}
               strokeLinecap="round"
               className={
-                completionRate >= 70 ? "text-orq8-green" :
-                completionRate >= 40 ? "text-orq8-lime" :
-                "text-orq8-orange"
+                completionRate >= 70 ? "text-brand-ink" :
+                completionRate >= 40 ? "text-ink-accent" :
+                "text-warm-ink"
               }
             />
           </svg>
@@ -93,12 +93,12 @@ export function GoalExecutionPanel({
       {/* Status cards */}
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
-          <CheckCircle2 className="mx-auto h-4 w-4 text-orq8-green" />
+          <CheckCircle2 className="mx-auto h-4 w-4 text-brand-ink" />
           <p className="mt-1 font-mono text-sm font-bold text-ink">{completedGoals}</p>
           <p className="text-2xs font-medium uppercase tracking-wide text-muted">Achieved</p>
         </Link>
         <Link href="/app/goals" className="group rounded-lg bg-canvas px-3 py-2.5 text-center transition-colors hover:bg-hairline">
-          <Clock className="mx-auto h-4 w-4 text-orq8-orange" />
+          <Clock className="mx-auto h-4 w-4 text-warm-ink" />
           <p className="mt-1 font-mono text-sm font-bold text-ink">{activeGoals}</p>
           <p className="text-2xs font-medium uppercase tracking-wide text-muted">Active</p>
         </Link>

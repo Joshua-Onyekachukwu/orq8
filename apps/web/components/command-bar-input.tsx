@@ -47,24 +47,24 @@ export function CommandInput({ isProcessing, onSubmit, onSuggestionClick }: Comm
   return (
     <>
       <form onSubmit={handleSubmit} className="relative">
-        <div className="relative flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition-all focus-within:border-orq8-green focus-within:ring-2 focus-within:ring-orq8-green/10">
+        <div className="relative flex items-center gap-3 rounded-xl border border-hairline-light bg-white p-3 shadow-sm transition-all focus-within:border-brand-deep focus-within:ring-2 focus-within:ring-brand-deep/10">
           <input
             ref={inputRef}
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             placeholder="Tell your Executive Agent what to do..."
-            className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 outline-none"
+            className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-muted outline-none"
             disabled={isProcessing}
           />
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-gray-500 sm:inline">
-              <kbd className="rounded border border-gray-200 px-1.5 py-0.5 font-mono text-3xs">⌘K</kbd>
+            <span className="hidden text-xs text-ink-muted sm:inline">
+              <kbd className="rounded border border-hairline px-1.5 py-0.5 font-mono text-3xs">⌘K</kbd>
             </span>
             <button
               type="submit"
               disabled={!command.trim() || isProcessing}
-              className="flex h-8 items-center gap-2 rounded-lg bg-orq8-green px-4 text-xs font-medium text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+              className="flex h-8 items-center gap-2 rounded-lg bg-brand-deep px-4 text-xs font-medium text-white transition-colors hover:bg-brand disabled:opacity-50"
             >
               {isProcessing ? (
                 <>
@@ -89,7 +89,7 @@ export function CommandInput({ isProcessing, onSubmit, onSuggestionClick }: Comm
               key={suggestion}
               type="button"
               onClick={() => onSuggestionClick(suggestion)}
-              className="rounded-full border border-gray-100 bg-white px-3 py-1.5 text-xs text-gray-500 transition-colors hover:border-orq8-green/30 hover:text-orq8-green"
+              className="rounded-full border border-hairline-light bg-white px-3 py-1.5 text-xs text-ink-muted transition-colors hover:border-brand-deep/30 hover:text-brand-ink"
             >
               {suggestion}
             </button>

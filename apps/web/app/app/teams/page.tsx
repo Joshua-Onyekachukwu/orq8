@@ -305,7 +305,7 @@ export default function TeamsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Organization
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -327,14 +327,14 @@ export default function TeamsPage() {
           <button
             type="button"
             onClick={() => { setShowTemplateModal(true); setTemplateTeamId(null); }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-orq8-green/30 bg-orq8-green/5 px-4 py-2 text-xs font-semibold text-orq8-green transition-colors hover:bg-orq8-green/10"
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand-deep/30 bg-brand-deep/5 px-4 py-2 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-deep/10"
           >
             <Plus className="h-3.5 w-3.5" /> Hire from Template
           </button>
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             <Plus className="h-3.5 w-3.5" /> Create team
           </button>
@@ -342,10 +342,10 @@ export default function TeamsPage() {
       </header>
 
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
         </div>
       )}
 
@@ -372,7 +372,7 @@ export default function TeamsPage() {
           <button
             type="button"
             onClick={() => setShowCreate(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             <Plus className="h-3.5 w-3.5" /> Create your first team
           </button>
@@ -389,7 +389,7 @@ export default function TeamsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search teams…"
             aria-label="Search teams"
-            className="w-full rounded-full border border-hairline bg-white py-2 pl-9 pr-3 text-xs text-ink outline-none transition-colors focus:border-orq8-green"
+            className="w-full rounded-full border border-hairline bg-white py-2 pl-9 pr-3 text-xs text-ink outline-none transition-colors focus:border-brand-deep"
           />
         </div>
         {!loading && (
@@ -409,7 +409,7 @@ export default function TeamsPage() {
           <button
             type="button"
             onClick={() => setSearch("")}
-            className="mt-2 text-xs font-medium text-orq8-green hover:underline"
+            className="mt-2 text-xs font-medium text-brand-ink hover:underline"
           >
             Clear search
           </button>
@@ -422,7 +422,7 @@ export default function TeamsPage() {
             <article key={team.id} className="rounded-xl border border-hairline bg-white p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-sm font-bold text-orq8-green">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ink text-sm font-bold text-brand-ink">
                     <Users className="h-5 w-5" />
                   </span>
                   <div>
@@ -447,7 +447,7 @@ export default function TeamsPage() {
                   <button
                     type="button"
                     onClick={() => { setConfirmTeam(team); setConfirmAction(team.status === "archived" ? "delete" : "archive"); }}
-                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-red-600"
+                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-error-ink"
                     title={team.status === "archived" ? "Delete team" : "Archive team"}
                     aria-label={`Archive ${team.name}`}
                   >
@@ -479,13 +479,13 @@ export default function TeamsPage() {
                 <button
                   type="button"
                   onClick={() => { setShowTemplateModal(true); setTemplateTeamId(team.id); }}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-ink transition-colors hover:text-brand"
                 >
                   <Plus className="h-3.5 w-3.5" /> Hire from Template
                 </button>
                 <Link
                   href="/app/agents"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-ink transition-colors hover:text-brand"
                 >
                   <Users className="h-3.5 w-3.5" /> Assign AI employees
                 </Link>
@@ -516,7 +516,7 @@ export default function TeamsPage() {
                                 <span className="truncate text-ink">{g.title}</span>
                                 <span className="flex shrink-0 items-center gap-2">
                                   <span className="h-1.5 w-16 overflow-hidden rounded-full bg-hairline">
-                                    <span className="block h-full rounded-full bg-orq8-green" style={{ width: `${g.progress}%` }} />
+                                    <span className="block h-full rounded-full bg-brand-deep" style={{ width: `${g.progress}%` }} />
                                   </span>
                                   <span className="font-mono tabular-nums text-muted">{g.progress}%</span>
                                 </span>
@@ -534,7 +534,7 @@ export default function TeamsPage() {
                             {(teamTasks[team.id] ?? []).map((t) => (
                               <li key={t.id} className="flex items-center justify-between gap-2 text-xs">
                                 <span className="truncate text-ink">{t.title}</span>
-                                <span className={`shrink-0 font-mono text-2xs uppercase ${t.status === "completed" ? "text-orq8-green" : t.status === "failed" ? "text-red-600" : "text-muted"}`}>
+                                <span className={`shrink-0 font-mono text-2xs uppercase ${t.status === "completed" ? "text-brand-ink" : t.status === "failed" ? "text-error-ink" : "text-muted"}`}>
                                   {t.status}
                                 </span>
                               </li>
@@ -578,7 +578,7 @@ export default function TeamsPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Create Team</h2>
@@ -589,14 +589,14 @@ export default function TeamsPage() {
             <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Name *</label>
-                <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Growth, Support, Infrastructure" required className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
+                <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Growth, Support, Infrastructure" required className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Department</label>
                 <select
                   value={createDept}
                   onChange={(e) => setCreateDept(e.target.value)}
-                  className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
                 >
                   <option value="">No department</option>
                   {deptOptions.map((d) => (
@@ -606,17 +606,17 @@ export default function TeamsPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Team Lead</label>
-                <input type="text" value={createLead} onChange={(e) => setCreateLead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
+                <input type="text" value={createLead} onChange={(e) => setCreateLead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2} placeholder="What does this team own?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none" />
+                <textarea value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2} placeholder="What does this team own?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none" />
               </div>
               <div className="flex justify-end gap-3 pt-1">
                 <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                   Cancel
                 </button>
-                <button type="submit" disabled={!createName.trim() || creating} className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50">
+                <button type="submit" disabled={!createName.trim() || creating} className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50">
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Create
                 </button>
@@ -628,7 +628,7 @@ export default function TeamsPage() {
 
       {/* Edit Modal */}
       {editingTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Configure {editingTeam.name}</h2>
@@ -639,14 +639,14 @@ export default function TeamsPage() {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Name *</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Department</label>
                 <select
                   value={editDept}
                   onChange={(e) => setEditDept(e.target.value)}
-                  className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
                 >
                   <option value="">No department</option>
                   {deptOptions.map((d) => (
@@ -656,18 +656,18 @@ export default function TeamsPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Team Lead</label>
-                <input type="text" value={editLead} onChange={(e) => setEditLead(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
+                <input type="text" value={editLead} onChange={(e) => setEditLead(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none" />
+                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none" />
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
               <button type="button" onClick={() => setEditingTeam(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                 Cancel
               </button>
-              <button type="button" onClick={handleSave} disabled={saving || !editName.trim()} className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={saving || !editName.trim()} className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </button>
@@ -678,7 +678,7 @@ export default function TeamsPage() {
 
       {/* Hire from Template Modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
           <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Hire from Template</h2>
@@ -689,7 +689,7 @@ export default function TeamsPage() {
             <div className="px-6 py-5 space-y-4">
               {templatesLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-orq8-green" />
+                  <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
                   <span className="ml-2 text-sm text-muted">Loading templates…</span>
                 </div>
               ) : templates.length === 0 ? (
@@ -705,8 +705,8 @@ export default function TeamsPage() {
                       onClick={() => setSelectedTemplate(t.id)}
                       className={`w-full rounded-lg border p-3 text-left transition-colors ${
                         selectedTemplate === t.id
-                          ? "border-orq8-green bg-orq8-green/5"
-                          : "border-hairline hover:border-orq8-green/40"
+                          ? "border-brand-deep bg-brand-deep/5"
+                          : "border-hairline hover:border-brand-deep/40"
                       }`}
                     >
                       <p className="text-sm font-medium text-ink">{t.name}</p>
@@ -733,7 +733,7 @@ export default function TeamsPage() {
                     value={hireName}
                     onChange={(e) => setHireName(e.target.value)}
                     placeholder="Custom name for this employee"
-                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
                   />
                 </div>
               )}
@@ -746,7 +746,7 @@ export default function TeamsPage() {
                 type="button"
                 onClick={handleHireFromTemplate}
                 disabled={!selectedTemplate || hiring}
-                className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
               >
                 {hiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Hire
@@ -758,7 +758,7 @@ export default function TeamsPage() {
 
       {/* Confirm archive/delete Modal */}
       {confirmTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">
@@ -781,7 +781,7 @@ export default function TeamsPage() {
                 </p>
               )}
               {confirmTeam.agentCount > 0 && (
-                <p className="mt-3 rounded-lg bg-orq8-orange/5 border border-orq8-orange/20 px-3 py-2 text-xs text-orq8-orange">
+                <p className="mt-3 rounded-lg bg-warm/5 border border-warm/20 px-3 py-2 text-xs text-warm-ink">
                   {confirmTeam.agentCount} AI employee{confirmTeam.agentCount !== 1 ? "s" : ""} currently in this team.
                 </p>
               )}
@@ -795,7 +795,7 @@ export default function TeamsPage() {
                 onClick={handleConfirm}
                 disabled={confirmBusy}
                 className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
-                  confirmAction === "archive" ? "bg-orq8-orange hover:bg-orq8-orange-dark" : "bg-red-600 hover:bg-red-700"
+                  confirmAction === "archive" ? "bg-warm hover:bg-warm-deep" : "bg-error-fill hover:bg-error-fill"
                 }`}
               >
                 {confirmBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

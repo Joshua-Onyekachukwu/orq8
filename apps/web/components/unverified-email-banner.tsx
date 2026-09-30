@@ -76,18 +76,18 @@ export function UnverifiedEmailBanner() {
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 sm:px-6 lg:px-8"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warm bg-warm-soft px-4 py-2.5 text-sm text-warm-ink sm:px-6 lg:px-8"
     >
-      <MailWarning className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+      <MailWarning className="h-4 w-4 shrink-0 text-warm-ink" aria-hidden="true" />
       <span className="font-medium">{isNewSignup ? "We sent you a verification email" : "Confirm your email address"}</span>
-      <span className="hidden text-amber-700 sm:inline">
+      <span className="hidden text-warm-ink sm:inline">
         {isNewSignup
           ? "Click the link in your inbox to confirm your address — it takes one click."
           : "Check your inbox for the verification link we sent when you signed up."}
       </span>
 
       {resent === "sent" ? (
-        <span className="inline-flex items-center gap-1.5 font-medium text-orq8-green">
+        <span className="inline-flex items-center gap-1.5 font-medium text-brand-ink">
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Email sent — check your inbox
         </span>
       ) : (
@@ -95,20 +95,20 @@ export function UnverifiedEmailBanner() {
           type="button"
           onClick={handleResend}
           disabled={resending}
-          className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-900 transition-colors hover:border-amber-400 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-md border border-warm bg-white px-2.5 py-1 text-xs font-semibold text-warm-ink transition-colors hover:border-warm disabled:opacity-60"
         >
           {resending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
           Resend email
         </button>
       )}
 
-      {hint && <span className="text-xs text-amber-700">{hint}</span>}
+      {hint && <span className="text-xs text-warm-ink">{hint}</span>}
 
       <button
         type="button"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss for now"
-        className="ml-auto rounded p-1 text-amber-600 transition-colors hover:bg-amber-100"
+        className="ml-auto rounded p-1 text-warm-ink transition-colors hover:bg-warm-soft"
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>

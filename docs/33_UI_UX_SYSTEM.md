@@ -90,12 +90,38 @@ User must see every important change before approving consequential operations (
 ## 33.11 Design System
 
 - **Stack:** Next.js + Tailwind CSS + shadcn/ui (free, OSS).
-- Tokens: spacing/typography/color in Tailwind config; dark-mode-ready; accessible (WCAG AA).
+- **Color: `docs/65_COLOR_SYSTEM.md` is authoritative.** One token system, one light-first product plus deliberate black bands. It names every token, its light and dark value, the surfaces that use it, and the measured contrast for each text-on-surface pair. `scripts/color-contrast-audit.ts` enforces it.
+- Tokens: spacing/typography/color in Tailwind config; accessible (WCAG AA).
 - Component inventory (shadcn base): button, input, dialog, dropdown, table, tabs, toast, sheet, command palette, form primitives; domain components built on top.
 - Motion: restrained; loading states with progress, never spinners-only for long agent work (use activity feeds + phase indicators).
 - Empty states teach ("No decisions waiting — here's what the organization is doing now").
 
-## 33.12 Realtime UX
+### 33.11.1 Brand lockup
+
+- **`components/branding/logo-mark.tsx` is the single source of the ORQ8 lockup** — the four-tile
+  mark plus the O-R-Q-8 wordmark, drawn as SVG geometry in a 100 x 26 viewBox. No font, no network
+  request, so the name renders identically on every surface and at every size.
+- Grid: mark x 0-25.86; wordmark cap height 18 (cap line 4.1, baseline 22.3), stem weight 3.5,
+  letters from x 33.6 to 98.2. Round letters overshoot the cap and baseline by 0.1, the way type does.
+- Counters (the hole in O and Q, the R bowl, both loops of 8) are cut with `fillRule="evenodd"`.
+  Shapes that must merge — the R leg, the Q tail, the two loops of 8 — are separate elements, so
+  their overlap paints solid instead of cancelling out.
+- Colour arrives by prop, never from the paths: the wordmark follows `currentColor` and the mark
+  takes the brand tone, so one lockup works on white and inside a black band.
+- Used by the landing navbar (white over the hero, ink once sticky), the product sidebar and the
+  admin sidebar. The admin console is distinguished by its context label and navigation, not by a
+  different mark.
+- **Icons:** `public/favicon.svg` (vector), `public/favicon.png` (192, fallback) and
+  `public/apple-touch-icon.png` (180) rasterise the same four-tile mark. Declared in
+  `app/layout.tsx` `metadata.icons`. Regenerate rather than hand-edit if the mark ever changes.
+- Never re-letter the wordmark as live text, and never reintroduce a raster logo: a wordmark that
+  depends on a font or a PNG is a wordmark that can ship the wrong name.
+
+## 33.12 Status Vocabulary
+
+Every state is a glyph plus a word plus a color, so it survives grayscale: `●` working · `○` waiting · `◐` review · `!` attention · `✕` blocked · `Ⅱ` paused · `—` offline. Never encode state by color alone (`docs/65_COLOR_SYSTEM.md` §5).
+
+## 33.13 Realtime UX
 
 - SSE channel per user session: decision created/updated, urgent events, task state changes, agent activity, report ready.
 - Notification precedence: urgent notify / approval queue / important report / routine silent.

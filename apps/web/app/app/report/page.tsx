@@ -113,7 +113,7 @@ export default function ReportPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Executive summary
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -137,9 +137,9 @@ export default function ReportPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
         </div>
       )}
 
@@ -161,8 +161,8 @@ export default function ReportPage() {
       {!loading && data && (
         <>
           {/* Report header */}
-          <div className="mt-6 rounded-xl bg-orq8-dark p-6 text-white sm:p-8">
-            <p className="flex items-center gap-2 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+          <div className="mt-6 rounded-xl ink p-6 text-white sm:p-8">
+            <p className="flex items-center gap-2 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
               <CalendarDays className="h-3.5 w-3.5" />
               {reportDate}
             </p>
@@ -175,7 +175,7 @@ export default function ReportPage() {
           {/* Key metrics */}
           <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <Activity className="h-5 w-5 text-orq8-green" />
+              <Activity className="h-5 w-5 text-brand-ink" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Total actions
               </p>
@@ -184,7 +184,7 @@ export default function ReportPage() {
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <Users className="h-5 w-5 text-indigo-600" />
+              <Users className="h-5 w-5 text-brand-deep" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Active agents
               </p>
@@ -193,7 +193,7 @@ export default function ReportPage() {
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <ClipboardCheck className="h-5 w-5 text-amber-600" />
+              <ClipboardCheck className="h-5 w-5 text-warm-ink" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Decisions made
               </p>
@@ -202,7 +202,7 @@ export default function ReportPage() {
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <CircleDollarSign className="h-5 w-5 text-amber-600" />
+              <CircleDollarSign className="h-5 w-5 text-warm-ink" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Total spend
               </p>
@@ -224,7 +224,7 @@ export default function ReportPage() {
               <ul className="mt-3 space-y-2">
                 {completedActions.slice(0, 10).map((e) => (
                   <li key={e.id} className="flex items-start gap-3 text-sm">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-green" />
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-deep" />
                     <span className="text-ink">{e.summary}</span>
                     {e.reason && (
                       <span className="text-xs text-muted">— {e.reason}</span>
@@ -249,12 +249,12 @@ export default function ReportPage() {
                 {pendingApprovals.map((a) => (
                   <li
                     key={a.id}
-                    className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg bg-warm-soft px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <ClipboardCheck className="h-4 w-4 text-amber-600" />
+                      <ClipboardCheck className="h-4 w-4 text-warm-ink" />
                       <span className="text-sm text-ink">{a.action}</span>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-mono text-3xs font-semibold text-amber-700">
+                      <span className="rounded-full bg-warm-soft px-2 py-0.5 font-mono text-3xs font-semibold text-warm-ink">
                         {a.riskLevel}
                       </span>
                     </div>
@@ -282,7 +282,7 @@ export default function ReportPage() {
                     <ul className="space-y-1">
                       {events.slice(0, 5).map((e) => (
                         <li key={e.id} className="flex items-center gap-2 text-sm text-ink">
-                          <span className="h-1 w-1 rounded-full bg-orq8-green" />
+                          <span className="h-1 w-1 rounded-full bg-brand-deep" />
                           {e.summary}
                         </li>
                       ))}
@@ -325,8 +325,8 @@ export default function ReportPage() {
                           {formatCost(a.weeklyCost)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="flex items-center gap-1.5 text-xs text-orq8-green">
-                            <span className="h-1.5 w-1.5 rounded-full bg-orq8-green" />
+                          <span className="flex items-center gap-1.5 text-xs text-brand-ink">
+                            <span className="h-1.5 w-1.5 rounded-full bg-brand-deep" />
                             Active
                           </span>
                         </td>

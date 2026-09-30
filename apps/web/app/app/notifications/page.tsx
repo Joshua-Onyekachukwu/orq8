@@ -38,26 +38,26 @@ const typeConfig: {
 } = {
   approval: {
     icon: ShieldCheck,
-    color: "text-amber-700",
-    bg: "bg-amber-50",
+    color: "text-warm-ink",
+    bg: "bg-warm-soft",
     label: "Approval",
   },
   task: {
     icon: Target,
-    color: "text-orq8-green",
-    bg: "bg-orq8-lime/10",
+    color: "text-brand-ink",
+    bg: "bg-ink-accent/10",
     label: "Task",
   },
   credit: {
     icon: Wallet,
-    color: "text-red-600",
-    bg: "bg-red-50",
+    color: "text-error-ink",
+    bg: "bg-error-soft",
     label: "Credit",
   },
   agent: {
     icon: Users,
-    color: "text-indigo-700",
-    bg: "bg-indigo-50",
+    color: "text-brand-deep",
+    bg: "bg-brand-soft",
     label: "Agent",
   },
   system: {
@@ -225,7 +225,7 @@ export default function NotificationsPage() {
                   }
                   className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-colors ${
                     typeFilter === t
-                      ? "border-orq8-dark bg-orq8-dark/5"
+                      ? "border-ink bg-ink-surface/5"
                       : "border-hairline bg-white hover:bg-canvas"
                   }`}
                 >
@@ -257,7 +257,7 @@ export default function NotificationsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-orq8-green"
+            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-brand-deep"
           >
             <option value="all">All types</option>
             <option value="approval">Approvals</option>
@@ -271,7 +271,7 @@ export default function NotificationsPage() {
           <select
             value={readFilter}
             onChange={(e) => setReadFilter(e.target.value)}
-            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-orq8-green"
+            className="rounded-lg border border-hairline bg-canvas px-3 py-1.5 text-xs text-ink outline-none focus:border-brand-deep"
           >
             <option value="all">All status</option>
             <option value="false">Unread only</option>
@@ -286,7 +286,7 @@ export default function NotificationsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search notifications..."
-              className="w-full rounded-lg border border-hairline bg-canvas py-1.5 pl-8 pr-3 text-xs text-ink outline-none placeholder:text-muted focus:border-orq8-green"
+              className="w-full rounded-lg border border-hairline bg-canvas py-1.5 pl-8 pr-3 text-xs text-ink outline-none placeholder:text-muted focus:border-brand-deep"
             />
           </div>
 
@@ -314,15 +314,15 @@ export default function NotificationsPage() {
               <p className="mt-3 text-sm text-muted">Loading notifications...</p>
             </div>
           ) : error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+            <div className="rounded-xl border border-border-error bg-error-soft p-6">
               <div className="flex items-center gap-3">
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-                <p className="text-sm text-red-700">{error}</p>
+                <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+                <p className="text-sm text-error-ink">{error}</p>
               </div>
               <button
                 type="button"
                 onClick={fetchNotifications}
-                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-error-ink hover:underline"
               >
                 <RefreshCw aria-hidden="true" className="h-3.5 w-3.5" /> Retry
               </button>
@@ -358,7 +358,7 @@ export default function NotificationsPage() {
                   <div
                     key={notif.id}
                     className={`group flex items-start gap-4 rounded-xl border bg-white p-4 transition-colors hover:bg-canvas/50 ${
-                      notif.read ? "border-hairline" : "border-orq8-green/20 bg-orq8-green/5"
+                      notif.read ? "border-hairline" : "border-brand-deep/20 bg-brand-deep/5"
                     }`}
                   >
                     <span
@@ -384,7 +384,7 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           {!notif.read && (
-                            <span className="h-2 w-2 rounded-full bg-orq8-green" />
+                            <span className="h-2 w-2 rounded-full bg-brand-deep" />
                           )}
                           {!notif.read && (
                             <button
@@ -430,7 +430,7 @@ export default function NotificationsPage() {
             <p className="font-mono text-3xs uppercase tracking-wide text-muted">
               {total} notification{total !== 1 ? "s" : ""}
               {unread > 0 && (
-                <span className="ml-2 text-orq8-green">
+                <span className="ml-2 text-brand-ink">
                   ({unread} unread)
                 </span>
               )}

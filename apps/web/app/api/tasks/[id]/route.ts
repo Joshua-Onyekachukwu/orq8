@@ -14,10 +14,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const res = await fetch(`${API_URL}/v1/tasks/${id}`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 30 },
+      // Never cached. This is one company's task and the page refetches it
+      // immediately after an action; `revalidate: 30` put the API response in
+      // Next's shared data cache, so that refetch handed back the state from
+      // before the action ("now awaiting approval" in the toast, PENDING on the
+      // badge, no link to the decision).
+      cache: "no-store",
     });
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: res.status });
-    return NextResponse.json(await res.json());
+    return NextResponse.json(await res.json(), { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
   }

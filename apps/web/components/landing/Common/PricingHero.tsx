@@ -4,17 +4,17 @@ import React from "react";
 
 const PricingHero: React.FC = () => {
   return (
-    <section className="bg-white pt-[120px] md:pt-[160px] lg:pt-[200px] pb-[50px] md:pb-[70px] lg:pb-[90px]">
+    <section className="relative pt-[120px] md:pt-[160px] lg:pt-[200px] pb-[50px] md:pb-[70px] lg:pb-[90px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <div className="max-w-[800px]">
-          <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-orq8-orange">
+          <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-warm-ink">
             Pricing
           </span>
           <h1 className="mb-[24px] text-[36px] md:text-[48px] lg:text-[56px] font-normal leading-[1.1] tracking-tight text-black">
             Your AI workforce.{" "}
-            <span className="text-orq8-green">One operating system.</span>
+            <span className="text-brand-ink">One operating system.</span>
           </h1>
-          <p className="max-w-[600px] text-base md:text-lg leading-relaxed text-gray-700">
+          <p className="max-w-[600px] text-base md:text-lg leading-relaxed text-ink">
             Start with a 7-day trial. Build your AI organization, delegate
             real work, and see what ORQ8 can do for your company.
           </p>

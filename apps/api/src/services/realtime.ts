@@ -25,7 +25,9 @@ export type RealtimeEvent =
   | { type: 'task.deferred'; taskId: string; message: string }
   | { type: 'approval.created'; approvalId: string; action: string }
   | { type: 'approval.decided'; approvalId: string; status: string }
-  | { type: 'approval.required'; approvalId?: string; agentName: string; toolName: string; riskLevel: string }
+  // `toolName` is null when the gate came from the task itself (an autonomy
+  // level that requires the founder) rather than from a tool call.
+  | { type: 'approval.required'; approvalId?: string; agentName: string; toolName: string | null; riskLevel: string }
   | { type: 'agent.status_changed'; agentId: string; status: string }
   | { type: 'agent.notification'; agentName: string; title: string; message: string; notificationType: string }
   | { type: 'command.processed'; commandId: string; summary: string }
@@ -43,7 +45,10 @@ export type RealtimeEvent =
   | { type: 'task.qa_failed'; taskId: string; summary: string }
   | { type: 'task.escalated'; taskId: string; summary: string }
   | { type: 'task.blocked'; taskId: string; summary: string }
-  | { type: 'task.revision_required'; taskId: string; summary: string };
+  | { type: 'task.revision_required'; taskId: string; summary: string }
+  // A founder's rejection stops work for good (migration 0036). The client needs
+  // to hear it so a task list does not keep showing it as live.
+  | { type: 'task.cancelled'; taskId: string; reason: string };
 
 interface ClientConnection {
   reply: FastifyReply;

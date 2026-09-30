@@ -39,7 +39,7 @@ export default async function AuditPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -86,8 +86,8 @@ export default async function AuditPage() {
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${
-                      String(e.outcome) === "success" ? "bg-orq8-lime/10 text-orq8-green" :
-                      String(e.outcome) === "denied" ? "bg-red-100 text-red-600" :
+                      String(e.outcome) === "success" ? "bg-ink-accent/10 text-brand-ink" :
+                      String(e.outcome) === "denied" ? "bg-error-soft text-error-ink" :
                       "bg-hairline text-muted"
                     }`}>
                       {String(e.outcome ?? "—")}

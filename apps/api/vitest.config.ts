@@ -10,5 +10,15 @@ export default defineConfig({
     minForks: 1,
     testTimeout: 30_000,
     hookTimeout: 15_000,
+    /**
+     * Boots the database the integration tests run against before any worker
+     * forks, so those tests cannot silently skip on a machine without a system
+     * Postgres — see scripts/lib/api-test-db.ts for the reasoning.
+     */
+    globalSetup: ['../../scripts/lib/api-test-db.ts'],
+    // Booting an embedded Postgres and applying the full production migration
+    // lineage is a cold, one-off cost; a 60s default would time it out.
+    setupTimeout: 180_000,
+    teardownTimeout: 60_000,
   },
 });

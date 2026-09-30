@@ -79,6 +79,32 @@ export const memberships = pgTable(
   (t) => [uniqueIndex('memberships_org_user_idx').on(t.orgId, t.userId)],
 );
 
+// A pending invitation to join an organization. The token is stored hashed and
+// is single-use; the row is the only record that someone was invited, so it is
+// kept after acceptance rather than deleted (migration 0035).
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    email: text('email').notNull(),
+    role: text('role').notNull().default('member'), // owner|admin|member|viewer (docs/34.3)
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: uuid('invited_by').references(() => users.id),
+    status: text('status').notNull().default('pending'), // pending|accepted|revoked|expired
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('invitations_token_hash_idx').on(t.tokenHash),
+    index('invitations_org_idx').on(t.orgId, t.status),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -428,7 +454,10 @@ export const tasks = pgTable(
     agentId: uuid('agent_id').references(() => agents.id),
     title: text('title').notNull(),
     description: text('description'),
-    status: text('status').notNull().default('pending'), // pending | in_progress | completed | failed | cancelled
+    // awaiting_approval (migration 0036): the work is stopped pending a founder
+    // decision, so it must NOT read as pending — the batch runner selects
+    // pending, and gated work must never be silently re-executed by a pass.
+    status: text('status').notNull().default('pending'), // pending | in_progress | awaiting_approval | completed | failed | cancelled
     priority: text('priority').notNull().default('normal'), // low | normal | high | urgent
     dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
     teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
@@ -463,11 +492,21 @@ export const approvals = pgTable(
     status: text('status').notNull().default('pending'), // pending | approved | rejected | modified | expired
     decisionNote: text('decision_note'), // CEO's note when approving/modifying/rejecting
     decidedAt: timestamp('decided_at', { withTimezone: true }),
+    // The work this decision gates (migration 0036). Without these a founder was
+    // shown a sentence and asked to rule on nothing: approving released no work,
+    // rejecting stopped none. Approve resumes the task; reject cancels it with
+    // decisionNote as the reason.
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+    toolId: text('tool_id'), // the tool the agent asked to use, when the gate came from a tool call
+    toolParams: jsonb('tool_params'), // the exact call, so the founder authorises something specific
+    // Set when the gate opened AND the work resumed — makes the grant single-use.
+    releasedAt: timestamp('released_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('approvals_org_idx').on(t.orgId),
     index('approvals_status_idx').on(t.orgId, t.status),
+    index('approvals_task_idx').on(t.taskId, t.status),
   ],
 );
 
@@ -697,6 +736,11 @@ export const companyMemory = pgTable(
     agentId: uuid('agent_id').references(() => agents.id),
     taskId: uuid('task_id').references(() => tasks.id),
     importance: integer('importance').notNull().default(5), // 1-10
+    // Retrieval evidence (Gap D, docs/66 §66.14): how many times this entry has
+    // been surfaced to an employee working on a task, and when it last was.
+    // Incremented by the context builders, never by a read API alone.
+    useCount: integer('use_count').notNull().default(0),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     // Semantic embedding — pgvector, dimension matches EMBED_DIM default (768 for
     // nomic-embed-text, ADR-012). Nullable: entries created before embedding was
     // available, or when no embedding provider is configured, fall back to keyword

@@ -140,7 +140,7 @@ export default function FilesPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Knowledge
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -170,7 +170,7 @@ export default function FilesPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
           >
             {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
             {uploading ? "Uploading..." : "Upload file"}
@@ -179,17 +179,17 @@ export default function FilesPage() {
       </header>
 
       {uploadProgress && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-500" />
-          <p className="text-sm text-blue-700">{uploadProgress}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-brand-soft bg-brand-soft px-4 py-3">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand-deep" />
+          <p className="text-sm text-brand-deep">{uploadProgress}</p>
         </div>
       )}
 
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
         </div>
       )}
 
@@ -219,7 +219,7 @@ export default function FilesPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             <Upload className="h-3.5 w-3.5" /> Upload your first file
           </button>
@@ -232,7 +232,7 @@ export default function FilesPage() {
             <article key={file.id} className="flex items-center gap-4 rounded-xl border border-hairline bg-white px-5 py-4">
               <span className="text-2xl">{fileIcon(file.mimeType)}</span>
               <div className="min-w-0 flex-1">
-                <p onClick={() => setPreviewFile(file)} className="truncate text-sm font-medium text-ink cursor-pointer hover:text-orq8-green">{file.name}</p>
+                <p onClick={() => setPreviewFile(file)} className="truncate text-sm font-medium text-ink cursor-pointer hover:text-brand-ink">{file.name}</p>
                 <div className="flex items-center gap-3 text-3xs text-muted">
                   <span>{formatSize(file.size)}</span>
                   <span className="flex items-center gap-1">
@@ -253,7 +253,7 @@ export default function FilesPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(file.id, file.name)}
-                  className="rounded-lg p-2 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="rounded-lg p-2 text-muted transition-colors hover:bg-error-soft hover:text-error-ink"
                   title="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -268,7 +268,7 @@ export default function FilesPage() {
 
       {/* Preview Modal */}
       {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4" onClick={() => setPreviewFile(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4" onClick={() => setPreviewFile(null)}>
           <div className="relative max-h-[80vh] w-full max-w-3xl rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
               <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export default function FilesPage() {
                 <div className="py-10 text-center">
                   <FileText className="mx-auto h-12 w-12 text-muted/30" />
                   <p className="mt-3 text-sm text-muted">Preview not available for this file type</p>
-                  <button onClick={() => handleDownload(previewFile.id, previewFile.name)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark">
+                  <button onClick={() => handleDownload(previewFile.id, previewFile.name)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand">
                     <Download className="h-3.5 w-3.5" /> Download to view
                   </button>
                 </div>

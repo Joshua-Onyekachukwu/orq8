@@ -23,7 +23,7 @@ import { classifyFounderOutcome } from '../src/services/decision-feedback.js';
 import { updateDecision } from '../src/services/decision-memory.js';
 import { deleteOrg } from './helpers/delete-org.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let pool: Pool | undefined;
 try {

@@ -357,20 +357,20 @@ export default function OnboardingPage() {
   // ── Loading state ──
   if (isLoadingState) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-orq8-dark p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-orq8-lime" />
+      <div className="flex min-h-screen items-center justify-center ink p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-ink-accent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-orq8-dark">
+    <div className="min-h-screen ink">
       {/* Header */}
       <div className="border-b border-white/10">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-white">ORQ8</span>
-            <span className="h-2 w-2 rounded-full bg-orq8-lime" />
+            <span className="h-2 w-2 rounded-full bg-mark-active" />
           </div>
           <span className="font-mono text-3xs uppercase tracking-[0.2em] text-white/40">
             Company Builder
@@ -382,7 +382,7 @@ export default function OnboardingPage() {
         {/* ── PATH SELECTION ── */}
         {phase === "path" && (
           <div className="animate-fade-up">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
               Welcome to ORQ8
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">How are you starting?</h1>
@@ -394,28 +394,28 @@ export default function OnboardingPage() {
             <div className="mt-10 grid gap-4 sm:grid-cols-2">
               <button
                 onClick={() => startPath("idea")}
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06]"
+                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-ink-accent/60 hover:bg-white/[0.06]"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-lime/10 text-orq8-lime">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink-accent/10 text-ink-accent">
                   <Lightbulb className="h-5 w-5" />
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-white">{sourceDescriptions.idea.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-white/50">{sourceDescriptions.idea.subtitle}</p>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-lime">
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-accent">
                   Start with an idea <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>
 
               <button
                 onClick={() => startPath("existing")}
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06]"
+                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-ink-accent/60 hover:bg-white/[0.06]"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orq8-orange-bright/10 text-orq8-orange-bright">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-warm/10 text-warm-ink">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <h2 className="mt-4 text-lg font-semibold text-white">{sourceDescriptions.existing.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-white/50">{sourceDescriptions.existing.subtitle}</p>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-orange-bright">
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-warm-ink">
                   Connect your company <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>
@@ -429,7 +429,7 @@ export default function OnboardingPage() {
             <button onClick={() => setPhase("path")} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
               Start with an operating model
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">Choose an industry playbook</h1>
@@ -445,9 +445,9 @@ export default function OnboardingPage() {
                   key={p.slug}
                   onClick={() => seedPlaybook(p.slug)}
                   disabled={seedingPlaybook !== null}
-                  className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-orq8-lime/60 hover:bg-white/[0.06] disabled:opacity-50"
+                  className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-ink-accent/60 hover:bg-white/[0.06] disabled:opacity-50"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orq8-lime/10 text-orq8-lime">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-accent/10 text-ink-accent">
                     {seedingPlaybook === p.slug ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
@@ -455,7 +455,7 @@ export default function OnboardingPage() {
                     )}
                   </div>
                   <h2 className="mt-4 text-base font-semibold text-white">{p.name}</h2>
-                  <p className="mt-1 text-3xs font-medium uppercase tracking-wide text-orq8-lime">{p.tagline}</p>
+                  <p className="mt-1 text-3xs font-medium uppercase tracking-wide text-ink-accent">{p.tagline}</p>
                   <p className="mt-3 text-sm leading-relaxed text-white/50">{p.description}</p>
                 </button>
               ))}
@@ -478,7 +478,7 @@ export default function OnboardingPage() {
             <button onClick={() => setPhase("path")} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+            <p className="mt-8 font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
               {sourceType === "idea" ? "Starting from an idea" : "Existing company"}
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-white">
@@ -503,12 +503,12 @@ export default function OnboardingPage() {
                     : "e.g. We run a digital marketing agency with 5 clients, a team of 6, and a website at..."
                 }
                 rows={5}
-                className="w-full resize-none rounded-xl border border-white/20 bg-white/5 px-5 py-4 text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:bg-white/10"
+                className="w-full resize-none rounded-xl border border-white/20 bg-white/5 px-5 py-4 text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent focus:bg-white/10"
               />
               <div className="mt-2 flex items-center justify-between text-xs text-white/35">
                 <span>{description.trim().length} characters</span>
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-orq8-lime" />
+                  <Sparkles className="h-3.5 w-3.5 text-ink-accent" />
                   ORQ8 analyzes as you describe — no forms needed
                 </span>
               </div>
@@ -522,7 +522,7 @@ export default function OnboardingPage() {
                   <button
                     key={s}
                     onClick={() => setDescription(s)}
-                    className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:border-orq8-lime/50 hover:text-white"
+                    className="rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:border-ink-accent/50 hover:text-white"
                   >
                     {s.length > 70 ? s.slice(0, 70) + "…" : s}
                   </button>
@@ -535,7 +535,7 @@ export default function OnboardingPage() {
               <button
                 onClick={runAnalyze}
                 disabled={description.trim().length < 10}
-                className="flex items-center gap-2 rounded-lg bg-orq8-lime px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime/90 disabled:opacity-40"
+                className="flex items-center gap-2 rounded-lg bg-ink-accent px-6 py-3 text-sm font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90 disabled:opacity-40"
               >
                 Analyze my company <ArrowRight className="h-4 w-4" />
               </button>
@@ -547,8 +547,8 @@ export default function OnboardingPage() {
         {(phase === "analyzing" || phase === "planning") && (
           <div className="animate-fade-in flex flex-col items-center py-24 text-center">
             <div className="relative">
-              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-orq8-lime animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-orq8-lime" />
+              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-ink-accent animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-ink-accent" />
             </div>
             <h2 className="mt-8 text-xl font-semibold text-white">
               {phase === "analyzing" ? "Understanding your company" : "Designing your organization"}
@@ -558,9 +558,9 @@ export default function OnboardingPage() {
               {["Building company context", "Extracting structure and priorities", "Preparing your operating plan"].map((step, i) => (
                 <div key={step} className="flex items-center gap-3 text-sm">
                   {i === 0 ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-orq8-lime" />
+                    <Loader2 className="h-4 w-4 animate-spin text-ink-accent" />
                   ) : (
-                    <Check className="h-4 w-4 text-orq8-lime/40" />
+                    <Check className="h-4 w-4 text-ink-accent/40" />
                   )}
                   <span className={i === 0 ? "text-white/80" : "text-white/40"}>{step}</span>
                 </div>
@@ -573,8 +573,8 @@ export default function OnboardingPage() {
         {phase === "analysis" && editedAnalysis && (
           <div className="animate-fade-up">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-orq8-lime" />
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              <Shield className="h-5 w-5 text-ink-accent" />
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
                 ORQ8's understanding
               </p>
             </div>
@@ -603,7 +603,7 @@ export default function OnboardingPage() {
                 <div className="space-y-2">
                   {editedAnalysis.priorities.map((p, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-lime" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-mark-active" />
                       <input
                         value={p}
                         onChange={(e) => {
@@ -611,7 +611,7 @@ export default function OnboardingPage() {
                           next[i] = e.target.value;
                           setEditedAnalysis({ ...editedAnalysis, priorities: next });
                         }}
-                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-orq8-lime"
+                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-ink-accent"
                       />
                     </div>
                   ))}
@@ -624,7 +624,7 @@ export default function OnboardingPage() {
                 <div className="space-y-2">
                   {editedAnalysis.risks.map((r, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orq8-orange" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warm" />
                       <input
                         value={r}
                         onChange={(e) => {
@@ -632,7 +632,7 @@ export default function OnboardingPage() {
                           next[i] = e.target.value;
                           setEditedAnalysis({ ...editedAnalysis, risks: next });
                         }}
-                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-orq8-lime"
+                        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-ink-accent"
                       />
                     </div>
                   ))}
@@ -647,7 +647,7 @@ export default function OnboardingPage() {
                   editedAnalysis.technology?.length ||
                   editedAnalysis.tools?.length) && (
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-orq8-lime">What ORQ8 learned</p>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-accent">What ORQ8 learned</p>
                     <EntityList label="Products" items={(editedAnalysis.products ?? []).map((p) => `${p.name}${p.status && p.status !== "launched" ? ` (${p.status})` : ""}`)} />
                     <EntityList label="Customers" items={(editedAnalysis.customers ?? []).map((c) => c.segment)} />
                     <EntityList label="Team" items={(editedAnalysis.team ?? []).map((t) => t.role)} />
@@ -669,7 +669,7 @@ export default function OnboardingPage() {
               <p className="hidden text-xs text-white/35 sm:block">Your corrections are included in the plan.</p>
               <button
                 onClick={generatePlan}
-                className="flex items-center gap-2 rounded-lg bg-orq8-lime px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-orq8-lime/90"
+                className="flex items-center gap-2 rounded-lg bg-ink-accent px-6 py-3 text-sm font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
               >
                 Design my organization <ArrowRight className="h-4 w-4" />
               </button>
@@ -681,8 +681,8 @@ export default function OnboardingPage() {
         {phase === "plan" && plan && (
           <div className="animate-fade-up">
             <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-orq8-lime" />
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+              <Layers className="h-5 w-5 text-ink-accent" />
+              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
                 Your Operating Plan
               </p>
             </div>
@@ -695,7 +695,7 @@ export default function OnboardingPage() {
               {/* Departments */}
               <section>
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-orq8-orange-bright" />
+                  <Building2 className="h-4 w-4 text-warm-ink" />
                   <h2 className="text-lg font-semibold text-white">Departments ({plan.departments.length})</h2>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -711,14 +711,14 @@ export default function OnboardingPage() {
               {/* AI Employees */}
               <section>
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-orq8-lime" />
+                  <Users className="h-4 w-4 text-ink-accent" />
                   <h2 className="text-lg font-semibold text-white">AI Employees ({plan.agents.length})</h2>
                 </div>
                 <div className="mt-4 space-y-3">
                   {plan.agents.map((a) => (
                     <div key={a.role + a.name} className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
                       <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10 text-sm font-bold text-orq8-lime">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/10 text-sm font-bold text-ink-accent">
                           {a.name.charAt(0)}
                         </div>
                         <div>
@@ -733,7 +733,7 @@ export default function OnboardingPage() {
                         <ul className="mt-3 space-y-1.5">
                           {a.responsibilities.map((r, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm text-white/60">
-                              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orq8-lime" />
+                              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-mark-active" />
                               {r}
                             </li>
                           ))}
@@ -754,7 +754,7 @@ export default function OnboardingPage() {
               {/* Goals */}
               <section>
                 <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-orq8-orange-bright" />
+                  <Target className="h-4 w-4 text-warm-ink" />
                   <h2 className="text-lg font-semibold text-white">Goals ({plan.goals.length})</h2>
                 </div>
                 <div className="mt-4 space-y-3">
@@ -763,8 +763,8 @@ export default function OnboardingPage() {
                       <div className="flex items-center justify-between gap-3">
                         <h3 className="font-semibold text-white">{g.title}</h3>
                         <span className={`rounded-full px-2.5 py-0.5 text-3xs uppercase ${
-                          g.priority === "urgent" ? "bg-orq8-orange-bright/20 text-orq8-orange-bright"
-                          : g.priority === "high" ? "bg-orq8-lime/15 text-orq8-lime"
+                          g.priority === "urgent" ? "bg-warm/20 text-warm-ink"
+                          : g.priority === "high" ? "bg-ink-accent/15 text-ink-accent"
                           : "bg-white/10 text-white/50"
                         }`}>
                           {g.priority}
@@ -779,7 +779,7 @@ export default function OnboardingPage() {
               {/* Tasks */}
               <section>
                 <div className="flex items-center gap-2">
-                  <ListChecks className="h-4 w-4 text-orq8-lime" />
+                  <ListChecks className="h-4 w-4 text-ink-accent" />
                   <h2 className="text-lg font-semibold text-white">Initial tasks ({plan.tasks.length})</h2>
                 </div>
                 <div className="mt-4 space-y-2">
@@ -807,7 +807,7 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={activateCompany}
-                className="flex items-center gap-2 rounded-xl bg-orq8-lime px-8 py-3.5 text-sm font-semibold text-ink transition-all hover:bg-orq8-lime/90 hover:shadow-lg hover:shadow-orq8-lime/20"
+                className="flex items-center gap-2 rounded-xl bg-ink-accent px-8 py-3.5 text-sm font-semibold text-ink-surface transition-all hover:bg-ink-accent/90 hover:shadow-lg hover:shadow-ink-accent/20"
               >
                 <Sparkles className="h-4 w-4" />
                 Activate my company
@@ -820,8 +820,8 @@ export default function OnboardingPage() {
         {phase === "activating" && (
           <div className="animate-fade-in flex flex-col items-center py-24 text-center">
             <div className="relative">
-              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-orq8-lime animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-orq8-lime" />
+              <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-ink-accent animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-ink-accent" />
             </div>
             <h2 className="mt-8 text-xl font-semibold text-white">Building your company</h2>
             <p className="mt-2 text-white/50">{progressLabel}</p>
@@ -834,9 +834,9 @@ export default function OnboardingPage() {
               ].map((step, i) => (
                 <div key={step} className="flex items-center gap-3 text-sm">
                   {i < 2 ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-orq8-lime" />
+                    <Loader2 className="h-4 w-4 animate-spin text-ink-accent" />
                   ) : (
-                    <Check className="h-4 w-4 text-orq8-lime/40" />
+                    <Check className="h-4 w-4 text-ink-accent/40" />
                   )}
                   <span className={i < 2 ? "text-white/80" : "text-white/40"}>{step}</span>
                 </div>
@@ -848,15 +848,15 @@ export default function OnboardingPage() {
         {/* ── DONE ── */}
         {phase === "done" && activation && (
           <div className="animate-fade-up flex flex-col items-center py-24 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orq8-lime/15">
-              <Check className="h-10 w-10 text-orq8-lime" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-ink-accent/15">
+              <Check className="h-10 w-10 text-ink-accent" />
             </div>
             <h1 className="mt-6 text-3xl font-semibold text-white">Your company is operational</h1>
             <p className="mt-3 max-w-md text-white/60">
               ORQ8 has built your AI workforce and is preparing your command center.
             </p>
             {notice && (
-              <div className="mt-5 max-w-md rounded-xl border border-orq8-lime/40 bg-orq8-lime/10 px-4 py-3 text-sm text-orq8-lime">
+              <div className="mt-5 max-w-md rounded-xl border border-ink-accent/40 bg-ink-accent/10 px-4 py-3 text-sm text-ink-accent">
                 {notice}
               </div>
             )}
@@ -866,14 +866,14 @@ export default function OnboardingPage() {
               <Stat label="Goals" value={activation.goals.length} />
               <Stat label="Tasks" value={activation.tasks.length} />
             </div>
-            <Loader2 className="mt-10 h-5 w-5 animate-spin text-orq8-lime" />
+            <Loader2 className="mt-10 h-5 w-5 animate-spin text-ink-accent" />
             <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
             {catalogDepts.length > 0 && (
               <div className="mt-8 w-full max-w-lg text-left">
                 {stayedForCatalog && (
                   <button
                     onClick={() => router.push("/app")}
-                    className="mb-3 rounded-lg bg-orq8-lime px-4 py-2 text-xs font-semibold text-ink transition-colors hover:bg-orq8-lime/90"
+                    className="mb-3 rounded-lg bg-ink-accent px-4 py-2 text-xs font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
                   >
                     Done adding departments — go to dashboard →
                   </button>
@@ -891,7 +891,7 @@ export default function OnboardingPage() {
                       <button
                         onClick={() => activateCatalogDept(t.id)}
                         disabled={activatingDeptId !== null}
-                        className="shrink-0 rounded-lg border border-orq8-lime/40 px-3 py-1.5 text-xs font-semibold text-orq8-lime transition-colors hover:bg-orq8-lime/10 disabled:opacity-50"
+                        className="shrink-0 rounded-lg border border-ink-accent/40 px-3 py-1.5 text-xs font-semibold text-ink-accent transition-colors hover:bg-ink-accent/10 disabled:opacity-50"
                       >
                         {activatingDeptId === t.id ? "Activating…" : "Activate"}
                       </button>
@@ -923,7 +923,7 @@ function Field({
   textarea?: boolean;
 }) {
   const cls =
-    "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime";
+    "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent";
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-white/80">{label}</label>
@@ -947,7 +947,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="mt-6 rounded-lg border border-red-700/50 bg-red-900/30 px-4 py-3 text-sm text-red-200">
+    <div className="mt-6 rounded-lg border border-border-error/50 bg-error-fill/30 px-4 py-3 text-sm text-error-ink">
       {message}
     </div>
   );

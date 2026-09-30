@@ -8,7 +8,7 @@
 
 | Source | What it is | Verdict |
 |---|---|---|
-| `Design MD files/aethel-command-your-cellular-timeline` | Dark command-style **auth/login** section (bg `#191C21`, lime accent `#A3E635`, mono labels) | **Adopt patterns** for the `/login` + `/register` refresh |
+| `Design MD files/aethel-command-your-cellular-timeline` | Dark command-style **auth/login** section (bg `#191C21`, lime accent `#A3E635`, mono labels) | **Adopt the composition and the mono labels; reject the lime.** The neon accent died in the v2 palette (`docs/65_COLOR_SYSTEM.md`) — the auth shell keeps the dark command layout with the dry emerald accent instead. |
 | `Design MD files/vertex-platform-2` | **Hero** on black with lime accent, big display type | **Adopt composition** ideas for the landing hero |
 | `Design MD files/connect-your-ecosystem` | **Feature/ecosystem** section (black + emerald/blue accents) | **Adopt structure** for the integrations bento |
 | `Design MD files/nexus-interface` | **Dashboard showcase** (warm dark `#2C1D11`, orange `#F97316`, bento, dither, WebGL) | **Adopt density + showcase layout** for the product mockup; skip WebGL/noise |
@@ -66,6 +66,8 @@ Every brief shares the same skeleton — that consistency is the signal worth ta
 ---
 
 ## 5. Decision record
+
+- **D6 (supersedes the color direction in D1–D3):** The dark green + orange identity is **retired as the dominant scheme**. `docs/65_COLOR_SYSTEM.md` is now the authoritative color spec: one token system, dark as the operational theme, the marketing site light, green kept only as a dry accent the Executive Agent owns, ochre reserved for Founder's Attention, brick for failure. Neon lime (`#B8FF66`), the stock amber `#f59e0b`, the money-green `#10b981` / `#37d80a` ramp, and Tailwind's `#ef4444` are all gone. The typography, grid, radius and motion decisions below remain in force.
 
 - **D1:** Adopt the shared token system (mono labels + 8/16/24/80 rhythm + lifted-surface dark sections) repo-wide.
 - **D2:** Refresh `/login` + `/register` in the aethel dark-command style as the next UI work item.

@@ -59,26 +59,29 @@ function computeScore(props: HealthScoreProps): ScoreResult {
   let color: string;
   let strokeColor: string;
 
+  // Health maps onto the status vocabulary: a healthy company is the brand,
+  // a company needing a founder is the warm accent, a company in trouble is
+  // the error tone. No fourth hue is invented for "pretty good".
   if (score >= 80) {
     label = "Thriving";
     description = "Your company is running smoothly. AI employees are productive and goals are on track.";
-    color = "text-orq8-green";
-    strokeColor = "#1a5c2e";
+    color = "text-brand-deep";
+    strokeColor = "var(--orq-brand-deep)";
   } else if (score >= 60) {
     label = "Healthy";
     description = "Good momentum. Some areas could use attention to reach full potential.";
-    color = "text-orq8-lime";
-    strokeColor = "#B8FF66";
+    color = "text-brand-deep";
+    strokeColor = "var(--orq-brand)";
   } else if (score >= 40) {
     label = "Needs Attention";
     description = "Several areas need founder input. Review pending approvals and stalled tasks.";
-    color = "text-orq8-orange";
-    strokeColor = "#c14f1f";
+    color = "text-text-warm";
+    strokeColor = "var(--orq-warm-deep)";
   } else {
     label = "At Risk";
     description = "Critical issues detected. Immediate action needed to get back on track.";
-    color = "text-red-500";
-    strokeColor = "#ef4444";
+    color = "text-text-error";
+    strokeColor = "var(--orq-error)";
   }
 
   // Determine status for each segment
@@ -103,10 +106,10 @@ function computeScore(props: HealthScoreProps): ScoreResult {
 
 function StatusDot({ status }: { status: "good" | "warning" | "critical" | "neutral" }) {
   const color =
-    status === "good" ? "bg-orq8-green" :
-    status === "warning" ? "bg-orq8-orange" :
-    status === "critical" ? "bg-red-500" :
-    "bg-gray-300";
+    status === "good" ? "bg-brand-deep" :
+    status === "warning" ? "bg-warm" :
+    status === "critical" ? "bg-error-fill" :
+    "bg-disabled-surface";
   return <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color}`} />;
 }
 
@@ -143,7 +146,7 @@ export function HealthScore(props: HealthScoreProps) {
               cy="44"
               r={radius}
               fill="none"
-              stroke="#f5f5f5"
+              stroke="var(--orq-border)"
               strokeWidth="7"
             />
             {/* Score ring */}
@@ -190,10 +193,10 @@ export function HealthScore(props: HealthScoreProps) {
               <div className="mt-1.5 h-1.5 rounded-full bg-hairline overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ease-out ${
-                    seg.status === "good" ? "bg-orq8-green" :
-                    seg.status === "warning" ? "bg-orq8-orange" :
-                    seg.status === "critical" ? "bg-red-400" :
-                    "bg-gray-200"
+                    seg.status === "good" ? "bg-brand-deep" :
+                    seg.status === "warning" ? "bg-warm" :
+                    seg.status === "critical" ? "bg-error" :
+                    "bg-disabled-surface"
                   }`}
                   style={{ width: `${seg.value}%` }}
                 />

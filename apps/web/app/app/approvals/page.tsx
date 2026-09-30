@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   Check,
@@ -15,9 +16,22 @@ import {
 } from "lucide-react";
 import { useRealtime } from "../../../hooks/use-realtime";
 
+// The work a decision moves (migration 0036). Resolved by the API so a card can
+// name what it blocks instead of showing the founder a sentence and asking them
+// to rule on it.
+interface GatedWork {
+  taskId: string | null;
+  taskTitle: string | null;
+  taskStatus: string | null;
+  toolId: string | null;
+  toolParams: unknown;
+}
+
 interface Approval {
   id: string;
   agentId: string | null;
+  /** The requesting agent's name, resolved by the API for the whole page. */
+  agentName?: string | null;
   action: string;
   description: string | null;
   cost: number;
@@ -26,6 +40,7 @@ interface Approval {
   decisionNote: string | null;
   decidedAt: string | null;
   createdAt: string;
+  gatedWork?: GatedWork | null;
 }
 
 function formatCost(cents: number): string {
@@ -46,17 +61,67 @@ function formatDate(iso: string): string {
 }
 
 function riskBadge(risk: string) {
-  if (risk === "high") return "bg-red-100 text-red-700";
-  if (risk === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-orq8-orange/10 text-orq8-orange";
+  if (risk === "high") return "bg-error-soft text-error-ink";
+  if (risk === "medium") return "bg-warm-soft text-warm-ink";
+  return "bg-warm/10 text-warm-ink";
 }
 
 function statusBadge(status: string) {
-  if (status === "approved") return "bg-orq8-green/10 text-orq8-green";
-  if (status === "rejected") return "bg-red-100 text-red-600";
-  if (status === "modified") return "bg-blue-50 text-blue-600";
+  if (status === "approved") return "bg-brand-deep/10 text-brand-ink";
+  if (status === "rejected") return "bg-error-soft text-error-ink";
+  if (status === "modified") return "bg-brand-soft text-brand-deep";
   if (status === "expired") return "bg-hairline text-muted";
-  return "bg-orq8-orange/10 text-orq8-orange";
+  return "bg-warm/10 text-warm-ink";
+}
+
+const PARAM_PREVIEW_LIMIT = 400;
+
+/**
+ * A tool argument, rendered as it will be sent.
+ *
+ * Approving "send the email" without seeing the recipient and the body is not
+ * approving anything specific — migration 0036 stores the exact call for this
+ * reason, so the card shows it rather than summarising it. Long values are cut
+ * at a readable limit with an ellipsis, not rewritten.
+ */
+function renderParamValue(value: unknown): string {
+  if (value === null) return "null";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function ToolCallDetails({ params }: { params: unknown }) {
+  const entries: Array<[string, unknown]> =
+    params && typeof params === "object" && !Array.isArray(params)
+      ? Object.entries(params as Record<string, unknown>)
+      : [["payload", params]];
+
+  return (
+    <div className="mt-2 rounded-lg border border-hairline bg-canvas p-3">
+      <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+        The exact call
+      </p>
+      <dl className="mt-1.5 space-y-1">
+        {entries.map(([key, value]) => {
+          const shown = renderParamValue(value);
+          return (
+            <div key={key} className="flex flex-wrap gap-x-2 text-xs">
+              <dt className="shrink-0 font-mono text-muted">{key}</dt>
+              <dd className="min-w-0 break-words text-ink">
+                {shown.length > PARAM_PREVIEW_LIMIT
+                  ? `${shown.slice(0, PARAM_PREVIEW_LIMIT)}…`
+                  : shown}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
 }
 
 export default function ApprovalsPage() {
@@ -137,11 +202,11 @@ export default function ApprovalsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Decision Center · {pending.length} pending
             {connected && (
-              <span className="ml-2 inline-flex items-center gap-1 text-orq8-green/70">
-                <span className="h-1 w-1 rounded-full bg-orq8-lime animate-pulse" />
+              <span className="ml-2 inline-flex items-center gap-1 text-brand-ink/70">
+                <span className="h-1 w-1 rounded-full bg-brand-soft animate-pulse" />
                 Live
               </span>
             )}
@@ -174,7 +239,7 @@ export default function ApprovalsPage() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               filter === f
-                ? "bg-orq8-dark text-white"
+                ? "ink text-white"
                 : "bg-white text-muted hover:bg-canvas hover:text-ink"
             }`}
           >
@@ -185,13 +250,13 @@ export default function ApprovalsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="ml-auto text-xs text-red-500 hover:text-red-700"
+            className="ml-auto text-xs text-error-ink hover:text-error-ink"
           >
             Dismiss
           </button>
@@ -238,12 +303,12 @@ export default function ApprovalsPage() {
               {pending.map((a) => (
                 <article
                   key={a.id}
-                  className="rounded-xl border border-amber-200 bg-white p-5"
+                  className="rounded-xl border border-warm bg-white p-5"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50">
-                        <Clock className="h-5 w-5 text-amber-600" />
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warm-soft">
+                        <Clock className="h-5 w-5 text-warm-ink" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -258,12 +323,42 @@ export default function ApprovalsPage() {
                           <p className="mt-1 text-sm text-muted leading-relaxed">{a.description}</p>
                         )}
 
+                        {/* What this decision moves. Absent on older rows that
+                            predate migration 0036, so it is not faked. */}
+                        {a.gatedWork && (a.gatedWork.taskTitle || a.gatedWork.toolId) && (
+                          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-3xs font-semibold uppercase tracking-wide text-muted">
+                            <span>Blocks</span>
+                            {a.gatedWork.taskId && (
+                              <Link
+                                href={`/app/tasks/${a.gatedWork.taskId}`}
+                                className="normal-case text-brand-ink hover:underline"
+                              >
+                                {a.gatedWork.taskTitle ??
+                                  `task ${a.gatedWork.taskId.slice(0, 8)}`}
+                              </Link>
+                            )}
+                            {a.gatedWork.toolId && (
+                              <span className="normal-case text-ink">
+                                tool {a.gatedWork.toolId}
+                              </span>
+                            )}
+                            {a.gatedWork.taskStatus && (
+                              <span>{a.gatedWork.taskStatus.replace(/_/g, " ")}</span>
+                            )}
+                          </p>
+                        )}
+
+                        {/* The tool call itself, argument by argument. */}
+                        {a.gatedWork?.toolId && a.gatedWork.toolParams != null && (
+                          <ToolCallDetails params={a.gatedWork.toolParams} />
+                        )}
+
                         {/* Context grid — agent, cost, time, urgency */}
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                           <div className="rounded-lg bg-canvas px-3 py-2">
                             <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Requested by</p>
                             <p className="mt-0.5 text-xs font-medium text-ink">
-                              {a.agentId ? `Agent #${a.agentId.slice(0, 8)}` : 'System'}
+                              {a.agentName ?? (a.agentId ? `Agent #${a.agentId.slice(0, 8)}` : 'System')}
                             </p>
                           </div>
                           <div className="rounded-lg bg-canvas px-3 py-2">
@@ -292,7 +387,7 @@ export default function ApprovalsPage() {
                         type="button"
                         onClick={() => handleDecision(a.id, "approved")}
                         disabled={processingId === a.id}
-                        className="flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
                       >
                         {processingId === a.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -305,7 +400,7 @@ export default function ApprovalsPage() {
                         type="button"
                         onClick={() => handleDecision(a.id, "rejected")}
                         disabled={processingId === a.id}
-                        className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg border border-border-error px-3 py-2 text-xs font-semibold text-error-ink transition-colors hover:bg-error-soft disabled:opacity-50"
                       >
                         {processingId === a.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />

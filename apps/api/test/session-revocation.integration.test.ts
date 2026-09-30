@@ -4,7 +4,13 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createSession, findSessionByToken, revokeSession, invalidateUserSessions } from '../src/services/sessions.js';
+import {
+  createSession,
+  findSessionByToken,
+  revokeSession,
+  invalidateUserSessions,
+  SESSION_CACHE_PREFIX,
+} from '../src/services/sessions.js';
 import type { AppDeps } from '../src/types.js';
 
 /**
@@ -19,7 +25,7 @@ import type { AppDeps } from '../src/types.js';
  * DB-gated: skipped when no local Postgres is reachable.
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -78,6 +84,8 @@ async function seedUser(): Promise<{ userId: string; orgId: string }> {
     id: userId,
     email: `revoke-${randomUUID()}@orq8.test`,
     passwordHash: 'x',
+    // A confirmed account: requireAuth refuses unverified users (403).
+    emailVerifiedAt: new Date(),
   });
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });
   userIds.push(userId);
@@ -123,7 +131,7 @@ run('session revocation contract (P0 regression)', () => {
     expect(row?.revokedAt != null).toBe(true); // row exists AND revocation is stamped
 
     // …and the token no longer authenticates: cache evicted, DB says revoked.
-    expect(redis.__store.get('session:v3:' + (await import('@orq8/auth')).hashSessionToken(token))).toBeUndefined();
+    expect(redis.__store.get(SESSION_CACHE_PREFIX + (await import('@orq8/auth')).hashSessionToken(token))).toBeUndefined();
     expect(authWouldReject(await findSessionByToken(deps.db, token, redis as any))).toBe(true);
   });
 
@@ -140,7 +148,7 @@ run('session revocation contract (P0 regression)', () => {
     // …then simulate the OLD bug: revoke the DB row WITHOUT evicting cache.
     const { hashSessionToken } = await import('@orq8/auth');
     const tokenHash = hashSessionToken(token);
-    const key = 'session:v3:' + tokenHash;
+    const key = SESSION_CACHE_PREFIX + tokenHash;
     expect(redis.__store.get(key)).toBeTruthy();
 
     await deps.db

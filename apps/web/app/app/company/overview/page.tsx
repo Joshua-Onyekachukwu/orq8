@@ -142,7 +142,7 @@ export default async function CompanyHubPage() {
   const showFirstRun = !hasStructure && stage !== "active";
 
   const primaryActionClass =
-    "inline-flex items-center justify-center rounded-lg bg-orq8-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-green";
+    "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep";
   const secondaryActionClass =
     "inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-canvas";
 
@@ -197,8 +197,8 @@ export default async function CompanyHubPage() {
       </header>
 
       {showFirstRun ? (
-        <section className="rounded-2xl border border-orq8-green/20 bg-orq8-dark p-6 text-white">
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-lime">
+        <section className="rounded-2xl border border-brand-deep/20 ink p-6 text-white">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
             {stage === "new" ? "First run" : "In progress"}
           </p>
           <h2 className="mt-2 text-lg font-semibold tracking-tight">
@@ -212,7 +212,7 @@ export default async function CompanyHubPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/onboarding"
-              className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-lime"
+              className="inline-flex items-center justify-center rounded-lg bg-ink-accent px-4 py-2 text-sm font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
             >
               {stage === "new" ? "Start onboarding" : "Continue onboarding"}
             </Link>
@@ -229,7 +229,7 @@ export default async function CompanyHubPage() {
       {attentionCount > 0 ? (
         <Link
           href="/app/attention"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orq8-orange/30 bg-orq8-orange/[0.04] px-4 py-3"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warm/30 bg-warm/[0.04] px-4 py-3"
         >
           <p className="text-2sm text-ink">
             <span className="font-semibold">{attentionCount}</span> item
@@ -237,7 +237,7 @@ export default async function CompanyHubPage() {
             {criticalCount > 0 ? ` · ${criticalCount} critical` : ""}
             {attentionItems[0] ? ` · ${attentionItems[0].what}` : ""}
           </p>
-          <span className="text-2xs font-semibold text-orq8-orange">Open queue</span>
+          <span className="text-2xs font-semibold text-warm-ink">Open queue</span>
         </Link>
       ) : null}
 

@@ -30,7 +30,7 @@ import type { AppDeps } from '../src/types.js';
  * that request, not for the PR: the team addresses the feedback and re-requests.
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -73,7 +73,7 @@ beforeAll(async () => {
   orgId = orgRow!.id;
   const [userRow] = await deps.db
     .insert(users)
-    .values({ email: `pr-reject-${randomUUID()}@example.com`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `pr-reject-${randomUUID()}@example.com`, name: 'Founder', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userId = userRow!.id;
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });

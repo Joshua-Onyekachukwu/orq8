@@ -4,7 +4,7 @@ import { useState } from "react";
 import { SettingsShell } from "../../../components/settings-shell";
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-orq8-green";
+  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-deep";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
@@ -111,19 +111,19 @@ export default function ChangePasswordPage() {
         </div>
 
         {error && (
-          <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
+          <p className="mt-4 text-sm font-medium text-error-ink">{error}</p>
         )}
 
         <div className="mt-8 flex items-center gap-4 border-t border-hairline pt-6">
           <button
             type="submit"
             disabled={loading}
-            className="rounded-full bg-orq8-dark px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-lime hover:text-white disabled:opacity-50"
+            className="rounded-full ink px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-accent hover:text-ink-surface disabled:opacity-50"
           >
             {loading ? "Updating..." : "Update password"}
           </button>
           {saved && (
-            <span role="status" className="text-sm font-medium text-orq8-green">
+            <span role="status" className="text-sm font-medium text-brand-ink">
               Password updated
             </span>
           )}

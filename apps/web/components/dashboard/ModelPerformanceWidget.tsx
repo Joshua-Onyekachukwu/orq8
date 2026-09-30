@@ -82,12 +82,12 @@ export function ModelPerformanceWidget() {
     <section className="rounded-xl border border-hairline bg-white p-5">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <Cpu className="h-4 w-4 text-orq8-green" />
+          <Cpu className="h-4 w-4 text-brand-ink" />
           Model performance
         </h3>
         <Link
           href="/app/learning"
-          className="inline-flex items-center gap-1 text-xs text-orq8-green hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-brand-ink hover:underline"
         >
           Learning <ArrowRight className="h-3 w-3" />
         </Link>
@@ -115,7 +115,7 @@ export function ModelPerformanceWidget() {
                 <div className="w-28 shrink-0">
                   <div className="h-1.5 overflow-hidden rounded-full bg-canvas">
                     <div
-                      className="h-full rounded-full bg-orq8-green"
+                      className="h-full rounded-full bg-brand-deep"
                       style={{ width: `${Math.min(100, Math.round(m.successRate * 100))}%` }}
                     />
                   </div>

@@ -14,7 +14,7 @@ type AuthMode = "login" | "register";
 // Dark surface: hairline borders, one accent (orange) for focus and action,
 // spacing on the 4/8/12/16/24/32 scale, two font weights (normal + semibold).
 const fieldClass =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#E86A33] focus:ring-2 focus:ring-[#E86A33]/25 disabled:opacity-50";
+  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[color:var(--orq-ink-accent)] focus:ring-2 focus:ring-[color:var(--orq-ink-accent)]/25 disabled:opacity-50";
 const labelClass = "mb-1.5 block text-sm text-white/70";
 
 /**
@@ -113,10 +113,10 @@ function PasswordField({
   // On the dark surface: red and amber read as-is; the two green steps stay in
   // the brand hue without the lime that would break the palette rules.
   const meterColors: Record<StrengthLabel, string> = {
-    weak: "bg-red-400",
-    fair: "bg-amber-400",
-    good: "bg-[#5f9f75]",
-    strong: "bg-[#7fbf8f]",
+    weak: "bg-error",
+    fair: "bg-warm",
+    good: "bg-[color:var(--orq-brand)]",
+    strong: "bg-[color:var(--orq-ink-accent)]",
   };
 
   return (
@@ -317,16 +317,16 @@ export function AuthForm({
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3"
+          className="mb-4 rounded-lg border border-warm/30 bg-warm/10 px-4 py-3"
         >
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warm-ink" />
             <div className="flex-1">
-              <p className="text-sm text-amber-200">
+              <p className="text-sm text-warm-ink">
                 {mode === "login" ? "Too many sign-in attempts" : "Too many attempts"}
               </p>
-              <p className="mt-1 text-xs text-amber-200/80">{lockout.message}</p>
-              <p className="mt-2 font-mono text-lg text-amber-200 tabular-nums">
+              <p className="mt-1 text-xs text-warm-ink/80">{lockout.message}</p>
+              <p className="mt-2 font-mono text-lg text-warm-ink tabular-nums">
                 {Math.floor(lockout.secondsLeft / 60)}:
                 {String(lockout.secondsLeft % 60).padStart(2, "0")}
               </p>
@@ -338,7 +338,7 @@ export function AuthForm({
       {oauthNotice && !lockout && (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-200"
+          className="mb-4 rounded-lg border border-warm/30 bg-warm/10 px-3 py-2.5 text-sm text-warm-ink"
         >
           {oauthNotice}
         </div>
@@ -369,7 +369,7 @@ export function AuthForm({
           ref={errorRef}
           tabIndex={-1}
           role="alert"
-          className="mb-4 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2.5 text-sm text-red-200"
+          className="mb-4 rounded-lg border border-border-error/30 bg-error/10 px-3 py-2.5 text-sm text-error-ink"
         >
           {error}
         </div>
@@ -452,7 +452,7 @@ export function AuthForm({
               onToggle={() => setShowConfirm((v) => !v)}
             />
             {confirmError && (
-              <p role="alert" className="text-sm text-red-200">
+              <p role="alert" className="text-sm text-error-ink">
                 {confirmError}
               </p>
             )}
@@ -477,7 +477,7 @@ export function AuthForm({
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
               disabled={pending}
-              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.03] accent-[#E86A33]"
+              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.03] accent-[color:var(--orq-ink-accent)]"
             />
             <span>
               I accept the{" "}
@@ -504,7 +504,7 @@ export function AuthForm({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-orq8-orange-bright text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-orange-bright disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand-deep text-sm font-semibold text-white transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? (
             <>

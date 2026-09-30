@@ -4,7 +4,15 @@
 /*
  ---break---
  */
-@custom-variant dark (&:is(.dark *));
+/*
+ * `dark:` means "inside a deliberate dark section". The product is light-first,
+ * so the variant is off by default and switches on inside `.ink` — the
+ * structural black bands the brand is allowed (footer, major CTA, product
+ * statements, the Company Hub canvas). This replaces the old `.dark` class,
+ * which was dead config: nothing ever applied it, so every `dark:` style in
+ * the codebase was inert.
+ */
+@custom-variant dark (&:where(.ink, .ink *));
 
 /*
  * ORQ8 Design System — Premium, Intentional, Distinctive
@@ -20,128 +28,8 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
     Consolas, "Liberation Mono", monospace;
 
-  /* ORQ8 Brand — Dark Green, Lime, Orange */
-  --color-navy-950: #0a0a0b;     /* Deepest — hero, footers */
-  --color-navy-900: #0d1a12;     /* Primary dark surface */
-  --color-navy-800: #1a5c2e;     /* Elevated dark surface */
-  --color-navy-700: #2d7a42;     /* Borders, subtle elements */
-  --color-navy-600: #4a9d62;     /* Muted text on dark */
-
-  /* Lime Green — ORQ8 identity */
-  --color-lime: #B8FF66;         /* Primary accent */
-  --color-lime-light: #c8ff8a;   /* Hover states */
-  --color-lime-dark: #a3e855;    /* Press states */
-  --color-lime-muted: #B8FF6615; /* Subtle backgrounds */
-
-  /* Emerald — remapped to dark green for dashboard compat */
-  --color-emerald: #1a5c2e;      /* Primary accent */
-  --color-emerald-light: #2d7a42; /* Hover states */
-  --color-emerald-dark: #157a3a; /* Press states */
-  --color-emerald-muted: #1a5c2e15; /* Subtle backgrounds */
-
-  /* Orange — action, attention, approvals */
-  --color-orange: #c14f1f;
-
-
-  /* Primary — ORQ8 green scale (remapped from navy for compatibility) */
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-200: #bbf7d0;
-  --color-primary-300: #86efac;
-  --color-primary-400: #4ade80;
-  --color-primary-500: #1a5c2e;
-  --color-primary-600: #1a5c2e;
-  --color-primary-700: #157a3a;
-  --color-primary-800: #0d1a12;
-  --color-primary-900: #0a0a0b;
-  /* Warm accent — Amber for warnings, highlights */
-
-  /* Dark/Gray — Trezo Finance compatibility */
-  --color-dark: #000000;
-  --color-gray-50: #f6f7f9;
-  --color-gray-100: #eceef2;
-  --color-gray-200: #d5d9e2;
-  --color-gray-300: #b1bbc8;
-  --color-gray-400: #8695aa;
-  --color-gray-500: #64748b;
-  --color-gray-600: #526077;
-  --color-gray-700: #434e61;
-  --color-gray-800: #3a4252;
-  --color-gray-900: #23272e;
-  --color-amber: #f59e0b;
-  --color-amber-light: #fbbf24;
-
-  /* Neutrals — ORQ8 palette */
-  --color-ink: #0a0a0b;          /* Primary text — black */
-  --color-ink-muted: #525252;    /* Secondary text */
-  --color-ink-faint: #a3a3a3;    /* Tertiary text */
-  --color-canvas: #fafafa;       /* Light background */
-  --color-surface: #ffffff;      /* Card backgrounds */
-  --color-hairline: #e5e5e5;     /* Borders */
-  --color-hairline-light: #f5f5f5; /* Subtle borders */
-
-  /* Status colors — Semantic, purposeful */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
-
-  /* Status and accent color scales for the dashboard components */
-  /* Secondary — ORQ8 dark green scale */
-  --color-secondary-50: #f0fdf4;
-  --color-secondary-100: #dcfce7;
-  --color-secondary-200: #bbf7d0;
-  --color-secondary-300: #86efac;
-  --color-secondary-400: #4ade80;
-  --color-secondary-500: #1a5c2e;
-  --color-secondary-600: #157a3a;
-  --color-secondary-700: #0d1a12;
-  --color-secondary-800: #0a0a0b;
-  --color-secondary-900: #0a0a0b;
-  --color-success-50: #eeffe5;
-  --color-success-100: #d8ffc8;
-  --color-success-200: #b2ff97;
-  --color-success-300: #82fc5a;
-  --color-success-400: #58f229;
-  --color-success-500: #37d80a;
-  --color-success-600: #25b003;
-  --color-success-700: #1e8308;
-  --color-success-800: #1d670d;
-  --color-success-900: #1a5710;
-  --color-warning-50: #fff8e1;
-  --color-warning-100: #ffecb3;
-  --color-warning-200: #ffe082;
-  --color-warning-300: #ffd54f;
-  --color-warning-400: #ffca28;
-  --color-warning-500: #ffc107;
-  --color-warning-600: #ffb300;
-  --color-warning-700: #ffa000;
-  --color-warning-800: #ff8f00;
-  --color-warning-900: #ff6f00;
-  --color-danger-50: #fff2f0;
-  --color-danger-100: #ffe1dd;
-  --color-danger-200: #ffc8c0;
-  --color-danger-300: #ffa294;
-  --color-danger-400: #ff6d57;
-  --color-danger-500: #ff4023;
-  --color-danger-600: #ec1f00;
-  --color-danger-700: #d71c00;
-  --color-danger-800: #b11a03;
-  --color-danger-900: #921c0a;
-  --color-orange-50: #fff5ed;
-  --color-orange-100: #ffe8d4;
-  --color-orange-200: #ffcea9;
-  --color-orange-300: #ffaa72;
-  --color-orange-400: #fe7a36;
-  --color-orange-500: #fd5812;
-  --color-orange-600: #ee3e08;
-  --color-orange-700: #c52b09;
-  --color-orange-800: #9c2410;
-  --color-orange-900: #7e2010;
-  --shadow-3xl: rgba(149, 157, 165, 0.2) 0px 8px 24px;
-
-  /* orq8-card spacing helper used by the dashboard cards */
-  --spacing-card: 1.5625rem;
+  /* Color lives in the @theme inline block below. It is inline on purpose —
+     see the note there. Nothing but typography belongs in this block. */
 }
 
 html {
@@ -154,7 +42,7 @@ html {
 }
 
 body {
-  @apply bg-white font-sans text-ink antialiased;
+  @apply bg-background font-sans text-foreground antialiased;
 }
 
 /* ---- premium landing motion (calm executive — restrained, never flashy) ---- */
@@ -241,12 +129,14 @@ body {
  * radial mesh over the navy base — calm, never saturated. Used in the hero and
  * final CTA. `--mesh-accent` lets sections shift hue (amber CTA vs emerald hero).
  */
+/* The ink band's texture. Brand teal tint at low opacity over structural
+ * black — no emerald glow, no violet cast. */
 .bg-mesh {
-  background-color: var(--color-navy-950);
+  background-color: var(--orq-ink);
   background-image:
-    radial-gradient(42rem 30rem at 12% -8%, rgb(38 56 102 / 0.85), transparent 62%),
-    radial-gradient(38rem 26rem at 88% -12%, var(--mesh-accent, rgb(52 211 153 / 0.28)), transparent 60%),
-    radial-gradient(46rem 34rem at 50% 118%, rgb(38 56 102 / 0.9), transparent 65%);
+    radial-gradient(42rem 30rem at 12% -8%, rgb(53 98 103 / 0.55), transparent 62%),
+    radial-gradient(38rem 26rem at 88% -12%, var(--mesh-accent, rgb(194 242 242 / 0.16)), transparent 60%),
+    radial-gradient(46rem 34rem at 50% 118%, rgb(53 98 103 / 0.6), transparent 65%);
 }
 
 /* hero eyebrow + section labels: mono, tracked (design direction §2) */
@@ -259,16 +149,9 @@ body {
  * Governed by the landing concept doc: calm, executive, one warm accent.
  * Additive: the navy/pricing tokens above remain untouched.
  * ===================================================================== */
-@theme {
-  --color-void: #0a0a0f;
-  --color-abyss: #0e0e15;
-  --color-panel: #14141d;
-  --color-parchment: #f2efe9;
-  --color-fog: #97929e;
-  /* warm accent — reserved for dark-theme CTA and the pricing accents */
-  --color-amber: #f59e0b;
-  --color-ember: #d97706;
-}
+/* The landing's editorial palette (void/abyss/panel/parchment/fog/ember)
+ * used to be declared here in a second @theme block. Those names now alias
+ * onto the semantic tokens in the single block above — one system, not two. */
 
 /* Editorial display face (Fraunces via next/font; Georgia as the shipped fallback).
    Used deliberately — headlines and emphasis only, never body copy. */
@@ -371,6 +254,168 @@ body {
 /*
  ---break---
  */
+/*
+ * ---------------------------------------------------------------------
+ * THE ALIAS LAYER — inline on purpose.
+ *
+ * With `@theme inline` Tailwind substitutes the value into the utility:
+ * `.bg-surface-white { background-color: var(--orq-surface-white) }` rather
+ * than `var(--color-surface-white)`. That distinction matters. A non-inline
+ * alias computes once at `:root` and the resolved value inherits down, so a
+ * descendant scope such as `.ink` could never re-point it — the band failed
+ * to invert anything. Inline keeps resolution per element, which is what lets
+ * the ink band invert the entire system without a single `dark:` call site.
+ *
+ * Every name here resolves onto a semantic token in `:root`.
+ * ---------------------------------------------------------------------
+ */
+@theme inline {
+  /* Brand */
+  --color-brand-deep: var(--orq-brand-deep);
+  --color-brand: var(--orq-brand);
+  --color-brand-primary: var(--orq-brand);
+  --color-brand-hover: var(--orq-brand-hover);
+  --color-brand-soft: var(--orq-brand-soft);
+  --color-brand-tint: var(--orq-brand-tint);
+  --color-on-brand: var(--orq-on-brand);
+
+  /* Surfaces */
+  --color-canvas: var(--orq-surface-page);
+  --color-surface: var(--orq-surface-page);
+  --color-surface-page: var(--orq-surface-page);
+  /* Marketing page environment. The product interface keeps the white
+     `surface-page`; the marketing site sits on the pale mint page the marketing
+     palette asks for, with white reserved for the cards on top of it. Same
+     value as `brand-tint` (`#EFFEFB`), named for the role so the two do not
+     get confused. See docs/65_COLOR_SYSTEM.md. */
+  --color-surface-marketing: var(--orq-brand-tint);
+  --color-surface-secondary: var(--orq-surface-secondary);
+  --color-surface-tint: var(--orq-surface-tint);
+  --color-surface-white: var(--orq-surface-white);
+  --color-elevated: var(--orq-surface-white);
+  --color-ink-surface: var(--orq-ink);
+  --color-overlay: var(--orq-overlay);
+
+  /* Text */
+  --color-ink: var(--orq-text-primary);
+  --color-ink-muted: var(--orq-text-secondary);
+  --color-ink-faint: var(--orq-text-tertiary);
+  --color-text-primary: var(--orq-text-primary);
+  --color-text-secondary: var(--orq-text-secondary);
+  --color-text-tertiary: var(--orq-text-tertiary);
+  --color-text-inverse: var(--orq-text-inverse);
+  --color-text-brand: var(--orq-text-brand);
+  --color-text-error: var(--orq-text-error);
+  --color-text-warm: var(--orq-text-warm);
+  /* Friendly aliases for the two derived text tones. `text-text-warm` is not a
+     name anyone should have to write. Both invert inside an ink band, so one
+     name is correct in either scope. */
+  --color-warm-ink: var(--orq-text-warm);
+  --color-brand-ink: var(--orq-text-brand);
+  --color-error-ink: var(--orq-text-error);
+
+  /* Status marks */
+  --color-mark-active: var(--orq-mark-active);
+  --color-mark-warm: var(--orq-mark-warm);
+
+  /* Borders */
+  --color-hairline: var(--orq-border);
+  --color-hairline-light: var(--orq-border-soft);
+  --color-hairline-strong: var(--orq-border-strong);
+  --color-border-strong: var(--orq-border-strong);
+  --color-border-selected: var(--orq-border-selected);
+  --color-border-error: var(--orq-border-error);
+
+  /* Interactive */
+  --color-focus-ring: var(--orq-focus-ring);
+  --color-disabled-surface: var(--orq-disabled-surface);
+  --color-disabled-text: var(--orq-disabled-text);
+
+  /* The warm accent: a human moment, never a second brand color. */
+  --color-warm: var(--orq-warm);
+  --color-warm-deep: var(--orq-warm-deep);
+
+  /* Marketing accents (landing only): the small vivid touches. */
+  --color-accent-lime: var(--orq-accent-lime);
+  --color-accent-orange: var(--orq-accent-orange);
+
+  /* Marks: the small eyebrow tick, a step rule, the state of a control. */
+  --color-mark-brand: var(--orq-mark-brand);
+  --color-warm-soft: var(--orq-warm-soft);
+  --color-on-warm: var(--orq-on-warm);
+
+  /* Error. Semantic only. */
+  --color-error: var(--orq-error);
+  --color-error-fill: var(--orq-error-fill);
+  --color-error-soft: var(--orq-error-soft);
+  --color-on-error: var(--orq-on-error);
+
+  /* Status: a background/text pair per state. */
+  --color-status-active-bg: var(--orq-status-active-bg);
+  --color-status-active-text: var(--orq-status-active-text);
+  --color-status-working-bg: var(--orq-status-working-bg);
+  --color-status-working-text: var(--orq-status-working-text);
+  --color-status-waiting-bg: var(--orq-status-waiting-bg);
+  --color-status-waiting-text: var(--orq-status-waiting-text);
+  --color-status-blocked-bg: var(--orq-status-blocked-bg);
+  --color-status-blocked-text: var(--orq-status-blocked-text);
+  --color-status-review-bg: var(--orq-status-review-bg);
+  --color-status-review-text: var(--orq-status-review-text);
+  --color-status-done-bg: var(--orq-status-done-bg);
+  --color-status-done-text: var(--orq-status-done-text);
+  --color-status-paused-bg: var(--orq-status-paused-bg);
+  --color-status-paused-text: var(--orq-status-paused-text);
+  --color-status-offline-bg: var(--orq-status-offline-bg);
+  --color-status-offline-text: var(--orq-status-offline-text);
+
+  /* Authority */
+  --color-authority-can-bg: var(--orq-authority-can-bg);
+  --color-authority-can-text: var(--orq-authority-can-text);
+  --color-authority-spend-bg: var(--orq-authority-spend-bg);
+  --color-authority-spend-text: var(--orq-authority-spend-text);
+  --color-authority-approval-bg: var(--orq-authority-approval-bg);
+  --color-authority-approval-text: var(--orq-authority-approval-text);
+  --color-authority-cannot-bg: var(--orq-authority-cannot-bg);
+  --color-authority-cannot-text: var(--orq-authority-cannot-text);
+
+  /* Agent modes */
+  --color-mode-manual-bg: var(--orq-mode-manual-bg);
+  --color-mode-manual-text: var(--orq-mode-manual-text);
+  --color-mode-manual-border: var(--orq-mode-manual-border);
+  --color-mode-assisted-bg: var(--orq-mode-assisted-bg);
+  --color-mode-assisted-text: var(--orq-mode-assisted-text);
+  --color-mode-autonomous-bg: var(--orq-mode-autonomous-bg);
+  --color-mode-autonomous-text: var(--orq-mode-autonomous-text);
+
+  /* Charts */
+  --color-chart-ramp-1: var(--orq-chart-ramp-1);
+  --color-chart-ramp-2: var(--orq-chart-ramp-2);
+  --color-chart-ramp-3: var(--orq-chart-ramp-3);
+  --color-chart-ramp-4: var(--orq-chart-ramp-4);
+  --color-chart-band-3: var(--orq-chart-band-3);
+  --color-chart-band-4: var(--orq-chart-band-4);
+
+  /* The ink band */
+  --color-ink-deep: var(--orq-ink);
+  --color-on-ink: var(--orq-on-ink);
+  --color-on-ink-muted: var(--orq-on-ink-muted);
+  --color-ink-accent: var(--orq-ink-accent);
+
+  /* ------------------------------------------------------------------
+   * THE COMPATIBILITY BRIDGE IS CLOSED.
+   *
+   * gray-*, slate-*, zinc-*, neutral-*, stone-*, emerald-*, amber-*, yellow-*,
+   * orange-*, green-*, lime-*, red-*, rose-*, navy-*, the landing's editorial
+   * set (void, abyss, panel, parchment, fog, ember) and the orq8-* brand
+   * utilities all used to resolve onto semantic tokens here, so that the
+   * surfaces could be migrated one at a time without rendering off-palette.
+   *
+   * Every call site now reads a token from the layer above. Deleting the bridge
+   * is deliberate: a stray bg-gray-100 must fail visibly, not quietly pick a
+   * colour someone else chose for it. If you need a colour, name its meaning.
+   * ------------------------------------------------------------------ */
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
@@ -418,82 +463,272 @@ body {
  */
 :root {
   color-scheme: light;
-  /* ORQ8 light semantic layer — brand tokens → semantic tokens (docs/00 §5.7).
-     Navy command-center surfaces, amber reserved for accent/charts. */
-  --background: oklch(1 0 0);
-  --foreground: var(--color-navy-900);
-  --card: oklch(1 0 0);
-  --card-foreground: var(--color-navy-900);
-  --popover: oklch(1 0 0);
-  --popover-foreground: var(--color-navy-900);
-  --primary: var(--color-navy-800);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: var(--color-canvas);
-  --secondary-foreground: var(--color-navy-900);
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --accent: color-mix(in oklab, var(--color-amber) 12%, transparent);
-  --accent-foreground: var(--color-navy-800);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: var(--color-hairline);
-  --input: var(--color-hairline);
-  --ring: var(--color-navy-700);
-  --chart-1: var(--color-amber);
-  --chart-2: var(--color-navy-700);
-  --chart-3: #34d399;
-  --chart-4: #38bdf8;
-  --chart-5: var(--color-muted);
+
+  /* ---------------------------------------------------------------
+   * THE SEMANTIC TOKENS. Everything else in this file aliases these.
+   *
+   * The product is light-first. `.ink` below is the deliberate dark
+   * section: the footer, a major CTA, a product statement, the hub canvas.
+   * --------------------------------------------------------------- */
+
+  /* Brand */
+  --orq-brand-deep: #356267;      /* primary structural colour; carries the brand weight */
+  --orq-brand: #41737C;           /* supporting: hover, secondary actions, secondary controls */
+  --orq-brand-hover: #2B5054;     /* pressed state for brand-deep */
+  --orq-brand-soft: #C2F2F2;      /* selected, contextual and informational surfaces */
+  --orq-brand-tint: #EFFEFB;      /* the page environment */
+  --orq-on-brand: #FFFFFF;
+
+  /* Surfaces.
+     The page is white. A tinted page reads as a coloured product, and the
+     interface is supposed to be a clean white room with the brand in it, not a
+     room painted brand-colour. The tint still exists as a token, for the small
+     contextual surfaces that genuinely want it. */
+  --orq-surface-page: #FFFFFF;
+  --orq-surface-white: #FFFFFF;   /* cards: white, separated by hairline and shadow */
+  --orq-surface-secondary: color-mix(in srgb, #356267 4%, #FFFFFF); /* a neutral wash, not a teal block */
+  --orq-surface-tint: #EFFEFB;    /* the palest brand tint, small surfaces only */
+  --orq-ink: #000000;             /* structural black */
+  --orq-overlay: color-mix(in srgb, #000000 48%, transparent);
+
+  /* Text */
+  --orq-text-primary: #000000;
+  --orq-text-secondary: #356267;  /* brand as body-secondary text; 6.5:1 on the page */
+  --orq-text-tertiary: #487279;   /* derived from the brand hue; clears AA on white and on the wash */
+  --orq-text-inverse: #FFFFFF;
+  --orq-text-brand: #356267;
+  --orq-text-error: #A83B3E;      /* #D55053 only reaches 4.0:1 as text; this derived tone passes */
+  --orq-text-warm: #7A4F1E;       /* #F1C095 cannot be text at all; this derived tone passes */  /* Borders. Derived from the brand hue rather than an arbitrary gray, and
+     mixed toward white now that the page is white. */
+
+  --orq-border: color-mix(in srgb, #356267 18%, #FFFFFF);
+  --orq-border-soft: color-mix(in srgb, #356267 9%, #FFFFFF);
+  --orq-border-strong: #356267;
+  --orq-border-selected: #41737C;
+  --orq-border-error: #D55053;
+
+  /* Interactive */
+  --orq-focus-ring: #41737C;      /* 5.1:1 on the page, 5.3:1 on white */
+  --orq-disabled-surface: color-mix(in srgb, #356267 7%, #FFFFFF);
+  /* Disabled stays legible: a control is de-emphasised by its surface and by
+     the reduced-opacity treatment on the whole element, never by pushing its
+     label below AA. #4E7A80 only reached 4.15:1 on this fill. */
+  --orq-disabled-text: #47696F;
+
+  /* The warm accent. Deliberately rare. */
+  --orq-warm: #F1C095;
+  --orq-warm-deep: #E0A878;
+  --orq-warm-soft: color-mix(in srgb, #F1C095 34%, #FFFFFF);
+  --orq-on-warm: #000000;
+
+  /* Marketing accents. The marketing site keeps the two vivid touches the
+     founder asked for by name, as small marks only — a tick on an eyebrow, a
+     step rule, an active control. Never a fill carrying body copy, never a
+     second brand colour. The product surfaces use the brand pair above. */
+  --orq-accent-lime: #B8FF66;
+  --orq-accent-orange: #E86A33;
+
+  /* Marks. There is no third accent any more: the neon lime and the burnt
+     orange were retired, so a small mark is brand structure on a light surface
+     and the pale tone inside a band. See docs/65_COLOR_SYSTEM.md. */
+  --orq-mark-brand: #356267;
+
+  /* Error. Never an accent, never decoration. */
+  --orq-error: #D55053;           /* borders, icons, accents */
+  --orq-error-fill: #C4434A;      /* a fill carrying a white label clears AA at this tone */
+  --orq-error-soft: color-mix(in srgb, #D55053 10%, #FFFFFF);
+  --orq-on-error: #FFFFFF;
+
+  /* Status. One pair per state. */
+  --orq-status-active-bg: #C2F2F2;
+  --orq-status-active-text: #356267;
+  --orq-status-working-bg: #EFFEFB;
+  --orq-status-working-text: #41737C;
+  --orq-status-waiting-bg: #F1C095;
+  --orq-status-waiting-text: #000000;
+  --orq-status-blocked-bg: var(--orq-error-fill);
+  --orq-status-blocked-text: #FFFFFF;
+  --orq-status-review-bg: #C2F2F2;
+  --orq-status-review-text: #356267;
+  --orq-status-done-bg: #EFFEFB;
+  --orq-status-done-text: #356267;
+  --orq-status-paused-bg: #C2F2F2;
+  --orq-status-paused-text: #356267;
+  --orq-status-offline-bg: #000000;
+  --orq-status-offline-text: #FFFFFF;
+
+  /* Status marks: the small live indicator dot beside a label, and the fill of
+     a progress bar. A status *chip* is a fill carrying its own text; a status
+     *mark* has no text and has to carry itself. The pale chip tones disappear
+     against the page (#C2F2F2 is 1.17:1 on white), so a mark uses the dark tone
+     on the light surface and the pale tone inside an ink band. One name, right
+     in both scopes. */
+  --orq-mark-active: #356267;
+  --orq-mark-warm: #C08453; /* derived from #F1C095, which cannot be seen at 1.59:1 */
+
+  /* Authority */
+  --orq-authority-can-bg: #C2F2F2;
+  --orq-authority-can-text: #356267;
+  --orq-authority-spend-bg: #41737C;
+  --orq-authority-spend-text: #FFFFFF;
+  --orq-authority-approval-bg: #F1C095;
+  --orq-authority-approval-text: #000000;
+  --orq-authority-cannot-bg: var(--orq-error-fill);
+  --orq-authority-cannot-text: #FFFFFF;
+
+  /* Agent modes: increasing autonomy reads as increasing depth. */
+  --orq-mode-manual-bg: #FFFFFF;
+  --orq-mode-manual-text: #000000;
+  --orq-mode-manual-border: #356267;
+  --orq-mode-assisted-bg: #C2F2F2;
+  --orq-mode-assisted-text: #356267;
+  --orq-mode-autonomous-bg: #356267;
+  --orq-mode-autonomous-text: #FFFFFF;
+
+  /* Charts */
+  /* Series. The supporting and highlight tones are darkened from #C2F2F2 and
+     #F1C095 so a drawn mark clears 3:1 against the page; the verbatim palette
+     values live in the band tokens below, where they are fills rather than
+     marks. A mark you cannot see is not accessible. */
+  --orq-chart-1: #356267;
+  --orq-chart-2: #41737C;
+  --orq-chart-3: #5E959C;         /* supporting series, derived from #C2F2F2 */
+  --orq-chart-4: #C08453;         /* highlight, derived from #F1C095 */
+  --orq-chart-5: #D55053;         /* negative and error series only */
+  --orq-chart-band-3: #C2F2F2;    /* area and band fills, where the region is
+                                     labelled rather than read as a mark */
+  --orq-chart-band-4: #F1C095;
+  --orq-chart-ramp-1: #C2F2F2;
+  --orq-chart-ramp-2: #7FB5BC;
+  --orq-chart-ramp-3: #41737C;
+  --orq-chart-ramp-4: #356267;
+
+  /* The ink band. */
+  --orq-on-ink: #FFFFFF;
+  --orq-on-ink-muted: #C2F2F2;
+  --orq-ink-accent: #C2F2F2;
+
+  /* ---------------------------------------------------------------
+   * shadcn/ui semantic layer — mapped onto the tokens above, so the
+   * generated primitives follow the system without their own palette.
+   * --------------------------------------------------------------- */
+  --background: var(--orq-surface-page);
+  --foreground: var(--orq-text-primary);
+  --card: var(--orq-surface-white);
+  --card-foreground: var(--orq-text-primary);
+  --popover: var(--orq-surface-white);
+  --popover-foreground: var(--orq-text-primary);
+  --primary: var(--orq-brand-deep);
+  --primary-foreground: #FFFFFF;
+  --secondary: var(--orq-surface-secondary);
+  --secondary-foreground: var(--orq-brand-deep);
+  --muted: var(--orq-surface-secondary);
+  --muted-foreground: var(--orq-text-secondary);
+  --accent: var(--orq-brand-soft);
+  --accent-foreground: var(--orq-brand-deep);
+  --destructive: var(--orq-error-fill);
+  --border: var(--orq-border);
+  --input: var(--orq-border-strong);
+  --ring: var(--orq-focus-ring);
+  --chart-1: var(--orq-chart-1);
+  --chart-2: var(--orq-chart-2);
+  --chart-3: var(--orq-chart-3);
+  --chart-4: var(--orq-chart-4);
+  --chart-5: var(--orq-chart-5);
   --radius: 0.625rem;
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: var(--color-navy-900);
-  --sidebar-primary: var(--color-navy-800);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: var(--color-canvas);
-  --sidebar-accent-foreground: var(--color-navy-800);
-  --sidebar-border: var(--color-hairline);
-  --sidebar-ring: var(--color-navy-700);
+  --sidebar: var(--orq-surface-white);
+  --sidebar-foreground: var(--orq-text-primary);
+  --sidebar-primary: var(--orq-brand-deep);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: var(--orq-surface-secondary);
+  --sidebar-accent-foreground: var(--orq-brand-deep);
+  --sidebar-border: var(--orq-border);
+  --sidebar-ring: var(--orq-focus-ring);
 }
-/*
- ---break---
- */.dark {
+
+/* ---------------------------------------------------------------
+ * THE INK BAND. Black is structural in a light product: the footer, a major
+ * CTA, a product statement, and the Company Hub canvas.
+ *
+ * Because the alias layer is `@theme inline`, every utility resolves per
+ * element — so overriding the raw tokens here inverts the whole system inside
+ * the band. Not one call site needs a `dark:` variant.
+ *
+ * --------------------------------------------------------------- */
+.ink {
   color-scheme: dark;
-  /* ORQ8 dark semantic layer — navy command center with the emerald brand accent
-     (marketing/DESIGN_DIRECTION.md §2). Product CTAs go emerald in dark mode. */
-  --background: var(--color-void);
-  --foreground: var(--color-parchment);
-  --card: var(--color-abyss);
-  --card-foreground: var(--color-parchment);
-  --popover: var(--color-abyss);
-  --popover-foreground: var(--color-parchment);
-  --primary: #34d399;
-  --primary-foreground: var(--color-void);
-  --secondary: var(--color-panel);
-  --secondary-foreground: var(--color-parchment);
-  --muted: var(--color-panel);
-  --muted-foreground: var(--color-fog);
-  --accent: color-mix(in oklab, #34d399 14%, transparent);
-  --accent-foreground: var(--color-parchment);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #34d399;
-  --chart-1: #34d399;
-  --chart-2: #38bdf8;
-  --chart-3: var(--color-parchment);
-  --chart-4: var(--color-fog);
-  --chart-5: var(--color-panel);
-  --sidebar: var(--color-abyss);
-  --sidebar-foreground: var(--color-parchment);
-  --sidebar-primary: #34d399;
-  --sidebar-primary-foreground: var(--color-void);
-  --sidebar-accent: var(--color-panel);
-  --sidebar-accent-foreground: var(--color-parchment);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #34d399;
+  background-color: var(--orq-ink);
+  color: var(--orq-on-ink);
+
+  /* Surfaces */
+  --orq-surface-page: #000000;
+  --orq-surface-secondary: color-mix(in srgb, #FFFFFF 12%, #000000);
+  --orq-surface-white: color-mix(in srgb, #FFFFFF 8%, #000000);
+  --orq-surface-tint: color-mix(in srgb, #C2F2F2 10%, #000000);
+
+  /* Text */
+  --orq-text-primary: #FFFFFF;
+  --orq-text-secondary: #C2F2F2;
+  --orq-text-tertiary: #8FB6BA;
+  --orq-text-inverse: #000000;
+  --orq-text-brand: #C2F2F2;
+  --orq-text-error: #F0A0A2;
+  --orq-text-warm: #F1C095;
+
+  /* Status marks invert to the pale tone, which is what belongs on black. */
+  --orq-mark-active: #C2F2F2;
+  --orq-mark-warm: #F1C095;
+
+  /* A light-surface mark would disappear on black, so inside a band the mark
+     takes the pale tone. (`.ink-accent` already resolves to #C2F2F2 in both
+     scopes, which is why bands use it directly.) */
+  --orq-mark-brand: #C2F2F2;
+
+  /* Borders and interaction */
+  --orq-border: color-mix(in srgb, #C2F2F2 22%, transparent);
+  --orq-border-soft: color-mix(in srgb, #C2F2F2 12%, transparent);
+  --orq-border-strong: #C2F2F2;
+  --orq-border-selected: #C2F2F2;
+  --orq-focus-ring: #C2F2F2;
+  --orq-disabled-surface: color-mix(in srgb, #FFFFFF 10%, #000000);
+  --orq-disabled-text: #8FB6BA;
+
+  /* The washes invert too. A pale #C2F2F2 or #F1C095 fill inside a black band
+     would leave the band's white text sitting on a light surface. */
+  --orq-brand-soft: color-mix(in srgb, #C2F2F2 16%, #000000);
+  --orq-warm-soft: color-mix(in srgb, #F1C095 18%, #000000);
+  --orq-error-soft: color-mix(in srgb, #D55053 20%, #000000);
+
+  /* shadcn primitives, so a button or input inside a band is dark too. These
+     are also consumed through an inline @theme, so they resolve per element. */
+  --background: var(--orq-ink);
+  --foreground: var(--orq-on-ink);
+  --card: color-mix(in srgb, #FFFFFF 8%, #000000);
+  --card-foreground: var(--orq-on-ink);
+  --popover: color-mix(in srgb, #FFFFFF 10%, #000000);
+  --popover-foreground: var(--orq-on-ink);
+  --primary: var(--orq-brand);
+  --primary-foreground: #FFFFFF;
+  --secondary: color-mix(in srgb, #FFFFFF 12%, #000000);
+  --secondary-foreground: var(--orq-on-ink);
+  --muted: color-mix(in srgb, #FFFFFF 12%, #000000);
+  --muted-foreground: #C2F2F2;
+  --accent: color-mix(in srgb, #C2F2F2 18%, transparent);
+  --accent-foreground: var(--orq-on-ink);
+  --destructive: #D55053;
+  --border: color-mix(in srgb, #C2F2F2 22%, transparent);
+  --input: color-mix(in srgb, #C2F2F2 30%, transparent);
+  --ring: var(--orq-ink-accent);
+  --sidebar: var(--orq-ink);
+  --sidebar-foreground: var(--orq-on-ink);
+  --sidebar-primary: var(--orq-brand);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: color-mix(in srgb, #FFFFFF 12%, #000000);
+  --sidebar-accent-foreground: var(--orq-on-ink);
+  --sidebar-border: color-mix(in srgb, #C2F2F2 22%, transparent);
+  --sidebar-ring: var(--orq-ink-accent);
 }
-/*
- ---break---
- */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -574,7 +809,7 @@ body {
 /* Finance navbar: sticky glass bar */
 .is-sticky .finance-navbar {
   @apply py-[15px];
-  box-shadow: 0px 4px 30px 0px rgba(146, 139, 221, 0.1);
+  box-shadow: 0px 4px 30px 0px rgb(53 98 103 / 0.12);
 }
 .is-sticky .finance-navbar .navbar-nav {
   @apply p-0 !shadow-none;
@@ -603,68 +838,29 @@ body {
   @apply left-[5px];
 }
 .sidebar-settings .rtl-mode-toggle:hover span span {
-  @apply bg-primary-500;
+  @apply bg-brand-deep;
 }
 [dir="rtl"] .sidebar-settings .rtl-mode-toggle span span {
-  @apply bg-primary-500 left-[17px];
+  @apply bg-brand-deep left-[17px];
 }
 
 /* =====================================================================
- * ORQ8 Utility Classes — Semantic color helpers for consistent styling.
- * Use these instead of inline hex values like bg-[#1a5c2e] or text-[#B8FF66].
+ * ORQ8 Utility Classes — non-colour helpers and custom size tokens.
+ * The palette is semantic tokens only (bg-brand-deep, text-ink-accent, …).
+ * There is deliberately no legacy `orq8-*` bridge: a stray legacy name now
+ * emits nothing rather than quietly resolving to a colour someone else
+ * chose for it. Name the meaning instead (docs/65_COLOR_SYSTEM.md).
  * ===================================================================== */
 
-/* Brand surfaces */
-.bg-orq8-dark { background-color: #0a0a0b; }
-.bg-orq8-green { background-color: #1a5c2e; }
-.bg-orq8-green-dark { background-color: #144a24; }
-.bg-orq8-lime { background-color: #B8FF66; }
-/* Deep orange is the default: it clears 4.5:1 on white AND on the off-white
- * panels (>= 4.9:1) used across the app. For DARK surfaces use
- * .text-orq8-orange-bright / keep fills readable with white labels. */
-.bg-orq8-orange { background-color: #b84a1e; }
-.bg-orq8-orange-dark { background-color: #a03f19; }
-
-/* Brand text */
-.text-orq8-dark { color: #0a0a0b; }
-.text-orq8-green { color: #1a5c2e; }
-.text-orq8-lime { color: #B8FF66; }
-.text-orq8-orange { color: #b84a1e; }
-/* Bright orange reserved for accent text on DARK backgrounds (#E86A33 there
- * reaches ~6:1). The default .text-orq8-orange is the deep tone that clears
- * 4.5:1 on white surfaces. */
-.text-orq8-orange-bright { color: #E86A33; }
-.bg-orq8-orange-bright { background-color: #E86A33; }
-
-/* Brand borders */
-.border-orq8-green { border-color: #1a5c2e; }
-.border-orq8-lime { border-color: #B8FF66; }
-.border-orq8-orange { border-color: #b84a1e; }
-
-/* Brand ring/focus */
-.ring-orq8-green { --tw-ring-color: #1a5c2e; }
-.focus\:border-orq8-green:focus { border-color: #1a5c2e; }
-.focus\:ring-orq8-green:focus { --tw-ring-color: #1a5c2e; }
-
-/* Hover variants */
-.hover\:bg-orq8-green:hover { background-color: #157a3a; }
-.hover\:bg-orq8-green-dark:hover { background-color: #0d1a12; }
-/* Orange-bright is the action accent on dark surfaces; hover steps one shade
- * darker so the press state reads without touching label contrast. */
-.hover\:bg-orq8-orange-bright:hover { background-color: #d95d29; }
-.hover\:text-orq8-green:hover { color: #1a5c2e; }
-.hover\:text-orq8-lime:hover { color: #c8ff8a; }
-.hover\:text-orq8-orange:hover { color: #a8431a; }
-
-/* Text muted on dark backgrounds */
-.text-orq8-muted-on-dark { color: rgba(255,255,255,0.5); }
-.text-orq8-faint-on-dark { color: rgba(255,255,255,0.3); }
-
-/* Green tint for TEXT accents on dark surfaces: the base brand green
- * (#1a5c2e) lands near 2:1 on #0a0a0b, which is unreadable. The tint keeps
- * the hue and clears 4.5:1. Fill/border accents keep the base green. */
-.text-orq8-green-tint { color: #7fbf8f; }
-.hover\:text-orq8-green-tint:hover { color: #a5d6b3; }
+/* Press affordance for primary buttons. Purely transform, so it never
+ * competes with a button's own colour transition, and it is off under
+ * reduced-motion. */
+.btn-press { transition: transform 120ms ease; }
+.btn-press:active { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  .btn-press { transition: none; }
+  .btn-press:active { transform: none; }
+}
 
 /* Font size tokens — ONLY add custom sizes not in Tailwind's default scale.
    Do NOT override Tailwind built-ins: text-xs (12px), text-sm (14px),
@@ -677,24 +873,26 @@ body {
 .text-md { font-size: 15px; line-height: 1.6; }
 /*
  * Tailwind v4 maps text-muted to --color-muted, which is the *background*
- * shade (#f5f5f5) — painting text with it makes 400+ muted labels nearly
- * invisible on light surfaces. Muted TEXT must be the darker foreground
- * token instead. bg-muted keeps using the pale --color-muted background.
+ * shade — painting text with it makes 1,000+ muted labels nearly invisible.
+ * Muted TEXT is the secondary text token instead. bg-muted keeps using the
+ * contextual surface.
  */
-.text-muted { color: var(--muted-foreground, #737373); }
+.text-muted { color: var(--muted-foreground, var(--orq-text-secondary)); }
 
 /* Variant classes Tailwind generates from the same broken mapping. Each needs
    its own override or the text falls back to the near-white background token. */
-.hover\:text-muted:hover { color: var(--muted-foreground, #737373); }
-.group-hover\:text-muted:is(.group:hover *) { color: var(--muted-foreground, #737373); }
+.hover\:text-muted:hover { color: var(--muted-foreground, var(--orq-text-secondary)); }
+.group-hover\:text-muted:is(.group:hover *) { color: var(--muted-foreground, var(--orq-text-secondary)); }
 
 /* Opacity variants — Tailwind emits color-mix on the near-white background
    token (text-muted/30 on white ≈ 1.2:1). Bake the real foreground color in:
    readable at every opacity, still lighter than the full-strength muted text. */
-.text-muted\/30 { color: rgba(115, 115, 115, 0.45); }
-.text-muted\/40 { color: rgba(115, 115, 115, 0.58); }
-.text-muted\/50 { color: rgba(115, 115, 115, 0.72); }
-.text-muted\/60 { color: rgba(115, 115, 115, 0.86); }
+/* Opacity variants, baked from the brand hue so they stay legible at every
+   step instead of fading toward the page. */
+.text-muted\/30 { color: color-mix(in srgb, #356267 45%, #EFFEFB); }
+.text-muted\/40 { color: color-mix(in srgb, #356267 58%, #EFFEFB); }
+.text-muted\/50 { color: color-mix(in srgb, #356267 72%, #EFFEFB); }
+.text-muted\/60 { color: color-mix(in srgb, #356267 86%, #EFFEFB); }
 
 /* Legal page prose styles */
 .prose-orq8 h2 {
@@ -733,12 +931,12 @@ body {
   font-weight: 600;
 }
 .prose-orq8 a {
-  color: #B8FF66;
+  color: var(--orq-ink-accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .prose-orq8 a:hover {
-  color: #c8ff8a;
+  color: #FFFFFF;
 }
 
 /* AI disclosure grid */

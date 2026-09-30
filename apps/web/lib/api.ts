@@ -76,7 +76,7 @@ export function proxyAuthHeaders(
 export async function proxyApiJson(
   request: NextRequest,
   path: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; cache?: "public" | "private" } = {},
 ): Promise<NextResponse> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const headers: Record<string, string> = {};
@@ -108,14 +108,35 @@ export async function proxyApiJson(
     );
   }
   const data = await res.json().catch(() => null);
-  // For GET requests, add Cache-Control so the browser doesn't re-fetch
-  // the same data on every client-side navigation. s-maxage=30 means
-  // Vercel's edge cache holds it for 30s; stale-while-revalidate keeps
-  // the UI responsive while the cache refreshes in the background.
+  // Reads are NOT cached by default, and that default was expensive to learn.
+  //
+  // Every proxy here carries the caller's session: the data is one company's,
+  // and it changes when that company acts. Caching it produced two failures the
+  // product then displayed confidently:
+  //
+  //   stale-after-mutation  the task page runs an action, then refetches itself.
+  //                        With `s-maxage=15, stale-while-revalidate=30` the
+  //                        refetch was served the pre-action body, so the toast
+  //                        said "The task is now awaiting approval" while the
+  //                        badge still said PENDING and the "Waiting on your
+  //                        decision" link never appeared. A founder cannot trust
+  //                        a board whose own action does not move it.
+  //   shared-cache risk    `public` on an authenticated response invites a
+  //                        shared cache to hold one tenant's row. The member
+  //                        list had already been opted out of this by hand;
+  //                        every other read was opted in by default.
+  //
+  // Pass `cache: 'public'` to opt a genuinely shared, non-tenant read into
+  // caching — deliberately, and knowingly.
   const isRead = !init.method || init.method === 'GET';
   const response = NextResponse.json(data, { status: res.status });
   if (isRead) {
-    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    response.headers.set(
+      'Cache-Control',
+      init.cache === 'public'
+        ? 'public, s-maxage=30, stale-while-revalidate=60'
+        : 'no-store',
+    );
   }
   return response;
 }

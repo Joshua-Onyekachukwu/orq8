@@ -119,19 +119,19 @@ function formatTime(iso: string | null | undefined): string {
 
 // Connection state (provider.status) — how the row is marked.
 const connectionStyles: Record<string, string> = {
-  connected: "bg-orq8-green/10 text-orq8-green",
-  connecting: "bg-amber-100 text-amber-700",
-  error: "bg-red-100 text-red-600",
-  disconnected: "bg-gray-100 text-gray-500",
+  connected: "bg-brand-deep/10 text-brand-ink",
+  connecting: "bg-warm-soft text-warm-ink",
+  error: "bg-error-soft text-error-ink",
+  disconnected: "bg-surface-secondary text-ink-muted",
 };
 
 // Health state (what the last real server-side probe found).
 const healthStyles: Record<string, string> = {
-  healthy: "bg-orq8-green/10 text-orq8-green",
-  degraded: "bg-amber-100 text-amber-700",
-  expired: "bg-red-100 text-red-600",
-  error: "bg-red-100 text-red-600",
-  disconnected: "bg-gray-100 text-gray-500",
+  healthy: "bg-brand-deep/10 text-brand-ink",
+  degraded: "bg-warm-soft text-warm-ink",
+  expired: "bg-error-soft text-error-ink",
+  error: "bg-error-soft text-error-ink",
+  disconnected: "bg-surface-secondary text-ink-muted",
 };
 
 const healthLabels: Record<string, string> = {
@@ -372,13 +372,13 @@ export default function IntegrationsPage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
           </div>
         )}
         {oauthMsg && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-orq8-green/30 bg-orq8-green/5 px-4 py-3 text-sm text-ink">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-orq8-green" /> {oauthMsg}
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-brand-deep/30 bg-brand-deep/5 px-4 py-3 text-sm text-ink">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink" /> {oauthMsg}
           </div>
         )}
 
@@ -426,13 +426,13 @@ export default function IntegrationsPage() {
                       {health.tokenExpiresAt && (
                         <div className="flex justify-between">
                           <dt>Token expires</dt>
-                          <dd className={`font-medium ${new Date(health.tokenExpiresAt).getTime() <= Date.now() ? "text-red-600" : "text-ink"}`}>{formatTime(health.tokenExpiresAt)}</dd>
+                          <dd className={`font-medium ${new Date(health.tokenExpiresAt).getTime() <= Date.now() ? "text-error-ink" : "text-ink"}`}>{formatTime(health.tokenExpiresAt)}</dd>
                         </div>
                       )}
                       {health.requiresReconnect && (
                         <div className="flex justify-between">
                           <dt>Reconnect</dt>
-                          <dd className="font-medium text-red-600">Required</dd>
+                          <dd className="font-medium text-error-ink">Required</dd>
                         </div>
                       )}
                       {health.lastOutcome && (
@@ -467,7 +467,7 @@ export default function IntegrationsPage() {
                         type="button"
                         onClick={() => disconnect(p)}
                         disabled={busyId === p.id}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1 text-xs font-medium text-muted transition-colors hover:border-red-200 hover:text-red-600 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1 text-xs font-medium text-muted transition-colors hover:border-border-error hover:text-error-ink disabled:opacity-50"
                       >
                         {busyId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unplug className="h-3.5 w-3.5" />}
                         Disconnect
@@ -511,7 +511,7 @@ export default function IntegrationsPage() {
                         {o.summary && <p className="text-xs text-muted">{o.summary}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${o.status === "success" ? "bg-orq8-green/10 text-orq8-green" : o.status === "failed" || o.status === "denied" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${o.status === "success" ? "bg-brand-deep/10 text-brand-ink" : o.status === "failed" || o.status === "denied" ? "bg-error-soft text-error-ink" : "bg-warm-soft text-warm-ink"}`}>
                           {o.status}
                         </span>
                       </td>
@@ -538,7 +538,7 @@ export default function IntegrationsPage() {
                 setError(null);
                 setShowForm((v) => !v);
               }}
-              className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+              className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand"
             >
               {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {showForm ? "Cancel" : "New rule"}
@@ -556,7 +556,7 @@ export default function IntegrationsPage() {
                       const p = e.target.value as Provider;
                       setForm((f) => ({ ...f, provider: p, eventType: PROVIDER_META[p].eventTypes[0]! }));
                     }}
-                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   >
                     {Object.entries(PROVIDER_META).map(([k, meta]) => (
                       <option key={k} value={k}>{meta.label}</option>
@@ -568,7 +568,7 @@ export default function IntegrationsPage() {
                   <select
                     value={form.eventType}
                     onChange={(e) => setForm((f) => ({ ...f, eventType: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   >
                     {PROVIDER_META[form.provider].eventTypes.map((t) => (
                       <option key={t} value={t}>{t}</option>
@@ -580,7 +580,7 @@ export default function IntegrationsPage() {
                   <select
                     value={form.action}
                     onChange={(e) => setForm((f) => ({ ...f, action: e.target.value as EventRule["action"] }))}
-                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   >
                     <option value="create_task">Create task for an AI employee</option>
                     <option value="notify">Notify the founder</option>
@@ -592,7 +592,7 @@ export default function IntegrationsPage() {
                   <select
                     value={form.agentId}
                     onChange={(e) => setForm((f) => ({ ...f, agentId: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   >
                     <option value="">Unassigned</option>
                     {agents.map((a) => (
@@ -607,7 +607,7 @@ export default function IntegrationsPage() {
                     value={form.taskTitleTemplate}
                     onChange={(e) => setForm((f) => ({ ...f, taskTitleTemplate: e.target.value }))}
                     placeholder="e.g. Review PR #{number}"
-                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-orq8-green"
+                    className="mt-1 w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand-deep"
                   />
                 </label>
               </div>
@@ -617,7 +617,7 @@ export default function IntegrationsPage() {
                     type="checkbox"
                     checked={form.requiresApproval}
                     onChange={(e) => setForm((f) => ({ ...f, requiresApproval: e.target.checked }))}
-                    className="h-4 w-4 rounded border-hairline accent-orq8-green"
+                    className="h-4 w-4 rounded border-hairline accent-brand-ink"
                   />
                   Require founder approval
                 </label>
@@ -626,7 +626,7 @@ export default function IntegrationsPage() {
                     type="checkbox"
                     checked={form.enabled}
                     onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
-                    className="h-4 w-4 rounded border-hairline accent-orq8-green"
+                    className="h-4 w-4 rounded border-hairline accent-brand-ink"
                   />
                   Enabled
                 </label>
@@ -636,7 +636,7 @@ export default function IntegrationsPage() {
                   type="button"
                   onClick={saveRule}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-full bg-orq8-green px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-60"
                 >
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                   {saving ? "Saving…" : "Save rule"}
@@ -686,14 +686,14 @@ export default function IntegrationsPage() {
                             className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:text-ink disabled:opacity-50"
                             title={rule.enabled ? "Disable rule" : "Enable rule"}
                           >
-                            {rule.enabled ? <ToggleRight className="h-5 w-5 text-orq8-green" /> : <ToggleLeft className="h-5 w-5 text-muted" />}
+                            {rule.enabled ? <ToggleRight className="h-5 w-5 text-brand-ink" /> : <ToggleLeft className="h-5 w-5 text-muted" />}
                             {rule.enabled ? "On" : "Off"}
                           </button>
                           <button
                             type="button"
                             onClick={() => deleteRule(rule.id)}
                             disabled={busyId === rule.id}
-                            className="text-muted transition-colors hover:text-red-500 disabled:opacity-50"
+                            className="text-muted transition-colors hover:text-error-ink disabled:opacity-50"
                             title="Delete rule"
                           >
                             {busyId === rule.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

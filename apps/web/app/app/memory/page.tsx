@@ -36,11 +36,11 @@ interface MemoryStats {
 
 function categoryColor(cat: string) {
   switch (cat) {
-    case "fact": return "bg-blue-50 text-blue-700";
-    case "decision": return "bg-purple-50 text-purple-700";
-    case "lesson": return "bg-amber-50 text-amber-700";
-    case "preference": return "bg-orq8-lime/10 text-orq8-green";
-    case "workflow": return "bg-indigo-50 text-indigo-700";
+    case "fact": return "bg-brand-soft text-brand-deep";
+    case "decision": return "bg-brand-soft text-brand-deep";
+    case "lesson": return "bg-warm-soft text-warm-ink";
+    case "preference": return "bg-ink-accent/10 text-brand-ink";
+    case "workflow": return "bg-brand-soft text-brand-deep";
     case "context": return "bg-hairline text-ink-muted";
     default: return "bg-hairline text-ink-muted";
   }
@@ -50,7 +50,7 @@ function importanceStars(n: number) {
   return Array.from({ length: 5 }, (_, i) => (
     <Star
       key={i}
-      className={`h-3 w-3 ${i < Math.round(n / 2) ? "fill-amber-400 text-amber-400" : "text-muted"}`}
+      className={`h-3 w-3 ${i < Math.round(n / 2) ? "fill-warm-ink text-warm-ink" : "text-muted"}`}
     />
   ));
 }
@@ -161,7 +161,7 @@ export default function MemoryPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Knowledge
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -183,7 +183,7 @@ export default function MemoryPage() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
           >
             <Plus className="h-3.5 w-3.5" /> Add memory
           </button>
@@ -208,10 +208,10 @@ export default function MemoryPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">
             Dismiss
           </button>
         </div>
@@ -227,7 +227,7 @@ export default function MemoryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search memory..."
-              className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
+              className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-brand-deep"
             />
           </span>
           <select
@@ -307,7 +307,7 @@ export default function MemoryPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(entry.id)}
-                  className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-error-soft hover:text-error-ink"
                   title="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -320,7 +320,7 @@ export default function MemoryPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
           <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
               <h2 className="text-lg font-semibold text-ink">Add Memory Entry</h2>
@@ -330,14 +330,14 @@ export default function MemoryPage() {
             </div>
             <form onSubmit={handleCreate} className="px-6 py-5">
               {createError && (
-                <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="mb-4 flex items-center gap-2 rounded-lg bg-error-soft px-3 py-2 text-sm text-error-ink">
                   <AlertCircle className="h-4 w-4 shrink-0" /> {createError}
                 </div>
               )}
               <div className="space-y-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Category *</label>
-                  <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green">
+                  <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep">
                     <option value="fact">Fact</option>
                     <option value="decision">Decision</option>
                     <option value="lesson">Lesson</option>
@@ -348,11 +348,11 @@ export default function MemoryPage() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Content *</label>
-                  <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={3} placeholder="What should the organization remember?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none" required />
+                  <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={3} placeholder="What should the organization remember?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none" required />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Source</label>
-                  <input type="text" value={newSource} onChange={(e) => setNewSource(e.target.value)} placeholder="e.g. Executive Agent, Market Researcher" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green" />
+                  <input type="text" value={newSource} onChange={(e) => setNewSource(e.target.value)} placeholder="e.g. Executive Agent, Market Researcher" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-ink">Importance (1-10)</label>
@@ -364,7 +364,7 @@ export default function MemoryPage() {
                 <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
                   Cancel
                 </button>
-                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-orq8-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50">
+                <button type="submit" disabled={!newContent.trim() || creating} className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50">
                   {creating ? "Saving..." : "Save Memory"}
                 </button>
               </div>

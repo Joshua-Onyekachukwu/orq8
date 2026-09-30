@@ -239,7 +239,84 @@ Plan of record: **everything above runs on $0 until early users force paid upgra
 
 ---
 
-## 58.11b Railway — API host (current)
+## 58.11c The release gate (blocking, and the release condition)
+
+The deploy is not the release. `scripts/release-gate.mjs` is the release
+condition: it asks the running deployment five questions and exits non-zero when
+one of them is no.
+
+```bash
+node scripts/release-gate.mjs \
+  --api-url "$PRODUCTION_API_URL" \
+  --web-url https://orq8.vercel.app \
+  --internal-token "$INTERNAL_TOKEN"
+```
+
+| Check | What it proves |
+| --- | --- |
+| web `/healthz` | the product is serving |
+| API `/healthz` | the process is alive |
+| API `/readyz` | its dependencies (the database) are reachable |
+| `/v1/readiness` | the product is switched on: no production-critical capability is unconfigured |
+| `/v1/readiness/mail-check` | mail *delivers*: the deployment sent one real message and the provider accepted it |
+
+The last one exists because the fourth is a claim about the environment. `email`
+being *configured* means `SMTP_HOST` or `RESEND_API_KEY` is present; it does not
+mean the provider accepts the credentials or that the port is reachable, and a
+deployment in that state passes every other check while nobody can confirm an
+account. The gate therefore fires the same three-verdict diagnosis the settings
+page shows (configured, credentials accepted, message accepted), refuses to
+pretend otherwise, and a `404` from an older API build is a **failed** check, not
+a skip.
+
+The probe sends to the address inside the deployment's `EMAIL_FROM`. Point it at
+a mailbox you actually read with `--mail-to you@company.com` or by setting
+`ORQ8_MAIL_PROBE_TO`; `--no-mail` skips the step loudly, for a stage that must not
+send. The workflow passes its optional `MAIL_PROBE_TO` secret through.
+
+A failure names the capability, the environment keys that are missing (names,
+never values), the impact on the founder, and the document that explains it —
+because a gate that says "no" without saying "set these keys" is a gate people
+learn to ignore. `--require billing,search` raises the floor for a stage that
+needs more than the default production-critical set.
+
+Two prerequisites, both set on the API: `INTERNAL_TOKEN` (random ≥32 chars — the
+same one the cron hooks use) so the gate can read the named report without a
+session, and `PRODUCTION_API_URL` as a repository secret for the workflow. Until
+the API has a host (MVP-001) the `verify` job in
+`.github/workflows/vercel-deploy.yml` prints **Release gate: NOT RUN** in the job
+summary and warns: the web deploy is verified, the *release* is not. The moment
+`PRODUCTION_API_URL` exists, that step is blocking.
+
+Locally the same gate runs against the review stack, which prints the exact
+command on boot:
+
+```bash
+REVIEW_API_PORT=3113 REVIEW_WEB_PORT=3114 nohup pnpm exec tsx scripts/review-stack.ts > .review-stack.log 2>&1 &
+node scripts/release-gate.mjs --api-url http://127.0.0.1:3113 --web-url http://127.0.0.1:3114 --internal-token review-stack-internal-token
+```
+
+The stack attaches no mail provider by default, so the gate refuses it
+(`blocking: email`) and its mail step reports *No provider is configured* — which
+is the honest state of a deployment with no mail. `REVIEW_MAIL=1` attaches a
+local SMTP sink, which makes the mail capability genuinely activated, lets the
+mail step really send (and be accepted), and turns the gate green. Because the
+sink is reachable, the review stack is also the one place the mail step is
+proved *passing* rather than merely absent.
+
+## 58.11b Railway — API host (historical)
+
+> **Status, 2026-09-29.** Railway is gone: the project was deleted and its edge
+> answers 404 for `orq8api-production.up.railway.app/healthz`. **The API currently
+> has no host at all**, so the variable tables below record how a hosted API
+> *was* configured — they are not an instruction. The code side of a replacement
+> is already in the repository: `pnpm --filter @orq8/api build:bundle`
+> (`scripts/build-serverless.mjs`) with `apps/api/vercel.json` and the
+> `bundle.prod` / `boot.prod` tests for a Vercel function, or
+> `apps/api/Dockerfile` for any container host. The decision and the ordered
+> steps are in `docs/69_ECOSYSTEM_RECONCILIATION_REPORT.md` §15–16 and `docs/68`
+> MVP-001. Everything below is history.
+
 
 Since the repo moved the API to Railway (`railway.json` → `apps/api/Dockerfile` →
 `apps/api/scripts/start-railway.sh`), the API's environment variables are set on the
@@ -263,18 +340,26 @@ separate migrate step is needed on deploy.
 
 ### Model provider vars (set when a working provider key exists)
 
-The provider chain is **NVIDIA NIM → LiteLLM → Ollama** (`apps/api/src/services/llm.ts`);
-only configured providers are used, and the first provider in the list that serves a
-successful response wins. Set these on the Railway API service once the keys are verified:
+The provider chain is **OpenRouter → NVIDIA NIM → LiteLLM → Ollama**
+(`apps/api/src/services/llm.ts`; decision recorded in docs/22.9); only configured
+providers are used, and the first provider in the list that serves a successful
+response wins. LiteLLM and Ollama are **development-only** and always last, so a stray
+local URL cannot decide what a production request does. Set these on the Railway API
+service once the keys are verified:
 
 | Var | Value | Notes |
 |---|---|---|
-| `NVIDIA_API_KEY` | `nvapi-...` | primary key; validated **before** applying (see below) |
+| `OPENROUTER_API_KEY` | `sk-or-v1-...` | **primary** key; one credential fronts many vendors |
+| `OPENROUTER_API_KEYS` | `sk-or-v1-...,sk-or-v1-...` | extra keys pooled with the primary |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | default if unset |
+| `OPENROUTER_MODEL` | `openai/gpt-4o-mini` | default if unset |
+| `OPENROUTER_MODEL_FALLBACKS` | comma-separated models | walked when the primary model fails, before escalating to NVIDIA |
+| `NVIDIA_API_KEY` | `nvapi-...` | first fallback; validated **before** applying (see below) |
 | `NVIDIA_API_KEYS` | `nvapi-...,nvapi-...` | extra keys pooled with the primary, rotated round-robin + auto-failover (429/401/403/404) |
 | `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | default if unset |
 | `NVIDIA_MODEL` | `nvidia/llama-3.1-nemotron-70b-instruct` | default if unset |
 | `NVIDIA_MODEL_FALLBACKS` | comma-separated models | walked when the primary model 404s for the account, before escalating to LiteLLM |
-| `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` | optional | used when set, after NVIDIA |
+| `LITELLM_BASE_URL` + `LITELLM_MASTER_KEY` | optional | development gateway only; do **not** set on Railway |
 | `OLLAMA_BASE_URL` | optional | local-only; do **not** set on Railway unless self-hosted |
 
 > **Verify before applying:** a key whose account lacks the *Public API Endpoints*

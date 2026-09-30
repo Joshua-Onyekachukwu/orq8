@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes that require authentication
-const PROTECTED_ROUTES = ["/app"];
+// Routes that require authentication.
+//
+// `/settings` belongs here: it is the same product surface as `/app` (account,
+// password, connections, provider keys) and was reachable unauthenticated while
+// `/app` was not. Only `/settings/providers` guarded itself, so an anonymous
+// visitor got the settings shell and had to rely on the API answering 401.
+//
+// Consequence, accepted deliberately: the legal pages under /settings
+// (privacy-policy, terms-conditions, cookies) now require a session too. Their
+// public equivalents stay at /privacy, /terms, /security and /ai-disclosure on
+// the marketing site, which is where a prospect or a regulator should land.
+const PROTECTED_ROUTES = ["/app", "/settings"];
 
 // Public routes that never need auth
 const PUBLIC_ROUTES = ["/", "/pricing", "/about", "/healthz"];

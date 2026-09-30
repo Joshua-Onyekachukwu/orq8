@@ -101,19 +101,19 @@ interface Simulation {
 
 function riskBadge(risk: string) {
   switch (risk) {
-    case "low": return { label: "Low risk", cls: "bg-emerald-50 text-emerald-700" };
-    case "medium": return { label: "Medium risk", cls: "bg-amber-50 text-amber-700" };
-    case "high": return { label: "High risk", cls: "bg-orange-50 text-orange-700" };
-    default: return { label: "Critical risk", cls: "bg-red-50 text-red-700" };
+    case "low": return { label: "Low risk", cls: "bg-brand-soft text-brand-ink" };
+    case "medium": return { label: "Medium risk", cls: "bg-warm-soft text-warm-ink" };
+    case "high": return { label: "High risk", cls: "bg-warm-soft text-warm-ink" };
+    default: return { label: "Critical risk", cls: "bg-error-soft text-error-ink" };
   }
 }
 
 function stateBadge(state: string) {
   switch (state) {
     case "draft": return { label: "Draft", cls: "bg-muted/10 text-muted" };
-    case "proposed": return { label: "Proposed", cls: "bg-blue-50 text-blue-700" };
-    case "reviewed": return { label: "Reviewed", cls: "bg-purple-50 text-purple-700" };
-    case "applied": return { label: "Applied", cls: "bg-emerald-50 text-emerald-700" };
+    case "proposed": return { label: "Proposed", cls: "bg-brand-soft text-brand-deep" };
+    case "reviewed": return { label: "Reviewed", cls: "bg-brand-soft text-brand-deep" };
+    case "applied": return { label: "Applied", cls: "bg-brand-soft text-brand-ink" };
     default: return { label: state, cls: "bg-muted/10 text-muted" };
   }
 }
@@ -294,8 +294,8 @@ export default function SimulationPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orq8-lime/10">
-                <FlaskConical aria-hidden="true" className="h-4.5 w-4.5 text-orq8-green" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-accent/10">
+                <FlaskConical aria-hidden="true" className="h-4.5 w-4.5 text-brand-ink" />
               </span>
               <h1 className="text-xl font-semibold tracking-tight text-ink">Simulation</h1>
             </div>
@@ -316,7 +316,7 @@ export default function SimulationPage() {
             <button
               type="button"
               onClick={() => setShowForm(v => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
             >
               <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
               New simulation
@@ -325,17 +325,17 @@ export default function SimulationPage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
           </div>
         )}
 
         {applyMessage && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-            <p className="text-sm text-emerald-800">{applyMessage}</p>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-brand-soft bg-brand-soft px-4 py-3">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-deep" />
+            <p className="text-sm text-brand-ink">{applyMessage}</p>
           </div>
         )}
 
@@ -343,7 +343,7 @@ export default function SimulationPage() {
         <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Gauge className="h-4 w-4 text-orq8-green" />
+              <Gauge className="h-4 w-4 text-brand-ink" />
               <h2 className="text-sm font-semibold text-ink">Live organizational state</h2>
               <span className="rounded-full bg-muted/10 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-muted">
                 Actual data
@@ -386,7 +386,7 @@ export default function SimulationPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Expand Marketing to 5 employees"
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div>
@@ -395,7 +395,7 @@ export default function SimulationPage() {
                   value={objective}
                   onChange={e => setObjective(e.target.value)}
                   placeholder="What outcome should this achieve?"
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div className="sm:col-span-2">
@@ -405,7 +405,7 @@ export default function SimulationPage() {
                   onChange={e => setChangeDescription(e.target.value)}
                   placeholder="e.g. Add 3 AI employees to Marketing, increase weekly task volume to 60"
                   rows={2}
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div>
@@ -415,7 +415,7 @@ export default function SimulationPage() {
                   min={0}
                   value={proposedAgents}
                   onChange={e => setProposedAgents(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
               <div>
@@ -425,7 +425,7 @@ export default function SimulationPage() {
                   min={0}
                   value={proposedTasks}
                   onChange={e => setProposedTasks(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                  className="mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                 />
               </div>
             </div>
@@ -434,7 +434,7 @@ export default function SimulationPage() {
                 type="button"
                 onClick={createSimulation}
                 disabled={running}
-                className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
               >
                 {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                 Create & run scenario
@@ -463,7 +463,7 @@ export default function SimulationPage() {
                       key={sim.id}
                       type="button"
                       onClick={() => openSimulation(sim)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${selected?.id === sim.id ? "border-orq8-green bg-orq8-lime/5" : "border-hairline bg-white hover:bg-canvas"}`}
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${selected?.id === sim.id ? "border-brand-deep bg-ink-accent/5" : "border-hairline bg-white hover:bg-canvas"}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium text-ink">{sim.name}</p>
@@ -513,7 +513,7 @@ export default function SimulationPage() {
                     <div className="rounded-xl border border-hairline bg-white p-5">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-sm font-semibold text-ink">Projected outcome</h2>
-                        <span className="rounded-full bg-orq8-lime/10 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-orq8-green">
+                        <span className="rounded-full bg-ink-accent/10 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-brand-ink">
                           Projection — not actual results
                         </span>
                         <span className={`ml-auto rounded-full px-2.5 py-1 text-3xs font-semibold uppercase ${riskBadge(result.projectedRisk).cls}`}>
@@ -617,7 +617,7 @@ export default function SimulationPage() {
                       <div className="mt-5 rounded-xl border border-hairline bg-muted/5 p-4">
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-semibold text-ink">Modeled quality projection</h3>
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-amber-700">Modeled — not actual</span>
+                          <span className="rounded-full border border-warm bg-warm-soft px-2 py-0.5 text-3xs font-semibold uppercase tracking-wide text-warm-ink">Modeled — not actual</span>
                         </div>
                         <p className="mt-1 text-xs text-muted">
                           Based on your real historical performance. Confidence ranges are 90% Wilson score intervals — the wider the range, the less certain the estimate. No range is shown when there is too little historical data.
@@ -667,10 +667,10 @@ export default function SimulationPage() {
                       </div>
 
                       {result.recommendation && (
-                        <div className="mt-4 rounded-lg border border-orq8-lime/30 bg-orq8-lime/5 p-3">
+                        <div className="mt-4 rounded-lg border border-ink-accent/30 bg-ink-accent/5 p-3">
                           <div className="flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
-                            <p className="text-3xs font-semibold uppercase tracking-wide text-orq8-green">Recommendation</p>
+                            <Sparkles className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
+                            <p className="text-3xs font-semibold uppercase tracking-wide text-brand-ink">Recommendation</p>
                           </div>
                           <p className="mt-1 text-xs leading-relaxed text-ink">{result.recommendation}</p>
                         </div>
@@ -680,9 +680,9 @@ export default function SimulationPage() {
                         <div className="mt-4 space-y-2">
                           <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Bottlenecks / warnings</p>
                           {result.bottlenecks.map((b, i) => (
-                            <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden="true" />
-                              <p className="text-xs text-amber-800">{b}</p>
+                            <div key={i} className="flex items-start gap-2 rounded-lg border border-warm bg-warm-soft px-3 py-2">
+                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warm-ink" aria-hidden="true" />
+                              <p className="text-xs text-warm-ink">{b}</p>
                             </div>
                           ))}
                         </div>
@@ -700,7 +700,7 @@ export default function SimulationPage() {
                           type="button"
                           onClick={proposeAndApply}
                           disabled={applying || running}
-                          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
                         >
                           {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                           {applying ? "Requesting approval…" : "Propose & request approval"}

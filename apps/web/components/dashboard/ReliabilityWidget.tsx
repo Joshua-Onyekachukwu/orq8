@@ -24,13 +24,13 @@ interface ReliabilityProfile {
 function AutonomyIcon({ level }: { level: string }) {
   switch (level) {
     case "trusted":
-      return <ShieldCheck className="h-4 w-4 text-emerald-600" />;
+      return <ShieldCheck className="h-4 w-4 text-brand-deep" />;
     case "watch":
-      return <Shield className="h-4 w-4 text-amber-500" />;
+      return <Shield className="h-4 w-4 text-warm-ink" />;
     case "restricted":
-      return <ShieldAlert className="h-4 w-4 text-orange-500" />;
+      return <ShieldAlert className="h-4 w-4 text-warm-ink" />;
     case "paused":
-      return <ShieldX className="h-4 w-4 text-red-500" />;
+      return <ShieldX className="h-4 w-4 text-error-ink" />;
     default:
       return <Shield className="h-4 w-4 text-muted" />;
   }
@@ -39,9 +39,9 @@ function AutonomyIcon({ level }: { level: string }) {
 function TrendIcon({ trend }: { trend: string }) {
   switch (trend) {
     case "improving":
-      return <TrendingUp className="h-3 w-3 text-emerald-600" />;
+      return <TrendingUp className="h-3 w-3 text-brand-deep" />;
     case "declining":
-      return <TrendingDown className="h-3 w-3 text-red-500" />;
+      return <TrendingDown className="h-3 w-3 text-error-ink" />;
     default:
       return <Minus className="h-3 w-3 text-muted" />;
   }
@@ -50,15 +50,15 @@ function TrendIcon({ trend }: { trend: string }) {
 function autonomyColor(level: string): string {
   switch (level) {
     case "trusted":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      return "bg-brand-soft text-brand-ink border-brand-soft";
     case "watch":
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-warm-soft text-warm-ink border-warm";
     case "restricted":
-      return "bg-orange-50 text-orange-700 border-orange-200";
+      return "bg-warm-soft text-warm-ink border-warm";
     case "paused":
-      return "bg-red-50 text-red-700 border-red-200";
+      return "bg-error-soft text-error-ink border-border-error";
     default:
-      return "bg-gray-50 text-gray-600 border-gray-200";
+      return "bg-surface-secondary text-ink-muted border-hairline";
   }
 }
 
@@ -127,7 +127,7 @@ export function ReliabilityWidget() {
           <Users className="h-4 w-4 text-muted" />
           <h3 className="text-sm font-semibold text-ink">AI Workforce Reliability</h3>
         </div>
-        <a href="/app/agents" className="text-xs text-orq8-green hover:underline">View all</a>
+        <a href="/app/agents" className="text-xs text-brand-ink hover:underline">View all</a>
       </div>
 
       <div className="space-y-3">

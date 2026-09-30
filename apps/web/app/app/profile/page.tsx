@@ -165,7 +165,7 @@ function AvatarControl({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className="group relative">
-        <span className="-mt-10 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-orq8-dark text-2xl font-bold text-orq8-green shadow-lg sm:-mt-12 sm:h-24 sm:w-24 sm:text-3xl">
+        <span className="-mt-10 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white ink text-2xl font-bold text-brand-ink shadow-lg sm:-mt-12 sm:h-24 sm:w-24 sm:text-3xl">
           {uploading ? (
             <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
           ) : avatarUrl ? (
@@ -186,7 +186,7 @@ function AvatarControl({
           disabled={uploading}
           aria-label={avatarUrl ? "Change profile photo" : "Upload profile photo"}
           title={avatarUrl ? "Change photo" : "Upload photo"}
-          className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-orq8-green text-white shadow transition-colors hover:bg-orq8-green-dark disabled:opacity-60"
+          className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-brand-deep text-white shadow transition-colors hover:bg-brand disabled:opacity-60"
         >
           <Upload className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -207,13 +207,13 @@ function AvatarControl({
         <button
           type="button"
           onClick={handleRemove}
-          className="text-3xs font-medium text-muted transition-colors hover:text-red-500"
+          className="text-3xs font-medium text-muted transition-colors hover:text-error-ink"
         >
           Remove photo
         </button>
       )}
       {error && (
-        <p className="max-w-40 text-center text-3xs text-red-500" role="alert">{error}</p>
+        <p className="max-w-40 text-center text-3xs text-error-ink" role="alert">{error}</p>
       )}
     </div>
   );
@@ -283,9 +283,9 @@ export default function ProfilePage() {
   if (error) {
     return (
       <div className="mx-auto max-w-5xl">
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
         </div>
       </div>
     );
@@ -302,9 +302,9 @@ export default function ProfilePage() {
           Never place text back at the cover's bottom corners — that is what
           previously collided with the avatar and action buttons. */}
       <div className="overflow-hidden rounded-xl border border-hairline bg-white">
-        <div className="relative h-20 bg-orq8-dark sm:h-24" aria-hidden="true">
+        <div className="relative h-20 ink sm:h-24" aria-hidden="true">
           <div className="absolute inset-0 bg-grid-white [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
-          <div className="absolute -top-20 right-10 h-56 w-56 rounded-full bg-orq8-green/20 blur-[80px]" />
+          <div className="absolute -top-20 right-10 h-56 w-56 rounded-full bg-brand-deep/20 blur-[80px]" />
         </div>
 
         <div className="px-6 pb-6 sm:px-8">
@@ -325,7 +325,7 @@ export default function ProfilePage() {
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       placeholder="Your name"
-                      className="w-48 max-w-full rounded-lg border border-hairline bg-white px-3 py-1.5 text-lg font-bold text-ink outline-none focus:border-orq8-green"
+                      className="w-48 max-w-full rounded-lg border border-hairline bg-white px-3 py-1.5 text-lg font-bold text-ink outline-none focus:border-brand-deep"
                       autoFocus
                     />
                     <button
@@ -350,7 +350,7 @@ export default function ProfilePage() {
                         }
                       }}
                       disabled={saving || !editName.trim()}
-                      className="rounded-lg bg-orq8-green p-1.5 text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+                      className="rounded-lg bg-brand-deep p-1.5 text-white transition-colors hover:bg-brand disabled:opacity-50"
                     >
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     </button>
@@ -366,7 +366,7 @@ export default function ProfilePage() {
                   <>
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 break-words text-lg font-bold tracking-tight text-ink sm:text-xl">
                       <span className="break-words">{user?.name ?? "Founder"}</span>
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orq8-lime text-white" title="Verified" aria-label="Verified">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-ink" title="Verified" aria-label="Verified">
                         <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                       </span>
                       <button
@@ -380,7 +380,7 @@ export default function ProfilePage() {
                       </button>
                     </p>
                     {saveSuccess && (
-                      <p className="mt-1 text-xs text-orq8-green" role="status">Profile updated successfully</p>
+                      <p className="mt-1 text-xs text-brand-ink" role="status">Profile updated successfully</p>
                     )}
                   </>
                 )}
@@ -404,14 +404,14 @@ export default function ProfilePage() {
             <div className="flex shrink-0 items-center gap-2">
               <a
                 href="/settings"
-                className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand"
               >
                 <Edit className="h-3.5 w-3.5" aria-hidden="true" /> Edit profile
               </a>
               <button
                 type="button"
                 onClick={fetchData}
-                className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-orq8-green"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-brand-deep"
               >
                 <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
               </button>
@@ -423,7 +423,7 @@ export default function ProfilePage() {
       {/* Stats row */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-accent/10 text-brand-ink">
             <Users className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -438,7 +438,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
             <Activity className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -451,7 +451,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-warm-soft text-warm-ink">
             <CreditCard className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -494,7 +494,7 @@ export default function ProfilePage() {
           </div>
           <a
             href="/settings"
-            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
           >
             <Edit className="h-3.5 w-3.5" /> Edit in Settings
           </a>
@@ -514,7 +514,7 @@ export default function ProfilePage() {
             <div>
               <p className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-muted">Role</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-orq8-lime/10 px-2.5 py-1 text-xs font-medium text-orq8-green">
+                <span className="inline-flex items-center gap-1 rounded-full bg-ink-accent/10 px-2.5 py-1 text-xs font-medium text-brand-ink">
                   <Shield className="h-3 w-3" />
                   {activeOrg?.role === "owner" ? "Founder" : activeOrg?.role ?? "Member"}
                 </span>
@@ -536,8 +536,8 @@ export default function ProfilePage() {
         </h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
-              <CheckCircle2 className="h-4 w-4 text-orq8-green" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-accent/10">
+              <CheckCircle2 className="h-4 w-4 text-brand-ink" />
             </div>
             <div>
               <p className="text-xs font-medium text-ink">Session Active</p>
@@ -545,8 +545,8 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
-              <Shield className="h-4 w-4 text-orq8-green" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-accent/10">
+              <Shield className="h-4 w-4 text-brand-ink" />
             </div>
             <div>
               <p className="text-xs font-medium text-ink">Password Set</p>
@@ -554,8 +554,8 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg bg-canvas px-4 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-lime/10">
-              <Clock className="h-4 w-4 text-orq8-green" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-accent/10">
+              <Clock className="h-4 w-4 text-brand-ink" />
             </div>
             <div>
               <p className="text-xs font-medium text-ink">Session Timeout</p>
@@ -566,13 +566,13 @@ export default function ProfilePage() {
         <div className="mt-4 flex items-center gap-3">
           <a
             href="/settings/change-password"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
           >
             <Key className="h-3.5 w-3.5" /> Change Password
           </a>
           <a
             href="/settings"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-orq8-green hover:text-orq8-green"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
           >
             <Settings className="h-3.5 w-3.5" /> Account Settings
           </a>
@@ -584,14 +584,14 @@ export default function ProfilePage() {
         <div className="mt-6 rounded-xl border border-hairline bg-white p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">My AI Workforce</h2>
-            <span className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-orq8-green">
+            <span className="font-mono text-3xs font-semibold uppercase tracking-[0.16em] text-brand-ink">
               {activeAgents.length} working
             </span>
           </div>
           <ul className="mt-4 divide-y divide-hairline">
             {agents.map((a) => (
               <li key={a.id} className="flex items-center gap-3 py-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orq8-dark text-sm font-bold text-orq8-green">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full ink text-sm font-bold text-brand-ink">
                   {a.name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -599,7 +599,7 @@ export default function ProfilePage() {
                   <p className="truncate text-xs text-muted">{a.role}{a.department ? ` · ${a.department}` : ""}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${a.status === "active" ? "bg-orq8-lime/10 text-orq8-green" : "bg-canvas text-muted"}`}>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${a.status === "active" ? "bg-ink-accent/10 text-brand-ink" : "bg-canvas text-muted"}`}>
                     {a.status}
                   </span>
                   <p className="mt-1 font-mono text-3xs text-muted">{a.tasksCompleted} tasks</p>

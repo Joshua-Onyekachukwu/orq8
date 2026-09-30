@@ -129,16 +129,16 @@ export default function QualityPage() {
           ) : (
             <div className="space-y-3">
               {incidents.map((incident) => (
-                <div key={incident.id} className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div key={incident.id} className="rounded-lg border border-border-error bg-error-soft p-3">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <AlertTriangle className="h-4 w-4 text-error-ink mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-red-800 whitespace-pre-wrap">{incident.content}</p>
+                      <p className="text-sm text-error-ink whitespace-pre-wrap">{incident.content}</p>
                       <div className="mt-2 flex items-center gap-3">
-                        <span className="text-3xs text-red-600">
+                        <span className="text-3xs text-error-ink">
                           Severity: {incident.importance >= 9 ? "Critical" : incident.importance >= 7 ? "High" : "Medium"}
                         </span>
-                        <span className="text-3xs text-red-600">
+                        <span className="text-3xs text-error-ink">
                           {new Date(incident.createdAt).toLocaleDateString()}
                         </span>
                       </div>

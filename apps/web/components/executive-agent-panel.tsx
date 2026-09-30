@@ -286,18 +286,18 @@ export function ExecutiveAgentPanel() {
           />
 
           {/* Panel — slide from right on desktop, bottom sheet on mobile */}
-          <div className="absolute inset-x-0 bottom-0 top-0 flex flex-col bg-white shadow-2xl lg:inset-y-0 lg:right-0 lg:left-auto lg:w-[420px] lg:border-l lg:border-gray-200">
+          <div className="absolute inset-x-0 bottom-0 top-0 flex flex-col bg-white shadow-2xl lg:inset-y-0 lg:right-0 lg:left-auto lg:w-[420px] lg:border-l lg:border-hairline">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-hairline-light px-4 py-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-dark">
-                  <Bot className="h-4 w-4 text-orq8-orange" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full ink">
+                  <Bot className="h-4 w-4 text-warm-ink" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900">
+                  <h3 className="text-sm font-semibold text-ink">
                     {EA_NAME}
                   </h3>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-ink-muted">
                     Executive Agent
                     {pageContext ? ` · ${pageContext.pageName}` : ""}
                   </p>
@@ -305,7 +305,7 @@ export function ExecutiveAgentPanel() {
               </div>
               <button
                 onClick={() => setPanelOpen(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-1.5 text-ink-faint hover:bg-surface-secondary hover:text-ink-muted"
                 aria-label="Close Executive Agent"
               >
                 <X className="h-5 w-5" />
@@ -316,10 +316,10 @@ export function ExecutiveAgentPanel() {
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
               {messages.length === 0 && founderStage === "new" && (
                 <div className="flex gap-3 justify-start">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full ink">
+                    <Bot className="h-3.5 w-3.5 text-warm-ink" />
                   </div>
-                  <div className="max-w-[85%] rounded-xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+                  <div className="max-w-[85%] rounded-xl bg-surface-secondary px-4 py-3 text-sm leading-relaxed text-ink">
                     <p className="whitespace-pre-wrap">
                       {`Welcome. I'm ${EA_NAME}, your Executive Agent. I help you turn your direction into an operating company: structure the organization, identify what needs to be done, coordinate your teams, and keep you informed as work moves forward.`}
                     </p>
@@ -334,10 +334,10 @@ export function ExecutiveAgentPanel() {
 
               {messages.length === 0 && founderStage === "in_progress" && (
                 <div className="flex gap-3 justify-start">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full ink">
+                    <Bot className="h-3.5 w-3.5 text-warm-ink" />
                   </div>
-                  <div className="max-w-[85%] rounded-xl bg-gray-100 px-4 py-3 text-sm leading-relaxed text-gray-800">
+                  <div className="max-w-[85%] rounded-xl bg-surface-secondary px-4 py-3 text-sm leading-relaxed text-ink">
                     <p className="whitespace-pre-wrap">
                       We're partway through setting up your company. Finish
                       onboarding and I'll start organizing work. You can also
@@ -350,18 +350,18 @@ export function ExecutiveAgentPanel() {
 
               {messages.length === 0 && founderStage !== "new" && founderStage !== "in_progress" && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-50">
-                    <Bot className="h-8 w-8 text-gray-400" />
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-secondary">
+                    <Bot className="h-8 w-8 text-ink-faint" />
                   </div>
-                  <p className="text-sm font-medium text-gray-700">
+                  <p className="text-sm font-medium text-ink">
                     Ask me anything about your company
                   </p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-ink-muted">
                     I understand the current page and your company context
                   </p>
                   <button
                     onClick={() => sendMessage(suggestion)}
-                    className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                    className="mt-4 rounded-lg border border-hairline bg-surface-secondary px-4 py-2 text-sm text-ink transition-colors hover:border-hairline-strong"
                   >
                     &ldquo;{suggestion}&rdquo;
                   </button>
@@ -374,15 +374,15 @@ export function ExecutiveAgentPanel() {
                   className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                      <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full ink">
+                      <Bot className="h-3.5 w-3.5 text-warm-ink" />
                     </div>
                   )}
                   <div
                     className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-orq8-dark text-white"
-                        : "bg-gray-100 text-gray-800"
+                        ? "ink text-white"
+                        : "bg-surface-secondary text-ink"
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -393,8 +393,8 @@ export function ExecutiveAgentPanel() {
                     )}
                   </div>
                   {msg.role === "user" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                      <User className="h-3.5 w-3.5 text-gray-600" />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-disabled-surface">
+                      <User className="h-3.5 w-3.5 text-ink-muted" />
                     </div>
                   )}
                 </div>
@@ -402,16 +402,16 @@ export function ExecutiveAgentPanel() {
 
               {loading && (
                 <div className="flex gap-3 justify-start">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orq8-dark">
-                    <Bot className="h-3.5 w-3.5 text-orq8-orange" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full ink">
+                    <Bot className="h-3.5 w-3.5 text-warm-ink" />
                   </div>
-                  <div className="rounded-xl bg-gray-100 px-4 py-3">
+                  <div className="rounded-xl bg-surface-secondary px-4 py-3">
                     {stages.length > 0 ? (
                       <ExecutiveAgentProgress stages={stages} />
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                        <span className="text-sm text-gray-500">Thinking...</span>
+                        <Loader2 className="h-4 w-4 animate-spin text-ink-faint" />
+                        <span className="text-sm text-ink-muted">Thinking...</span>
                       </div>
                     )}
                   </div>
@@ -419,7 +419,7 @@ export function ExecutiveAgentPanel() {
               )}
 
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+                <div className="rounded-lg border border-border-error bg-error-soft px-4 py-2 text-xs text-error-ink">
                   {error}
                 </div>
               )}
@@ -429,8 +429,8 @@ export function ExecutiveAgentPanel() {
 
             {/* Suggested questions when there are few messages */}
             {messages.length <= 1 && pageContext && (
-              <div className="border-t border-gray-100 px-4 py-2">
-                <p className="mb-2 text-xs font-medium text-gray-500">
+              <div className="border-t border-hairline-light px-4 py-2">
+                <p className="mb-2 text-xs font-medium text-ink-muted">
                   Quick questions:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -455,7 +455,7 @@ export function ExecutiveAgentPanel() {
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50"
+                      className="rounded-full border border-hairline bg-white px-3 py-1 text-xs text-ink-muted transition-colors hover:bg-surface-secondary"
                     >
                       {q}
                     </button>
@@ -465,7 +465,7 @@ export function ExecutiveAgentPanel() {
             )}
 
             {/* Input */}
-            <div className="border-t border-gray-100 px-4 py-3">
+            <div className="border-t border-hairline-light px-4 py-3">
               <div className="flex items-end gap-2">
                 <textarea
                   ref={inputRef}
@@ -474,12 +474,12 @@ export function ExecutiveAgentPanel() {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask the Executive Agent..."
                   rows={1}
-                  className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-orq8-orange/40 focus:outline-none focus:ring-2 focus:ring-orq8-orange/20"
+                  className="flex-1 resize-none rounded-xl border border-hairline bg-surface-secondary px-4 py-2.5 text-sm text-ink placeholder-ink-faint focus:border-warm/40 focus:outline-none focus:ring-2 focus:ring-warm/20"
                 />
                 <button
                   onClick={() => sendMessage(input)}
                   disabled={!input.trim() || loading}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-orq8-dark text-white transition-colors hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl ink text-white transition-colors hover:bg-brand-deep disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />

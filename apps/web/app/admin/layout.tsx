@@ -74,8 +74,8 @@ export default async function AdminLayout({
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas">
         <div className="mx-auto max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-            <Shield className="h-8 w-8 text-red-500" />
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-error-soft">
+            <Shield className="h-8 w-8 text-error-ink" />
           </div>
           <h1 className="text-2xl font-bold text-ink">Access Denied</h1>
           <p className="mt-3 text-sm text-muted leading-relaxed">
@@ -88,7 +88,7 @@ export default async function AdminLayout({
           </p>
           <a
             href="/app"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-orq8-green px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orq8-green-dark"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-deep px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand"
           >
             Go to Dashboard
           </a>

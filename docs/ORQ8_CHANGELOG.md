@@ -1,5 +1,328 @@
 # ORQ8 Changelog
 
+## 2026-09-29 — The gate sends the mail, and the price the founder approves is the price they pay
+
+- **The release gate no longer takes the environment's word for mail (`POST /v1/readiness/mail-check`).** Step 4 asks `/v1/readiness`, which reports that `email` is *configured* — that `SMTP_HOST` or `RESEND_API_KEY` is present. That is a claim about the environment, not about the network: a correct-looking key the provider rejects, or a blocked port, passes every capability check while nobody in the company can confirm an account. The gate now fires the deployment's own three-verdict mail check and sends one real message. The endpoint is machine-only (`x-internal-token`, constant-time) because the send is a real side effect and a pipeline has no founder to attribute it to; the founder-facing path stays `/v1/settings/mail/test`, which is a session and writes `mail.delivery_checked`. `200` means *the check ran*, never *mail works* — a failed diagnosis is the answer, carried in the body with the broken step, the cause the provider's own words classified into, and the fix. The probe goes to the address in the deployment's own `EMAIL_FROM`; `--mail-to` (or `ORQ8_MAIL_PROBE_TO`) aims it at a mailbox you read, and `--no-mail` skips it loudly. A `404` — an API build older than this endpoint — is a **failed** check, not a skip: a green tick for a check that did not run is how "verified" stops meaning anything. `vercel-deploy.yml` passes its optional `MAIL_PROBE_TO` secret through.
+- **Watched failing and passing, on two live stacks.** No provider: `FAIL no blocking capability — blocking: email` **and** `FAIL mail delivers — No provider is configured… — Set RESEND_API_KEY (recommended), or SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS`, exit 1. Provider + local SMTP sink: `PASS mail delivers — smtp accepted a message for review@orq8.test`, 6 capabilities ready, exit 0. The gate proof gained the matching assertions — the check must have *fired*, with a provider it must have passed by delivering, without one it must have failed naming the keys — and passes on both stacks. "why this is not a release" now prints once, however many checks failed.
+- **A founder was quoted one price and charged another.** `executeTool` consumed credits with `consumeCredits(db, orgId, 'tool.<id>', …)` and no amount, so the charge came from `OPERATION_COSTS['tool.<id>']` — a key that does not exist in that table, which therefore fell through to its `default: 2`. Everything the founder sees is `tool.creditCost`: the spending-limit check, the affordability check, and the number the approval card quotes before they agree to the call. **Found live:** the card said `ESTIMATED COST $0.01` (1 credit), the ledger row said `Tool: Write Email by Ember -2`, and the task record said `write_email: ran in 0.1s, 2 credits`. The registry now passes `{ amount: tool.creditCost }`, so the advertised price, the pre-flight check and the charge are one number — re-proved live on a fresh stack: quoted 1, ledger `-1`, record `1 credit`, task cost 4 = 3 + 1. The old test asserted `=== 2` for `analyze_data`, whose real cost is **also** 2, so it passed for the wrong reason and hid this completely; the new assertion compares the charge against the *quoted* cost, which is the invariant, and the record must report the same number.
+- **The approval card named the requesting agent by uuid.** `REQUESTED BY: Agent #1f80cc03` — on the one screen whose entire job is to say who is asking to do what, while the card's own description already said `Agent "Ember"`. `GET /v1/approvals` now resolves the agent's name in the same batched pass that resolves `gatedWork`, and the card renders it (falling back to the id when an agent has been deleted). Verified live: the budget approval reads **Nova** and the gated tool approval reads **Ember**.
+- **Walked by hand on a stack with a real SMTP sink, and what the pages still get wrong.** Mail check works against a real socket (`SMTP DELIVERING, from ORQ8 Review <review@orq8.test>, through 127.0.0.1:61634`; “Send a test email to me” → all three steps green with the provider's message id). The gated task walks end to end: **Run now** → `awaiting_approval` (the page renders the state after the `next.config.ts` cache fix, which had made every authenticated GET serve a 30-second stale body) → the card names the blocked task, the tool and the exact arguments → **Approve** → the task resumes, really calls `write_email`, and records `Tools used:`. Three things the pages still get wrong, reported and not yet changed: (1) the task page's status chip reads **PENDING** while the task is `awaiting_approval`, because the chip reads the task's status column and the waiting state lives in the result text and a *Waiting on your decision* link — defensible, but a founder scanning the chip sees "pending"; (2) retrying an observe-mode agent's task toasts **"The task is now failed."**, which is true and reads like a crash; (3) **Run queued work** reports counts (`Ran 1 task: 1 completed, 0 failed, 0 still waiting on you`) but never which task it ran.
+- **Verified:** `readiness-mail-check.test.ts` **6/6** (no token and a wrong token both refused; the check runs and reports the failing step without erroring; the fix names the keys; the recipient falls back to the address inside `EMAIL_FROM` and a malformed one is rejected rather than sent), `readiness.test.ts` 7/7, `health.test.ts` 11/11, `email-diagnostics.test.ts` 13/13, `task-tools.integration.test.ts` 3/3 on the embedded database, `task-tools.test.ts` 11/11; the release gate and its proof run against two live stacks, both ways. Typechecks clean for `@orq8/api` and `@orq8/web`; the web app was rebuilt and the card re-checked in a browser.
+
+## 2026-09-29 — An AI employee's work can call a tool, and a release can be blocked for a real reason
+
+- **A task can use a tool, through the EA's gate (MVP-030).** `executeTool` carried the whole tool contract — role, authority, the approval gate, an idempotency key, the credit charge and an audit row for a denial as well as an execution — and had **no caller in task execution**: the executor raised an approval and then had nothing to run. It now calls the same registry the Executive Agent does. The model is offered exactly its role's tools and one strict, machine-readable way to ask for one (an unreadable block is treated as a normal answer, never guessed at, because a guessed call would run real work), bounded at three rounds. What the work used is on the task's record (`Tools used: analyze_data: ran in 1.2s, 2 credits`); the task row's cost equals every charge in the ledger against it while only the model's share is billed here, because the registry already charged `tool.<id>`; a refused tool is refused for real — audited as `tool.denied`, nothing charged, the refusal on the record instead of hidden behind a plausible answer; and a tool that needs the founder stops the task in `awaiting_approval` naming the tool and its exact arguments, with the grant consumed when the halted run resumes. **Found while verifying:** task-scoped tool audits carried no `task_id`, so tool activity could not be traced back to the task; executed, denied and grant-consumed rows now name it.
+- **The release gate exists, and has been watched failing (MVP-021, MVP-034).** `scripts/release-gate.mjs` asks a running deployment four questions — web `/healthz`, API `/healthz`, `/readyz`, and `/v1/readiness` — and exits non-zero while a production-critical capability is unconfigured, printing the missing key names, the impact and the docs. `/v1/readiness` gained a machine read (`x-internal-token`, constant time) because a gate has no session and a red deploy that cannot say *why* is a red deploy nobody fixes; `/readyz` stays public and nameless. `--require billing` raises the floor for a stage that needs more. `scripts/release-gate-proof.mjs` is a `proofs.mjs` proof (so CI runs it) asserting the verdict follows the deployment's own report, that the public count and the named report agree, that the gate refuses to guess without its token, and that `--require` fails for the reason it is given.
+- **Proven against the local review stack, both ways.** The gate **refused** the default stack — `blocking: email`, naming `RESEND_API_KEY`/`SMTP_HOST` and the founder impact — and **cleared** a stack whose mail capability is genuinely activated (`REVIEW_MAIL=1` attaches a local SMTP sink: a real socket that answers SMTP, the mail twin of the local model gateway), reporting *6 capabilities ready*. Two stacks ran side by side to do it, which required two fixes to the harness: the data root is now scoped by port (`.review-stack-data-3113` is not a substring of `.review-stack-data-3115`), and both ports are checked **before** anything starts — the port preflight used to run after the database was up, so booting a second stack killed the first one's Postgres and took a live stack down to report its own mistake.
+- **The deploy is verified; the release now has a gate too.** `vercel-deploy.yml` runs the gate after it verifies the web deployment. With no `PRODUCTION_API_URL` secret it records **Release gate: NOT RUN** in the job summary and warns that the release is unproven rather than showing a green check for a check that did not run; the moment the API has a host, that step is blocking. `.github/workflows/ci.yml` runs the gate proof on the review stack in the `founder-loop` job (advisory, like the route sweep it shares a boot with, until the stack proofs have held on GitHub runners).
+- **Also fixed while here:** the gate's own exit was aborting inside libuv on Windows (`process.exit()` racing a closing socket → exit 127, which would have turned a *passing* deployment red), so the scripts use a dependency-free JSON GET that leaves no handle behind and set `process.exitCode` instead.
+- **Verified:** `task-tools.integration.test.ts` **3/3** on the embedded database (a role's tool runs, is charged and audited as `tool.executed`; a forbidden action is refused, audited as `tool.denied` and charged nothing; a gated tool stops the task and runs when the approval is granted) and `task-tools.test.ts` **11/11**; **42/42** on the executor-adjacent suites (executor, block-persist, approval-gated work, approvals); `health.test.ts` **11/11** including the machine read, the refused token and `/readyz` agreeing with the named report, and `readiness.test.ts` 7/7. The release gate was run live against two review stacks and the gate proof passed on both. Typechecks clean for `@orq8/api` and `@orq8/web`.
+
+## 2026-09-29 — Mail is self-diagnosing, and the founder can move work without curl
+
+- **Mail delivery is now a check the founder can run, not a log line they have to read.** `GET /v1/settings/mail` reports the configured provider, the sending address, which keys are missing (names only, never values) and what delivery costs the product while it is unconfigured; `POST /v1/settings/mail/test` sends one real message and returns three verdicts — *a provider is configured*, *the provider accepts these credentials*, *a real message was accepted* — with the failing step classified into a cause and the change that fixes it (an invalid Resend key, an unverified sending domain, a rate limit, an unreachable SMTP host, rejected SMTP credentials, a TLS mismatch, or a refused recipient) and the provider's own words kept alongside. The settings page renders all of it, including “not delivering”, instead of claiming success. Owner/admin only for the send, audited as `mail.delivery_checked`.
+- **Execute, retry and run-queued-work are reachable from the product.** `POST /v1/commands/tasks/:id/execute`, `…/retry` and `…/tasks/execute-pending` existed with no caller in the app, so a founder whose task was stuck needed a developer with curl. The task page now runs a pending task (“Run now”), retries a failed one, and shows *Waiting on your decision* with a link to the approvals page when that is the actual state. The Founder's Attention queue gained **Run queued work** with a plain-language result (“Ran 3 tasks: 2 completed, 1 failed, 0 still waiting on you”), and its per-item **Retry** now calls the real retry endpoint — it re-runs the work and reports the outcome, instead of patching the status to `pending` and leaving the founder to trigger the run a second time.
+- **An approval card shows the exact tool call.** The gated task, its status, the tool, and now the argument-by-argument payload (`toolParams`, stored by migration 0036 precisely so “do the thing” is never approved blind) — long values are cut at a readable limit, not summarised.
+- **Verified:** `mail-and-work-controls.integration.test.ts` **5/5** on the embedded database (unauthenticated refusal, an unconfigured deployment reported honestly with no credential in the payload, the three-step diagnosis plus its audit row, one task executed on demand, and the batch runner reporting its counts while completing the queued task); `email-diagnostics.test.ts` **18/18** including the failure classifications and “a rejected key means nothing is sent”; `attention.test.ts` **13/13** with the retry-endpoint assertion. Typechecks clean for `@orq8/api` and `@orq8/web`.
+- Not walked live: ports 3111/3112 are held by an older review stack, so the three new surfaces are verified through the API they call (the web routes are passthroughs) and by typecheck, not by clicking them in a browser.
+
+## 2026-09-29 — An approval names what it blocks, in every surface the founder reads
+
+- **Gap A reached the product, not just the API.** The columns (`task_id`, `tool_id`, `tool_params`, `released_at`) and the resume/stop wiring landed earlier; what had not landed was the naming. `GET /v1/approvals` returned the raw row, the Founder's Attention item was built from the `action` sentence, and both cards rendered `action` + `description` — so a founder still pressed approve without seeing what moved. The list and single-get now resolve a `gatedWork` object per row (the gated task's title and status, and the tool when the gate came from a tool call) in batched queries; the attention item leads with the blocked work and its authority line says that approving resumes it while rejecting stops it and keeps the reason; `/app/approvals` and the dashboard Decision Center render *Blocks <task> · status* with a link to the task, and stay silent on rows that predate migration 0036 rather than inventing one.
+- **Verified on the embedded database:** `approval-gated-work.integration.test.ts` is now **10/10** (the new case asserts the list hands the founder the blocked task by name and status), `attention.test.ts` gained a named-work case and a tool case, and `attention.integration.test.ts` stays green — 23/23 across the two attention suites.
+- **The model gateway decision is recorded and enforced.** Re-verified this cycle: `PROVIDER_PRIORITY` is `openrouter → nvidia → litellm → ollama` in `apps/api/src/services/model-router.ts`, `buildProviderChain()` in `services/llm.ts` pushes the same four in the same order, and `model-router.test.ts` asserts the declared order, OpenRouter first, NVIDIA second, and that only LiteLLM/Ollama are development providers (`llm-fallback.test.ts` 14/14 on the fallback walk). **[ADR-023](adr/ADR-023.md) supersedes ADR-004** and is linked from `docs/22_MODEL_ROUTING.md §22.9` under "Record", with ADR-004 marked Superseded in its own header and in the index (`docs/56`).
+- Typechecks clean for `@orq8/api` and `@orq8/web` after the payload and card changes.
+
+## 2026-09-29 — Full ecosystem reconciliation: one plan, one map, one activation model
+
+- **The documentation is reconciled against the product.** Four documents claimed to be the plan and
+  two of them said so in their own headers. `docs/66` is now the master guide and
+  `docs/68_REQUIREMENT_MATRIX.md` is the matrix; the other four are archived. `docs/00_INDEX.md`
+  maps every document with its purpose, its action (KEEP / UPDATE / MERGE / ARCHIVE / REMOVE) and
+  the seven conflicts that were found and how each was resolved. Twenty documents and three
+  prototype surfaces moved to `docs/archive/` or `archive/prototypes/`, with the reason and the
+  successor recorded per file in `docs/archive/README.md`. **Nothing was deleted.**
+- **The deployment story conflicted with itself.** `docs/58` is headed "Supabase + Vercel + GitHub"
+  and carried a section titled "Railway — API host (current)"; `docs/43` described a third
+  pipeline; `.github/workflows/vercel-deploy.yml` stated "the API deploys to Railway separately",
+  a host that no longer exists. `58.11b` is now marked historical with the real status (the API has
+  no host), the workflow no longer documents the impossible path, and the code side of a
+  replacement is named precisely: `build:bundle` + `apps/api/vercel.json` + the `bundle.prod` /
+  `boot.prod` tests for a Vercel function, or `apps/api/Dockerfile` for a container host.
+- **The deployment can now say what it cannot do.** `capabilityReadiness(config)` in `@orq8/core`
+  declares each capability's required keys (or its alternatives), whether it is production-critical,
+  and what the founder loses while it is unconfigured. `GET /readyz` (public) reports dependency
+  health plus activation counts; `GET /v1/readiness` (authenticated) names every unconfigured
+  capability with its impact and its documentation. Key names only — never a value. Seven tests
+  pin the four properties that make it trustworthy (a minimal deployment is not reported complete;
+  a configured one has nothing blocking; a local substitute reports `dev_only` and never `ready`;
+  nothing leaks), plus a drift guard tying every named key to `envSurface()`; three more cover the
+  routes themselves.
+- **The audit's sharpest finding is a missing feature, not a messy repository.** `task-executor.ts`
+  enforces the approval gate and imports no tool registry: an AI employee's work is stopped for a
+  decision and then has nothing to run. `executeTool` is reachable only from the Executive Agent's
+  own path. That is MVP-030, the one P0 row that needs no founder input, and it is where
+  implementation resumes.
+- **Two prototype surfaces were compiled into the product.** `/dashboard-prototype` and
+  `/design/colors` were reachable URLs in any build of this working tree, referenced by no source
+  file; they are now in `archive/prototypes/` with the restore command documented. `.recovery/` is
+  gitignored so it stops polluting `git status`.
+- **Founder-blocked state, stated plainly:** `origin/main` is at `3b559b9` (2026-09-12) while local
+  `main` is 33 commits ahead with 246 uncommitted files, so production cannot be running this code;
+  the API has no host; and the Supabase project the repository targets
+  (`gttkaxbcdtpsmconxm` as configured locally) is not visible to the connected tooling, which sees
+  only `CapitalOS` — a different product with 48 investor-intelligence tables. Nothing was
+  committed or pushed.
+
+## 2026-09-29 — ADR-023: OpenRouter is the production gateway; approvals audit both outcomes
+
+- **ADR-023 — OpenRouter Is the Production Model Gateway** supersedes **ADR-004** (LiteLLM as the
+  model gateway). It keeps ADR-004's central rule — domain code never calls a vendor SDK directly —
+  and changes which service sits at the head of the chain: OpenRouter primary (one key, many vendors,
+  no self-hosted hop we have to operate), NVIDIA NIM the first fallback, LiteLLM and Ollama
+  development-only and last. `PROVIDER_PRIORITY` in `apps/api/src/services/model-router.ts` is the
+  single declaration every chain derives from; `apps/api/test/model-router.test.ts` (24 tests) pins
+  the order, the first entry of a configured chain, and that only the dev providers report as
+  development. ADR-004 is marked superseded (never deleted); the index (docs/56), 06 §6.6 and 22 §22.9
+  all link to the new record.
+- **Both approval outcomes are audited symmetrically.** An approved gate wrote
+  `approval.resumed_work` naming the task it released; a rejection wrote only that a question was
+  answered. It now writes `approval.stopped_work` too, and both rows carry `approval_id` and
+  `task_id` as structured references, so the trail answers "what did this decision move?" without
+  parsing prose. `approval-gated-work.integration.test.ts` is now 9/9, with the audit assertions
+  added.
+
+## 2026-09-29 — Members are manageable in the product, and removal removes access
+
+- **The member surface now exists in the app** (`/app/members`, in the existing operational shell):
+  invite a teammate with a role, see the accept link with a copy control and an honest delivery
+  verdict, list pending invitations with **New link** / **Revoke**, change a member's role, and remove
+  someone. `/invite/[token]` is what the teammate opens — sign in or create the account with the
+  invited address, one click to accept, then the session moves into the company that invited them.
+  Every rule stays in the API; the page shows its refusals verbatim.
+- **Invitations are emailed through the existing transactional transport**
+  (`invitationEmail()` + auth's `createEmailTransport`), carrying the company, role, inviter, a
+  single-use link and its expiry. Mail never fails the invitation, and `SendResult.delivered`
+  distinguishes "a provider accepted it" from "the transport returned ok because it only logged the
+  message" — so the UI says "emailed" or "no mail provider configured here, send them this link"
+  instead of pretending.
+- **One-time links are one-time:** only a token hash is stored, so a lost link cannot be shown again.
+  `POST /v1/members/invitations/:id/renew` mints a fresh token (killing the old one, restarting the
+  expiry) and re-sends the email.
+- **Fixed: removing a member did not remove their access.** The live loop removed a teammate, they
+  vanished from the list, and their session still answered 200 on `/v1/agents` — `findSessionByToken`
+  joined `memberships` without checking `status`. The join now requires an active membership, and
+  `removeMember` revokes that person's sessions in that organization (cache entries first, so a
+  cached session cannot outlive the removal). Verified live: the removed teammate gets 401 with
+  `revokedSessions: 1` reported.
+- **Tests:** `apps/api/test/members.integration.test.ts` now 20/20 on the embedded database, adding
+  the delivery verdict, renewal (fresh link works, the old one is dead), renewal refused on a settled
+  invitation, cross-tenant renewal refusal, and removal revoking access.
+
+## 2026-09-29 — The founder loop runs end to end, and the harness stops lying
+
+- **The loop was driven through the product's own routes** (register → confirm →
+  company → hire → ask the Executive Agent → approve → work resumes) against the local review
+  stack, not the API directly. After the fixes below: every step passes, route sweep 33/33 clean,
+  vertical slice 44/44, gated task resumed on approval and completed.
+- **"Ask the Executive Agent for work" failed in the product**: `/api/commands` returned 415
+  Unsupported Media Type because the proxy named `Content-Type` twice (once literally, once via
+  `proxyAuthHeaders`), so fetch sent `application/json, application/json`. The identical request to
+  the API worked, so every diagnostic said the backend was fine while the product's core action
+  looked dead.
+- **Signup could not be completed without a mail provider.** The dev transport logged only
+  recipient and subject — the confirmation link existed nowhere — so every page answered 403
+  `email_not_verified` pointing at a link that could never arrive. Outside production the message
+  body (link included) is now printed; in production with no provider the send fails loudly instead
+  of reporting a phantom success.
+- **A gated command reported success.** With a `recommend`-level employee the work stopped at the
+  approval gate while the command answered `status: completed` and "0/1 tasks completed". The
+  command now reports `awaiting_approval` and says the task is waiting on a decision.
+- **Harness defects fixed, each of which made the loop unprovable:** the route sweep logged in as
+  `demo@orq8.test` while the stack seeded `founder@orq8.test` (all 33 routes "redirected to
+  /login" on a healthy app) — both now read one credential source; the stale-postmaster cleanup
+  stopped every embedded Postgres on the machine, killing the review stack's database mid-review —
+  it is now scoped to the harness's own data root; and the stack announced "ORQ8 IS UP" while its
+  own web child had died with EADDRINUSE, so it now refuses an occupied port and treats a dead web
+  child as fatal.
+- **Still open:** hiring a fourth employee is refused by the trial cap with an upgrade path that
+  does not exist in the MVP, and there is no web route for execute / retry / execute-pending, so
+  the founder can approve work but cannot start or re-run it from the product.
+
+## 2026-09-29 — Approvals gate real work, memory is provably used
+
+- **Gap A — an approval now names the work it gates.** Before, a decision carried an `action`
+  sentence and nothing else: approving released nothing, rejecting stopped nothing, and the task sat
+  in `pending` while the Command Center reported the request handled. Migration `0036` links an
+  approval to its `task_id` and the tool it gates, and stamps `released_at` so a yes is single-use.
+  The executor now honours the autonomy model's `requiresApproval` instead of dropping it on the
+  floor; approving resumes that exact task, rejecting requires a reason (400 `reason_required`) and
+  cancels the task for good with the reason kept on the record; `tool-registry` no longer reports
+  `success: true` for work it just blocked.
+- **Gap C — the orphaned runner has a caller.** `executePendingTasks` was exported with no callers
+  anywhere in the API. `POST /v1/commands/tasks/:taskId/retry` re-runs work the system stopped and
+  refuses work a person has not settled (409); `POST /v1/commands/tasks/execute-pending` runs the
+  org's queued work and never touches work waiting on a human. Both paths are driven by the approval
+  decision too.
+- **Verified**: `apps/api/test/approval-gated-work.integration.test.ts` — 8/8 on the embedded
+  database, only the LLM boundary stubbed.
+- **Gap D — the acceptance test exists and it found two real defects.**
+  `apps/api/test/memory-acceptance.integration.test.ts` (4/4) proves teach → store → retrieve → use,
+  with the LLM stub echoing the knowledge it was given so the result can only contain the taught
+  fact if it genuinely travelled storage → retrieval → prompt → output. Defects fixed: (1) the
+  keyword fallback matched the whole task description as one substring of the memory content, so
+  with no embedding provider — the default — a task could never find what the founder taught it;
+  retrieval is now term-matched and ranked by how many of the query's salient terms an entry
+  contains. (2) `useCount`/`lastUsedAt` were hardcoded to `0`/`null`, so "was this knowledge ever
+  used?" was unanswerable; migration `0037` adds both columns and the context builders stamp the
+  entries they hand to an employee, while `/v1/memory` reads alone leave the counters alone.
+
+## 2026-09-28 — OpenRouter leads the provider chain
+
+- **What changed**: provider priority was `nvidia → openrouter → litellm → ollama` in two places that
+  each had their own copy of the list. OpenRouter is now first, NVIDIA NIM is the documented first
+  fallback, and LiteLLM and Ollama are development-only and last. The order is declared once, as
+  `PROVIDER_PRIORITY` in `apps/api/src/services/model-router.ts`; `getProviderChain()` derives its
+  walk from it and `buildProviderChain()` in `llm.ts` pushes the same four ids in the same order.
+- **Why**: an unpinned call used to land wherever a workspace happened to hold credentials, so the
+  destination of a production request was decided by environment rather than by policy — and a pinned
+  model id could be answered by a different vendor without the caller knowing. One OpenRouter key
+  fronts many vendors, honours a pinned id exactly, and makes the default destination a single
+  predictable path. NIM is demoted rather than deleted because it is a genuinely useful second
+  attempt; a stray local LiteLLM/Ollama URL is now structurally unable to lead a call.
+- **A silent gap in the old chain**: `ModelRouter.getProviderChain()` skipped every provider whose key
+  pool was empty, which quietly removed Ollama — the one provider that needs no credentials — so the
+  declared four-provider chain was really three. Providers now declare whether they need auth
+  (`requiresAuth`), and the chain mirrors the declared priority exactly.
+- **Verified**: `@orq8/api` typecheck clean; the full API suite green at **467 passed / 0 failed**,
+  including new assertions that OpenRouter heads the chain when both keys are present, that NVIDIA is
+  the first fallback, that the development providers stay last, that a real call is served from
+  OpenRouter without touching a fallback, and that `PROVIDER_PRIORITY` is the source of truth.
+  OpenRouter was also exercised end to end through ORQ8's own `getModelRouter(config).complete()` —
+  `provider: openrouter, model: openai/gpt-4o-mini`, usage and cost metadata returned, zero fallbacks
+  used.
+- **Written down**: §22.9 of `docs/22_MODEL_ROUTING.md` records the decision and amends §22.8, which
+  had LiteLLM as the production gateway (ADR-004). The order is now consistent in the deployment
+  guide, the system audit, the master plan, the MVP master, the product-experience spec, the current
+  state of the code, and both `.env.example` templates.
+
+## 2026-09-28 — The hero keeps its light when the OS turns animations off
+
+- **What changed**: `HeroLightField` read `prefers-reduced-motion` and, when it matched, detached
+  entirely — leaving the hero with no light at all. It now keeps the light and removes only the
+  movement: the field parks at rest (`REST_LIGHT` / `REST_WARM`, opacity 1), installs no pointer
+  listeners and starts no animation frame. A coarse pointer still gets no light, because a touch
+  device has no hover to respond to.
+- **Why**: this machine reports `prefers-reduced-motion: reduce` — Windows client-area animations are
+  off (`SPI_GETCLIENTAREAANIMATION = 0`, `MinAnimate = 0`) — so the hero rendered unlit here for
+  anyone with the same setting, which is a large and entirely ordinary group of users. Reduced motion
+  asks for less movement, not for a missing visual.
+- **Also fixed on the landing surface**: `btn-press` was referenced by four components but had never
+  been defined anywhere, so it did nothing; it is now a real 120ms scale-on-press rule with a
+  reduced-motion opt-out. The five elevation shadows used Tailwind arbitrary values containing literal
+  spaces (`rgb(53 98 103 / 0.08)`), which Tailwind split into separate classes so no shadow ever
+  applied; they are normalized to the underscore form (`rgb(53_98_103_/_0.08)`) and confirmed in the
+  browser to generate real CSS.
+- **Verified**: with reduced motion in force the live DOM reports `--hero-light-opacity: 1` with the
+  light at 38% / 42%, and the hero is visibly lit in a screenshot. With the media queries overridden to
+  simulate a desktop pointer, the field eases toward the pointer (opacity 0.000 → 0.221 → settled
+  0.936) and its coordinates track the cursor, with the warm layer lagging behind it.
+
+## 2026-09-28 — One ORQ8 lockup, and the product stops saying Trezo
+
+- **What changed**: `components/branding/logo-mark.tsx` rendered the template's letterforms. The
+  wordmark path spelled T-r-e-z-o, so every authenticated page carried another company's name in its
+  most prominent brand position. The letterforms are replaced with real ORQ8 geometry: a geometric
+  O-R-Q-8 drawn in a 100 x 26 viewBox at cap height 18 and stem weight 3.5, so it holds its own next
+  to the heavy four-tile mark. The mark itself, the prop API and every call site are unchanged.
+- **Why**: the sidebar is the one surface a customer looks at every day. A wrong name there is worse
+  than a wrong colour anywhere.
+- **How it is built**: letters are filled paths — counters cut with `fillRule="evenodd"`, and the
+  parts that must merge (the R leg, the Q tail, the two loops of 8) kept as separate elements so
+  their overlap paints solid. No font and no network request, so the name cannot drift or 404.
+- **One lockup everywhere**: the landing navbar had been a raster PNG with a neon green/blue
+  gradient glyph and a different wordmark, and the admin sidebar a generic `Zap` icon — a second and
+  third identity. Both now render the shared `LogoMark`. The wordmark follows `currentColor` and the
+  mark takes the brand tone, so the same component reads white-on-black over the hero, ink-on-white
+  in the sticky bar, and ink-on-white in the admin console.
+- **Icons too**: every raster brand asset — `favicon.png`, `app/icon.png`, the apple touch icon and
+  the wide navbar PNGs — was that same neon gradient glyph, which meant the browser tab, the app
+  icon and the iOS home screen all showed it. They are regenerated from the four-tile mark
+  (`public/favicon.svg` vector plus `favicon.png` and `apple-touch-icon.png`), and the retired
+  neon/Trezo files are deleted along with the unreferenced `logo.svg` and `white-logo.svg`.
+- **Verified**: geometry checked at 620px, 300px and at the real 32px size on white and inside a
+  black band; the shipped sidebar, the landing navbar in both states and the tab icon at 16 - 48px
+  rendered and inspected; typecheck and production build green.
+- **Not verified**: the `/admin` shell itself needs `users.platform_role = 'admin'`, which the local
+  founder account does not have. The logo block is verified as the same component under the same
+  white-bar/ink-wordmark treatment that the sticky navbar renders.
+
+## 2026-09-28 — White page, two live accents, and a cleaner How it works
+
+- **What changed**: the page is white, not `#EFFEFB`. Cards are white too and are separated by a
+  hairline and a shadow; controls, hovers and quiet panels sit on a 4% neutral wash. Lime `#B8FF66`
+  and orange `#E86A33` return as **touches** — a lime rule over each How-it-works step, a lime tick
+  beside each section eyebrow, a lime dot on the black hero, CTA and footer, the orange pricing
+  ribbon, the lime annual toggle, an orange marker on the Testimonials pill. The How-it-works
+  section is rebuilt: three columns divided by hairlines with a short lime rule and a mono step
+  number, instead of three pale rounded cards with circular badges.
+- **Why**: the tinted page made the whole product feel like one colour and left nothing for the
+  hierarchy to rise above, and the How-it-works cards read as generic template furniture. The brief
+  was a clean white interface with two points of vivid life in it.
+- **Teal's area, not its role**: teal stays the brand — primary buttons, brand text, borders, marks,
+  the black bands and the focus ring — but the large pale-teal areas are gone. `--orq-surface-secondary`
+  is a neutral wash rather than `#C2F2F2`, and the section titles that were teal are ink.
+- **A regression the audit caught**: the neutral wash took tertiary text to 4.42:1, so
+  `--orq-text-tertiary` deepened to `#487279` and the wash softened to 4%. The audit gained pairs for
+  the accents in both scopes.
+- **Also fixed**: the Testimonials quote glyph was a bundled SVG with a hard-coded indigo `#757FEF`.
+  It is inlined with `currentColor` now, the asset is deleted, and the two unreferenced logo SVGs that
+  still carried `#605DFF` were recoloured. No indigo remains anywhere in the source or the assets.
+- **Verified**: contrast audit green in both scopes, web typecheck, production build, and a
+  rendered-DOM scan with zero failures on landing, auth, dashboard, health and Company Hub.
+
+## 2026-09-28 — One colour system across the whole product
+
+- **What changed**: every surface — marketing, auth, onboarding, the dashboard,
+  the Company Hub, the Executive Agent, agents, tasks, approvals, settings,
+  charts, modals, tables, empty and error states — now reads one semantic token
+  system declared in `apps/web/app/globals.css`. The palette is the official one:
+  brand `#356267` / `#41737C`, the light interface `#C2F2F2` / `#EFFEFB` /
+  `#FFFFFF`, structural `#000000`, warm `#F1C095`, error `#D55053`. Light is the
+  default product; `.ink` is the deliberate black band (marketing hero and CTA,
+  auth shell, onboarding, the hub canvas).
+- **Why**: colour had become decoration. Four "greens", three warm hues, a neon
+  lime and a borrowed indigo were all saying "positive", and the marketing site,
+  the auth shell and the app each had their own palette. One system now carries
+  meaning: brand is the product, warm is attention, error is trouble.
+- **Two passes to retire the bridge.** The historical names — the Tailwind
+  default palette, the landing's editorial set (`void`, `abyss`, `parchment`,
+  `fog`, `ember`, `panel`, `navy-*`) and the `orq8-*` brand utilities — first
+  resolved onto semantic tokens so the product stayed reviewable mid-migration,
+  then were moved call site by call site: 668 + 44, then 1,937 across 136 files,
+  plus 32 hand corrections. The compatibility block itself is gone, so a stray
+  `bg-gray-100` now fails visibly instead of quietly choosing a colour.
+- **Defects the migration exposed and fixed**: `bg-orq8-dark` carried the ink
+  band with it (renaming it to a plain fill would have made every label inside a
+  black chip invisible); `bg-success-50`, `border-orq8-green-200` and
+  `hover:bg-orq8-green-300` were dead classes that emitted no CSS; the sidebar
+  and hub cores sat on a literal `bg-white` inside a band and rendered
+  white-on-white; `text-orq8-orange` was an eyebrow at 1.59:1; a 2px `#C2F2F2`
+  status dot on a white bar was 1.17:1.
+- **New**: `--orq-mark-active` / `--orq-mark-warm`, a context-aware status-mark
+  pair, because a mark has no text to carry it and the pale chip tones vanish on
+  the page. Ten AA failures were corrected with derived tones
+  (`--orq-text-warm`, `--orq-text-error`, `--orq-error-fill`, `--orq-disabled-text`,
+  two chart marks, the focus ring and the band's text tones).
+- **Docs and tooling**: `docs/65_COLOR_SYSTEM.md` rewritten, `/design/colors`
+  renders the system live, and `pnpm audit:contrast`
+  (`scripts/color-contrast-audit.ts`) reads the values out of `globals.css` and
+  exits non-zero on regression. The superseded in-app `test:contrast` script was
+  deleted with the bridge it depended on.
+- **Verified**: contrast audit green in both scopes, web typecheck, production
+  build, and a rendered-DOM contrast scan across the landing, auth, dashboard,
+  health and Company Hub surfaces.
+
 ## 2026-09-27 — Company Hub rebuilt as a single orbital surface
 
 - **What changed**: `/app/company/overview` is now one diagram instead of seven

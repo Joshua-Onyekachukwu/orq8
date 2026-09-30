@@ -5,11 +5,11 @@ import { Reveal } from "../Common/Reveal";
 
 const OurJourney: React.FC = () => {
   return (
-    <section className="bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
+    <section className="ink py-[80px] md:py-[120px] lg:py-[160px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <Reveal>
           <div className="mb-[48px] md:mb-[64px]">
-            <span className="mb-[12px] block text-overline font-bold uppercase tracking-[0.2em] text-orq8-lime">
+            <span className="mb-[12px] block text-overline font-bold uppercase tracking-[0.2em] text-ink-accent">
               Our Story
             </span>
             <h2 className="text-[32px] md:text-[40px] font-normal leading-tight tracking-tight text-white">
@@ -22,7 +22,7 @@ const OurJourney: React.FC = () => {
           {/* Mission */}
           <Reveal>
             <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-[32px] md:p-[40px] lg:p-[48px]">
-              <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-orq8-lime">
+              <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-ink-accent">
                 Our Mission
               </span>
               <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
@@ -40,8 +40,8 @@ const OurJourney: React.FC = () => {
 
           {/* Vision */}
           <Reveal>
-            <div className="rounded-[16px] border border-orq8-lime/20 bg-orq8-lime/5 p-[32px] md:p-[40px] lg:p-[48px]">
-              <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-orq8-lime">
+            <div className="rounded-[16px] border border-ink-accent/20 bg-ink-accent/5 p-[32px] md:p-[40px] lg:p-[48px]">
+              <span className="mb-[16px] block text-overline font-bold uppercase tracking-[0.2em] text-ink-accent">
                 Our Vision
               </span>
               <h3 className="mb-[16px] text-[24px] font-normal leading-tight tracking-tight text-white">
@@ -67,7 +67,7 @@ const OurJourney: React.FC = () => {
             </p>
             <a
               href="/#waitlist"
-              className="inline-flex items-center gap-[10px] rounded-full bg-orq8-lime px-[28px] py-[12px] text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-lime"
+              className="inline-flex items-center gap-[10px] rounded-full bg-brand-deep px-[28px] py-[12px] text-sm font-semibold text-white transition-colors hover:bg-ink-accent hover:text-ink-surface"
             >
               JOIN THE WAITLIST
               <svg

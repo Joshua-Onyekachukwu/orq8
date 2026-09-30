@@ -69,28 +69,28 @@ interface PerformanceHistoryWindow {
 
 function recommendationBadge(rec: ReliabilityProfile["recommendation"]) {
   switch (rec) {
-    case "KEEP": return { label: "Keep", cls: "bg-emerald-50 text-emerald-700" };
-    case "MONITOR": return { label: "Monitor", cls: "bg-blue-50 text-blue-700" };
-    case "IMPROVE": return { label: "Improve", cls: "bg-amber-50 text-amber-700" };
-    case "RETRAIN / ADJUST": return { label: "Retrain / Adjust", cls: "bg-orange-50 text-orange-700" };
-    default: return { label: "Replace / Escalate", cls: "bg-red-50 text-red-700" };
+    case "KEEP": return { label: "Keep", cls: "bg-brand-soft text-brand-ink" };
+    case "MONITOR": return { label: "Monitor", cls: "bg-brand-soft text-brand-deep" };
+    case "IMPROVE": return { label: "Improve", cls: "bg-warm-soft text-warm-ink" };
+    case "RETRAIN / ADJUST": return { label: "Retrain / Adjust", cls: "bg-warm-soft text-warm-ink" };
+    default: return { label: "Replace / Escalate", cls: "bg-error-soft text-error-ink" };
   }
 }
 
 function trendBadge(trend: ReliabilityProfile["trend"]) {
   switch (trend) {
-    case "improving": return { icon: TrendingUp, cls: "text-emerald-600", label: "Improving" };
-    case "declining": return { icon: TrendingDown, cls: "text-red-600", label: "Declining" };
+    case "improving": return { icon: TrendingUp, cls: "text-brand-deep", label: "Improving" };
+    case "declining": return { icon: TrendingDown, cls: "text-error-ink", label: "Declining" };
     default: return { icon: Minus, cls: "text-muted", label: "Stable" };
   }
 }
 
 function autonomyBadge(level: ReliabilityProfile["autonomyLevel"]) {
   switch (level) {
-    case "trusted": return { label: "Trusted", cls: "bg-emerald-50 text-emerald-700" };
-    case "watch": return { label: "Watch", cls: "bg-blue-50 text-blue-700" };
-    case "restricted": return { label: "Restricted", cls: "bg-orange-50 text-orange-700" };
-    default: return { label: "Paused", cls: "bg-red-50 text-red-700" };
+    case "trusted": return { label: "Trusted", cls: "bg-brand-soft text-brand-ink" };
+    case "watch": return { label: "Watch", cls: "bg-brand-soft text-brand-deep" };
+    case "restricted": return { label: "Restricted", cls: "bg-warm-soft text-warm-ink" };
+    default: return { label: "Paused", cls: "bg-error-soft text-error-ink" };
   }
 }
 
@@ -202,8 +202,8 @@ export default function PerformancePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orq8-lime/10">
-                <Gauge aria-hidden="true" className="h-4.5 w-4.5 text-orq8-green" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-accent/10">
+                <Gauge aria-hidden="true" className="h-4.5 w-4.5 text-brand-ink" />
               </span>
               <h1 className="text-xl font-semibold tracking-tight text-ink">AI Employee Performance</h1>
             </div>
@@ -223,10 +223,10 @@ export default function PerformancePage() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-            <p className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+          <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+            <p className="text-sm text-error-ink">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
           </div>
         )}
 
@@ -285,7 +285,7 @@ export default function PerformancePage() {
                     key={p.agentId}
                     type="button"
                     onClick={() => setSelectedId(p.agentId)}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors ${selectedId === p.agentId ? "border-orq8-green bg-orq8-lime/5" : "border-hairline bg-white hover:bg-canvas"}`}
+                    className={`w-full rounded-xl border p-4 text-left transition-colors ${selectedId === p.agentId ? "border-brand-deep bg-ink-accent/5" : "border-hairline bg-white hover:bg-canvas"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
@@ -354,10 +354,10 @@ export default function PerformancePage() {
                 </div>
 
                 {/* Recommendation */}
-                <div className="mt-4 rounded-lg border border-orq8-lime/30 bg-orq8-lime/5 p-3">
+                <div className="mt-4 rounded-lg border border-ink-accent/30 bg-ink-accent/5 p-3">
                   <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
-                    <p className="text-3xs font-semibold uppercase tracking-wide text-orq8-green">Recommendation</p>
+                    <Sparkles className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
+                    <p className="text-3xs font-semibold uppercase tracking-wide text-brand-ink">Recommendation</p>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-ink">{selected.recommendationReason}</p>
                 </div>
@@ -366,7 +366,7 @@ export default function PerformancePage() {
                 <div className="mt-5 rounded-lg border border-hairline bg-white p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <TrendingUp className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
+                      <TrendingUp className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
                       <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Performance over time</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -436,7 +436,7 @@ export default function PerformancePage() {
                 {/* Autonomy */}
                 <div className="mt-4 rounded-lg border border-hairline bg-white p-3">
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
                     <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Autonomy</p>
                   </div>
                   <p className="mt-1 text-xs text-ink">{selected.autonomyReason}</p>
@@ -445,7 +445,7 @@ export default function PerformancePage() {
                 {/* Founder actions (audited) */}
                 <div className="mt-4 rounded-lg border border-hairline bg-white p-3">
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-orq8-green" aria-hidden="true" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-brand-ink" aria-hidden="true" />
                     <p className="text-3xs font-semibold uppercase tracking-wide text-muted">Founder actions</p>
                     <span className="text-3xs text-muted">· every action is audited server-side</span>
                   </div>
@@ -458,7 +458,7 @@ export default function PerformancePage() {
                       type="button"
                       disabled={actionBusy}
                       onClick={() => runAction(selected.agentId, "confirm_keep")}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-soft bg-brand-soft px-3 py-1.5 text-xs font-medium text-brand-ink hover:border-brand-ink disabled:opacity-50"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Keep
                     </button>
@@ -466,7 +466,7 @@ export default function PerformancePage() {
                       type="button"
                       disabled={actionBusy}
                       onClick={() => runAction(selected.agentId, "improve")}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-warm bg-warm-soft px-3 py-1.5 text-xs font-medium text-warm-ink hover:bg-warm-soft disabled:opacity-50"
                     >
                       <TrendingUp className="h-3.5 w-3.5" /> Improve
                     </button>
@@ -474,7 +474,7 @@ export default function PerformancePage() {
                       type="button"
                       disabled={actionBusy}
                       onClick={() => runAction(selected.agentId, "replace")}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-error bg-error-soft px-3 py-1.5 text-xs font-medium text-error-ink hover:bg-error-soft disabled:opacity-50"
                     >
                       <AlertTriangle className="h-3.5 w-3.5" /> Replace (archive)
                     </button>
@@ -485,12 +485,12 @@ export default function PerformancePage() {
                       value={actionReason}
                       onChange={(e) => setActionReason(e.target.value)}
                       placeholder="Reason (recorded in the audit trail)"
-                      className="rounded-lg border border-hairline bg-white px-3 py-2 text-xs outline-none focus:border-orq8-green"
+                      className="rounded-lg border border-hairline bg-white px-3 py-2 text-xs outline-none focus:border-brand-deep"
                     />
                     <select
                       value={actionAutonomy}
                       onChange={(e) => setActionAutonomy(e.target.value)}
-                      className="rounded-lg border border-hairline bg-white px-2 py-2 text-xs outline-none focus:border-orq8-green"
+                      className="rounded-lg border border-hairline bg-white px-2 py-2 text-xs outline-none focus:border-brand-deep"
                     >
                       <option value="">Autonomy unchanged</option>
                       <option value="observe">L0 Observe</option>
@@ -500,7 +500,7 @@ export default function PerformancePage() {
                       <option value="autonomous">L4 Autonomous</option>
                     </select>
                   </div>
-                  {actionMessage && <p className="mt-2 text-xs text-emerald-700">{actionMessage}</p>}
+                  {actionMessage && <p className="mt-2 text-xs text-brand-ink">{actionMessage}</p>}
                 </div>
               </div>
             )}

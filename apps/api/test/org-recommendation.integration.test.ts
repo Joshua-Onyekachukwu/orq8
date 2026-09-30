@@ -20,7 +20,7 @@ import type { AppDeps } from '../src/types.js';
  * keeps the Stage-1 recommendation lean instead of dumping all 23 templates.
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;

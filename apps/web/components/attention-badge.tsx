@@ -29,13 +29,15 @@ export function AttentionBadge() {
       href="/app/attention"
       title={title}
       aria-label={title}
-      className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+      className="relative rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface-secondary hover:text-ink"
     >
-      <Inbox className="h-5 w-5 text-gray-600" />
+      <Inbox className="h-5 w-5 text-ink-muted" />
       {total > 0 && (
         <span
-          className={`absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-2xs font-bold text-white ${
-            critical > 0 ? "bg-red-500" : "bg-orq8-orange"
+          /* The warm fill is pale, so its label is ink: white on #F1C095 is
+             1.65:1. The error fill is dark enough to carry white. */
+          className={`absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-2xs font-bold ${
+            critical > 0 ? "bg-error-fill text-white" : "bg-warm text-ink-surface"
           }`}
         >
           {total > 99 ? "99+" : total}

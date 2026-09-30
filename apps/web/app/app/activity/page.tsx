@@ -36,9 +36,9 @@ function formatTime(iso: string): string {
 function eventTypeBadge(type: string) {
   const lower = type.toLowerCase();
   if (lower.includes("deploy") || lower.includes("approve"))
-    return "bg-orq8-lime/10 text-orq8-green";
-  if (lower.includes("reject")) return "bg-red-100 text-red-700";
-  return "bg-indigo-50 text-indigo-700";
+    return "bg-ink-accent/10 text-brand-ink";
+  if (lower.includes("reject")) return "bg-error-soft text-error-ink";
+  return "bg-brand-soft text-brand-deep";
 }
 
 export default function ActivityPage() {
@@ -88,7 +88,7 @@ export default function ActivityPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Live log · every action, with the reason
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -122,13 +122,13 @@ export default function ActivityPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="ml-auto text-xs text-red-500 hover:text-red-700"
+            className="ml-auto text-xs text-error-ink hover:text-error-ink"
           >
             Dismiss
           </button>
@@ -148,7 +148,7 @@ export default function ActivityPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
+              className="mt-1.5 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-brand-deep"
             >
               <option value="all">All actions</option>
               {types.map((t) => (
@@ -169,7 +169,7 @@ export default function ActivityPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find an action or reason"
-                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-orq8-green"
+                className="w-full rounded-lg border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink outline-none transition-colors focus:border-brand-deep"
               />
             </span>
           </label>
@@ -235,7 +235,7 @@ export default function ActivityPage() {
                 <p className="mt-2 text-sm text-ink">{e.summary}</p>
                 {e.reason && (
                   <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed text-muted">
-                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-orq8-green">
+                    <span aria-hidden className="mt-0.5 font-mono font-semibold text-brand-ink">
                       because
                     </span>
                     {e.reason}

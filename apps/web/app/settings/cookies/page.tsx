@@ -98,7 +98,7 @@ export default function CookiePreferencesPage() {
         {/* Current status */}
         <div className="rounded-xl border border-hairline bg-white p-6 sm:p-8">
           <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink-accent/10 text-brand-ink">
               <Cookie className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
@@ -156,8 +156,8 @@ export default function CookiePreferencesPage() {
                   key={value}
                   className={`rounded-xl border p-4 transition-colors ${
                     selected
-                      ? "border-orq8-green bg-orq8-green/5"
-                      : "border-hairline bg-white hover:border-orq8-green/40"
+                      ? "border-brand-deep bg-brand-deep/5"
+                      : "border-hairline bg-white hover:border-brand-deep/40"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -177,7 +177,7 @@ export default function CookiePreferencesPage() {
                             key={item}
                             className="flex items-center gap-1.5 text-xs text-muted"
                           >
-                            <CheckCircle2 className="h-3 w-3 shrink-0 text-orq8-green" />
+                            <CheckCircle2 className="h-3 w-3 shrink-0 text-brand-ink" />
                             {item}
                           </li>
                         ))}
@@ -189,8 +189,8 @@ export default function CookiePreferencesPage() {
                       disabled={saving || selected}
                       className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-default ${
                         selected
-                          ? "border border-orq8-green bg-orq8-green/10 text-orq8-green"
-                          : "bg-orq8-green text-white hover:bg-orq8-green-dark disabled:opacity-60"
+                          ? "border border-brand-deep bg-brand-deep/10 text-brand-ink"
+                          : "bg-brand-deep text-white hover:bg-brand disabled:opacity-60"
                       }`}
                     >
                       {selected ? "Selected" : "Choose"}
@@ -202,15 +202,15 @@ export default function CookiePreferencesPage() {
           </div>
 
           {error && (
-            <div className="mt-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-border-error bg-error-soft px-4 py-3">
+              <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
+              <p className="text-sm text-error-ink">{error}</p>
             </div>
           )}
 
           <div className="mt-6 flex items-center gap-3 border-t border-hairline pt-5">
             {saved && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-orq8-green">
+              <span className="inline-flex items-center gap-1.5 text-sm text-brand-ink">
                 <CheckCircle2 className="h-4 w-4" /> Preference saved
               </span>
             )}
@@ -228,7 +228,7 @@ export default function CookiePreferencesPage() {
         {/* Learn more */}
         <div className="rounded-xl border border-hairline bg-white p-6 sm:p-8">
           <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orq8-dark text-orq8-green">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ink text-brand-ink">
               <Shield className="h-4 w-4" />
             </span>
             <div>
@@ -242,7 +242,7 @@ export default function CookiePreferencesPage() {
               </p>
               <a
                 href="/privacy"
-                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-orq8-green transition-colors hover:text-orq8-green-dark"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-ink transition-colors hover:text-brand"
               >
                 Read the Privacy Policy →
               </a>

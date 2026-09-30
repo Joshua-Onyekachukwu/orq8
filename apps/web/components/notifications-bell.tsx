@@ -17,11 +17,11 @@ interface Notification {
 }
 
 const typeColors: Record<string, string> = {
-  approval: "bg-amber-50 text-amber-700",
-  task: "bg-orq8-lime/10 text-orq8-green",
-  credit: "bg-red-50 text-red-600",
-  agent: "bg-orq8-orange/10 text-orq8-orange",
-  system: "bg-gray-100 text-gray-600",
+  approval: "bg-warm-soft text-warm-ink",
+  task: "bg-ink-accent/10 text-brand-ink",
+  credit: "bg-error-soft text-error-ink",
+  agent: "bg-warm/10 text-warm-ink",
+  system: "bg-surface-secondary text-ink-muted",
 };
 
 function timeAgo(dateStr: string): string {
@@ -142,12 +142,12 @@ export function NotificationsBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+        className="relative rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface-secondary hover:text-ink"
         title="Notifications"
       >
-        <Bell className="h-5 w-5 text-gray-600" />
+        <Bell className="h-5 w-5 text-ink-muted" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 font-mono text-2xs font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error-fill px-1 font-mono text-2xs font-bold text-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -160,13 +160,13 @@ export function NotificationsBell() {
 
           {/* Dropdown */}
           <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-hairline bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-hairline-light px-4 py-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                <h3 className="text-sm font-semibold text-ink">Notifications</h3>
                 {connected && (
-                  <span className="flex items-center gap-1 rounded-full bg-orq8-lime/10 px-1.5 py-0.5">
-                    <Zap className="h-2.5 w-2.5 text-orq8-green" />
-                    <span className="font-mono text-[8px] font-semibold uppercase text-orq8-green">live</span>
+                  <span className="flex items-center gap-1 rounded-full bg-ink-accent/10 px-1.5 py-0.5">
+                    <Zap className="h-2.5 w-2.5 text-brand-ink" />
+                    <span className="font-mono text-[8px] font-semibold uppercase text-brand-ink">live</span>
                   </span>
                 )}
               </div>
@@ -175,7 +175,7 @@ export function NotificationsBell() {
                   type="button"
                   onClick={markAllRead}
                   disabled={loading}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-orq8-green hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
                 >
                   <CheckCheck className="h-3.5 w-3.5" /> Mark all read
                 </button>
@@ -185,15 +185,15 @@ export function NotificationsBell() {
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center">
-                  <Bell className="mx-auto h-8 w-8 text-gray-500" />
-                  <p className="mt-2 text-sm text-gray-500">No notifications yet</p>
+                  <Bell className="mx-auto h-8 w-8 text-ink-muted" />
+                  <p className="mt-2 text-sm text-ink-muted">No notifications yet</p>
                 </div>
               ) : (
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-gray-50 ${
-                      !n.read ? "bg-orq8-lime/5" : ""
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-secondary ${
+                      !n.read ? "bg-ink-accent/5" : ""
                     }`}
                   >
                     <span
@@ -202,30 +202,30 @@ export function NotificationsBell() {
                       {n.type.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${!n.read ? "font-medium text-gray-900" : "text-gray-500"}`}>
+                      <p className={`text-sm ${!n.read ? "font-medium text-ink" : "text-ink-muted"}`}>
                         {n.title}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{n.message}</p>
-                      <p className="mt-1 font-mono text-3xs text-gray-500">
+                      <p className="mt-0.5 text-xs text-ink-muted line-clamp-2">{n.message}</p>
+                      <p className="mt-1 font-mono text-3xs text-ink-muted">
                         {timeAgo(n.createdAt)}
                       </p>
                     </div>
                     {!n.read && (
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-orq8-lime" />
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-mark-active" />
                     )}
                   </div>
                 ))
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-2.5">
-              <p className="font-mono text-3xs uppercase tracking-wide text-gray-500">
+            <div className="flex items-center justify-between gap-3 border-t border-hairline-light px-4 py-2.5">
+              <p className="font-mono text-3xs uppercase tracking-wide text-ink-muted">
                 {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
               </p>
               <Link
                 href="/app/notifications"
                 onClick={() => setOpen(false)}
-                className="text-xs font-medium text-orq8-orange transition-colors hover:text-orq8-orange-bright"
+                className="text-xs font-medium text-warm-ink transition-colors hover:text-warm-ink"
               >
                 View all notifications
               </Link>

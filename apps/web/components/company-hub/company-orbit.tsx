@@ -69,14 +69,14 @@ const ORBIT_POSITION: Record<string, string> = {
 };
 
 const TONE_METRIC: Record<Tone, string> = {
-  lime: "text-orq8-lime",
-  orange: "text-orq8-orange-bright",
+  lime: "text-ink-accent",
+  orange: "text-warm-ink",
   muted: "text-white/40",
 };
 
 const TONE_DOT: Record<Tone, string> = {
-  lime: "bg-orq8-lime",
-  orange: "bg-orq8-orange-bright",
+  lime: "bg-mark-active",
+  orange: "bg-warm",
   muted: "bg-white/30",
 };
 
@@ -176,7 +176,7 @@ function SatelliteCard({ satellite }: { satellite: Satellite }) {
   const body = (
     <>
       <div className="flex items-center justify-between gap-3">
-        <Icon className="h-4 w-4 text-orq8-lime" aria-hidden="true" />
+        <Icon className="h-4 w-4 text-ink-accent" aria-hidden="true" />
         <span
           className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[satellite.tone]}`}
           aria-hidden="true"
@@ -191,7 +191,10 @@ function SatelliteCard({ satellite }: { satellite: Satellite }) {
   );
 
   const className =
-    "block h-full rounded-xl border border-white/10 bg-gray-900/70 p-4 transition-colors hover:border-white/25 hover:bg-gray-900";
+    // The canvas is an ink band, so surface tokens resolve to the band's raised
+    // tones here. bg-ink would read --orq-text-primary, which is white inside a
+    // band: the satellite cards would render white on a black canvas.
+    "block h-full rounded-xl border border-white/10 bg-surface-white p-4 transition-colors hover:border-white/25 hover:bg-surface-secondary";
 
   if (satellite.href) {
     return (
@@ -212,6 +215,9 @@ function SatelliteCard({ satellite }: { satellite: Satellite }) {
 }
 
 /** The centre: the ORQ8 core. Clicking it hands the founder to the Executive Agent. */
+// The core sits inside the hub's ink band. A literal white disc turned its ink
+// labels white-on-white, so the disc takes the pale accent fill and fixed ink
+// labels: it stays the bright focal point and reads in either scope.
 function CoreNode({ compact = false }: { compact?: boolean }) {
   const { openPanel } = useExecutiveAgent();
   return (
@@ -219,16 +225,16 @@ function CoreNode({ compact = false }: { compact?: boolean }) {
       type="button"
       onClick={() => openPanel(EA_PROMPT)}
       aria-label="Ask the Executive Agent for the state of the company"
-      className={`flex flex-col items-center justify-center rounded-full bg-white text-center shadow-[0_0_90px_rgba(184,255,102,0.18)] transition-transform hover:scale-[1.03] ${
+      className={`flex flex-col items-center justify-center rounded-full bg-ink-accent text-center shadow-[0_0_90px_rgb(194 242 242 / 0.18)] transition-transform hover:scale-[1.03] ${
         compact ? "h-32 w-32" : "h-40 w-40"
       }`}
     >
       <span
-        className={`font-semibold tracking-tight text-orq8-dark ${compact ? "text-lg" : "text-xl"}`}
+        className={`font-semibold tracking-tight text-ink-surface ${compact ? "text-lg" : "text-xl"}`}
       >
         ORQ8
       </span>
-      <span className="mt-1 font-mono text-3xs font-semibold uppercase tracking-[0.32em] text-orq8-orange">
+      <span className="mt-1 font-mono text-3xs font-semibold uppercase tracking-[0.32em] text-brand-deep">
         Core
       </span>
     </button>
@@ -240,7 +246,7 @@ export function CompanyOrbit(props: CompanyOrbitProps) {
   const summary = liveSummary(props);
 
   return (
-    <section aria-label="Company hub" className="rounded-2xl border border-white/10 bg-orq8-dark">
+    <section aria-label="Company hub" className="rounded-2xl border border-white/10 ink">
       <h2 className="sr-only">Company hub</h2>
       {/* Desktop: the orbital diagram. */}
       <div className="relative hidden min-h-[760px] lg:block">
@@ -250,7 +256,7 @@ export function CompanyOrbit(props: CompanyOrbitProps) {
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.18] bg-white/[0.012] shadow-[inset_0_0_70px_rgba(184,255,102,0.06)]"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.18] bg-white/[0.012] shadow-[inset_0_0_70px_rgb(53 98 103 / 0.06)]"
         />
 
         <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { executeTaskWithBudget, executeTasksWithBudget } from '../src/services/ea-execution-budget.js';
+import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
 /**
@@ -14,7 +15,7 @@ import type { AppDeps } from '../src/types.js';
  * completed, never left in_progress, never an infinite hang.
  */
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 let dbUp = false;
 let pool: Pool | undefined;
@@ -48,7 +49,7 @@ beforeAll(async () => {
   orgId = orgRow!.id;
   const [userRow] = await deps.db
     .insert(users)
-    .values({ email: `budget-${randomUUID()}@example.com`, name: 'Owner', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `budget-${randomUUID()}@example.com`, name: 'Owner', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userId = userRow!.id;
   await deps.db.insert(memberships).values({ orgId, userId, role: 'owner' });
@@ -74,17 +75,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (dbUp) {
-    // The abandoned executor may have written activity events for the task
-    // after deferral — clear children before the task rows.
-    await deps.pool!.query('delete from activity_events where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from tasks where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from goals where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from agents where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from teams where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from departments where org_id = $1', [orgId]);
-    await deps.pool!.query('delete from memberships where org_id = $1', [orgId]);
+    // Deferring to the shared helper: it disables FK enforcement for the cleanup
+    // session, so teardown order cannot matter. This list used to be hand-rolled
+    // and omitted credit_balances, whose FK to organizations the supabase lineage
+    // added later — the setup ran for months while teardown threw after the last
+    // assertion, which is exactly the kind of failure a skipped suite hides.
+    await deleteOrg(deps.pool!, orgId);
     await deps.pool!.query('delete from users where id = $1', [userId]);
-    await deps.pool!.query('delete from organizations where id = $1', [orgId]);
     await pool!.end();
   }
 });

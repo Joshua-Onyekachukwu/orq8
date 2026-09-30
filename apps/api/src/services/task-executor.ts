@@ -1,11 +1,24 @@
 import { eq, and } from 'drizzle-orm';
-import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
+import { agents, approvals, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chat } from './llm.js';
+import {
+  buildToolSection,
+  describeToolCall,
+  formatToolResultForPrompt,
+  parseToolRequest,
+  MAX_TASK_TOOL_ROUNDS,
+} from './task-tools.js';
+import {
+  executeTool,
+  type AgentAuthority,
+  type ToolExecutionContext,
+} from './tool-registry.js';
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { consumeCredits, hasEnoughCredits } from './credits.js';
 import { broadcastToOrg } from './realtime.js';
 import { notifyAttentionChanged } from './attention.js';
+import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import { getCalibrationAdvice } from './calibration-routing.js';
@@ -15,6 +28,12 @@ import type { AppConfig } from '@orq8/core';
  * Task Executor — runs individual tasks through the LLM.
  *
  * Lifecycle: pending → in_progress → completed | failed
+ *
+ * One branch sits outside that line: when the agent's autonomy level says the
+ * work needs a founder's decision, the task goes to `awaiting_approval` and
+ * stops. It is not `pending` (the batch runner selects that, and work waiting on
+ * a human must not be silently re-run) and it is not `failed` (nothing broke).
+ * Approving the gate resumes it here; rejecting cancels it with the reason.
  *
  * Each task is executed by calling the LLM with:
  * - The task description
@@ -28,7 +47,7 @@ import type { AppConfig } from '@orq8/core';
 
 export interface TaskExecutionResult {
   taskId: string;
-  status: 'completed' | 'failed' | 'deferred';
+  status: 'completed' | 'failed' | 'deferred' | 'awaiting_approval';
   result: string;
   cost: number;
   tokensUsed: number;
@@ -37,6 +56,8 @@ export interface TaskExecutionResult {
   // True when the task was deferred (budget exhausted) — honest pending work,
   // NOT a failure. The EA aggregation must count it separately from failed.
   deferred?: boolean;
+  // Set when the task stopped on a founder decision: the approval now gating it.
+  approvalId?: string;
 }
 
 // ─── Agent System Prompts ───────────────────────────────────────────────────
@@ -119,6 +140,160 @@ async function persistPreExecutionBlock(
   return { taskId: task.id, status: 'failed', result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
 }
 
+/**
+ * Stop the task on a founder decision instead of guessing on their behalf.
+ *
+ * Gap A (docs/66 §66.14): the approval now carries the task it gates, so the
+ * decision has something to act on. Re-entering an already-gated task reuses the
+ * open approval rather than queueing a second one — the founder answers one
+ * question about one piece of work, once.
+ */
+/**
+ * Stop a task on a tool the founder has to authorise (docs/66 §66.19).
+ *
+ * The approval already exists: the tool registry raised it, naming the task, the
+ * tool and the exact arguments. So this only stops the work — creating a second
+ * request here would either violate the one-open-decision-per-task index or ask
+ * the founder the same question twice.
+ */
+async function stopForToolApproval(
+  db: Db,
+  orgId: string,
+  task: { id: string; agentId: string | null; title: string },
+  agentName: string,
+  toolId: string,
+  approvalId: string | undefined,
+  reason: string,
+): Promise<TaskExecutionResult> {
+  const text = `Awaiting founder approval: ${agentName} asked to use the "${toolId}" tool for "${task.title}". ${reason}`;
+
+  await db
+    .update(tasks)
+    .set({ status: 'awaiting_approval', result: text.slice(0, 2000), updatedAt: new Date() })
+    .where(eq(tasks.id, task.id));
+
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: 'analyzed',
+    summary: text,
+    reason,
+    cost: 0,
+    department: null,
+  });
+
+  broadcastToOrg(orgId, { type: 'task.cancelled', taskId: task.id, reason });
+  notifyAttentionChanged(orgId, 'approval.created');
+
+  return {
+    taskId: task.id,
+    status: 'awaiting_approval',
+    result: text,
+    cost: 0,
+    tokensUsed: 0,
+    llmUsed: false,
+    approvalId,
+  };
+}
+
+async function gateTaskOnApproval(
+  db: Db,
+  orgId: string,
+  task: { id: string; agentId: string | null; title: string },
+  agentName: string,
+  reason: string,
+): Promise<TaskExecutionResult> {
+  const text = `Awaiting founder approval: ${reason}`;
+
+  let gate = await findOpenGate(db, orgId, task.id);
+  if (!gate) {
+    [gate] = await db
+      .insert(approvals)
+      .values({
+        orgId,
+        agentId: task.agentId,
+        taskId: task.id,
+        action: `Execute task: ${task.title}`.slice(0, 500),
+        description: `Agent "${agentName}" is ready to work on "${task.title}" and needs your decision first. ${reason}`,
+        riskLevel: 'medium',
+        status: 'pending',
+      })
+      .returning();
+
+    broadcastToOrg(orgId, {
+      type: 'approval.required',
+      approvalId: gate?.id ?? '',
+      agentName,
+      toolName: null,
+      riskLevel: 'medium',
+    });
+    notifyAttentionChanged(orgId, 'approval.created');
+  }
+
+  await db
+    .update(tasks)
+    .set({ status: 'awaiting_approval', result: text.slice(0, 2000), updatedAt: new Date() })
+    .where(eq(tasks.id, task.id));
+
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: 'analyzed',
+    summary: text,
+    reason,
+    cost: 0,
+    department: null,
+  });
+
+  return {
+    taskId: task.id,
+    status: 'awaiting_approval',
+    result: text,
+    cost: 0,
+    tokensUsed: 0,
+    llmUsed: false,
+    approvalId: gate?.id,
+  };
+}
+
+/**
+ * Retry a task the system stopped: a failure the founder wants to re-run.
+ *
+ * Deliberately narrow. Work stopped by a *human* decision is not retryable
+ * here — a rejected task is cancelled, and re-running it would quietly undo the
+ * founder's answer; work awaiting a decision is not retryable either, because
+ * re-running it would re-raise the same question. Only `failed` moves.
+ */
+export async function retryTask(
+  config: AppConfig,
+  db: Db,
+  orgId: string,
+  taskId: string,
+): Promise<{ result: TaskExecutionResult } | { refused: string; status: string }> {
+  const [task] = await db
+    .select({ id: tasks.id, status: tasks.status })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)))
+    .limit(1);
+
+  if (!task) return { refused: 'Task not found', status: 'missing' };
+  if (task.status === 'awaiting_approval') {
+    return { refused: 'This task is waiting on your decision — approve or reject it instead.', status: task.status };
+  }
+  if (task.status !== 'failed') {
+    return { refused: `Only a failed task can be retried (this one is ${task.status}).`, status: task.status };
+  }
+
+  await db
+    .update(tasks)
+    .set({ status: 'pending', result: null, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId));
+
+  return { result: await executeTask(config, db, orgId, taskId) };
+}
+
 export async function executeTask(
   config: AppConfig,
   db: Db,
@@ -134,6 +309,21 @@ export async function executeTask(
 
   if (!task) {
     return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0, llmUsed: false };
+  }
+
+  // A task a founder rejected is cancelled, and honouring that has to live at
+  // the deepest boundary: a manual execute call, the batch runner and the
+  // Executive Agent can all reach this function, and none of them should be able
+  // to quietly re-run work a person stopped.
+  if (task.status === 'cancelled') {
+    return {
+      taskId,
+      status: 'failed',
+      result: 'This task was cancelled by a founder decision and will not run. Create a new task instead.',
+      cost: 0,
+      tokensUsed: 0,
+      llmUsed: false,
+    };
   }
 
   // 2. Load the assignee once — every governance check below reads this row,
@@ -182,6 +372,26 @@ export async function executeTask(
         `Execution blocked by autonomy level: ${decision.reason}`,
         assignee.name,
       );
+    }
+    // `requiresApproval` used to be computed here and then dropped on the floor:
+    // the levels whose whole meaning is "this needs the founder" executed anyway.
+    // Either the founder has already said yes (a grant the work now consumes) or
+    // the task stops and asks.
+    if (decision.requiresApproval) {
+      const grant = await findGrantedGate(db, orgId, taskId);
+      if (grant) {
+        await markGateReleased(db, grant.id);
+        await appendAudit(db, {
+          orgId,
+          actorType: 'agent',
+          actorId: task.agentId ?? orgId,
+          action: 'approval.grant_consumed',
+          outcome: 'success',
+          resultRef: `task:${taskId} → approval:${grant.id}`,
+        });
+      } else {
+        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason);
+      }
     }
   }
 
@@ -261,6 +471,45 @@ export async function executeTask(
     : basePrompt;
   const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
 
+  // Tool path (MVP-030): the agent is offered exactly the tools its role may
+  // use. Nothing here grants anything — the registry decides what actually runs.
+  const toolSection = buildToolSection(agentRole);
+  const systemPromptWithTools = toolSection ? `${systemPrompt}\n\n${toolSection}` : systemPrompt;
+  const toolCalls: string[] = [];
+  let toolCredits = 0;
+
+  // One follow-up model call after a tool result. Single-shot on purpose: the
+  // tool phase is bounded, and a retry loop inside it would multiply tool calls.
+  // Routing and tracing are the same as the main call, so the record stays true.
+  const askFollowUp = async (extra: string): Promise<string | null> => {
+    try {
+      const routing = classifyTask({
+        title: task.title,
+        description: task.description,
+        agentRole,
+        priority: task.priority ?? null,
+      });
+      const advice = await getCalibrationAdvice(db, orgId);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, advice);
+      return await chat(config, systemPromptWithTools, `${taskPrompt}\n\n${extra}`, {
+        model: routedModel,
+        temperature: 0.7,
+        max_tokens: 2048,
+        retries: 0,
+        _trace: {
+          orgId,
+          phase: 'task_execution',
+          taskId: task.id,
+          agentId: task.agentId ?? undefined,
+          db,
+        },
+      });
+    } catch (err) {
+      lastLlmError = err instanceof Error ? err.message : String(err);
+      return null;
+    }
+  };
+
   // 5. Call the LLM (with retry and tracing)
   const startTime = Date.now();
   let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
@@ -295,7 +544,7 @@ export async function executeTask(
       const calibrationAdvice = await getCalibrationAdvice(db, orgId);
       const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
 
-      const llmResponse = await chat(config, systemPrompt, taskPrompt, {
+      const llmResponse = await chat(config, systemPromptWithTools, taskPrompt, {
         model: routedModel,
         temperature: 0.7,
         max_tokens: 2048,
@@ -347,6 +596,64 @@ export async function executeTask(
     } catch { /* notification failure is non-fatal */ }
   }
 
+  // 5b. Tool phase (MVP-030). The model asked for a tool; the registry — the
+  //     same function that gates every other caller — checks authority, raises
+  //  the founder's approval when the tool needs one, enforces the idempotency
+  //  key, charges the credits and audits the outcome.
+  if (llmAttempted && assignee && task.agentId) {
+    const authority = assignee.authority as AgentAuthority | null;
+    if (authority && typeof authority === 'object') {
+      const toolCtx: ToolExecutionContext = {
+        orgId,
+        // An autonomous run has no human actor. The registry charges and audits
+        // by agent and organization; this field is carried for callers that do.
+        userId: task.agentId,
+        agentId: task.agentId,
+        agentRole,
+        agentName,
+        taskId: task.id,
+        goalId: task.goalId ?? undefined,
+        authority,
+      };
+
+      let pending = parseToolRequest(result);
+      let rounds = 0;
+
+      while (pending && rounds < MAX_TASK_TOOL_ROUNDS) {
+        rounds += 1;
+        const execution = await executeTool(config, db, pending.toolId, toolCtx, pending.params);
+        toolCalls.push(describeToolCall(pending.toolId, execution));
+
+        // The registry has already raised the approval, naming this task, this
+        // tool and these arguments. Stop the work; do not charge for it.
+        if (execution.approvalRequired) {
+          return stopForToolApproval(
+            db,
+            orgId,
+            task,
+            agentName,
+            pending.toolId,
+            execution.approvalId,
+            `Approving releases this task; rejecting stops it and keeps your reason.`,
+          );
+        }
+
+        toolCredits += execution.creditsConsumed;
+        const answer = await askFollowUp(formatToolResultForPrompt(pending.toolId, execution));
+        if (!answer) break;
+        result = answer;
+        tokensUsed += Math.ceil((systemPromptWithTools.length + answer.length) / 4);
+        pending = parseToolRequest(answer);
+      }
+    }
+  }
+
+  // The record says what the work actually did, not only what the model said.
+  const resultWithTools =
+    toolCalls.length > 0
+      ? `${result}\n\nTools used: ${toolCalls.join('; ')}`.slice(0, 2000)
+      : result;
+
   const durationMs = Date.now() - startTime;
   const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
   // Credits measure WORK DONE. A task that never reached an LLM consumed no
@@ -354,7 +661,12 @@ export async function executeTask(
   // the founder pay for our outage. Fallback-executed tasks still cost 1
   // (structured output was produced); zero-cost only applies when no output
   // beyond the placeholder was generated.
-  const cost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1000)) : 0; // 1 credit per 1K tokens
+  // What this task owes the model (charged below), and what the task record
+  // should say the work consumed. They differ on purpose: the registry already
+  // charged `tool.<id>` as each tool ran, so charging it again here would be
+  // double billing — but the task row should still report the whole cost.
+  const modelCost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1000)) : 0; // 1 credit per 1K tokens
+  const cost = modelCost + toolCredits;
 
   // 6. Mark task as completed or failed
   await db
@@ -362,7 +674,7 @@ export async function executeTask(
     .set({
       status: taskSucceeded ? 'completed' : 'failed',
       cost,
-      result: result.slice(0, 2000),
+      result: resultWithTools,
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
@@ -380,7 +692,7 @@ export async function executeTask(
   //     the activity event, the audit row and the SSE event all carry the same
   //     number. A billing failure is recorded, never swallowed: the work is
   //     already done, so the honest outcome is visible unbilled spend.
-  if (cost > 0) {
+  if (modelCost > 0) {
     try {
       const charge = await consumeCredits(
         db,
@@ -389,7 +701,7 @@ export async function executeTask(
         `Task: ${task.title}`.slice(0, 200),
         task.id,
         'task',
-        { amount: cost },
+        { amount: modelCost },
       );
       broadcastToOrg(orgId, {
         type: 'credits.consumed',
@@ -405,7 +717,7 @@ export async function executeTask(
         actorId: task.agentId,
         agentId: task.agentId,
         taskId: task.id,
-        action: 'credits.unbilled',
+        action: 'credits.unbilled', // model cost only: tool credits were already charged
         cost,
         outcome: 'failure',
         resultRef: `task:${task.id} ${message}`.slice(0, 500),
@@ -523,7 +835,7 @@ export async function executeTask(
   return {
     taskId,
     status: taskSucceeded ? 'completed' : 'failed',
-    result,
+    result: resultWithTools,
     cost,
     tokensUsed,
     llmUsed: llmAttempted,
@@ -532,6 +844,10 @@ export async function executeTask(
 
 /**
  * Execute all pending tasks for an org (batch execution).
+ *
+ * Selects `pending` only. A task in `awaiting_approval` is stopped on a founder
+ * decision, so it is excluded here by construction — a background pass must
+ * never resolve a question that was addressed to a person.
  */
 export async function executePendingTasks(
   config: AppConfig,

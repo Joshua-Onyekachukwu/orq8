@@ -185,7 +185,7 @@ export default function ConstitutionPage() {
             <button
               type="button"
               onClick={() => removeListItem(field, i)}
-              className="shrink-0 rounded p-1 text-muted hover:bg-red-50 hover:text-red-500"
+              className="shrink-0 rounded p-1 text-muted hover:bg-error-soft hover:text-error-ink"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -198,12 +198,12 @@ export default function ConstitutionPage() {
             onChange={(e) => setter(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addListItem(field, value, setter); } }}
             placeholder={placeholder}
-            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
           />
           <button
             type="button"
             onClick={() => addListItem(field, value, setter)}
-            className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark"
+            className="shrink-0 rounded-lg bg-brand-deep px-3 py-2 text-white transition-colors hover:bg-brand"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -217,7 +217,7 @@ export default function ConstitutionPage() {
     <div className="mx-auto max-w-4xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-orq8-green">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
             Governance
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
@@ -234,7 +234,7 @@ export default function ConstitutionPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-full bg-orq8-green px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-orq8-green-dark disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
               saved ? <Check className="h-3.5 w-3.5" /> :
@@ -245,17 +245,17 @@ export default function ConstitutionPage() {
       </header>
 
       {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-red-500 hover:text-red-700">Dismiss</button>
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-error-ink" />
+          <p className="text-sm text-error-ink">{error}</p>
+          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
         </div>
       )}
 
       {/* Company Purpose */}
       <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orq8-lime/10 text-orq8-green">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-accent/10 text-brand-ink">
             <Briefcase className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Company Purpose</h3>
@@ -265,21 +265,21 @@ export default function ConstitutionPage() {
           onChange={(e) => setConstitution((prev) => ({ ...prev, companyPurpose: e.target.value }))}
           rows={3}
           placeholder="What does your company exist to do?"
-          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none"
+          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none"
         />
       </section>
 
       {/* Company Values */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-700">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
             <ScrollText className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Core Values</h3>
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {constitution.values.map((v, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-full bg-orq8-dark px-3 py-1 text-xs font-medium text-white">
+            <span key={i} className="inline-flex items-center gap-1 rounded-full ink px-3 py-1 text-xs font-medium text-white">
               {v}
               <button type="button" onClick={() => removeValue(i)} className="ml-1 rounded-full hover:bg-white/20 p-0.5">
                 <X className="h-3 w-3" />
@@ -294,9 +294,9 @@ export default function ConstitutionPage() {
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addValue(); } }}
             placeholder="Add a core value..."
-            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+            className="flex-1 rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
           />
-          <button type="button" aria-label="Add company value" onClick={addValue} className="shrink-0 rounded-lg bg-orq8-green px-3 py-2 text-white transition-colors hover:bg-orq8-green-dark">
+          <button type="button" aria-label="Add company value" onClick={addValue} className="shrink-0 rounded-lg bg-brand-deep px-3 py-2 text-white transition-colors hover:bg-brand">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -305,7 +305,7 @@ export default function ConstitutionPage() {
       {/* Risk Tolerance */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-warm-soft text-warm-ink">
             <Shield className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Risk Tolerance</h3>
@@ -318,7 +318,7 @@ export default function ConstitutionPage() {
               onClick={() => setConstitution((prev) => ({ ...prev, riskTolerance: level }))}
               className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
                 constitution.riskTolerance === level
-                  ? "border-orq8-dark bg-orq8-dark text-white"
+                  ? "border-ink-surface ink text-white"
                   : "border-hairline bg-white text-ink hover:bg-canvas"
               }`}
             >
@@ -337,8 +337,8 @@ export default function ConstitutionPage() {
       <div className="mt-4 grid gap-4 sm:grid-cols-1">
         <ListSection
           title="Agents Can Decide Alone"
-          icon={<Check className="h-4 w-4 text-orq8-green" />}
-          color="bg-orq8-lime/10"
+          icon={<Check className="h-4 w-4 text-brand-ink" />}
+          color="bg-ink-accent/10"
           field="canDecide"
           items={constitution.agentPolicies.canDecide}
           value={newCanDecide}
@@ -347,8 +347,8 @@ export default function ConstitutionPage() {
         />
         <ListSection
           title="Requires Your Approval"
-          icon={<Shield className="h-4 w-4 text-amber-700" />}
-          color="bg-amber-50"
+          icon={<Shield className="h-4 w-4 text-warm-ink" />}
+          color="bg-warm-soft"
           field="needsApproval"
           items={constitution.agentPolicies.needsApproval}
           value={newNeedsApproval}
@@ -357,8 +357,8 @@ export default function ConstitutionPage() {
         />
         <ListSection
           title="Never Allowed"
-          icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-          color="bg-red-100"
+          icon={<AlertTriangle className="h-4 w-4 text-error-ink" />}
+          color="bg-error-soft"
           field="neverAllowed"
           items={constitution.agentPolicies.neverAllowed}
           value={newNeverAllowed}
@@ -370,7 +370,7 @@ export default function ConstitutionPage() {
       {/* Budget Policy */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
             <Briefcase className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Budget Policy</h3>
@@ -386,7 +386,7 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, dailyLimit: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
             />
           </div>
           <div>
@@ -399,7 +399,7 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, monthlyLimit: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
             />
           </div>
           <div>
@@ -412,7 +412,7 @@ export default function ConstitutionPage() {
               onChange={(e) => setConstitution((prev) => ({
                 ...prev, budgetPolicy: { ...prev.budgetPolicy, requiresApprovalAbove: Number(e.target.value) },
               }))}
-              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green"
+              className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
             />
           </div>
         </div>
@@ -421,7 +421,7 @@ export default function ConstitutionPage() {
       {/* Communication Policy */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
             <ScrollText className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Communication Policy</h3>
@@ -431,7 +431,7 @@ export default function ConstitutionPage() {
           onChange={(e) => setConstitution((prev) => ({ ...prev, communicationPolicy: e.target.value }))}
           rows={3}
           placeholder="Rules for how agents communicate on behalf of your company..."
-          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-orq8-green resize-none"
+          className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none"
         />
       </section>
     </div>

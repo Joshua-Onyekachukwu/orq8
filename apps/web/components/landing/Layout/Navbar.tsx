@@ -2,14 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-// Static imports: the bundler emits these into /_next/static/media, which
-// survives even when the /images/* static-copy class is dropped from the
-// deployment output (observed 2026-09-10: every public /images png/svg 404'd
-// while bundled assets served).
-import logoWhiteSrc from "@/public/images/logo-white-wide.png";
-import logoDarkSrc from "@/public/images/logo-dark-wide.png";
+import { LogoMark } from "../../branding/logo-mark";
 
 const menuItems = [
   { label: "Home", href: "/", section: null as string | null },
@@ -58,11 +52,15 @@ const Navbar: React.FC = () => {
   const wLogo = !isSticky && isHome;
 
   return (<>
-    <div className={`finance-navbar fixed top-0 right-0 left-0 transition-[background-color,box-shadow,padding] duration-300 h-auto z-[50] py-[20px] md:py-[24px] ${isSticky ? "bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm" : "bg-transparent"}`} id="navbar">
+    <div className={`finance-navbar fixed top-0 right-0 left-0 transition-[background-color,box-shadow,padding] duration-300 h-auto z-[50] py-[20px] md:py-[24px] ${isSticky ? "bg-white/95 backdrop-blur-md border-b border-hairline shadow-sm" : "bg-transparent"}`} id="navbar">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px]">
         <div className="flex items-center relative flex-wrap lg:flex-nowrap justify-between">
-          <Link href="/" className="inline-block flex-none" aria-label="ORQ8 home">
-            {wLogo ? <Image src={logoWhiteSrc} alt="ORQ8" width={104} height={36} className="h-[36px] w-auto" /> : <Image src={logoDarkSrc} alt="ORQ8" width={104} height={36} className="h-[36px] w-auto" />}
+          <Link
+            href="/"
+            className={`inline-block flex-none ${wLogo ? "text-white" : "text-ink"}`}
+            aria-label="ORQ8 home"
+          >
+            <LogoMark className="h-[36px] w-auto" dotColor="var(--orq-brand-deep)" />
           </Link>
           <button type="button" className="inline-block relative leading-none lg:hidden" onClick={() => setMob(!mob)}>
             <span className={`h-[3px] w-[30px] my-[5px] block ${wLogo ? "bg-white" : "bg-black"}`}></span>
@@ -71,13 +69,13 @@ const Navbar: React.FC = () => {
           </button>
           <div className="hidden lg:flex items-center grow basis-full">
             <ul className="navbar-nav flex mx-auto flex-row gap-[25px] xl:gap-[50px] bg-white rounded-[60px] lg:py-[20px] lg:px-[30px] xl:py-[30px] xl:px-[50px] 2xl:px-[100px]" style={{boxShadow:"0px 4px 30px 0px rgba(146,139,221,0.10)"}}>
-              {menuItems.map(i=>(<li key={i.href}><Link href={i.href} onClick={i.section?(e)=>hsc(e,i.section!):undefined} className={`uppercase tracking-[1.8px] text-xs font-medium transition-all hover:text-orq8-green relative ${isa(i)?"text-orq8-green":"text-black"}`}>{i.label}{isa(i)&&<span className="absolute -bottom-[6px] left-0 right-0 h-[2px] bg-orq8-green rounded-full"></span>}</Link></li>))}
+              {menuItems.map(i=>(<li key={i.href}><Link href={i.href} onClick={i.section?(e)=>hsc(e,i.section!):undefined} className={`uppercase tracking-[1.8px] text-xs font-medium transition-all hover:text-brand-ink relative ${isa(i)?"text-brand-ink":"text-black"}`}>{i.label}{isa(i)&&<span className="absolute -bottom-[6px] left-0 right-0 h-[2px] bg-brand-deep rounded-full"></span>}</Link></li>))}
             </ul>
-            <Link href="/register" className="inline-block rounded-[60px] bg-orq8-orange px-[24px] py-[12px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-orange-dark"><span className="flex items-center justify-center gap-[12px]">Get Started <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm"></i></span></Link>
+            <Link href="/register" className="inline-block rounded-[60px] bg-brand-deep px-[24px] py-[12px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-brand"><span className="flex items-center justify-center gap-[12px]">Get Started <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm"></i></span></Link>
           </div>
-          <div className={`bg-white rounded-[15px] border border-gray-200 mt-[20px] p-[20px] md:p-[30px] w-full hidden lg:!hidden ${mob?"":"active"}`} id="navbar-collapse">
-            <ul>{menuItems.map(i=>(<li key={i.href} className="my-[14px] md:my-[16px] first:mt-0 last:mb-0"><Link href={i.href} onClick={(e)=>{if(i.section)hsc(e,i.section);setMob(true);}} className={`uppercase tracking-[1.8px] text-xs font-medium transition-all hover:text-orq8-green ${isa(i)?"text-orq8-green":"text-black"}`}>{i.label}</Link></li>))}</ul>
-            <Link href="/register" onClick={()=>setMob(true)} className="inline-block rounded-[60px] bg-orq8-orange px-[24px] py-[12px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-orq8-orange-dark mt-[15px]"><span className="flex items-center justify-center gap-[12px]">Get Started <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm"></i></span></Link>
+          <div className={`bg-white rounded-[15px] border border-hairline mt-[20px] p-[20px] md:p-[30px] w-full hidden lg:!hidden ${mob?"":"active"}`} id="navbar-collapse">
+            <ul>{menuItems.map(i=>(<li key={i.href} className="my-[14px] md:my-[16px] first:mt-0 last:mb-0"><Link href={i.href} onClick={(e)=>{if(i.section)hsc(e,i.section);setMob(true);}} className={`uppercase tracking-[1.8px] text-xs font-medium transition-all hover:text-brand-ink ${isa(i)?"text-brand-ink":"text-black"}`}>{i.label}</Link></li>))}</ul>
+            <Link href="/register" onClick={()=>setMob(true)} className="inline-block rounded-[60px] bg-brand-deep px-[24px] py-[12px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-brand mt-[15px]"><span className="flex items-center justify-center gap-[12px]">Get Started <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm"></i></span></Link>
           </div>
         </div>
       </div>

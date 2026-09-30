@@ -47,10 +47,10 @@ type SevStyle = { bg: string; text: string; dot: string };
 
 function getSeverityStyles(severity: string): SevStyle {
   switch (severity) {
-    case "critical": return { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" };
-    case "high": return { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500" };
-    case "medium": return { bg: "bg-yellow-50", text: "text-yellow-700", dot: "bg-yellow-500" };
-    default: return { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400" };
+    case "critical": return { bg: "bg-error-soft", text: "text-error-ink", dot: "bg-error-fill" };
+    case "high": return { bg: "bg-warm-soft", text: "text-warm-ink", dot: "bg-warm" };
+    case "medium": return { bg: "bg-warm-soft", text: "text-warm-ink", dot: "bg-warm" };
+    default: return { bg: "bg-surface-secondary", text: "text-ink", dot: "bg-ink-faint" };
   }
 }
 
@@ -134,8 +134,8 @@ export default async function AdminErrorsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <AlertOctagon className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg bg-error-soft flex items-center justify-center">
+              <AlertOctagon className="w-5 h-5 text-error-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">
@@ -148,11 +148,11 @@ export default async function AdminErrorsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <XCircle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-lg bg-error-soft flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-error-ink" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-red-600">{criticalCount}</p>
+              <p className="text-2xl font-bold text-error-ink">{criticalCount}</p>
               <p className="text-xs text-ink-muted">Critical</p>
             </div>
           </div>
@@ -160,11 +160,11 @@ export default async function AdminErrorsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 rounded-lg bg-warm-soft flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-warm-ink" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-orange-600">{highCount}</p>
+              <p className="text-2xl font-bold text-warm-ink">{highCount}</p>
               <p className="text-xs text-ink-muted">High</p>
             </div>
           </div>
@@ -172,8 +172,8 @@ export default async function AdminErrorsPage() {
 
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orq8-green/10 flex items-center justify-center">
-              <Info className="w-5 h-5 text-orq8-green" />
+            <div className="w-10 h-10 rounded-lg bg-brand-deep/10 flex items-center justify-center">
+              <Info className="w-5 h-5 text-brand-ink" />
             </div>
             <div>
               <p className="text-2xl font-bold text-ink">
@@ -192,7 +192,7 @@ export default async function AdminErrorsPage() {
         </div>
         {errors.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <Info className="w-12 h-12 text-orq8-green mx-auto mb-3" />
+            <Info className="w-12 h-12 text-brand-ink mx-auto mb-3" />
             <p className="text-sm font-medium text-ink">No errors found</p>
             <p className="text-xs text-ink-muted mt-1">
               The platform is running cleanly
@@ -205,7 +205,7 @@ export default async function AdminErrorsPage() {
               return (
                 <div
                   key={error.key}
-                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                  className="px-6 py-4 hover:bg-surface-secondary transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -260,17 +260,17 @@ export default async function AdminErrorsPage() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className="px-6 py-3 hover:bg-gray-50 transition-colors"
+                className="px-6 py-3 hover:bg-surface-secondary transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                         event.outcome === "success"
-                          ? "bg-orq8-green"
+                          ? "bg-brand-deep"
                           : event.outcome === "failure"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
+                            ? "bg-error-fill"
+                            : "bg-ink-faint"
                       }`}
                     />
                     <div className="min-w-0">
@@ -288,10 +288,10 @@ export default async function AdminErrorsPage() {
                     <span
                       className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                         event.outcome === "success"
-                          ? "bg-orq8-green/10 text-orq8-green"
+                          ? "bg-brand-deep/10 text-brand-ink"
                           : event.outcome === "failure"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-gray-100 text-ink-muted"
+                            ? "bg-error-soft text-error-ink"
+                            : "bg-surface-secondary text-ink-muted"
                       }`}
                     >
                       {event.outcome}

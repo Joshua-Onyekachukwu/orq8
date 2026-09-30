@@ -11,7 +11,7 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 | 001 | Fastify over NestJS/Express — modular plugin architecture, minimal overhead | Accepted |
 | 002 | Drizzle over Prisma — TS-first, lightweight, pgvector support | Accepted |
 | 003 | pg-boss first, Temporal later behind a WorkflowRuntime interface | Accepted |
-| 004 | LiteLLM as the model gateway (self-hosted, free) | Accepted |
+| 004 | LiteLLM as the model gateway (self-hosted, free) | **Superseded by 023** |
 | 005 | MinIO now (S3 API) → R2/S3 later, endpoint swap only | Accepted |
 | 006 | App-level authorization first; Postgres RLS as Phase 16 hardening | Accepted |
 | 007 | Session auth (server-side, revocable) over JWT; OIDC later | Accepted |
@@ -35,10 +35,11 @@ Format: `ADR-NNN — Title (Status: Accepted / Proposed / Superseded)`. Core dec
 | 020 | Event catalog extended: `spend.executed`, `payment.executed`, `simulation.run/completed`, `hiring.proposed/approved/rejected`, `import.*`, `sandbox.*`, `eval.*` (36) | Accepted |
 | 021 | No AI-agent marketplace; revenue from platform (tiers, capacity, enterprise, usage) — never agent commissions; hiring initiated within the org per authority + budget (01, 55, 00, 09) | Accepted |
 | 022 | Supabase is the platform backend: Postgres 16 + pgvector via Drizzle, session auth (not Supabase Auth), web→API→DB, RLS deferred, Supabase Storage, billing external (58, ADR-001/002/005/006/007/008) | Accepted |
+| 023 | OpenRouter is the production model gateway (supersedes ADR-004): one key fronts many vendors with no self-hosted hop, NVIDIA NIM is the first fallback, LiteLLM/Ollama are development-only and last, and `PROVIDER_PRIORITY` is the single declaration every chain derives from (22 §22.9, ADR-004) | Accepted |
 
 ## Records
 
-Full standalone records for **all 22 ADRs live in `docs/adr/ADR-001.md` … `ADR-022.md`** (context / decision / consequences / links). This index is the summary + status tracker.
+Full standalone records for **all 23 ADRs live in `docs/adr/ADR-001.md` … `ADR-023.md`** (context / decision / consequences / links). This index is the summary + status tracker.
 
 ## Process
 

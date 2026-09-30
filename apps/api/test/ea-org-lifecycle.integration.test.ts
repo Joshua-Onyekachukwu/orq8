@@ -12,7 +12,7 @@ import { createSession } from '../src/services/sessions.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' } as NodeJS.ProcessEnv);
+const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', DATABASE_URL: process.env.DATABASE_URL } as NodeJS.ProcessEnv);
 
 // DB reachability probe — integration tests skip cleanly without Postgres.
 let dbUp = false;
@@ -69,12 +69,12 @@ beforeAll(async () => {
 
   const [userARow] = await deps.db
     .insert(users)
-    .values({ email: `ea-a-${randomUUID()}@example.com`, name: 'Owner A', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `ea-a-${randomUUID()}@example.com`, name: 'Owner A', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userA = userARow!.id;
   const [userBRow] = await deps.db
     .insert(users)
-    .values({ email: `ea-b-${randomUUID()}@example.com`, name: 'Owner B', passwordHash: 'not-a-real-hash', status: 'active' })
+    .values({ email: `ea-b-${randomUUID()}@example.com`, name: 'Owner B', passwordHash: 'not-a-real-hash', status: 'active', emailVerifiedAt: new Date() })
     .returning();
   userB = userBRow!.id;
 

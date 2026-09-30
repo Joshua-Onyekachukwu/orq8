@@ -23,15 +23,15 @@ export function AuthShell({
   brandBody: string;
 }) {
   return (
-    <div id="main" className="flex min-h-screen bg-orq8-dark">
+    <div id="main" className="flex min-h-screen ink">
       {/* Left panel: brand statement (desktop only) */}
-      <div className="hidden w-1/2 flex-col justify-between border-r border-white/10 bg-orq8-green-dark p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between border-r border-white/10 bg-brand p-12 lg:flex">
         <Link
           href="/"
           className="flex items-baseline gap-1.5 text-2xl font-semibold tracking-tight text-white"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-orq8-orange-bright" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-warm" aria-hidden />
         </Link>
 
         <div className="max-w-md">
@@ -53,11 +53,11 @@ export function AuthShell({
           className="mb-8 flex items-baseline gap-1.5 text-2xl font-semibold tracking-tight text-white lg:hidden"
         >
           ORQ8
-          <span className="h-2 w-2 rounded-full bg-orq8-orange-bright" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-warm" aria-hidden />
         </Link>
 
         <div className="w-full max-w-sm">
-          <p className="text-overline text-orq8-green-tint">{eyebrow}</p>
+          <p className="text-overline text-brand-ink">{eyebrow}</p>
           <h1 className="mt-2 text-2xl font-semibold text-white">{title}</h1>
           {subtitle ? (
             <p className="mt-2 text-sm leading-relaxed text-white/60">{subtitle}</p>

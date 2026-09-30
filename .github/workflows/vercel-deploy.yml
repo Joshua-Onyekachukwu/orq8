@@ -50,8 +50,8 @@ jobs:
           # Invariant: the latest production deployment must be READY and the
           # domain must serve it. If this push did not touch the web app, the
           # latest deployment is legitimately an older web-affecting commit —
-          # that is reported, not failed (the API deploys to Railway
-          # separately; a monorepo push need not produce a new web build).
+          # that is reported, not failed (this workflow covers the web project
+          # only; the API still has no host — see docs/68 MVP-001).
           state=""; meta_sha=""; built_for_this_push="no"; empty=0; http_code=""; first_body=""
           for i in $(seq 1 40); do
             RESP=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $VERCEL_TOKEN" \
@@ -113,3 +113,43 @@ jobs:
             exit 1
           fi
           echo "Production is current: deployment for $SHA is READY, domain serves it, png/svg assets resolve."
+
+      # Is production SWITCHED ON? A web app that serves and an API that boots
+      # say nothing about whether the product can send a confirmation email or
+      # reach a model. `scripts/release-gate.mjs` asks the running deployment
+      # that question through /readyz and /v1/readiness and fails the release on
+      # a production-critical capability that is not activated (docs/69).
+      #
+      # It then goes one step further: it fires the deployment's own mail check
+      # (`POST /v1/readiness/mail-check`) and sends one real message, because
+      # "SMTP_HOST is set" and "the provider accepted a message" are different
+      # claims. Set the optional MAIL_PROBE_TO secret to aim the probe at a
+      # mailbox you read; without it the probe goes to the address in the
+      # deployment's EMAIL_FROM.
+      #
+      # Blocking as soon as there is something to ask. The API still has no
+      # production host (docs/68 MVP-001), so with PRODUCTION_API_URL unset this
+      # step reports that the release was NOT proven good instead of pretending
+      # it was — a green check for a check that did not run is how "verified"
+      # stops meaning anything. Set the secret and it goes red for real.
+      - name: Release gate — is production switched on?
+        env:
+          PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+          MAIL_PROBE_TO: ${{ secrets.MAIL_PROBE_TO }}
+        run: |
+          if [ -z "$PRODUCTION_API_URL" ]; then
+            echo "::warning::No PRODUCTION_API_URL secret, so no release has been proven good: production activation was never checked. The web deploy is verified; the product is not. Set the secret (see docs/69) and this step becomes blocking."
+            {
+              echo "## Release gate: NOT RUN"
+              echo ""
+              echo "No \`PRODUCTION_API_URL\` secret is configured, so the API was never asked whether the product is switched on."
+              echo "This deploy is verified as a *web deployment*, and unproven as a *release*."
+              echo ""
+              echo "Set \`PRODUCTION_API_URL\` and \`INTERNAL_TOKEN\` repository secrets to make this gate blocking."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          ARGS=(--api-url "$PRODUCTION_API_URL" --web-url https://orq8.vercel.app --internal-token "$INTERNAL_TOKEN")
+          if [ -n "$MAIL_PROBE_TO" ]; then ARGS+=(--mail-to "$MAIL_PROBE_TO"); fi
+          node scripts/release-gate.mjs "${ARGS[@]}"

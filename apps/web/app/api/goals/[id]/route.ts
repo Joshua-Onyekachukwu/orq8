@@ -14,10 +14,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const res = await fetch(`${API_URL}/v1/goals/${id}`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 30 },
+      // Never cached, for the same reason as the task detail: a goal page
+      // refetches itself after the founder acts on it, and a cached body from
+      // before the action is a page that lies.
+      cache: "no-store",
     });
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: res.status });
-    return NextResponse.json(await res.json());
+    return NextResponse.json(await res.json(), { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
   }

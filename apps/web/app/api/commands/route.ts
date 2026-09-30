@@ -33,12 +33,14 @@ export async function POST(request: NextRequest) {
 
   // Forward to the real Executive Agent on the API backend
   try {
+    // Content type comes from proxyAuthHeaders and nowhere else: naming it twice
+    // (once here, once there, in two different cases) made fetch send
+    // `content-type: application/json, application/json`, which Fastify rejects
+    // with 415 — so every "ask the Executive Agent for work" from the product
+    // failed while the same request to the API succeeded.
     const res = await fetch(`${API_URL}/v1/commands`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...proxyAuthHeaders(token, "application/json"),
-      },
+      headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify({ command, context: body.context }),
     });
 

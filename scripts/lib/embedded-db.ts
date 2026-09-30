@@ -222,15 +222,25 @@ export async function bootEmbeddedDatabase(options: BootOptions): Promise<Embedd
  * embedded distribution. A stale postmaster holds the shared-memory key and
  * makes every later boot fail. Only processes whose command line contains
  * `@embedded-postgres` are touched, so a user-installed Postgres is never
- * affected.
+ * affected — and pass `scope` to narrow that further to one harness's data
+ * root, so running the tests cannot stop a review stack's database.
  */
-export async function killStaleEmbeddedPostgres(): Promise<void> {
+export async function killStaleEmbeddedPostgres(scope?: string): Promise<void> {
   if (process.platform !== "win32") return;
   const { execSync } = await import("node:child_process");
+  // `scope` is the data root this harness uses (e.g. ".integration-suite-data",
+  // ".review-stack-data"). Only postmasters serving that root are stopped, so a
+  // harness cannot take down an unrelated stack on the same machine — a blanket
+  // kill used to stop a running review stack's database, and every page in the
+  // reviewer's browser then answered 500 (ECONNREFUSED) with no visible cause.
+  const safeScope = (scope ?? "").replace(/[^A-Za-z0-9._-]/g, "");
+  const filter = safeScope
+    ? `Where-Object { $_.CommandLine -like '*@embedded-postgres*' -and $_.CommandLine -like '*${safeScope}*' }`
+    : `Where-Object { $_.CommandLine -like '*@embedded-postgres*' }`;
   try {
     const ps =
       `Get-CimInstance Win32_Process -Filter "name='postgres.exe'" | ` +
-      `Where-Object { $_.CommandLine -like '*@embedded-postgres*' } | ` +
+      `${filter} | ` +
       `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
     const b64 = Buffer.from(ps, "utf16le").toString("base64");
     execSync(`powershell -NoProfile -EncodedCommand ${b64}`, { timeout: 20_000, stdio: "ignore" });

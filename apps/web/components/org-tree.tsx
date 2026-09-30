@@ -115,42 +115,42 @@ type ToneColors = {
 
 const TONES: Record<"dark" | "light", ToneColors> = {
   dark: {
-    line: "var(--color-white)",
+    line: "var(--orq-surface-white)",
     lineOpacity: 0.16,
-    ceoRing: "var(--color-emerald)",
-    ceoGlow: "var(--color-emerald)",
-    ceoFill: "var(--color-emerald)",
-    ceoDot: "var(--color-navy-950)",
-    ceoLabel: "var(--color-parchment)",
-    execFill: "var(--color-navy-surface)",
-    execStroke: "var(--color-parchment)",
-    execDot: "var(--color-emerald)",
-    execLabel: "var(--color-parchment)",
-    deptFill: "var(--color-navy-surface)",
-    deptStroke: "var(--color-parchment)",
-    deptLabel: "var(--color-parchment)",
-    staffFill: "var(--color-emerald)",
-    staffStroke: "var(--color-emerald)",
-    num: "var(--color-fog)",
+    ceoRing: "var(--orq-brand-deep)",
+    ceoGlow: "var(--orq-brand-deep)",
+    ceoFill: "var(--orq-brand-deep)",
+    ceoDot: "var(--orq-ink)",
+    ceoLabel: "var(--orq-on-ink)",
+    execFill: "var(--orq-brand)",
+    execStroke: "var(--orq-on-ink)",
+    execDot: "var(--orq-brand-deep)",
+    execLabel: "var(--orq-on-ink)",
+    deptFill: "var(--orq-brand)",
+    deptStroke: "var(--orq-on-ink)",
+    deptLabel: "var(--orq-on-ink)",
+    staffFill: "var(--orq-brand-deep)",
+    staffStroke: "var(--orq-brand-deep)",
+    num: "var(--orq-on-ink-muted)",
   },
   light: {
-    line: "var(--color-navy-900)",
+    line: "var(--orq-ink)",
     lineOpacity: 0.18,
-    ceoRing: "var(--color-emerald)",
-    ceoGlow: "var(--color-emerald)",
-    ceoFill: "var(--color-emerald)",
-    ceoDot: "var(--color-white)",
-    ceoLabel: "var(--color-navy-900)",
-    execFill: "var(--color-white)",
-    execStroke: "var(--color-navy-900)",
-    execDot: "var(--color-navy-900)",
-    execLabel: "var(--color-navy-900)",
-    deptFill: "var(--color-white)",
-    deptStroke: "var(--color-navy-900)",
-    deptLabel: "var(--color-navy-900)",
-    staffFill: "var(--color-navy-900)",
-    staffStroke: "var(--color-navy-900)",
-    num: "var(--color-muted)",
+    ceoRing: "var(--orq-brand-deep)",
+    ceoGlow: "var(--orq-brand-deep)",
+    ceoFill: "var(--orq-brand-deep)",
+    ceoDot: "var(--orq-surface-white)",
+    ceoLabel: "var(--orq-ink)",
+    execFill: "var(--orq-surface-white)",
+    execStroke: "var(--orq-ink)",
+    execDot: "var(--orq-ink)",
+    execLabel: "var(--orq-ink)",
+    deptFill: "var(--orq-surface-white)",
+    deptStroke: "var(--orq-ink)",
+    deptLabel: "var(--orq-ink)",
+    staffFill: "var(--orq-ink)",
+    staffStroke: "var(--orq-ink)",
+    num: "var(--orq-text-secondary)",
   },
 };
 
@@ -303,10 +303,10 @@ export function GrowthTree({ tone = "light" }: { tone?: "dark" | "light" }) {
             aria-pressed={state === s.k}
             className={`rounded-full border px-4 py-1.5 font-mono text-3xs uppercase tracking-[0.2em] transition-colors ${
               state === s.k
-                ? "border-orq8-green/60 bg-orq8-lime/10 text-orq8-green"
+                ? "border-brand-deep/60 bg-ink-accent/10 text-brand-ink"
                 : onDark
-                  ? "border-white/10 text-fog hover:border-white/25 hover:text-orq8-green"
-                  : "border-orq8-dark/15 text-muted hover:border-orq8-dark/40 hover:text-orq8-dark"
+                  ? "border-white/10 text-on-ink-muted hover:border-white/25 hover:text-brand-ink"
+                  : "border-ink/15 text-muted hover:border-ink/40 hover:text-ink"
             }`}
           >
             {s.label}
@@ -315,7 +315,7 @@ export function GrowthTree({ tone = "light" }: { tone?: "dark" | "light" }) {
       </div>
       <p
         className={`mt-6 text-center font-mono text-overline uppercase tracking-[0.22em] ${
-          onDark ? "text-fog" : "text-muted"
+          onDark ? "text-on-ink-muted" : "text-muted"
         }`}
       >
         Node count extends as work requires

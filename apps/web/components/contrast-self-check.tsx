@@ -120,21 +120,21 @@ export function ContrastSelfCheck({ selector = "[data-contrast-check]" }: { sele
     <div
       data-testid="contrast-self-check-alert"
       role="alert"
-      className="fixed bottom-4 right-4 z-[9999] max-w-md rounded-xl border-2 border-red-600 bg-red-50 p-4 shadow-xl"
+      className="fixed bottom-4 right-4 z-[9999] max-w-md rounded-xl border-2 border-border-error bg-error-soft p-4 shadow-xl"
     >
-      <p className="text-sm font-bold text-red-700">
+      <p className="text-sm font-bold text-error-ink">
         ⚠ Contrast regression detected ({issues.length} element{issues.length === 1 ? "" : "s"} below AA)
       </p>
       <ul className="mt-2 space-y-1">
         {issues.map((issue, i) => (
-          <li key={i} className="text-xs text-red-800">
+          <li key={i} className="text-xs text-error-ink">
             <span className="font-semibold">{issue.label}</span> — {issue.ratio.toFixed(2)}:1
             (fg {issue.foreground} on {issue.background})
             <code className="block truncate opacity-70">{issue.className}</code>
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-red-700/80">
+      <p className="mt-2 text-[11px] text-error-ink/80">
         Fix the underlying semantic token — do not silence this alert.
       </p>
     </div>

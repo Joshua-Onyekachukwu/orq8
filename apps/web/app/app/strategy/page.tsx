@@ -81,24 +81,24 @@ interface Initiative {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function priorityColor(p: string) {
-  if (p === "critical") return "bg-red-100 text-red-700";
-  if (p === "high") return "bg-amber-50 text-amber-700";
-  if (p === "normal") return "bg-blue-50 text-blue-700";
+  if (p === "critical") return "bg-error-soft text-error-ink";
+  if (p === "high") return "bg-warm-soft text-warm-ink";
+  if (p === "normal") return "bg-brand-soft text-brand-deep";
   return "bg-hairline text-muted";
 }
 
 function statusColor(s: string) {
-  if (s === "completed") return "text-orq8-green";
-  if (s === "active" || s === "on_track") return "text-orq8-green";
-  if (s === "at_risk" || s === "behind" || s === "paused") return "text-amber-600";
-  if (s === "failed" || s === "archived") return "text-red-500";
+  if (s === "completed") return "text-brand-ink";
+  if (s === "active" || s === "on_track") return "text-brand-ink";
+  if (s === "at_risk" || s === "behind" || s === "paused") return "text-warm-ink";
+  if (s === "failed" || s === "archived") return "text-error-ink";
   return "text-muted";
 }
 
 function krProgressColor(p: number) {
-  if (p >= 80) return "bg-orq8-green";
-  if (p >= 50) return "bg-amber-500";
-  return "bg-red-500";
+  if (p >= 80) return "bg-brand-deep";
+  if (p >= 50) return "bg-warm";
+  return "bg-error-fill";
 }
 
 function calcObjectiveProgress(krs: KeyResult[]): number {
@@ -181,7 +181,7 @@ function KeyResultRow({ kr, onUpdate }: { kr: KeyResult; onUpdate: (id: string, 
             onChange={e => setProgress(Number(e.target.value))}
             className="w-14 rounded border border-hairline px-1 py-0.5 text-xs text-right"
           />
-          <button onClick={saveProgress} className="text-orq8-green text-2xs font-semibold">Save</button>
+          <button onClick={saveProgress} className="text-brand-ink text-2xs font-semibold">Save</button>
           <button onClick={() => setEditing(false)} className="text-muted text-2xs">Cancel</button>
         </div>
       ) : (
@@ -390,7 +390,7 @@ function StrategyCard({
 
           <button
             onClick={() => onAddObjective(strategy.id)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-orq8-green/40 px-3 py-1.5 text-xs font-medium text-orq8-green hover:bg-orq8-green/5 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-brand-deep/40 px-3 py-1.5 text-xs font-medium text-brand-ink hover:bg-brand-deep/5 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" /> Add Objective
           </button>
@@ -547,7 +547,7 @@ export default function StrategyPage() {
           </div>
           <button
             onClick={() => { setNewTitle(""); setNewDesc(""); setShowNewStrategy(true); }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" /> New Strategy
           </button>
@@ -557,22 +557,22 @@ export default function StrategyPage() {
         {strategies.length > 0 && (
           <div className="mt-4 flex items-center gap-4 rounded-xl border border-hairline bg-white px-4 py-3 text-xs text-muted">
             <div className="flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5 text-orq8-green" />
+              <Target className="h-3.5 w-3.5 text-brand-ink" />
               <span className="font-medium text-ink">{strategies.filter(s => s.status === "active").length}</span> active strategies
             </div>
             <div className="w-px h-4 bg-hairline" />
             <div className="flex items-center gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5 text-orq8-orange" />
+              <BarChart3 className="h-3.5 w-3.5 text-warm-ink" />
               <span className="font-medium text-ink">{objectives.length}</span> objectives
             </div>
             <div className="w-px h-4 bg-hairline" />
             <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-orq8-green" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-brand-ink" />
               <span className="font-medium text-ink">{allKeyResults.length}</span> key results
             </div>
             <div className="w-px h-4 bg-hairline" />
             <div className="flex items-center gap-1.5">
-              <LinkIcon className="h-3.5 w-3.5 text-blue-500" />
+              <LinkIcon className="h-3.5 w-3.5 text-brand-deep" />
               <span className="font-medium text-ink">{initiatives.length}</span> initiatives
             </div>
           </div>
@@ -591,7 +591,7 @@ export default function StrategyPage() {
               </p>
               <button
                 onClick={() => { setNewTitle(""); setNewDesc(""); setShowNewStrategy(true); }}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-orq8-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90 transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90 transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" /> Create Strategy
               </button>
@@ -623,7 +623,7 @@ export default function StrategyPage() {
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="Strategy title (e.g., Reach $1M ARR in 18 months)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               onKeyDown={e => e.key === "Enter" && createStrategy()}
             />
             <textarea
@@ -631,7 +631,7 @@ export default function StrategyPage() {
               onChange={e => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <div className="flex gap-3">
               <select value={newPriority} onChange={e => setNewPriority(e.target.value)} className="rounded-lg border border-hairline px-3 py-2 text-xs text-ink">
@@ -648,7 +648,7 @@ export default function StrategyPage() {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNewStrategy(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-              <button onClick={createStrategy} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Create</button>
+              <button onClick={createStrategy} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Create</button>
             </div>
           </div>
         </Modal>
@@ -661,7 +661,7 @@ export default function StrategyPage() {
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="Objective title (e.g., Launch enterprise tier)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               onKeyDown={e => e.key === "Enter" && createObjective()}
             />
             <textarea
@@ -669,7 +669,7 @@ export default function StrategyPage() {
               onChange={e => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <select value={newPriority} onChange={e => setNewPriority(e.target.value)} className="rounded-lg border border-hairline px-3 py-2 text-xs text-ink">
               <option value="critical">Critical</option>
@@ -679,7 +679,7 @@ export default function StrategyPage() {
             </select>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNewObjective(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-              <button onClick={createObjective} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Create</button>
+              <button onClick={createObjective} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Create</button>
             </div>
           </div>
         </Modal>
@@ -692,7 +692,7 @@ export default function StrategyPage() {
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="Key result (e.g., Close 5 enterprise deals)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               onKeyDown={e => e.key === "Enter" && createKR()}
             />
             <textarea
@@ -700,7 +700,7 @@ export default function StrategyPage() {
               onChange={e => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <div className="flex gap-3">
               <input
@@ -708,18 +708,18 @@ export default function StrategyPage() {
                 value={newMetricTarget}
                 onChange={e => setNewMetricTarget(e.target.value)}
                 placeholder="Target"
-                className="w-24 rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+                className="w-24 rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               />
               <input
                 value={newUnit}
                 onChange={e => setNewUnit(e.target.value)}
                 placeholder="Unit (e.g., $, deals, %)"
-                className="w-32 rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+                className="w-32 rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNewKR(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-              <button onClick={createKR} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Create</button>
+              <button onClick={createKR} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Create</button>
             </div>
           </div>
         </Modal>
@@ -732,7 +732,7 @@ export default function StrategyPage() {
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
               placeholder="Initiative title (e.g., Enterprise sales playbook)"
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
               onKeyDown={e => e.key === "Enter" && createInitiative()}
             />
             <textarea
@@ -740,11 +740,11 @@ export default function StrategyPage() {
               onChange={e => setNewDesc(e.target.value)}
               placeholder="Description (optional)"
               rows={2}
-              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-orq8-green resize-none"
+              className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
             />
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNewInitiative(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-              <button onClick={createInitiative} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Create</button>
+              <button onClick={createInitiative} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Create</button>
             </div>
           </div>
         </Modal>

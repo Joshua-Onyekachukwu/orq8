@@ -19,9 +19,9 @@ async function fetchAgents(token: string) {
 }
 
 function statusDot(status: string) {
-  if (status === "active") return "bg-orq8-green";
-  if (status === "paused") return "bg-amber-400";
-  return "bg-gray-300";
+  if (status === "active") return "bg-brand-deep";
+  if (status === "paused") return "bg-warm";
+  return "bg-disabled-surface";
 }
 
 export default async function AdminAgentsPage() {
@@ -67,7 +67,7 @@ export default async function AdminAgentsPage() {
                 <tr key={a.id} className="hover:bg-canvas/50">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orq8-green-dark text-xs font-bold text-orq8-lime">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-ink-accent">
                         {a.name.charAt(0)}
                       </span>
                       <div>

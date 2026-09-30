@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { exportOrg } from '../services/portability.js';
+import { describeMailProvider, runMailDiagnosis } from '../services/email-diagnostics.js';
 import { organizations } from '@orq8/db';
 import type { AppDeps } from '../types.js';
 
@@ -25,8 +26,13 @@ const updateSettingsBody = z.object({
   }).optional(),
 });
 
+const mailTestBody = z.object({
+  /** Where the test message goes. Defaults to the signed-in founder's address. */
+  to: z.string().trim().email().max(320).optional(),
+});
+
 export function registerSettingsRoutes(app: FastifyInstance, deps: AppDeps): void {
-  const { db } = deps;
+  const { db, config } = deps;
 
   /**
    * GET /v1/settings/export — full org data export (owner/admin only).
@@ -128,5 +134,60 @@ export function registerSettingsRoutes(app: FastifyInstance, deps: AppDeps): voi
     });
 
     return { data: { success: true } };
+  });
+
+  /**
+   * GET /v1/settings/mail — how this deployment sends mail, and whether that
+   * adds up to delivery. Static: it reads configuration and never sends, so the
+   * settings page can show the truth without triggering anything.
+   *
+   * Key names only, never values (docs/37).
+   */
+  app.get('/v1/settings/mail', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const description = describeMailProvider(config);
+
+    return {
+      data: {
+        ...description,
+        environment: config.NODE_ENV,
+        // Sending is a founder action, not something every member can trigger.
+        canSendTest: ctx.role === 'owner' || ctx.role === 'admin',
+      },
+    };
+  });
+
+  /**
+   * POST /v1/settings/mail/test — prove it, by sending one real message.
+   *
+   * The check is split into three verdicts (configured, credentials accepted,
+   * message accepted) because "mail does not work" is not a diagnosis. A failure
+   * comes back as a cause plus the change that fixes it, with the provider's own
+   * words kept alongside.
+   */
+  app.post('/v1/settings/mail/test', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden();
+
+    const parsed = mailTestBody.safeParse(request.body ?? {});
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const to = parsed.data.to ?? ctx.email;
+    const diagnosis = await runMailDiagnosis(config, deps.logger, to);
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'mail.delivery_checked',
+      outcome: diagnosis.ok ? 'success' : 'failure',
+      resultRef: `mail:${diagnosis.provider} → ${to}`,
+    });
+
+    // The check itself succeeded, so this is a 200 whose body carries the
+    // verdict: a failed diagnosis is the answer, not an API error. The settings
+    // page renders the failing step and the fix.
+    void reply;
+    return { data: diagnosis };
   });
 }

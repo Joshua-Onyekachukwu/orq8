@@ -19,11 +19,11 @@ async function fetchActivity(token: string) {
 }
 
 function typeColor(type: string) {
-  if (type.includes("approved")) return "bg-orq8-green/10 text-orq8-green";
-  if (type.includes("rejected")) return "bg-red-50 text-red-600";
-  if (type.includes("deployed") || type.includes("executed")) return "bg-blue-50 text-blue-600";
-  if (type.includes("created") || type.includes("hired")) return "bg-purple-50 text-purple-600";
-  return "bg-gray-100 text-gray-600";
+  if (type.includes("approved")) return "bg-brand-deep/10 text-brand-ink";
+  if (type.includes("rejected")) return "bg-error-soft text-error-ink";
+  if (type.includes("deployed") || type.includes("executed")) return "bg-brand-soft text-brand-deep";
+  if (type.includes("created") || type.includes("hired")) return "bg-brand-soft text-brand-deep";
+  return "bg-surface-secondary text-ink-muted";
 }
 
 export default async function AdminActivityPage() {

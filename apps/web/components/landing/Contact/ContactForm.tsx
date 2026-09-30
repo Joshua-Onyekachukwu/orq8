@@ -30,7 +30,7 @@ const ContactForm: React.FC = () => {
   }
 
   return (
-    <section className="bg-orq8-dark py-[80px] md:py-[120px] lg:py-[160px]">
+    <section className="ink py-[80px] md:py-[120px] lg:py-[160px]">
       <div className="mx-auto max-w-[1200px] px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 gap-[40px] lg:grid-cols-2 lg:gap-[80px] items-start">
           {/* Contact Info */}
@@ -45,7 +45,7 @@ const ContactForm: React.FC = () => {
 
             <div className="space-y-[24px]">
               <div className="flex items-center gap-[16px]">
-                <div className="w-[48px] h-[48px] rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-orq8-lime">
+                <div className="w-[48px] h-[48px] rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-ink-accent">
                   <svg className="w-[20px] h-[20px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                   </svg>
@@ -57,7 +57,7 @@ const ContactForm: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-[16px]">
-                <div className="w-[48px] h-[48px] rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-orq8-lime">
+                <div className="w-[48px] h-[48px] rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-ink-accent">
                   <svg className="w-[20px] h-[20px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -74,9 +74,9 @@ const ContactForm: React.FC = () => {
           <div className="rounded-[16px] border border-white/[0.06] bg-white/[0.03] p-[32px] md:p-[40px]">
             {status === "done" ? (
               <div className="py-[40px] text-center">
-                <div className="mx-auto mb-[16px] flex h-[56px] w-[56px] items-center justify-center rounded-full bg-orq8-lime/10">
+                <div className="mx-auto mb-[16px] flex h-[56px] w-[56px] items-center justify-center rounded-full bg-ink-accent/10">
                   <svg
-                    className="h-[28px] w-[28px] text-orq8-lime"
+                    className="h-[28px] w-[28px] text-ink-accent"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -112,7 +112,7 @@ const ContactForm: React.FC = () => {
                       name="name"
                       autoComplete="name"
                       required
-                      className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:ring-1 focus:ring-orq8-lime/30"
+                      className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent focus:ring-1 focus:ring-ink-accent/30"
                       placeholder="Enter name"
                     />
                   </div>
@@ -130,7 +130,7 @@ const ContactForm: React.FC = () => {
                       name="email"
                       autoComplete="email"
                       required
-                      className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:ring-1 focus:ring-orq8-lime/30"
+                      className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent focus:ring-1 focus:ring-ink-accent/30"
                       placeholder="Enter email address"
                     />
                   </div>
@@ -147,7 +147,7 @@ const ContactForm: React.FC = () => {
                     type="text"
                     id="contact-subject"
                     name="subject"
-                    className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:ring-1 focus:ring-orq8-lime/30"
+                    className="h-[48px] w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent focus:ring-1 focus:ring-ink-accent/30"
                     placeholder="What is this about?"
                   />
                 </div>
@@ -164,7 +164,7 @@ const ContactForm: React.FC = () => {
                     name="message"
                     required
                     rows={5}
-                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] py-[12px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-orq8-lime focus:ring-1 focus:ring-orq8-lime/30 resize-none"
+                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.03] px-[16px] py-[12px] text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent focus:ring-1 focus:ring-ink-accent/30 resize-none"
                     placeholder="Write your message here"
                   />
                 </div>
@@ -178,11 +178,11 @@ const ContactForm: React.FC = () => {
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="inline-flex items-center gap-[10px] rounded-full bg-orq8-lime px-[24px] py-[12px] text-sm font-semibold text-orq8-dark transition-colors hover:bg-orq8-lime disabled:opacity-60"
+                  className="inline-flex items-center gap-[10px] rounded-full bg-brand-deep px-[24px] py-[12px] text-sm font-semibold text-white transition-colors hover:bg-ink-accent hover:text-ink-surface disabled:opacity-60"
                 >
                   {status === "loading" ? (
                     <>
-                      <span className="h-[16px] w-[16px] animate-spin rounded-full border-2 border-orq8-dark/30 border-t-ink" />
+                      <span className="h-[16px] w-[16px] animate-spin rounded-full border-2 border-white/30 border-t-white" />
                       Sending...
                     </>
                   ) : (

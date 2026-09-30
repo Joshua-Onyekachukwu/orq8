@@ -125,7 +125,7 @@ function MiniBarChart({ data, maxVal }: { data: number[]; maxVal: number }) {
       {data.map((v, i) => (
         <div
           key={i}
-          className="flex-1 rounded-t bg-orq8-green/80 transition-all"
+          className="flex-1 rounded-t bg-brand-deep/80 transition-all"
           style={{ height: `${Math.max((v / max) * 100, 2)}%` }}
           title={`${v}`}
         />
@@ -202,28 +202,28 @@ export default function ROIPage() {
                 label="Total Cost Saved"
                 value={formatCurrency(roi.totalEstimatedCostSaved)}
                 subtext={`vs. ${formatHours(roi.totalEstimatedHoursSaved)} of human work`}
-                color="bg-orq8-green"
+                color="bg-brand-deep"
               />
               <MetricCard
                 icon={Clock}
                 label="Hours Saved"
                 value={formatHours(roi.totalEstimatedHoursSaved)}
                 subtext={`${roi.totalTasksCompleted} tasks completed`}
-                color="bg-orq8-orange"
+                color="bg-warm"
               />
               <MetricCard
                 icon={Zap}
                 label="ROI Multiplier"
                 value={`${roi.roiMultiplier}×`}
                 subtext={`AI: ${formatCurrency(roi.aiCostPerTask)}/task vs Human: ${formatCurrency(roi.humanCostPerTask)}/task`}
-                color="bg-blue-500"
+                color="bg-brand-soft"
               />
               <MetricCard
                 icon={Users}
                 label="Founder Time Reclaimed"
                 value={`${roi.founderTimeReclaimed} hrs`}
                 subtext="Orchestration handled by EA"
-                color="bg-purple-500"
+                color="bg-brand-soft"
               />
             </div>
 
@@ -236,7 +236,7 @@ export default function ROIPage() {
                 </div>
                 <div className="h-2 rounded-full bg-muted/10 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${roi.overallSuccessRate >= 80 ? "bg-orq8-green" : roi.overallSuccessRate >= 50 ? "bg-amber-500" : "bg-red-500"}`}
+                    className={`h-full rounded-full transition-all ${roi.overallSuccessRate >= 80 ? "bg-brand-deep" : roi.overallSuccessRate >= 50 ? "bg-warm" : "bg-error-fill"}`}
                     style={{ width: `${roi.overallSuccessRate}%` }}
                   />
                 </div>
@@ -278,7 +278,7 @@ export default function ROIPage() {
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                     activeTab === tab
-                      ? "border-orq8-green text-orq8-green"
+                      ? "border-brand-deep text-brand-ink"
                       : "border-transparent text-muted hover:text-ink"
                   }`}
                 >
@@ -295,15 +295,15 @@ export default function ROIPage() {
                   <h3 className="text-sm font-semibold text-ink mb-4">Value Equation</h3>
                   <div className="grid gap-4 sm:grid-cols-3 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-orq8-green font-mono">{roi.totalAgents}</div>
+                      <div className="text-2xl font-bold text-brand-ink font-mono">{roi.totalAgents}</div>
                       <div className="text-xs text-muted mt-1">AI Employees</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-orq8-orange font-mono">{roi.totalTasksCompleted}</div>
+                      <div className="text-2xl font-bold text-warm-ink font-mono">{roi.totalTasksCompleted}</div>
                       <div className="text-xs text-muted mt-1">Tasks Completed</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-blue-600 font-mono">{formatCurrency(roi.totalEstimatedCostSaved)}</div>
+                      <div className="text-2xl font-bold text-brand-deep font-mono">{formatCurrency(roi.totalEstimatedCostSaved)}</div>
                       <div className="text-xs text-muted mt-1">Cost Saved</div>
                     </div>
                   </div>
@@ -323,7 +323,7 @@ export default function ROIPage() {
                     <div className="space-y-3">
                       {roi.perAgentROI.slice(0, 5).map(agent => (
                         <div key={agent.agentId} className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-orq8-green/10 flex items-center justify-center text-xs font-bold text-orq8-green">
+                          <div className="w-8 h-8 rounded-full bg-brand-deep/10 flex items-center justify-center text-xs font-bold text-brand-ink">
                             {agent.agentName.charAt(0)}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -373,12 +373,12 @@ export default function ROIPage() {
                             </td>
                             <td className="px-4 py-3 text-right text-xs font-mono text-ink">{agent.tasksCompleted}</td>
                             <td className="px-4 py-3 text-right">
-                              <span className={`text-xs font-mono ${agent.successRate >= 80 ? "text-orq8-green" : agent.successRate >= 50 ? "text-amber-600" : "text-red-500"}`}>
+                              <span className={`text-xs font-mono ${agent.successRate >= 80 ? "text-brand-ink" : agent.successRate >= 50 ? "text-warm-ink" : "text-error-ink"}`}>
                                 {agent.successRate}%
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right text-xs font-mono text-ink">{agent.estimatedHoursSaved}</td>
-                            <td className="px-4 py-3 text-right text-xs font-semibold text-orq8-green font-mono">{formatCurrency(agent.estimatedCostSaved)}</td>
+                            <td className="px-4 py-3 text-right text-xs font-semibold text-brand-ink font-mono">{formatCurrency(agent.estimatedCostSaved)}</td>
                             <td className="px-4 py-3 text-right text-xs font-mono text-muted">{agent.creditsUsed.toLocaleString()}</td>
                           </tr>
                         ))}
@@ -407,13 +407,13 @@ export default function ROIPage() {
                           <span className="text-2xs text-muted">{dept.agentCount} agent{dept.agentCount !== 1 ? "s" : ""}</span>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-orq8-green font-mono">{formatCurrency(dept.estimatedCostSaved)}</div>
+                          <div className="text-lg font-bold text-brand-ink font-mono">{formatCurrency(dept.estimatedCostSaved)}</div>
                           <div className="text-2xs text-muted">{formatHours(dept.estimatedHoursSaved)} saved</div>
                         </div>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted/10 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-orq8-green transition-all"
+                          className="h-full rounded-full bg-brand-deep transition-all"
                           style={{ width: `${Math.min((dept.estimatedCostSaved / (roi.totalEstimatedCostSaved || 1)) * 100, 100)}%` }}
                         />
                       </div>
@@ -497,13 +497,13 @@ export default function ROIPage() {
                   max={1000}
                   value={rateInput}
                   onChange={e => setRateInput(e.target.value)}
-                  className="flex-1 rounded-lg border border-hairline px-3 py-2 text-sm text-ink font-mono focus:outline-none focus:ring-1 focus:ring-orq8-green"
+                  className="flex-1 rounded-lg border border-hairline px-3 py-2 text-sm text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand-deep"
                 />
                 <span className="text-xs text-muted">/hr</span>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button onClick={() => setShowRateModal(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
-                <button onClick={updateRate} className="rounded-lg bg-orq8-green px-4 py-1.5 text-xs font-semibold text-white hover:bg-orq8-green/90">Save</button>
+                <button onClick={updateRate} className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90">Save</button>
               </div>
             </div>
           </div>

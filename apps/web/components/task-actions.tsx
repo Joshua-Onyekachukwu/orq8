@@ -65,12 +65,12 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
               setLoading(false);
             }
           }}
-          className="font-mono text-3xs font-semibold uppercase tracking-wide text-orq8-green hover:underline disabled:opacity-50"
+          className="font-mono text-3xs font-semibold uppercase tracking-wide text-brand-ink hover:underline disabled:opacity-50"
         >
           {nextStatus === "in_progress" ? "Start" : "Complete"}
         </button>
         {error && (
-          <span role="alert" className="ml-2 text-xs text-red-600">
+          <span role="alert" className="ml-2 text-xs text-error-ink">
             {error}
           </span>
         )}
@@ -89,7 +89,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
           <Plus className="h-3 w-3" /> Add Task
         </button>
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-orq8-dark/60">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60">
             <div className="w-full max-w-md rounded-xl border border-hairline bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-ink">Create Task</h3>
@@ -141,7 +141,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                     placeholder="Research competitor pricing"
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                     autoFocus
                   />
                 </div>
@@ -152,7 +152,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     placeholder="What needs to be done?"
                     rows={3}
-                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                    className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -161,7 +161,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     <select
                       value={form.priority}
                       onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                     >
                       <option value="low">Low</option>
                       <option value="normal">Normal</option>
@@ -175,7 +175,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                       type="date"
                       value={form.dueDate}
                       onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                     />
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                     <select
                       value={form.agentId}
                       onChange={(e) => setForm({ ...form, agentId: e.target.value })}
-                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-orq8-green"
+                      className="w-full rounded-lg border border-hairline bg-canvas px-3 py-2 text-sm text-ink outline-none focus:border-brand-deep"
                     >
                       <option value="">Unassigned</option>
                       {agents.map((agent) => (
@@ -199,7 +199,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                 {error && (
                   <p
                     role="alert"
-                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                    className="rounded-lg border border-border-error bg-error-soft px-3 py-2 text-xs text-error-ink"
                   >
                     {error}
                   </p>
@@ -215,7 +215,7 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg bg-orq8-dark px-4 py-2 text-xs font-semibold text-white hover:bg-orq8-green hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg ink px-4 py-2 text-xs font-semibold text-white hover:bg-brand-deep hover:text-white disabled:opacity-50"
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Create Task

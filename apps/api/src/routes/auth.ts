@@ -384,6 +384,38 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
+  /**
+   * POST /v1/org/switch — move the current session to another organization the
+   * caller is an active member of.
+   *
+   * Membership alone is not access: `requireAuth` takes the organization from the
+   * session, and login binds a new session to the caller's first membership. An
+   * invited teammate accepts an invitation, gains a membership, and would
+   * otherwise have no way to act in the organization that invited them.
+   */
+  app.post('/v1/org/switch', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({ org_id: z.string().uuid() }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const memberships = await orgs.findMembershipsByUser(db, ctx.userId);
+    const target = memberships.find(
+      (m) => m.org.id === parsed.data.org_id && (m.membership.status ?? 'active') === 'active',
+    );
+    if (!target) throw forbidden('You are not an active member of that organization.');
+
+    await sessions.switchOrg(db, ctx.sessionId, target.org.id);
+    await appendAudit(db, {
+      orgId: target.org.id,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'org.switched',
+      outcome: 'success',
+    });
+
+    return { data: { ...target.org, role: target.membership.role } };
+  });
+
   /** PATCH /v1/org — Update current organization details (name). */
   app.patch('/v1/org', async (request) => {
     const ctx = await requireAuth(request, deps);
