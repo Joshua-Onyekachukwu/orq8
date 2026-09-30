@@ -564,12 +564,15 @@ the next founder decision is approving the implementation plan (§S).**
 
 ---
 
-## X. Atlas autonomy proposal (draft — merges with the founder's EA guide)
+## X. Atlas autonomy (LOCKED — founder profile in docs/72)
 
-> Status: **PROPOSAL — nothing implemented.** Every mechanism below arrives
-> only with founder approval and writes an audit event. Where this section
-> and the founder's EA guide disagree, **the guide wins** — this draft exists
-> so its decisions are ready-made rows when the guide arrives.
+> Status: **LOCKED 2026-09-30.** The founder answered the full
+> questionnaire; the authoritative profile lives in
+> **docs/72_ATLAS_EA_GUIDE_QUESTIONNAIRE.md** (one non-default choice:
+> urgent gates may email the founder once a channel exists). The mechanisms
+> below are the implementation shape; where anything here disagrees with
+> docs/72, docs/72 wins. Nothing is implemented yet — behavior lands with
+> the EA phase (§S Phase 6+).
 
 **Principle: autonomy is scoped, budgeted, reversible, and always visible.
 Atlas earns wider bounds only through a founder-signed constitution

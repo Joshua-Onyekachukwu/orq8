@@ -117,7 +117,7 @@ document that states status is a snapshot; it belongs in `docs/archive/`.
 | `67_ORQ8_PRODUCT_EXPERIENCE_SPEC.md` | Product experience, UI/UX and design specification | **The UX authority** |
 | `70_HEADQUARTERS_DASHBOARD_DESIGN.md` | Headquarters redesign plan: dark mission-control dashboard | Plan (approved direction, not yet built) |
 | `71_ORQ8_PRODUCT_REDESIGN_PLAN.md` | Product-wide redesign: audit, IA, shell, phases A–U; Rev 2 folds in the founder's page-by-page build brief (§V, authoritative); §W records founder revisions 1–23; §X drafts Atlas autonomy | **Phases 0–1 implemented; 2–8 await go-ahead** |
-| `72_ATLAS_EA_GUIDE_QUESTIONNAIRE.md` | Founder questionnaire: Atlas autonomy, hiring, money, external actions, escalation, tone, guardrails — unanswered items keep safe defaults | **Open — awaiting founder answers** |
+| `72_ATLAS_EA_GUIDE_QUESTIONNAIRE.md` | Atlas behavioral profile: founder's locked answers (autonomy, hiring, money, external, escalation, tone) + safe defaults for the rest | **LOCKED 2026-09-30** |
 | `65_COLOR_SYSTEM.md` | Colour tokens and contrast rules | Canonical token reference |
 | `ORQ8_STYLE_GUIDE.md` | Design and contrast style guide | Active; tokens defer to `65` |
 | `33_UI_UX_SYSTEM.md` | Original UI system | Canonical design canon; concrete IA defers to `67` |
