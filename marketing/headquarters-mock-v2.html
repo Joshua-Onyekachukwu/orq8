@@ -70,7 +70,7 @@
   .navitem.on::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--lime);border-radius:2px}
   .navitem .ico{width:16px;text-align:center;font-style:normal;opacity:.9}
   .navitem .n{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 6px}
-  .navitem .n.hot{color:#231206;background:var(--orange);border-color:var(--orange);font-weight:700}
+  .navitem .n.hot{color:var(--orange);background:rgba(233,151,79,.12);border-color:rgba(233,151,79,.35);font-weight:700}
   .sidefoot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11px;color:var(--muted)}
   .sidefoot .who{font-size:12px;color:var(--body)} .sidefoot .plan{font-size:10px;color:var(--muted)}
@@ -106,7 +106,7 @@
   .stat .delta{font-size:11px;color:var(--muted);margin-top:4px}
   .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
   .dashgrid>*,.memgrid>*,.revwrap>*{min-width:0}
-  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(233,151,79,.35);background:var(--orange-soft);margin-bottom:14px;flex-wrap:wrap}
+  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid var(--line-strong);background:var(--hover);margin-bottom:14px;flex-wrap:wrap}
   .banner b{color:var(--white);font-size:13.5px}
   .banner p{font-size:12px;color:var(--muted)}
   .banner .btn{margin-left:auto}
@@ -199,7 +199,7 @@
   .ev .ctx button:hover{color:var(--body);border-color:var(--line-strong)}
   .dempty{border:1px dashed var(--line-strong);border-radius:var(--r-sm);padding:18px 14px;text-align:center;font-size:12px;color:var(--muted);margin-top:4px}
   .dfoot{font-size:11px;color:var(--muted);text-align:center;padding:8px 0 2px}
-  .ev.gate{border-color:rgba(233,151,79,.32)}
+  .ev.gate{border-color:var(--line);border-left:2px solid rgba(233,151,79,.55)}
   .ev.gate.compact{padding:9px 12px}
   .nowstrip{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--body);background:var(--lime-soft);flex-shrink:0}
   .nowstrip b{color:var(--body)}
@@ -207,7 +207,7 @@
   .chips button{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
   .chips button:hover{color:var(--body);border-color:var(--line-strong)}
   .hirebtn{font-size:11.5px;font-weight:600;color:var(--body);border:1px solid var(--line-strong);border-radius:99px;padding:2px 10px}
-  .hirebtn:hover{border-color:var(--lime-dim);color:var(--body)}
+  .hirebtn:hover{border-color:var(--line-strong);color:var(--body)}
 
   /* hire proposal modal */
   .hiregrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
@@ -224,7 +224,8 @@
   .authband li .m{color:var(--muted);margin-left:auto;font-size:11px}
   @keyframes flashgate{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px var(--lime-dim)}}
   .flash{animation:flashgate .9s ease-in-out 2}
-  .ev.gate .who{font-size:12.5px;font-weight:700;color:var(--orange)}
+  .ev.gate .who{font-size:12px;font-weight:600;color:var(--muted)}
+  .ev.gate .who::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--orange);margin-right:6px;vertical-align:1px}
   .ev.gate .what{font-size:13px;font-weight:600;color:var(--white);margin-top:4px}
   .ev.gate .desc{font-size:12px;color:var(--muted);margin-top:3px}
   .ev.gate .cost{font-size:11.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
@@ -376,7 +377,7 @@
   .diffline.del{background:var(--red-soft);color:var(--red)}
 
   /* ---------- approvals / gates ---------- */
-  .approvalcard{border:1px solid rgba(233,151,79,.32);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .approvalcard{border:1px solid var(--line);border-left:2px solid rgba(233,151,79,.55);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
   .chip.trigger{color:var(--info);border-color:rgba(125,211,252,.35)}
 
   /* ---------- goals ---------- */
@@ -465,11 +466,11 @@
 
   /* ---------- notifications page ---------- */
   .notifrow{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);margin-bottom:8px}
-  .notifrow.unread{border-color:var(--lime-dim);background:var(--lime-soft)}
-  .notifrow.gate{border-color:rgba(233,151,79,.32);background:var(--orange-soft)}
+  .notifrow.unread{border-color:var(--line-strong);background:var(--hover)}
+  .notifrow.gate{border-color:var(--line);border-left:2px solid rgba(233,151,79,.55);background:var(--surface)}
   .notifrow .ni{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:12px;flex-shrink:0;color:var(--muted)}
-  .notifrow.gate .ni{color:var(--orange);border-color:rgba(245,158,76,.4)}
-  .notifrow.unread .ni{color:var(--lime);border-color:var(--lime-dim)}
+  .notifrow.gate .ni{color:var(--orange);border-color:rgba(233,151,79,.35)}
+  .notifrow.unread .ni{color:var(--body);border-color:var(--line-strong)}
   .notifrow b{font-size:13px;color:var(--white);display:block}
   .notifrow p{font-size:12px;color:var(--muted);margin-top:2px}
   .notifrow .when{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
@@ -583,7 +584,7 @@
       <section class="screen on" id="screen-dashboard">
         <div class="hello">
           <div><h1>Good morning, Joshua</h1><div class="date">Wednesday, September 30 — your company has been running for 6 hours</div></div>
-          <button class="btn btn-primary" id="giveDir">＋ Give direction</button>
+          <button class="btn btn-white" id="giveDir">＋ Give direction</button>
         </div>
 
         <div class="stats stats4">
@@ -1419,7 +1420,7 @@
     <div class="acts">
       <button class="btn btn-secondary" data-close="1">Save draft, decide later</button>
       <button class="btn btn-danger" data-close="1">Reject proposal</button>
-      <button class="btn btn-primary" data-close="1">Approve hire</button>
+      <button class="btn btn-white" data-close="1">Approve hire</button>
     </div>
   </div>
 </div>

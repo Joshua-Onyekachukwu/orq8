@@ -508,7 +508,8 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 >
 > **Reserved:** the founder will send the EA behavioral guide (how Atlas
 > should work; open to full-autonomy suggestions) — chat behaviors beyond
-> this surface stay unimplemented until it arrives.
+> this surface stay unimplemented until it arrives. A draft autonomy
+> proposal to merge against it is in **§X**.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|
@@ -532,6 +533,9 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 | 18 | Decision buttons | **Ghost decision pair:** Reject = transparent red-outline button; Approve = **transparent white-outline button** (white text, brightens on hover) — used for dock gates, plan proposals, and every Approve/Reject pair incl. the hire modal. Orange is now reserved for primary CTAs only. | APPLIED |
 | 19 | EA chat | **Chat redesign:** real conversation bubbles (EA left on raised surface, founder right-aligned), **follow-up question chips** under EA messages ("Why?", "What's holding them?"), **inline context chips** on gate cards ("Full context", effect hints), a **plan-rev proposal card** with Keep rev 4 / Apply rev 6, a feed summary footer ("3 events this hour · nothing else needs you"), and the composer upgraded to an auto-growing **textarea** with Enter-to-send planned. Founder will supply the EA behavioral guide later — chat surface is designed, autonomy suggestions deferred until it arrives. | APPLIED |
 | 20 | Mobile (≤640px) | **Narrow-screen design:** sidebar collapses to 56px icon rail at ≤1004px (labels hidden); below 640px content full-bleeds, stats 2×2, filters/tabs scroll horizontally, and the EA dock is reachable via a **floating Atlas FAB** (bottom-right, pip = pending items) that jumps to the dock and flags it; task detail returns to in-flow below the board. Verified zero overflow on all 18 screens at 375px and 768px. | APPLIED |
+| 21 | EA dock + global | **Final orange reduction (founder: "too much burnt orange"):** gates/approvals signal via a thin 2px left rule + orange dot only — no orange-tinted surfaces; dashboard banner goes neutral; approval nav badge becomes soft orange tint; dock now contains exactly one orange element (send). Orange inventory app-wide: state dots, budget warn meters, send button, FAB, primary CTAs — nothing else. | APPLIED |
+| 22 | Hire modal | Approve hire joins the ghost decision pair (white outline); all decision pairs app-wide are Reject = red ghost / Approve = white ghost. | APPLIED |
+| 23 | Autonomy | §X added: Atlas autonomy proposal (bounded loops, budget-scoped initiative, self-unblocking with audit, escalation ladder, autonomy dial) as a draft to merge with the founder's EA guide. | PROPOSED |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit
@@ -546,6 +550,62 @@ department model is four departments with Growth carved out for Milo. All
 14 original screens plus Constitution, Departments, Files and Notifications
 are now mocked — every nav item renders. **The design phase is complete;
 the next founder decision is approving the implementation plan (§S).**
+
+---
+
+## X. Atlas autonomy proposal (draft — merges with the founder's EA guide)
+
+> Status: **PROPOSAL — nothing implemented.** Every mechanism below arrives
+> only with founder approval and writes an audit event. Where this section
+> and the founder's EA guide disagree, **the guide wins** — this draft exists
+> so its decisions are ready-made rows when the guide arrives.
+
+**Principle: autonomy is scoped, budgeted, reversible, and always visible.
+Atlas earns wider bounds only through a founder-signed constitution
+amendment. Default posture: propose more, act less.**
+
+1. **Bounded initiative loops (propose → act → report).** Atlas may run an
+   N-step work loop (default N=5) without checking in, then must post a
+   compact digest to the chat feed (done / next / spend / blockers). The
+   loop's budget — steps, credits, wall-clock — is visible while it runs
+   ("initiative loop · 3/5 steps · 142 Cr"). Any step that would open a gate
+   (external publish, spend above cap, hire, constitution change) **ends the
+   loop and becomes a proposal**; a loop never decides its own gates.
+2. **Budget-scoped self-direction.** An **EA initiative budget** (default
+   0 Cr until the founder enables it; suggested 250 Cr/day) funds small
+   unprompted actions: running a sweep, refreshing a report, drafting a
+   brief. Actions must fit the §4 per-action/per-day caps; anything larger
+   becomes a proposal. Reserve-before-settle applies identically. When the
+   initiative budget is exhausted, Atlas proposes — it never improvises.
+3. **Self-unblocking with audit.** On blocked work Atlas may attempt
+   bounded self-service unblocks (retry, alternative data source, requesting
+   a credential from an integration already granted) up to **2 attempts**,
+   then must escalate with the exact blocker. Every attempt writes an audit
+   event (`unblock.attempted` / `unblock.succeeded` /
+   `unblock.escalated`). Credentials never come from anywhere they were not
+   granted, and approved-credential gates (Iris's Stripe keys) stay
+   human-only.
+4. **Proposal engine (designed in the mock already).** All material changes
+   — hires, budget raises, plan revisions, authority changes — surface as
+   chat proposals with Keep/Apply or Reject/Approve pairs; plan revisions
+   additionally land in the Plan page rail for ratification. Proposals
+   **expire to a pause** (silence is never consent), never to an approval.
+5. **Constitution-bound escalation ladder.** Level 0: within authority and
+   budget → act, log. Level 1: needs tools/credits Atlas has → bounded
+   initiative loop. Level 2: needs money or authority above caps →
+   proposal/gate. Level 3: ambiguous, external, or irreversible → stop and
+   ask the founder, with options drafted. The ladder is encoded in the
+   Constitution page so Atlas's bounds are founder-editable, not hardcoded.
+6. **Autonomy dial (founder control).** Settings gains one control —
+   **Atlas autonomy: Off / Propose-only / Bounded loops (default) / Wide**.
+   Every level change is a constitution amendment with a diff and an audit
+   event. "Wide" unlocks nothing by itself until the founder's EA guide
+   defines it.
+
+**Open questions for the founder's guide (become decision rows on arrival):**
+(1) may Atlas hire without a gate at Wide? (2) may Atlas pause an employee
+on suspicion without asking? (3) external-communication drafting limits?
+(4) default initiative budget? (5) loop depth?
 
 ---
 
