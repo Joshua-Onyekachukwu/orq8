@@ -499,20 +499,31 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 
 ## W. Revision 3 — founder feedback on mock v2 (open)
 
-> **Status: OPEN — awaiting the founder's change list.** The founder reviews
-> `marketing/headquarters-mock-v2.html` and lists changes (colors, wording,
-> layout). Each item is recorded here as it arrives, then applied to the mock
-> **before** any remaining pages (Constitution, Departments, Files,
-> Notifications) are mocked with the feedback baked in.
+> **Status: APPLIED — 5 founder items recorded and applied to mock v2
+> (2026-09-30).** The founder reviews `marketing/headquarters-mock-v2.html`
+> and lists changes (colors, wording, layout). Each item is recorded here as
+> it arrives, then applied to the mock **before** any remaining pages
+> (Constitution, Departments, Files, Notifications) are mocked with the
+> feedback baked in.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|
-| — | —      | *(no feedback recorded yet)*       | —      |
+| 1 | All | **White/light theme** — founder: "we will be going with the white color theme not the dark one." Replaces the §V dark palette (`#0B0F14` bg, lime/orange accents) with white surfaces, light gray borders, darker accessible lime `#5C9E31` / orange `#C4661B`/`#E8761A` for contrast on white. | APPLIED |
+| 2 | Dashboard (new Company Hub screen) | Between "2 approvals are holding work" and "Company now", founder wants a **Company Hub**: EA (Atlas) at the center, departments and agents around it; a working department shows as **connected to the EA**; clicking the EA shows its info; clicking any agent shows their details. | APPLIED |
+| 3 | Dashboard | Keep **"Company now"** too — it "shows more details about the company and also the agent under them." | APPLIED |
+| 4 | Company Hub | **Hired-on-creation rule:** employees/departments appear on the hub **only when the EA (Atlas) creates (hires) them** — hired status is live company state, never a placeholder. | SHOWN in mock (real gating lands with the agent-creation implementation the founder will specify) |
+| 5 | All | **Full-screen layout:** "work on things to be full screen and not cut up as it should be on the main" — content spans the window (no 1280px cap); verified zero horizontal overflow on all 15 screens at narrow and desktop widths. | APPLIED |
 
 **Process for each entry:** record it here → mirror it in docs/70 §7 → apply
 it to mock v2 → re-verify (all screens render, zero console errors) → commit
 + push. When the founder confirms the list is complete, flip this section's
 status to **APPLIED** and note the commit.
+
+**Note for later phases:** the white/light theme above is a founder decision
+for the product and supersedes the dark-palette clauses in §V (brief) and
+§F wherever they conflict. The Company Hub becomes a first-class screen in
+§E/§K planning. When the founder sends the agent/EA-creation details, the
+hired-on-creation gating in item 4 gets its real backend wiring.
 
 ---
 

@@ -176,7 +176,12 @@ Phase 1 + 2 is the "log in and see your company breathing" moment.
   channel exists.
 - Default-model modal needs the "our picks" list — confirm which models ORQ8
   actually offers at launch (ties into `docs/22` model routing).
-- **Revision 3 (open):** the founder is reviewing mock v2 and will list
-  changes (colors, wording, layout). Each change is recorded in docs/71 §W
-  and applied to `headquarters-mock-v2.html` **before** the remaining pages
-  (Constitution, Departments, Files, Notifications) are mocked.
+- **Revision 3 (applied 2026-09-30):** founder feedback on mock v2 is
+  recorded in docs/71 §W and applied to `headquarters-mock-v2.html`:
+  (1) **white/light theme** replaces dark; (2) **Company Hub** screen —
+  Atlas at the center, departments/agents orbiting, live connection lines
+  while working, click EA or agent for details; (3) "Company now" panel kept;
+  (4) nodes appear on the hub **only once Atlas hires them** (live state,
+  not placeholders); (5) **full-screen layout**, no content width cap, no
+  cut-off. Remaining pages (Constitution, Departments, Files, Notifications)
+  are mocked with this feedback baked in.

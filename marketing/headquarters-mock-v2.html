@@ -2,23 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ORQ8 — Headquarters mock v2 (ORQ8-native)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ORQ8 — Company OS (mock v2.1)</title>
 <style>
-  /* ================================================================
-     ORQ8 HEADQUARTERS — DESIGN SYSTEM v2 (ORQ8-native, per docs/71 §V)
-     Flow adapted from reference material; visuals are ORQ8's own:
-     lime/orange on near-black, Inter + JetBrains Mono, hairline cards,
-     no shadows, 8px grid. No cloned branding, no crowns, no sponsors.
-     ================================================================ */
   :root{
-    --bg:#0B0F14; --surface:#11161D; --hover:#161D26; --line:#1E2732;
-    --line-strong:#2A3646;
-    --lime:#B6F09C; --lime-soft:rgba(182,240,156,.12); --lime-dim:rgba(182,240,156,.55);
-    --orange:#F59E4C; --orange-soft:rgba(245,158,76,.12);
-    --red:#F87171; --red-soft:rgba(248,113,113,.12);
-    --info:#7DD3FC; --info-soft:rgba(125,211,252,.10);
-    --muted:#8B95A3; --body:#E6EAF0; --white:#FFFFFF;
+    --bg:#FFFFFF; --surface:#F7F8FA; --hover:#EEF1F4; --line:#E3E8EE;
+    --line-strong:#C9D2DC;
+    --lime:#5C9E31; --lime-soft:rgba(92,158,49,.12); --lime-dim:rgba(92,158,49,.45);
+    --orange:#C4661B; --orange-strong:#E8761A; --orange-soft:rgba(232,118,26,.10);
+    --red:#C23B3B; --red-soft:rgba(194,59,59,.10);
+    --info:#2563EB; --info-soft:rgba(37,99,235,.08);
+    --ink:#0E1520; --body:#2A3340; --muted:#5C6878; --faint:#8B95A3;
     --r:10px; --r-sm:8px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -26,30 +20,30 @@
   body{background:var(--bg);color:var(--body);font:14px/1.5 Inter,ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
   button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   a{color:inherit;text-decoration:none}
-  ::selection{background:rgba(182,240,156,.25)}
+  ::selection{background:rgba(92,158,49,.22)}
   :focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px}
   .mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
   .num{font-variant-numeric:tabular-nums}
   .micro{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px}
   .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .card-head .micro{color:var(--muted)}
   .card-head a{font-size:12px;color:var(--lime)}
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
   .chip .dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
-  .chip.running{color:var(--lime);border-color:rgba(182,240,156,.35)} .chip.running .dot{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
-  .chip.approval{color:var(--orange);border-color:rgba(245,158,76,.4)} .chip.approval .dot{background:var(--orange)}
-  .chip.blocked{color:var(--red);border-color:rgba(248,113,113,.4)} .chip.blocked .dot{background:var(--red)}
+  .chip.running{color:var(--lime);border-color:rgba(92,158,49,.35)} .chip.running .dot{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .chip.approval{color:var(--orange);border-color:rgba(196,102,27,.4)} .chip.approval .dot{background:var(--orange)}
+  .chip.blocked{color:var(--red);border-color:rgba(194,59,59,.4)} .chip.blocked .dot{background:var(--red)}
   .chip.paused .dot{background:var(--muted)}
   .chip.done{color:var(--body)} .chip.done .dot{background:var(--body)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--r-sm);font-size:13px;font-weight:600;border:1px solid transparent;white-space:nowrap}
-  .btn-primary{background:var(--orange);color:#231206}
-  .btn-primary:hover{filter:brightness(1.07)}
+  .btn-primary{background:var(--orange-strong);color:#fff}
+  .btn-primary:hover{filter:brightness(.95)}
   .btn-secondary{border-color:var(--line-strong);color:var(--body)}
   .btn-secondary:hover{background:var(--hover)}
   .btn-tertiary{color:var(--lime);padding:0 6px}
-  .btn-danger{border-color:rgba(248,113,113,.45);color:var(--red)}
+  .btn-danger{border-color:rgba(194,59,59,.45);color:var(--red)}
   .btn-danger:hover{background:var(--red-soft)}
   .btn-sm{height:30px;padding:0 10px;font-size:12px}
 
@@ -58,10 +52,10 @@
   .side{border-right:1px solid var(--line);background:var(--surface);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow-y:auto}
   .logo{display:flex;align-items:center;gap:10px;padding:4px 8px 14px}
   .logo .mark{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);display:grid;place-items:center;color:var(--lime);font-size:14px}
-  .logo b{font-size:15px;color:var(--white);letter-spacing:.01em}
+  .logo b{font-size:15px;color:var(--ink);letter-spacing:.01em}
   .orgswitch{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;margin-bottom:14px;cursor:pointer}
   .orgswitch:hover{background:var(--hover)}
-  .orgswitch .o{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white)}
+  .orgswitch .o{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink)}
   .orgswitch .o i{width:18px;height:18px;border-radius:5px;background:var(--lime-soft);display:grid;place-items:center;font-size:10px;color:var(--lime);font-style:normal}
   .orgswitch .plan{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
   .navgroup{margin-bottom:6px}
@@ -72,7 +66,7 @@
   .navitem.on::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:2px;background:var(--lime);border-radius:2px}
   .navitem .ico{width:16px;text-align:center;font-style:normal;opacity:.9}
   .navitem .n{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 6px}
-  .navitem .n.hot{color:#231206;background:var(--orange);border-color:var(--orange);font-weight:700}
+  .navitem .n.hot{color:#fff;background:var(--orange-strong);border-color:var(--orange-strong);font-weight:700}
   .sidefoot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:flex;align-items:center;gap:10px}
   .avatar{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11px;color:var(--muted)}
   .sidefoot .who{font-size:12px;color:var(--body)} .sidefoot .plan{font-size:10px;color:var(--muted)}
@@ -85,45 +79,47 @@
   .search kbd{margin-left:auto;font:11px "JetBrains Mono",monospace;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--muted)}
   .iconbtn{position:relative;width:34px;height:34px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--muted);border:1px solid var(--line)}
   .iconbtn:hover{background:var(--hover);color:var(--body)}
-  .iconbtn .pip{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--orange);border:2px solid var(--bg)}
+  .iconbtn .pip{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--orange-strong);border:2px solid var(--bg)}
 
-  .content{padding:20px;max-width:1280px}
+  /* Revision 3: full-screen fluid layout — content spans the window, no cut-off */
+  .content{padding:20px 24px;width:100%}
   .screen{display:none} .screen.on{display:block}
 
   /* ---------- dashboard ---------- */
   .hello{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
-  .hello h1{font-size:22px;font-weight:600;color:var(--white)}
+  .hello h1{font-size:22px;font-weight:600;color:var(--ink)}
   .hello .date{font-size:12.5px;color:var(--muted);margin-top:2px}
   .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
-  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer}
+  .stat{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer}
   .stat:hover{background:var(--hover)}
   .stat .micro{font-size:10px}
-  .stat .v{font-size:20px;font-weight:600;color:var(--white);margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat .v{font-size:20px;font-weight:600;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums}
   .stat .v.warn{color:var(--orange)}
   .stat .meter{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
   .stat .meter i{display:block;height:100%;background:var(--lime);border-radius:99px}
   .stat .delta{font-size:11px;color:var(--lime);margin-top:4px}
   .dashgrid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
-  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(245,158,76,.45);background:var(--orange-soft);margin-bottom:14px}
-  .banner b{color:var(--white);font-size:13.5px}
+  .dashgrid>*,.hubwrap>*,.memgrid>*,.revwrap>*{min-width:0}
+  .banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r);border:1px solid rgba(196,102,27,.45);background:var(--orange-soft);margin-bottom:14px;flex-wrap:wrap}
+  .banner b{color:var(--ink);font-size:13.5px}
   .banner p{font-size:12px;color:var(--muted)}
   .banner .btn{margin-left:auto}
-  .banner.quiet{border-color:rgba(182,240,156,.35);background:var(--lime-soft)}
+  .banner.quiet{border-color:rgba(92,158,49,.35);background:var(--lime-soft)}
   .banner.quiet .bdot{background:var(--lime)}
   .bdot{width:8px;height:8px;border-radius:50%;background:var(--orange);flex-shrink:0}
   .canvas{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 8px;position:relative;overflow:hidden}
   .canvas .tools{position:absolute;top:12px;right:12px;display:flex;gap:8px}
   .canvas .tools button{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 10px;background:var(--bg)}
   .canvas .tools button:hover{color:var(--body);border-color:var(--line-strong)}
-  .grid-bg{background-image:radial-gradient(rgba(42,54,70,.7) 1px,transparent 1px);background-size:24px 24px}
+  .grid-bg{background-image:radial-gradient(rgba(201,210,220,.55) 1px,transparent 1px);background-size:24px 24px}
   .orgmap{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:14px 4px 18px}
   .dept{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:12px;min-height:210px}
   .dept .dh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-  .dept .dh b{font-size:13px;color:var(--white)}
-  .dept .lead{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(182,240,156,.35);border-radius:var(--r-sm);background:var(--lime-soft);margin-bottom:10px;cursor:pointer}
+  .dept .dh b{font-size:13px;color:var(--ink)}
+  .dept .lead{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(92,158,49,.35);border-radius:var(--r-sm);background:var(--lime-soft);margin-bottom:10px;cursor:pointer}
   .dept .lead:hover{border-color:var(--lime)}
   .dept .lead .av{width:30px;height:30px;border-radius:50%;background:var(--bg);border:1px solid var(--lime-dim);display:grid;place-items:center;font-size:11px;color:var(--lime)}
-  .dept .lead b{font-size:12.5px;color:var(--white);display:block}
+  .dept .lead b{font-size:12.5px;color:var(--ink);display:block}
   .dept .lead span{font-size:11px;color:var(--lime)}
   .dept .member{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r-sm);cursor:pointer}
   .dept .member:hover{background:var(--hover)}
@@ -136,59 +132,59 @@
   .sdot.appr{background:var(--orange)}
   .sdot.idle{background:var(--line-strong)}
   .sdot.block{background:var(--red)}
-  .term{margin-top:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px}
+  .term{margin-top:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px;overflow:hidden}
   .term pre{font:11.5px/1.8 "JetBrains Mono",ui-monospace,Consolas,monospace;color:var(--muted);max-height:118px;overflow:hidden}
-  .term .t{color:#5B6675} .term .ty{color:var(--info)} .term .ty.ap{color:var(--orange)} .term .ty.ok{color:var(--lime)}
+  .term .t{color:var(--faint)} .term .ty{color:var(--info)} .term .ty.ap{color:var(--orange)} .term .ty.ok{color:var(--lime)}
 
   .sidecol{display:flex;flex-direction:column;gap:16px}
   .todo .row{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
   .todo .row:last-child{border-bottom:0}
   .todo .ix{width:18px;height:18px;border-radius:5px;background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:2px}
-  .todo b{display:block;font-size:13px;font-weight:600;color:var(--white)}
+  .todo b{display:block;font-size:13px;font-weight:600;color:var(--ink)}
   .todo span{font-size:12px;color:var(--muted)}
   .wk .big{display:flex;gap:14px;margin-bottom:10px}
   .wk .big div{flex:1}
-  .wk .big .v{font-size:18px;font-weight:600;color:var(--white);font-variant-numeric:tabular-nums}
+  .wk .big .v{font-size:18px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
   .wk .big .micro{font-size:10px}
 
   /* EA dock */
   .dock{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);display:flex;flex-direction:column;height:calc(100vh - 210px);min-height:480px;position:sticky;top:76px}
   .dock .dh{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line)}
   .dock .dh .ea{width:26px;height:26px;border-radius:50%;background:var(--lime-soft);border:1px solid var(--lime-dim);display:grid;place-items:center;color:var(--lime);font-size:12px}
-  .dock .dh b{font-size:13.5px;color:var(--white)}
+  .dock .dh b{font-size:13.5px;color:var(--ink)}
   .dock .dh .st{font-size:11px;color:var(--lime)}
   .dock .dh .mx{margin-left:auto;font-size:11px;color:var(--muted)}
   .dock .cards{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
   .ev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;background:var(--bg)}
-  .ev .ty{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--white)}
+  .ev .ty{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink)}
   .ev .ty .ic{color:var(--muted);font-style:normal}
   .ev .ty a{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--lime)}
   .ev .meta{font-size:11.5px;color:var(--muted);margin-top:3px;word-break:break-all}
   .ev .meta code{font:11px "JetBrains Mono",monospace;color:var(--info);background:var(--info-soft);padding:1px 5px;border-radius:4px}
   .ev.msg{background:transparent;border:0;padding:2px}
   .ev.msg .bub{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;color:var(--body)}
-  .ev.gate{border-color:rgba(245,158,76,.45)}
+  .ev.gate{border-color:rgba(196,102,27,.45)}
   .ev.gate .who{font-size:12.5px;font-weight:700;color:var(--orange)}
-  .ev.gate .what{font-size:13px;font-weight:600;color:var(--white);margin-top:4px}
+  .ev.gate .what{font-size:13px;font-weight:600;color:var(--ink);margin-top:4px}
   .ev.gate .desc{font-size:12px;color:var(--muted);margin-top:3px}
   .ev.gate .cost{font-size:11.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
   .ev.gate .acts{display:flex;gap:8px;margin-top:10px}
   .ev.gate .acts .btn{flex:1;justify-content:center}
-  .ev.active{border-color:rgba(182,240,156,.4);background:var(--lime-soft)}
+  .ev.active{border-color:rgba(92,158,49,.4);background:var(--lime-soft)}
   .ev.active .who{font-size:12.5px;font-weight:700;color:var(--lime)}
   .ev.active .think{font-size:12px;color:var(--muted);margin-top:4px}
   .ev.active .think .dots::after{content:"···";animation:pulse 1.2s steps(3) infinite}
   .composer{border-top:1px solid var(--line);padding:10px 12px}
   .composer .box{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:10px 12px}
-  .composer .hint{color:#5B6675;font-size:13px}
+  .composer .hint{color:var(--faint);font-size:13px}
   .composer .row{display:flex;align-items:center;gap:10px;margin-top:9px}
   .composer .model{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer}
   .composer .model i{width:10px;height:10px;border-radius:50%;background:var(--lime);font-style:normal}
-  .composer .send{margin-left:auto;width:30px;height:30px;border-radius:var(--r-sm);background:var(--orange);display:grid;place-items:center;color:#231206;font-weight:700}
+  .composer .send{margin-left:auto;width:30px;height:30px;border-radius:var(--r-sm);background:var(--orange-strong);display:grid;place-items:center;color:#fff;font-weight:700}
 
   /* ---------- kanban (tasks) ---------- */
   .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
-  .pagehead h1{font-size:22px;font-weight:600;color:var(--white)}
+  .pagehead h1{font-size:22px;font-weight:600;color:var(--ink)}
   .pagehead p{font-size:12.5px;color:var(--muted);margin-top:2px}
   .filters{display:flex;gap:8px;margin-bottom:14px}
   .filters .f{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:5px 12px}
@@ -198,7 +194,7 @@
   .col .ch{display:flex;align-items:center;gap:8px;margin-bottom:4px}
   .col .ch .micro{color:var(--muted)}
   .col .ch .cnt{margin-left:auto;font-size:11px;color:var(--muted)}
-  .col .sub{font-size:11.5px;color:#5B6675;margin-bottom:10px}
+  .col .sub{font-size:11.5px;color:var(--faint);margin-bottom:10px}
   .tcard{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:10px 12px;margin-bottom:8px;cursor:pointer}
   .tcard:hover{border-color:var(--line-strong)}
   .tcard .r1{display:flex;align-items:center;gap:8px}
@@ -209,22 +205,22 @@
   .tcard .meta span{font-size:11px;color:var(--muted)}
   .tcard.openrow{border-color:var(--lime-dim)}
   .taskdetail{grid-column:1/-1;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:2px}
-  .taskdetail h3{font-size:14px;color:var(--white);margin-bottom:4px}
+  .taskdetail h3{font-size:14px;color:var(--ink);margin-bottom:4px}
   .taskdetail .meta{font-size:12px;color:var(--muted);margin-bottom:12px}
   .taskdetail h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
   .logpane{font:11.5px/1.75 "JetBrains Mono",monospace;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;max-height:150px;overflow:hidden;position:relative}
   .logpane .lm{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(transparent,var(--surface))}
-  .logpane .ty{color:var(--info)} .logpane .ok{color:var(--lime)} .logpane .t{color:#5B6675}
+  .logpane .ty{color:var(--info)} .logpane .ok{color:var(--lime)} .logpane .t{color:var(--faint)}
 
   /* ---------- drawer ---------- */
-  .overlay{position:fixed;inset:0;background:rgba(4,6,10,.62);z-index:40;display:none}
+  .overlay{position:fixed;inset:0;background:rgba(14,21,32,.35);z-index:40;display:none}
   .overlay.on{display:block}
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:470px;max-width:94vw;background:var(--surface);border-left:1px solid var(--line);z-index:50;display:none;overflow-y:auto;padding:20px}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:470px;max-width:94vw;background:var(--bg);border-left:1px solid var(--line);z-index:50;display:none;overflow-y:auto;padding:20px}
   .drawer.on{display:block}
   .drawer .close{position:absolute;top:14px;right:14px}
   .dr-head{display:flex;gap:12px;align-items:center;margin-bottom:4px}
   .dr-head .av{width:44px;height:44px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:15px;color:var(--muted)}
-  .dr-head h2{font-size:18px;color:var(--white)}
+  .dr-head h2{font-size:18px;color:var(--ink)}
   .dr-head .role{font-size:12px;color:var(--muted)}
   .dr-acts{display:flex;gap:8px;margin:14px 0 18px}
   .authzones{display:flex;flex-direction:column;gap:10px}
@@ -236,15 +232,15 @@
   .zone li .m{color:var(--muted)}
   .zone.may .dot{background:var(--lime)} .zone.spend .dot{background:var(--info)}
   .zone.gate .dot{background:var(--orange)} .zone.forb .dot{background:var(--red)}
-  .zone.spend .v{font-variant-numeric:tabular-nums;color:var(--white)}
+  .zone.spend .v{font-variant-numeric:tabular-nums;color:var(--ink)}
   .setrow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px}
   .setrow:last-child{border-bottom:0}
   .setrow .lab{color:var(--muted);font-size:12px}
   .setrow .val{color:var(--body);font-weight:600;font-variant-numeric:tabular-nums}
-  .toggle{width:34px;height:20px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;flex-shrink:0}
-  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:all .15s ease-out}
+  .toggle{width:34px;height:20px;border-radius:99px;background:var(--line-strong);position:relative;cursor:pointer;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--bg);transition:all .15s ease-out}
   .toggle.on{background:var(--lime-soft);border:1px solid var(--lime-dim)}
-  .toggle.on::after{left:15px;background:var(--lime)}
+  .toggle.on::after{left:14px;background:var(--lime)}
   .rwork{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
   .rwork:last-child{border:0}
   .rwork .st{flex-shrink:0;margin-top:2px}
@@ -254,10 +250,10 @@
   .mem .src{font-size:11px;color:var(--muted)}
 
   /* ---------- modal ---------- */
-  .modal{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(4,6,10,.62);padding:20px}
+  .modal{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(14,21,32,.35);padding:20px}
   .modal.on{display:grid}
-  .modal .box{width:560px;max-width:96vw;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:20px;max-height:88vh;overflow-y:auto}
-  .modal h2{font-size:16px;color:var(--white)}
+  .modal .box{width:560px;max-width:96vw;background:var(--bg);border:1px solid var(--line-strong);border-radius:12px;padding:20px;max-height:88vh;overflow-y:auto}
+  .modal h2{font-size:16px;color:var(--ink)}
   .modal .sub{font-size:12.5px;color:var(--muted);margin:4px 0 14px}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;margin-bottom:14px}
   .seg button{padding:6px 14px;font-size:12px;color:var(--muted)}
@@ -265,7 +261,7 @@
   .mrow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:8px;cursor:pointer}
   .mrow:hover{background:var(--hover)}
   .mrow.sel{border-color:var(--lime);background:var(--lime-soft)}
-  .mrow .nm{font-size:13px;font-weight:600;color:var(--white)}
+  .mrow .nm{font-size:13px;font-weight:600;color:var(--ink)}
   .mrow .pv{font-size:11px;color:var(--muted)}
   .mrow .dots{margin-left:auto;display:flex;gap:3px}
   .mrow .dots i{width:6px;height:6px;border-radius:50%;background:var(--line-strong)}
@@ -273,13 +269,13 @@
   .mrow .cost{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;width:74px;text-align:right}
   .mrow .tag{font-size:10px;color:var(--lime);border:1px solid var(--lime-dim);border-radius:4px;padding:1px 6px}
   .modal .acts{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
-  .hier{font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:14px}
+  .hier{font-size:11.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:14px}
   .hier b{color:var(--body)}
 
   /* ---------- shared: subtabs, tables, meters ---------- */
   .tabwrap .subpane{display:none}.tabwrap .subpane.on{display:block}
   .subtabs{display:flex;gap:8px;margin-bottom:16px}
-  .subtabs button{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 14px;background:var(--surface)}
+  .subtabs button{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 14px;background:var(--bg)}
   .subtabs button.on{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
   .table{width:100%;border-collapse:collapse;font-size:12.5px}
   .table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
@@ -299,45 +295,45 @@
 
   /* ---------- plan ---------- */
   .revwrap{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
-  .rev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--surface)}
+  .rev{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--bg)}
   .rev:hover{background:var(--hover)}
   .rev.sel{border-color:var(--lime-dim);background:var(--lime-soft)}
-  .rev .rv{font-size:12.5px;font-weight:600;color:var(--white)}
+  .rev .rv{font-size:12.5px;font-weight:600;color:var(--ink)}
   .rev .rd{font-size:11px;color:var(--muted)}
   .rev .rs{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .plandoc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 30px;max-width:760px}
-  .plandoc h1{font-size:21px;color:var(--white);font-weight:600}
+  .plandoc{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:26px 30px;max-width:760px}
+  .plandoc h1{font-size:21px;color:var(--ink);font-weight:600}
   .plandoc h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--lime);margin:20px 0 8px}
   .plandoc p,.plandoc li{font-size:13.5px;color:var(--body);line-height:1.7}
   .plandoc ul{padding-left:18px}
-  .diffbox{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
+  .diffbox{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
   .diffline{font:12px/1.9 "JetBrains Mono",monospace;padding:0 10px;border-radius:3px;white-space:pre-wrap}
   .diffline.add{background:var(--lime-soft);color:var(--lime)}
   .diffline.del{background:var(--red-soft);color:var(--red)}
 
   /* ---------- approvals / gates ---------- */
-  .approvalcard{border:1px solid rgba(245,158,76,.4);background:var(--surface);border-radius:var(--r);padding:16px;margin-bottom:12px}
-  .chip.trigger{color:var(--info);border-color:rgba(125,211,252,.35)}
+  .approvalcard{border:1px solid rgba(196,102,27,.4);background:var(--bg);border-radius:var(--r);padding:16px;margin-bottom:12px}
+  .chip.trigger{color:var(--info);border-color:rgba(37,99,235,.35)}
 
   /* ---------- goals ---------- */
   .goalrow{margin-bottom:10px}
   .goalhead{display:flex;gap:14px;align-items:center;cursor:pointer;flex-wrap:wrap}
-  .goalhead b{font-size:13.5px;color:var(--white)}
+  .goalhead b{font-size:13.5px;color:var(--ink)}
   .goalhead .chev{margin-left:auto;color:var(--muted);font-size:11px}
   .goalbody{display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
   .goalrow.open .goalbody{display:block}
   .crumbchips{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .crumbchips span{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px}
   .crumbchips span.here{color:var(--lime);border-color:var(--lime-dim);background:var(--lime-soft)}
-  .crumbchips i{color:#5B6675;font-style:normal;font-size:10px}
-  .stepchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;color:var(--body);margin:0 6px 6px 0;background:var(--bg)}
+  .crumbchips i{color:var(--faint);font-style:normal;font-size:10px}
+  .stepchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px;font-size:12px;color:var(--body);margin:0 6px 6px 0;background:var(--surface)}
 
   /* ---------- audit ---------- */
   details.arow summary{list-style:none;display:grid;grid-template-columns:86px 150px 110px 1fr auto;gap:10px;cursor:pointer;padding:9px 10px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--body);align-items:baseline;font-variant-numeric:tabular-nums}
   details.arow summary::-webkit-details-marker{display:none}
   details.arow summary:hover{background:var(--hover)}
   details.arow[open] summary{background:var(--hover)}
-  details.arow pre{font:11px/1.7 "JetBrains Mono",monospace;color:var(--muted);background:var(--bg);border-radius:var(--r-sm);padding:10px 12px;margin:0;overflow-x:auto}
+  details.arow pre{font:11px/1.7 "JetBrains Mono",monospace;color:var(--muted);background:var(--surface);border-radius:var(--r-sm);padding:10px 12px;margin:0;overflow-x:auto}
 
   /* ---------- memory ---------- */
   .memgrid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
@@ -349,34 +345,34 @@
 
   /* ---------- org chart ---------- */
   .orgtree{display:flex;flex-direction:column;align-items:center;padding:8px 0 20px}
-  .onode{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 14px;min-width:210px;cursor:pointer}
+  .onode{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--bg);border-radius:var(--r-sm);padding:8px 14px;min-width:210px;cursor:pointer}
   .onode:hover{border-color:var(--line-strong)}
   .onode.ea{border-color:var(--lime-dim);background:var(--lime-soft)}
   .onode .av{width:28px;height:28px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11px;color:var(--muted);flex-shrink:0}
-  .onode b{font-size:13px;color:var(--white);display:block}
+  .onode b{font-size:13px;color:var(--ink);display:block}
   .onode span{font-size:11px;color:var(--muted)}
   .oline{width:1px;height:20px;background:var(--line-strong)}
   .orow{display:flex;gap:14px;align-items:flex-start}
   .ogroup{display:flex;flex-direction:column;align-items:center;gap:0}
-  .odept{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:8px 14px;text-align:center;min-width:190px}
-  .odept b{font-size:12.5px;color:var(--white)}
+  .odept{border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);padding:8px 14px;text-align:center;min-width:190px}
+  .odept b{font-size:12.5px;color:var(--ink)}
   .odept span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
   .oemp{margin-top:8px;min-width:190px}
 
   /* ---------- team / integrations ---------- */
   .teamgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .tmember{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer}
+  .tmember{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer}
   .tmember:hover{background:var(--hover)}
   .tmember .th{display:flex;gap:10px;align-items:center;margin-bottom:8px}
   .tmember .th .av{width:32px;height:32px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:12px;color:var(--muted)}
-  .tmember .th b{font-size:13.5px;color:var(--white);display:block}
+  .tmember .th b{font-size:13.5px;color:var(--ink);display:block}
   .tmember .th span{font-size:11px;color:var(--muted)}
   .tmember .cap{font-size:12px;color:var(--muted);margin-bottom:8px}
   .tmember .cur{font-size:12px;color:var(--body);border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between;align-items:center}
   .intgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .intcard .ih{display:flex;align-items:center;gap:10px;margin-bottom:8px}
   .intcard .ih .ic{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:13px;color:var(--body)}
-  .intcard .ih b{font-size:13.5px;color:var(--white)}
+  .intcard .ih b{font-size:13.5px;color:var(--ink)}
   .intcard .scope{font:11px/1.8 "JetBrains Mono",monospace;color:var(--info)}
   .intcard .row{font-size:12px;color:var(--muted);padding:4px 0;display:flex;justify-content:space-between;gap:10px}
   .intcard .row b{color:var(--body);font-weight:500}
@@ -384,8 +380,48 @@
   /* ---------- briefings ---------- */
   .signoff{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
 
-  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} .teamgrid{grid-template-columns:1fr 1fr} .intgrid{grid-template-columns:1fr} .memgrid{grid-template-columns:1fr} .revwrap{grid-template-columns:1fr} }
-  @media (max-width:640px){ .teamgrid{grid-template-columns:1fr} .orow{flex-direction:column;align-items:center} details.arow summary{grid-template-columns:86px 1fr auto} details.arow summary span:nth-child(3),details.arow summary span:nth-child(4){display:none} .budgetrow{grid-template-columns:1fr} }
+  /* ---------- Revision 3: Company Hub ---------- */
+  .hubwrap{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  .hubstage{position:relative;min-height:calc(100vh - 240px);border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+  .hublinks{position:absolute;inset:0;pointer-events:none}
+  .hublinks path{fill:none;stroke-width:2}
+  .hublinks path.live{stroke:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .hublinks path.gate{stroke:var(--orange)}
+  .hublinks path.idle{stroke:var(--line-strong);stroke-dasharray:4 5}
+  .hubcenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:130px;height:130px;border-radius:50%;background:var(--bg);border:2px solid var(--lime);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;box-shadow:0 0 0 10px var(--lime-soft);text-align:center}
+  .hubcenter .hc-ico{width:40px;height:40px;border-radius:50%;background:var(--lime-soft);border:1px solid var(--lime-dim);display:grid;place-items:center;color:var(--lime);font-size:18px}
+  .hubcenter b{font-size:14px;color:var(--ink)}
+  .hubcenter span{font-size:10px;color:var(--muted)}
+  .hubcenter .hc-st{margin-top:2px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lime)}
+  .hubnode{position:absolute;transform:translate(-50%,-50%);width:150px;background:var(--bg);border:1px solid var(--line-strong);border-radius:var(--r);padding:10px 12px;cursor:pointer;text-align:left}
+  .hubnode:hover{border-color:var(--lime)}
+  .hubnode.gate{border-color:rgba(196,102,27,.5)}
+  .hubnode.dept b{font-size:12.5px;color:var(--ink);display:block}
+  .hubnode.dept span{font-size:10.5px;color:var(--muted)}
+  .hubnode .hn-row{display:flex;align-items:center;gap:8px}
+  .hubnode .av{width:26px;height:26px;border-radius:50%;background:var(--hover);border:1px solid var(--line-strong);display:grid;place-items:center;font-size:10px;color:var(--muted);flex-shrink:0}
+  .hubnode .av.warm{background:var(--lime-soft);border-color:var(--lime-dim);color:var(--lime)}
+  .hubnode .hn-row b{font-size:12px;color:var(--ink);display:block}
+  .hubnode .hn-row span{font-size:10px;color:var(--muted);display:block}
+  .hubnode .hn-st{margin-left:auto;width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .hubnode .hn-st.run{background:var(--lime);animation:pulse 1.6s ease-in-out infinite}
+  .hubnode .hn-st.appr{background:var(--orange)}
+  .hubnode .hn-st.idle{background:var(--line-strong)}
+  .hubnode .hn-st.block{background:var(--red)}
+  .hubnode .hn-what{margin-top:6px;font-size:10px;color:var(--muted);border-top:1px dashed var(--line);padding-top:5px}
+  .hublegend{position:absolute;left:12px;bottom:12px;display:flex;gap:14px;font-size:10.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 10px}
+  .hublegend i{width:14px;height:2px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:5px}
+  .hubpanel{position:sticky;top:76px;display:flex;flex-direction:column;gap:12px}
+  .hubcard{border:1px solid var(--line);border-radius:var(--r);background:var(--bg);padding:16px;cursor:pointer}
+  .hubcard:hover{border-color:var(--lime-dim)}
+  .hubcard .hh{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+  .hubcard .hh b{font-size:13.5px;color:var(--ink)}
+  .hubcard .hh span{font-size:11px;color:var(--muted)}
+  .hubcard p{font-size:12px;color:var(--muted)}
+  .hubcard .hint-ic{margin-left:auto;font-size:11px;color:var(--faint)}
+
+  @media (max-width:1200px){ .stats{grid-template-columns:repeat(3,1fr)} .dashgrid,.hubwrap{grid-template-columns:1fr} .dock{position:static;height:520px} .orgmap{grid-template-columns:1fr 1fr} .board{grid-template-columns:1fr} .teamgrid{grid-template-columns:1fr 1fr} .intgrid{grid-template-columns:1fr} .memgrid{grid-template-columns:1fr} .revwrap{grid-template-columns:1fr} .hubstage{min-height:620px} .hubpanel{position:static} }
+  @media (max-width:640px){ .teamgrid{grid-template-columns:1fr} .orow{flex-direction:column;align-items:center} details.arow summary{grid-template-columns:86px 1fr auto} details.arow summary span:nth-child(3),details.arow summary span:nth-child(4){display:none} .budgetrow{grid-template-columns:1fr!important} .hubstage{min-height:560px} .orgmap{grid-template-columns:1fr} .canvas .tools{position:static;justify-content:flex-end;flex-wrap:wrap} .banner .btn{margin-left:0} .hello,.pagehead{flex-direction:column;align-items:flex-start;gap:10px} }
 
   @media (max-width:1024px){ .app{grid-template-columns:64px 1fr} .side .logo b,.side .orgswitch,.side .navitem span,.side .navgroup .micro,.side .sidefoot .who,.side .sidefoot .plan{display:none} .navitem{justify-content:center} .navitem .n{display:none} }
 </style>
@@ -399,6 +435,7 @@
 
     <div class="navgroup"><span class="micro">Overview</span>
       <button class="navitem on" data-go="dashboard"><span class="ico">▦</span><span>Dashboard</span></button>
+      <button class="navitem" data-go="hub"><span class="ico">✦</span><span>Company Hub</span></button>
     </div>
     <div class="navgroup"><span class="micro">Direction</span>
       <button class="navitem" data-go="plan"><span class="ico">▤</span><span>Plan</span><span class="n">R4</span></button>
@@ -472,24 +509,24 @@
             </div>
 
             <div class="canvas grid-bg">
-              <div class="tools"><button>View as list</button><button data-openmodal="1">Default model: Auto</button></div>
+              <div class="tools"><button data-go="hub">Open Company Hub →</button><button data-openmodal="1">Default model: Auto</button></div>
               <div class="micro" style="padding:2px 4px 0">Company now</div>
               <div class="orgmap">
                 <div class="dept">
                   <div class="dh"><b>Research</b><span class="chip running"><span class="dot"></span>1 working</span></div>
                   <div class="lead" data-drawer="1"><span class="av">N</span><div><b>Nova</b><span>Lead · Working — Pricing research sweep</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
-                  <div class="member"><span class="av">A</span><div><b>Ada</b><span>Waiting on approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
-                  <div class="member"><span class="av">S</span><div><b>Sage</b><span>Idle</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
+                  <div class="member" data-drawer="1"><span class="av">A</span><div><b>Ada</b><span>Waiting on approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
+                  <div class="member" data-drawer="1"><span class="av">S</span><div><b>Sage</b><span>Idle</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
                 </div>
                 <div class="dept">
                   <div class="dh"><b>Engineering</b><span class="chip running"><span class="dot"></span>1 working</span></div>
                   <div class="lead" data-drawer="1"><span class="av">R</span><div><b>Ridge</b><span>Lead · Working — Pricing page build</span></div><span class="st sdot run" style="margin-left:auto"></span></div>
-                  <div class="member"><span class="av">I</span><div><b>Iris</b><span>Blocked — needs credentials</span></div><span class="st sdot block" style="margin-left:auto"></span></div>
+                  <div class="member" data-drawer="1"><span class="av">I</span><div><b>Iris</b><span>Blocked — needs credentials</span></div><span class="st sdot block" style="margin-left:auto"></span></div>
                 </div>
                 <div class="dept">
                   <div class="dh"><b>Communications</b><span class="chip approval"><span class="dot"></span>Needs you</span></div>
                   <div class="member" data-drawer="1"><span class="av">E</span><div><b>Ember</b><span>Lead · Draft ready for approval</span></div><span class="st sdot appr" style="margin-left:auto"></span></div>
-                  <div class="member"><span class="av">M</span><div><b>Milo</b><span>Paused by budget</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
+                  <div class="member" data-drawer="1"><span class="av">M</span><div><b>Milo</b><span>Paused by budget</span></div><span class="st sdot idle" style="margin-left:auto"></span></div>
                 </div>
               </div>
             </div>
@@ -542,6 +579,98 @@
         </div>
       </section>
 
+      <!-- ========== SCREEN: COMPANY HUB (Revision 3) ========== -->
+      <section class="screen" id="screen-hub">
+        <div class="pagehead">
+          <div><h1>Company Hub</h1><p>Atlas at the center of your company. Departments and hired employees orbit around the EA; a live connection line means Atlas is actively directing that work. Employees appear here only once Atlas has created (hired) them.</p></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-secondary">View as org chart</button><button class="btn btn-primary">＋ Ask Atlas to hire</button></div>
+        </div>
+
+        <div class="hubwrap">
+          <div class="hubstage" id="hubstage">
+            <svg class="hublinks" id="hublinks" width="100%" height="100%" aria-hidden="true"></svg>
+
+            <div class="hubcenter" id="hub-ea" data-hubsel="agent:atlas" tabindex="0" role="button" aria-label="Atlas — Executive Agent details">
+              <span class="hc-ico">◈</span>
+              <b>Atlas</b>
+              <span>Executive Agent</span>
+              <span class="hc-st">Directing · 3 live</span>
+            </div>
+
+            <!-- departments orbit the EA -->
+            <div class="hubnode dept" id="hub-research" style="left:19%;top:22%" data-hubsel="dept:research" tabindex="0">
+              <div class="hn-row"><b>Research</b><span class="hn-st run" style="margin-left:auto"></span></div>
+              <span>2 hired · 1 working</span>
+              <div class="hn-what">Active: pricing research sweep</div>
+            </div>
+            <div class="hubnode dept" id="hub-engineering" style="left:82%;top:26%" data-hubsel="dept:engineering" tabindex="0">
+              <div class="hn-row"><b>Engineering</b><span class="hn-st run" style="margin-left:auto"></span></div>
+              <span>2 hired · 1 working</span>
+              <div class="hn-what">Active: pricing page build</div>
+            </div>
+            <div class="hubnode dept gate" id="hub-communications" style="left:20%;top:74%" data-hubsel="dept:communications" tabindex="0">
+              <div class="hn-row"><b>Communications</b><span class="hn-st appr" style="margin-left:auto"></span></div>
+              <span>3 hired · needs you</span>
+              <div class="hn-what">Gate: publish the pricing post</div>
+            </div>
+
+            <!-- employees (visible only because Atlas hired them) -->
+            <div class="hubnode" id="hub-nova" style="left:36%;top:9%" data-hubsel="agent:nova" tabindex="0">
+              <div class="hn-row"><span class="av warm">N</span><div><b>Nova</b><span>Lead · Research</span></div><span class="hn-st run"></span></div>
+              <div class="hn-what">Working — pricing research sweep</div>
+            </div>
+            <div class="hubnode" id="hub-ada" style="left:7%;top:47%" data-hubsel="agent:ada" tabindex="0">
+              <div class="hn-row"><span class="av">A</span><div><b>Ada</b><span>Analyst · Research</span></div><span class="hn-st appr"></span></div>
+              <div class="hn-what">Gate — daily cap raise 500 → 800 Cr</div>
+            </div>
+            <div class="hubnode" id="hub-ridge" style="left:80%;top:53%" data-hubsel="agent:ridge" tabindex="0">
+              <div class="hn-row"><span class="av warm">R</span><div><b>Ridge</b><span>Lead · Engineering</span></div><span class="hn-st run"></span></div>
+              <div class="hn-what">Working — pricing page build</div>
+            </div>
+            <div class="hubnode" id="hub-iris" style="left:62%;top:84%" data-hubsel="agent:iris" tabindex="0">
+              <div class="hn-row"><span class="av">I</span><div><b>Iris</b><span>Ops · Engineering</span></div><span class="hn-st block"></span></div>
+              <div class="hn-what">Blocked — Stripe credentials</div>
+            </div>
+            <div class="hubnode" id="hub-ember" style="left:39%;top:70%" data-hubsel="agent:ember" tabindex="0">
+              <div class="hn-row"><span class="av warm">E</span><div><b>Ember</b><span>Lead · Communications</span></div><span class="hn-st appr"></span></div>
+              <div class="hn-what">Draft ready — pricing post</div>
+            </div>
+            <div class="hubnode" id="hub-sage" style="left:57%;top:12%" data-hubsel="agent:sage" tabindex="0">
+              <div class="hn-row"><span class="av">S</span><div><b>Sage</b><span>Analyst · Research</span></div><span class="hn-st idle"></span></div>
+              <div class="hn-what">Idle — no assignment</div>
+            </div>
+            <div class="hubnode" id="hub-milo" style="left:8%;top:88%" data-hubsel="agent:milo" tabindex="0">
+              <div class="hn-row"><span class="av">M</span><div><b>Milo</b><span>Growth · Communications</span></div><span class="hn-st idle"></span></div>
+              <div class="hn-what">Paused by budget</div>
+            </div>
+
+            <div class="hublegend">
+              <span><i style="background:var(--lime)"></i>Live — Atlas directing now</span>
+              <span><i style="background:var(--orange)"></i>Waiting on you</span>
+              <span><i style="background:var(--line-strong)"></i>Idle / no live link</span>
+            </div>
+          </div>
+
+          <div class="hubpanel">
+            <div class="hubcard" id="hubcard-ea" data-hubsel="agent:atlas">
+              <div class="hh"><span class="dock dh" style="padding:0;border:0;background:none"><span class="ea">◈</span></span><b>Atlas</b><span>Executive Agent</span><span class="hint-ic">Click → details</span></div>
+              <p>Runs the company day to day: plans work, hires employees, assigns tasks and opens approval gates. Click any node — Atlas, a department or an employee — to open its details.</p>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="micro">Hired by Atlas</span><a href="#">Full team →</a></div>
+              <div class="setrow"><span class="lab">Research</span><span class="val">2 employees</span></div>
+              <div class="setrow"><span class="lab">Engineering</span><span class="val">2 employees</span></div>
+              <div class="setrow"><span class="lab">Communications</span><span class="val">3 employees</span></div>
+              <div class="setrow"><span class="lab">Not yet hired</span><span class="val" style="color:var(--muted)">—</span></div>
+            </div>
+            <div class="banner note" style="margin-bottom:0">
+              <span class="bdot"></span>
+              <div><b>Nothing here until Atlas hires it.</b><p>New departments and employees appear on the hub at the moment Atlas creates them — hired status is live company state, never a placeholder.</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ========== SCREEN: TASKS ========== -->
       <section class="screen" id="screen-tasks">
         <div class="pagehead">
@@ -563,7 +692,7 @@
           <div class="col">
             <div class="ch"><span class="micro">In progress</span><span class="cnt">2</span></div>
             <div class="sub">Live work. Open a task to watch its log.</div>
-            <div class="tcard openrow"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 12m</span></div><b>Pricing page build</b><div class="meta"><span class="av">R</span><span>Ridge · Engineering</span></div></div>
+            <div class="tcard openrow" data-openlog="1"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 12m</span></div><b>Pricing page build</b><div class="meta"><span class="av">R</span><span>Ridge · Engineering</span></div></div>
             <div class="tcard"><div class="r1"><span class="chip running"><span class="dot"></span>Working · 4m</span></div><b>Pricing research sweep</b><div class="meta"><span class="av">N</span><span>Nova · Research</span></div></div>
             <div class="tcard"><div class="r1"><span class="chip approval"><span class="dot"></span>Paused — approval</span></div><b>Publish the pricing post</b><div class="meta"><span class="av">E</span><span>Ember · waiting on you</span></div></div>
           </div>
@@ -573,7 +702,7 @@
             <div class="tcard"><div class="r1"><span class="chip done"><span class="dot"></span>Done · 09:41</span></div><b>Competitor page screenshots</b><div class="meta"><span class="av">I</span><span>Iris · 18 Cr</span><a class="btn btn-tertiary btn-sm" style="margin-left:auto">Report</a></div></div>
           </div>
 
-          <div class="taskdetail">
+          <div class="taskdetail" id="tasklog" style="display:none">
             <h3>Pricing page build</h3>
             <div class="meta">Ridge · Engineering · from goal “Announce the new pricing page” · started 09:32 · 36 Cr spent</div>
             <h4>Brief</h4>
@@ -643,7 +772,7 @@
                 <span class="chip trigger">external publish</span><span class="chip">gate #41</span>
                 <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">opened 09:43 · expires in 22h</span>
               </div>
-              <b style="font-size:14.5px;color:var(--white)">Publish the pricing post</b>
+              <b style="font-size:14.5px;color:var(--ink)">Publish the pricing post</b>
               <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Ember (Communications lead) wants to publish the pricing announcement to the company blog and newsletter. Authority summary: may draft, may not publish externally.</div>
               <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums"><span>Cost: <b style="color:var(--body)">25 Cr</b></span><span>Serves: goal “Announce the new pricing page”</span><span>If approved: post goes live, newsletter queued</span></div>
               <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
@@ -653,7 +782,7 @@
                 <span class="chip trigger">spend &gt; threshold</span><span class="chip">gate #42</span>
                 <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">opened 09:51 · no timeout</span>
               </div>
-              <b style="font-size:14.5px;color:var(--white)">Raise Ada's daily spend cap</b>
+              <b style="font-size:14.5px;color:var(--ink)">Raise Ada's daily spend cap</b>
               <div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px">Nova (Research lead) requests Ada's cap 500 → 800 Cr/day for two days to finish the pricing sweep. If approved: cap resets automatically on Friday.</div>
               <div style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:12px;font-variant-numeric:tabular-nums"><span>Worst case: <b style="color:var(--body)">+600 Cr</b></span><span>Serves: task “Pricing research sweep”</span></div>
               <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm">Show full context</button><button class="btn btn-secondary btn-sm">Modify</button><button class="btn btn-danger btn-sm">Reject</button><button class="btn btn-primary btn-sm">Approve</button></div>
@@ -726,7 +855,7 @@
           <details class="arow"><summary><span>Sep 30 09:40</span><span>task.started</span><span>Ridge · AI</span><span>Pricing page build</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "task.started", "task_id": "tsk_7c1", "actor": "agent:ridge", "goal": "Announce the new pricing page" }</pre></details>
           <details class="arow"><summary><span>Sep 30 09:12</span><span>plan.revised</span><span>Atlas · AI</span><span>Plan rev 5 drafted — awaiting ratification</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "plan.revised", "revision": 5, "author": "agent:atlas", "ratified": false }</pre></details>
           <details class="arow"><summary><span>Sep 30 08:31</span><span>credit.reserved</span><span>system</span><span>600 Cr reserved — Ada daily cap raise (worst case)</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "credit.reserved", "amount": 600, "reason": "gate_42_worst_case", "settles_on": "gate_42_decision" }</pre></details>
-          <details class="arow"><summary><span>Sep 29 14:02</span><span>gate.approved</span><span>Joshua · human</span><td>Gate #39 — industry report purchase</td><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "gate.approved", "gate_id": 39, "decided_by": "human:joshua", "note": "within budget" }</pre></details>
+          <details class="arow"><summary><span>Sep 29 14:02</span><span>gate.approved</span><span>Joshua · human</span><span>Gate #39 — industry report purchase</span><span class="btn btn-tertiary btn-sm">JSON</span></summary><pre>{ "event": "gate.approved", "gate_id": 39, "decided_by": "human:joshua", "note": "within budget" }</pre></details>
         </div>
         <p style="font-size:11.5px;color:var(--muted);margin-top:10px">Showing 6 of 1,284 events · full history in exports</p>
       </section>
@@ -792,14 +921,14 @@
         <div class="banner note" style="margin-bottom:14px"><span class="bdot"></span><div><b>Credits are reserved before a call and settled after.</b><p>Overspend is structurally impossible. When a meter hits its cap, linked tasks show PAUSED, never a silent failure.</p></div></div>
         <div class="micro" style="margin:0 0 10px">By goal</div>
         <div class="card" style="margin-bottom:16px">
-          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Announce the new pricing page</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 2,500 Cr · 4 linked tasks</div></div><div class="meter2"><i style="width:56%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">1,412 / 2,500 Cr</div></div>
-          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--white)">Convert waitlist to trials</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 800 Cr · 2 linked tasks</div></div><div class="meter2"><i style="width:6%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">44 / 800 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--ink)">Announce the new pricing page</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 2,500 Cr · 4 linked tasks</div></div><div class="meter2"><i style="width:56%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">1,412 / 2,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--ink)">Convert waitlist to trials</b><div style="font-size:11.5px;color:var(--muted)">weekly budget 800 Cr · 2 linked tasks</div></div><div class="meter2"><i style="width:6%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">44 / 800 Cr</div></div>
         </div>
         <div class="micro" style="margin:0 0 10px">By employee</div>
         <div class="card">
-          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Ridge</b><div style="font-size:11.5px;color:var(--muted)">Engineering · per-action cap 150 Cr</div></div><div class="meter2"><i style="width:78%"></i><span class="tick" style="left:85%"></span></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--orange)">2,730 / 3,500 Cr</div></div>
-          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--white)">Nova</b><div style="font-size:11.5px;color:var(--muted)">Research · per-action cap 50 Cr</div></div><div class="meter2"><i style="width:12%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">412 / 3,500 Cr</div></div>
-          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--white)">Milo</b><div style="font-size:11.5px;color:var(--muted)">Growth · budget exhausted Sep 28</div></div><div class="meter2"><i class="out" style="width:100%"></i></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--red)">2,000 / 2,000 Cr — PAUSED</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--ink)">Ridge</b><div style="font-size:11.5px;color:var(--muted)">Engineering · per-action cap 150 Cr</div></div><div class="meter2"><i class="warn" style="width:78%"></i><span class="tick" style="left:85%"></span></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--orange)">2,730 / 3,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)"><div><b style="font-size:13px;color:var(--ink)">Nova</b><div style="font-size:11.5px;color:var(--muted)">Research · per-action cap 50 Cr</div></div><div class="meter2"><i style="width:12%"></i><span class="tick" style="left:80%"></span></div><div class="num" style="font-size:12.5px;color:var(--muted);text-align:right">412 / 3,500 Cr</div></div>
+          <div class="budgetrow" style="display:grid;grid-template-columns:1fr 260px 130px;gap:14px;align-items:center;padding:9px 0"><div><b style="font-size:13px;color:var(--ink)">Milo</b><div style="font-size:11.5px;color:var(--muted)">Growth · budget exhausted Sep 28</div></div><div class="meter2"><i class="out" style="width:100%"></i></div><div class="num" style="font-size:12.5px;text-align:right;color:var(--red)">2,000 / 2,000 Cr — PAUSED</div></div>
         </div>
       </section>
 
@@ -837,7 +966,7 @@
           </div>
           <div class="card">
             <div class="card-head"><span class="micro">Entry detail</span><a href="#">History</a></div>
-            <b style="font-size:13.5px;color:var(--white)">Competitor pricing is tracked weekly, rounded to USD.</b>
+            <b style="font-size:13.5px;color:var(--ink)">Competitor pricing is tracked weekly, rounded to USD.</b>
             <p style="font-size:12.5px;color:var(--muted);margin:8px 0 12px">Source: founder decision in chat with Atlas, Sep 24. Applied by Nova's weekly sweep; feeds the pricing-page copy task.</p>
             <div class="micro" style="margin-bottom:8px">Events that wrote it</div>
             <div style="font:11.5px/1.8 'JetBrains Mono',monospace;color:var(--muted)">decision.recorded · Sep 24 15:02<br>memory.recalled · Sep 29 09:40 (task tsk_7f3)<br>memory.recalled · Sep 30 09:44 (task tsk_8f2)</div>
@@ -939,9 +1068,9 @@
               <div class="setrow"><span class="lab">Default model</span><span class="val" style="cursor:pointer" data-openmodal="1">Auto (recommended)</span></div>
               <div class="setrow"><span class="lab">Export org config</span><button class="btn btn-secondary btn-sm">Download JSON</button></div>
             </div>
-            <div class="card" style="max-width:560px;border-color:rgba(248,113,113,.35)">
+            <div class="card" style="max-width:560px;border-color:rgba(194,59,59,.35)">
               <div class="card-head"><span class="micro" style="color:var(--red)">Danger zone</span></div>
-              <div class="setrow"><span><b style="font-size:13px;color:var(--white)">Pause entire org</b><div style="font-size:11.5px;color:var(--muted)">Freezes all employees and budgets in one click. Nothing runs until you resume.</div></span><button class="btn btn-danger btn-sm">Pause org</button></div>
+              <div class="setrow"><span><b style="font-size:13px;color:var(--ink)">Pause entire org</b><div style="font-size:11.5px;color:var(--muted)">Freezes all employees and budgets in one click. Nothing runs until you resume.</div></span><button class="btn btn-danger btn-sm">Pause org</button></div>
             </div>
           </div>
           <div class="subpane" data-pane="authority">
@@ -990,7 +1119,7 @@
 
   <div class="card" style="margin-bottom:14px">
     <div class="card-head"><span class="micro">Current task</span><a href="#">Open →</a></div>
-    <b style="font-size:13.5px;color:var(--white)">Pricing research sweep</b>
+    <b style="font-size:13.5px;color:var(--ink)">Pricing research sweep</b>
     <div style="font-size:12px;color:var(--muted);margin-top:2px">Started 09:40 · 4m elapsed · 6 Cr so far</div>
   </div>
 
@@ -1082,7 +1211,7 @@
 
 <script>
   // screen switching
-  const CRUMBS={dashboard:"Dashboard",tasks:"Tasks",plan:"Plan",goals:"Goals",approvals:"Approvals",audit:"Audit trail",team:"Team",orgchart:"Org chart",budgets:"Budgets",finance:"Finance",memory:"Memory",briefings:"Briefings",integrations:"Integrations",settings:"Settings"};
+  const CRUMBS={dashboard:"Dashboard",hub:"Company Hub",tasks:"Tasks",plan:"Plan",goals:"Goals",approvals:"Approvals",audit:"Audit trail",team:"Team",orgchart:"Org chart",budgets:"Budgets",finance:"Finance",memory:"Memory",briefings:"Briefings",integrations:"Integrations",settings:"Settings"};
   document.querySelectorAll("[data-go]").forEach(el=>{
     el.addEventListener("click",()=>{
       const id=el.getAttribute("data-go");
@@ -1092,6 +1221,7 @@
       document.querySelector('.navitem[data-go="'+id+'"]')?.classList.add("on");
       document.getElementById("crumb-here").textContent=CRUMBS[id]||id;
       window.scrollTo({top:0});
+      if(id==="hub")drawHubLinks();
     });
   });
   // drawer + modal
@@ -1121,7 +1251,49 @@
   document.querySelectorAll(".goalrow .goalhead").forEach(h=>h.addEventListener("click",()=>h.parentElement.classList.toggle("open")));
   // memory row selection
   document.querySelectorAll(".memrow").forEach(r=>r.addEventListener("click",()=>{document.querySelectorAll(".memrow").forEach(x=>x.classList.remove("sel"));r.classList.add("sel")}));
-  // audit filter chips are visual-only in the mock
+  // task detail open (mock)
+  const tl=document.getElementById("tasklog");
+  document.querySelector('[data-openlog="1"]')?.addEventListener("click",()=>{tl.style.display=tl.style.display==="none"?"block":"none"});
+  // ---------- Company Hub: live connection lines + selection ----------
+  const stage=document.getElementById("hubstage"),svg=document.getElementById("hublinks");
+  const HUB_LINKS=[
+    {from:"hub-ea",to:"hub-research",cls:"live"},
+    {from:"hub-ea",to:"hub-engineering",cls:"live"},
+    {from:"hub-ea",to:"hub-communications",cls:"gate"},
+    {from:"hub-ea",to:"hub-nova",cls:"live"},
+    {from:"hub-ea",to:"hub-ada",cls:"gate"},
+    {from:"hub-ea",to:"hub-ridge",cls:"live"},
+    {from:"hub-ea",to:"hub-iris",cls:"idle"},
+    {from:"hub-ea",to:"hub-ember",cls:"gate"},
+    {from:"hub-ea",to:"hub-sage",cls:"idle"},
+    {from:"hub-ea",to:"hub-milo",cls:"idle"}
+  ];
+  function drawHubLinks(){
+    if(!stage||!svg)return;
+    const sr=stage.getBoundingClientRect();
+    svg.setAttribute("viewBox","0 0 "+sr.width+" "+sr.height);
+    svg.innerHTML=HUB_LINKS.map(l=>{
+      const a=document.getElementById(l.from),b=document.getElementById(l.to);
+      if(!a||!b)return"";
+      const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();
+      const x1=ar.left-sr.left+ar.width/2,y1=ar.top-sr.top+ar.height/2;
+      const x2=br.left-sr.left+br.width/2,y2=br.top-sr.top+br.height/2;
+      const mx=(x1+x2)/2,my=(y1+y2)/2+(y2-y1)*0.18;
+      return '<path class="'+l.cls+'" d="M'+x1+' '+y1+' Q'+mx+' '+my+' '+x2+' '+y2+'"/>';
+    }).join("");
+  }
+  drawHubLinks();
+  window.addEventListener("resize",drawHubLinks);
+  document.querySelectorAll("[data-hubsel]").forEach(n=>n.addEventListener("click",()=>{
+    const sel=n.getAttribute("data-hubsel"),drawerNode=document.getElementById("drawer");
+    const title=drawerNode.querySelector(".dr-head h2"),role=drawerNode.querySelector(".dr-head .role");
+    if(title&&role){
+      title.textContent=n.querySelector("b").textContent;
+      const isDept=sel.startsWith("dept:");
+      role.textContent=isDept?"Department · directed by Atlas":"Reports to Atlas · details from company state";
+    }
+    openDrawer();
+  }));
 </script>
 </body>
 </html>
