@@ -27,6 +27,7 @@ docs/05,06,34,35,36,37 + docs/adr/*              how it is designed (domain, arc
 docs/67_ORQ8_PRODUCT_EXPERIENCE_SPEC.md          how it looks and behaves
 docs/70_HEADQUARTERS_DASHBOARD_DESIGN.md         the Headquarters redesign plan (dark mission control)
 docs/71_ORQ8_PRODUCT_REDESIGN_PLAN.md           product-wide redesign plan: IA, shell, EA, phases — awaiting approval
+docs/72_ATLAS_EA_GUIDE_QUESTIONNAIRE.md         founder questionnaire locking Atlas's behavior (autonomy, hiring, money, tone)
             ↓
 the code, the migrations, the tests             what is actually true
 ```
@@ -116,6 +117,7 @@ document that states status is a snapshot; it belongs in `docs/archive/`.
 | `67_ORQ8_PRODUCT_EXPERIENCE_SPEC.md` | Product experience, UI/UX and design specification | **The UX authority** |
 | `70_HEADQUARTERS_DASHBOARD_DESIGN.md` | Headquarters redesign plan: dark mission-control dashboard | Plan (approved direction, not yet built) |
 | `71_ORQ8_PRODUCT_REDESIGN_PLAN.md` | Product-wide redesign: audit, IA, shell, phases A–U; Rev 2 folds in the founder's page-by-page build brief (§V, authoritative) | **Plan — awaiting founder approval** |
+| `72_ATLAS_EA_GUIDE_QUESTIONNAIRE.md` | Founder questionnaire: Atlas autonomy, hiring, money, external actions, escalation, tone, guardrails — unanswered items keep safe defaults | **Open — awaiting founder answers** |
 | `65_COLOR_SYSTEM.md` | Colour tokens and contrast rules | Canonical token reference |
 | `ORQ8_STYLE_GUIDE.md` | Design and contrast style guide | Active; tokens defer to `65` |
 | `33_UI_UX_SYSTEM.md` | Original UI system | Canonical design canon; concrete IA defers to `67` |
