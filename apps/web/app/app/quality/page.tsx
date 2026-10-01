@@ -54,7 +54,7 @@ export default function QualityPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-hairline bg-canvas p-1">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-hairline bg-canvas p-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

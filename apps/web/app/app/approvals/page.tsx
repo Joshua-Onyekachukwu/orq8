@@ -305,7 +305,7 @@ export default function ApprovalsPage() {
                   key={a.id}
                   className="rounded-xl border border-warm bg-white p-5"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warm-soft">
                         <Clock className="h-5 w-5 text-warm-ink" />

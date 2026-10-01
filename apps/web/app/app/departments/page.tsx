@@ -384,7 +384,7 @@ export default function DepartmentsPage() {
             Founder-managed directly — no Executive Agent required. Each department groups AI employees by function and controls their budgets.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             aria-label="Refresh departments" onClick={fetchDepartments}

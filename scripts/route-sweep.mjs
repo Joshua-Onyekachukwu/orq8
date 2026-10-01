@@ -9,7 +9,7 @@
  * the document tears down. Genuine network failures (ERR_FAILED,
  * ERR_CONNECTION_*, timeouts) and any 4xx/5xx response still fail the route.
  *
- * Usage: node route-sweep.mjs [--base https://orq8.vercel.app]
+ * Usage: node route-sweep.mjs [--base https://orq8.vercel.app] [--width 375]
  */
 import { chromium } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -17,6 +17,11 @@ import { readFileSync } from "node:fs";
 const argBase = process.argv.indexOf("--base");
 const BASE =
   argBase > -1 ? process.argv[argBase + 1] : "https://orq8.vercel.app";
+// Viewport width is a flag so the same sweep proves the desktop walk and the
+// 375px one: `--width 375`. A page that renders at 1440 and blanks or
+// overflows at 375 is a real defect the desktop-only sweep cannot see.
+const argWidth = process.argv.indexOf("--width");
+const VIEWPORT_WIDTH = argWidth > -1 ? Math.max(Number(process.argv[argWidth + 1]) || 1440, 320) : 1440;
 const envArg = Object.fromEntries(
   process.argv
     .map((a, i, all) => (a === "--email" || a === "--password" ? [a.slice(2).toUpperCase(), all[i + 1]] : null))
@@ -63,7 +68,9 @@ const ok = (name, cond, detail = "") => {
 const isNavigationAbort = (u) => /ERR_ABORTED/.test(u);
 
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const context = await browser.newContext({
+  viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_WIDTH < 600 ? 812 : 900 },
+});
 const page = await context.newPage();
 
 const consoleErrors = [];
@@ -115,7 +122,7 @@ try {
     // A discovery failure must not fail the sweep — the static routes still run.
   }
 
-  console.log(`=== route sweep (${ROUTES.length} routes) ===`);
+  console.log(`=== route sweep (${ROUTES.length} routes at ${VIEWPORT_WIDTH}px) ===`);
   const perRouteIssues = {};
   for (const route of ROUTES) {
     // Pace like a fast human: rate limits exist to bound runaway clients, and
@@ -135,6 +142,15 @@ try {
     let bodyText = "";
     try { bodyText = await page.locator("body").innerText({ timeout: 8_000 }); } catch {}
     const blank = bodyText.trim().length < 80;
+    // The document itself must never scroll sideways. Wide tables are fine —
+    // they scroll inside their own container — but a page that overflows the
+    // viewport makes the whole app feel broken on a phone.
+    const overflow = await page
+      .evaluate(() => {
+        const de = document.documentElement;
+        return de.scrollWidth - de.clientWidth;
+      })
+      .catch(() => 0);
     const criticalConsole = consoleErrors.filter((e) => !/favicon|posthog|sentry|hydrat/i.test(e));
     const relevantNet = failedRequests.filter((u) => !/posthog|sentry/i.test(u));
     const aborts = relevantNet.filter(isNavigationAbort);
@@ -145,6 +161,7 @@ try {
     if (loadError) issues.push(`load: ${loadError}`);
     if (redirected) issues.push(`redirected to ${finalPath}`);
     if (blank) issues.push("blank/near-blank body");
+    if (overflow > 2) issues.push(`horizontal overflow (${overflow}px)`);
     if (criticalConsole.length) issues.push(`console: ${criticalConsole[0]}`);
     if (criticalNet.length) issues.push(`net: ${criticalNet[0]}`);
     if (hydration.length) issues.push(`hydration: ${hydration[0]}`);

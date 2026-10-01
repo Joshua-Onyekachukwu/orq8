@@ -495,8 +495,10 @@ function EngineeringDashboard() {
       </div>
 
       <div className="grid gap-6 mt-8 lg:grid-cols-2">
-        {/* Capability registry */}
-        <section>
+        {/* Capability registry — `min-w-0` because a grid item's default
+            min-width is auto: the rows' truncated (nowrap) descriptions would
+            otherwise force the column past the viewport on a phone. */}
+        <section className="min-w-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-muted" />
@@ -546,7 +548,7 @@ function EngineeringDashboard() {
         </section>
 
         {/* MCP servers */}
-        <section>
+        <section className="min-w-0">
           <div className="flex items-center gap-2 mb-3">
             <Server className="h-4 w-4 text-muted" />
             <h2 className="text-lg font-semibold">MCP servers</h2>
