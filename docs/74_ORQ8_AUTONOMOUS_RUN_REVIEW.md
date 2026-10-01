@@ -78,6 +78,11 @@ attention and traces are not empty.
    The header verifies the org's hash chain end to end and states the result;
    the filter chips are the domains this org has actually written (auth, task,
    credits…). Export CSV / JSON include the hashes.
+6b. **Budgets** (`/app/budgets`) — the mock's two ledgers: the reservation
+   policy stated where the meters are, the company meter, then **by goal**
+   (spend derived from the `task:<id>` usage lines) and **by employee** rows
+   with real used/cap figures — and honest empty sections, because a meter
+   over spend that does not exist would be theatre.
 7. **An employee** — open **Iris** from `/app/agents` and use the new workspace
    (section 3 below). This is the biggest new surface of the run.
 8. **Departments** (`/app/departments`) — four cards, real counts, real
