@@ -59,7 +59,8 @@ attention and traces are not empty.
 4. **An employee** — open **Iris** from `/app/agents` and use the new workspace
    (section 3 below). This is the biggest new surface of the run.
 5. **Departments** (`/app/departments`) — four cards, real counts, real
-   utilization. It printed `NaN%` before this run.
+   utilization. It printed `NaN%` before this run. Click a department's name to
+   open the new **workspace** (section 3b below).
 6. **Finance** (`/app/finance`) — the honest empty state: $0.00 and why, not a
    fabricated chart.
 7. **Theme toggle** — flip light/dark in the account menu and re-walk the same
@@ -101,6 +102,44 @@ your connected providers — and names the providers that are actually connected
 
 ---
 
+## 3b. The new Department workspace (`/app/departments/<id>`)
+
+The plan's §G, built as a real page. A department owns only its own row, so
+every zone is scoped through its **members** — the people are the scope, and the
+legacy free-text department column is deliberately not used (that is the column
+that made employees read as "Unassigned").
+
+- **Header** — name, purpose, lead, employee avatars, live state (`Working` /
+  `Needs you` / `Queued` / `Idle` / `Empty` / `Archived`), and a real count of
+  what is waiting on you. **Needs-founder cards sit directly under the header,
+  never buried**: each names the request, who asked, the risk level, the cost
+  and when, with a Review link into the approvals queue.
+- **Now** — the department's live work (queued, running, waiting on you) with
+  the owner's name and cost. Nothing finished — finished work is each
+  employee's history.
+- **Team** — every member with their status, team, current task and their
+  done/failed/credit numbers; clicking one opens the employee workspace. The
+  teams inside the department are listed with their real headcounts.
+- **Operating context** — seven tabs, all real: **Tools & integrations** (the
+  union of the members' role resolvers — the same `getToolsForRole` the runtime
+  calls, grouped by category, with risk level, credit cost and which roles may
+  call each one), **Resources** (files members produced), **Decisions**
+  (decisions a member made or that name one of their tasks), **Approvals**
+  (waiting on you, then what you already decided, with your note), **Memory**
+  (the same `company_memory` the runtime feeds them), **Authority** (the four
+  bands rolled up from the members' own profiles, plus the autonomy
+  distribution), **Activity** (their events, with reasons).
+- **Empty is explained, not blank** — a department with no members says
+  "hire one into this department, or ask the Executive Agent to brief it", and
+  says why each zone is empty. I created a throwaway department, walked that
+  state, and deleted it.
+
+Try it: open **Growth**, read the one pending approval at the top, then switch
+through the Operating-context tabs and compare the Authority roll-up with Iris's
+own page.
+
+---
+
 ## 4. Defects found and fixed in this run
 
 Each one was found by using the product, reproduced, fixed, and re-verified on a
@@ -117,7 +156,8 @@ live stack.
 | 7 | **`usePageContext` looped forever** — the hook called `setPageContext` during render and its guard was always true | Any page that registered EA context froze its own main thread. Nothing had called it yet; the new employee workspace was the first caller and locked up | Hook now registers in an effect keyed on the context's contents; the page is interactive |
 | 8 | **Activity summaries stuttered** — `Execution blocked: Execution blocked by autonomy level: …` | Copy defect in the founder's feed | Reads `Failed: <task>` with the reason carried once |
 | 9 | **Light mode never persisted** — the server shell (a server component) imported the theme cookie *name* from `components/theme-toggle.tsx`, a `"use client"` module. On the server that import is a client reference, not the string, so the cookie lookup could never match and every request fell back to dark | The toggle appeared to work, then silently reverted on the next navigation. The failure was invisible: the code read as correctly wired | Server HTML carries `data-console-theme="light"` after switching; `scripts/scan-rsc-boundary.mjs` was extended to flag SCREAMING_SNAKE constants imported from client modules so this class cannot return |
-| 10 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
+| 10 | **`.text-muted` rendered the marketing-light teal on the dark console** — `--muted-foreground` is declared at `:root` with its `var()` already substituted there, so inheriting it into `.console` bypassed every console token: every muted label (page subtitles, table captions, metadata) rendered `#356267` on `#0B0F14` | At **2.85:1** it was below even the 3:1 a drawn mark needs, on the muted label used on every console page — not a subtle tint problem, text that is hard to read. The contrast audit never saw it because it measures tokens, not the utility that resolves through a different alias | `.console` re-points `--muted-foreground`; measured live: dark `#97A3B4` (7.52:1), light `#5C6878` (5.67:1); the audit now measures the alias and treats an unmeasurable pair as a failure |
+| 11 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
 
 Also fixed in this run: the sidebar was hard-coded ink-black (broke light mode),
 the light `--console-on-red` token did not exist (one “on-warm” value cannot
@@ -133,12 +173,15 @@ honesty rules and a six-step pre-ship checklist.
 | Check | Result |
 | --- | --- |
 | `pnpm typecheck` | clean — all 7 packages |
-| `pnpm test` | **1,155 passing, 0 failing** (api 845 + 3 skipped, core 213, web 72, db 20, auth 5) |
-| `node scripts/route-sweep.mjs --base http://localhost:3112` | **35/35 routes clean** |
+| `pnpm test` | **1,156 passing, 0 failing** (api 846 + 3 skipped, core 213, web 72, db 20, auth 5) |
+| `node scripts/route-sweep.mjs --base http://localhost:3112` | **37/37 routes clean** — includes the new department workspace and an employee workspace, discovered dynamically |
 | `node scripts/content-audit.mjs --base …` | clean — no `NaN` / `undefined` / `null%` / `[object Object]` |
 | `node scripts/content-audit-browser.mjs --base …` | clean — real Chromium, rendered text |
+| `pnpm audit:contrast` | **pass** — every required pair, both console themes, including the `.text-muted` alias |
 | `node scripts/scan-rsc-boundary.mjs` | clean (2 hits, both legitimate tests) |
 | `pnpm --filter @orq8/web build` | green — 180 static pages |
+| Live workspace walk | Growth: 4 members, 1 needs-you card, 26 tools resolved through the runtime's role resolver, real memory/activity rows; a throwaway empty department rendered its explained empty state |
+| Live light/dark measurement | `data-console-theme` honoured after reload; card `#F7F8FA`, CTA chip `#DC6D14` on `#231206`, muted labels `#5C6878` (light) / `#97A3B4` (dark) |
 | Live authority write | toggled "Execute tasks" off → `PATCH` → server row `canExecuteTasks: false`; restored |
 | Live memory write | `POST` → `201` → entry retrievable with category and importance |
 
@@ -153,21 +196,23 @@ Not done, in the order I would do them next:
 
 1. **Plan revisions + ratify** — needs a new table and endpoints; the design is
    in `docs/71 §W` (the mock's "Keep rev 4 / Apply rev 6" card).
-2. **Department workspace (`/app/departments/[id]`, §G)** — the three-zone page
-   (Now / Team / Operating context with Tools, Resources, Decisions, Memory,
-   Authority tabs). The list page exists and is correct; the detail page does
-   not.
-3. **Memory tabs, Integrations permissions map, Auto Model controls (§M)** — the
+2. **Memory tabs, Integrations permissions map, Auto Model controls (§M)** — the
    employees' memory is now visible, but the company-wide memory page still has
    one flat list, the integrations permission matrix is not built, and the
    hierarchy picker (Company → Department → Employee → Task) needs a persisted
    model field first.
-4. **Light-mode visual pass** — the sidebar now follows the theme, but I have
-   not walked every screen in light mode by eye.
-5. **`docs/68` requirement matrix + changelog** — the changelog entry for this
-   run is written; a full matrix re-walk is not.
-6. **Responsive/mobile walk** — the board grids and the new workspace follow the
-   `lg`/`xl` rules, but the 375px pass over all 18 mock screens is not re-done.
+3. **Responsive/mobile walk** — the board grids and the two workspaces follow
+   the `lg`/`xl` rules, but the 375px pass over all 18 mock screens is not
+   re-done.
+4. **Light-mode walk over the older screens** — the console palette is now
+   measured in both themes and the new surfaces were walked in light mode, but
+   the legacy pages (departments list, tasks board, memory) have been
+   spot-checked rather than all walked by eye.
+5. **`docs/68` requirement matrix** — the changelog entries for this run are
+   written; a full matrix re-walk is not.
+6. **A few legacy screens still use the old light utilities** (the departments
+   *list* page is the clearest example): they render correctly inside the
+   console, but they are not yet rewritten in the console's own classes.
 
 ---
 
