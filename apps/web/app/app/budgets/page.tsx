@@ -22,7 +22,10 @@ interface CreditBalance {
 }
 
 interface UsageSummary {
-  byOperation: Record<string, number>;
+  // The API returns an array of rows, not a map. It was typed and consumed as
+  // `Record<string, number>`, so `Object.entries` yielded index keys ("0", "1")
+  // and each row rendered as `[object Object]` with a NaN-width bar.
+  byOperation: Array<{ type: string; count: number; totalCost: number }>;
   daily: Array<{ date: string; count: number; credits: number }>;
   totalUsed: number;
 }
@@ -175,23 +178,25 @@ export default function BudgetsPage() {
         <div className="mt-6 rounded-xl border border-hairline bg-white p-5">
           <h2 className="text-sm font-semibold text-ink mb-4">Usage by Operation</h2>
           <div className="space-y-3">
-            {Object.entries(usage.byOperation)
-              .sort(([, a], [, b]) => b - a)
-              .map(([op, credits]) => (
-                <div key={op} className="flex items-center gap-3">
+            {usage.byOperation
+              .slice()
+              .sort((a, b) => b.totalCost - a.totalCost)
+              .map((row) => (
+                <div key={row.type} className="flex items-center gap-3">
                   <span className="min-w-[120px] text-xs text-muted capitalize">
-                    {op.replace(/_/g, " ")}
+                    {row.type.replace(/_/g, " ")}
                   </span>
                   <div className="flex-1 h-2 rounded-full bg-muted/10 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-mark-active"
                       style={{
-                        width: `${(credits / (usage.totalUsed || 1)) * 100}%`,
+                        width: `${Math.min((row.totalCost / (usage.totalUsed || 1)) * 100, 100)}%`,
                       }}
                     />
                   </div>
-                  <span className="font-mono text-xs tabular-nums text-muted w-16 text-right">
-                    {credits.toLocaleString()}
+                  <span className="font-mono text-xs tabular-nums text-muted w-20 text-right">
+                    {row.totalCost.toLocaleString()}
+                    <span className="text-muted/60"> · {row.count}</span>
                   </span>
                 </div>
               ))}

@@ -11,11 +11,19 @@ async function tableExists(db: Db): Promise<boolean> {
   }
 }
 
-/** Find all departments for an org with agent counts. */
+/**
+ * Find all departments for an org with agent counts.
+ *
+ * `activeCount` is part of the contract, not a convenience: the department card
+ * renders "4 agents · 4 active" and a utilization bar from these two numbers. It
+ * was missing from the response while the web page read it anyway, so every card
+ * computed `undefined / 4` and printed "NaN%" — a visible defect a founder reads
+ * as a broken product. Count it here, where the real status lives.
+ */
 export async function findByOrg(
   db: Db,
   orgId: string,
-): Promise<(Department & { agentCount: number })[]> {
+): Promise<(Department & { agentCount: number; activeCount: number })[]> {
   if (!(await tableExists(db))) return [];
   try {
     const rows = await db
@@ -30,6 +38,7 @@ export async function findByOrg(
         createdAt: departments.createdAt,
         updatedAt: departments.updatedAt,
         agentCount: sql<number>`coalesce(count(${agents.id}), 0)::int`,
+        activeCount: sql<number>`coalesce(count(${agents.id}) filter (where ${agents.status} = 'active'), 0)::int`,
       })
       .from(departments)
       .leftJoin(agents, eq(agents.departmentId, departments.id))

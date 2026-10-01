@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { API_URL, proxyApiJson } from "../../../lib/api";
+import { NextRequest } from "next/server";
+import { proxyApiJson } from "../../../lib/api";
 
 /**
- * GET /api/workforce — proxy for org-wide workforce summary.
+ * GET /api/workforce — org-wide workforce summary.
+ *
+ * `proxyApiJson` *is* the response (it already carries the upstream status,
+ * body and cache headers). This route used to wrap it twice —
+ * `NextResponse.json(await proxyApiJson(...))` — which serializes a Response
+ * object and answers `{}` with a 200, and it passed a full URL where the helper
+ * expects a path, so the upstream fetch never even resolved. Every consumer
+ * (department coverage, utilization, the org summary) silently read empty data.
  */
 export async function GET(req: NextRequest) {
-  try {
-    const data = await proxyApiJson(req, `${API_URL}/v1/workforce/summary`);
-    return NextResponse.json(data);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Workforce data unavailable";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return proxyApiJson(req, "/v1/workforce/summary");
 }

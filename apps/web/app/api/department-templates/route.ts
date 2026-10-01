@@ -1,13 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { API_URL, proxyApiJson } from "../../../lib/api";
+import { NextRequest } from "next/server";
+import { proxyApiJson } from "../../../lib/api";
 
-/** GET /api/department-templates — list department templates. */
+/** GET /api/department-templates — the activatable department catalog. */
 export async function GET(req: NextRequest) {
-  try {
-    const data = await proxyApiJson(req, `${API_URL}/v1/department-templates`);
-    return NextResponse.json(data);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Templates unavailable";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return proxyApiJson(req, "/v1/department-templates");
 }

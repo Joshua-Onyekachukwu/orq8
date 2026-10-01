@@ -22,7 +22,7 @@ import { EAOpenButton } from "../../components/dashboard/ea-open-button";
 import type { FounderStage } from "../../components/executive-agent-context";
 import { fetchWithAuth, formatCost, formatDate, formatTimeAgo } from "../../lib/api";
 import { EA_NAME } from "../../lib/ea";
-import { computeScore } from "../../components/dashboard/HealthScore";
+import { computeScore } from "../../lib/health-score";
 
 export const metadata = { title: "Dashboard" };
 

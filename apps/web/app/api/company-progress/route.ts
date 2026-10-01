@@ -1,13 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { API_URL, proxyApiJson } from "../../../lib/api";
+import { NextRequest } from "next/server";
+import { proxyApiJson } from "../../../lib/api";
 
-/** GET /api/company-progress — real company progress from goals, tasks, and activity. */
+/**
+ * GET /api/company-progress — real company progress from goals, tasks and
+ * activity. `proxyApiJson` is the response; wrapping it returned `{}` with a
+ * 200, which is why "blocked tasks" always read as zero on the dashboard.
+ */
 export async function GET(req: NextRequest) {
-  try {
-    const data = await proxyApiJson(req, `${API_URL}/v1/company-progress`);
-    return NextResponse.json(data);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Progress data unavailable";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return proxyApiJson(req, "/v1/company-progress");
 }

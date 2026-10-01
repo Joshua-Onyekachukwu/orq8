@@ -30,17 +30,23 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
 
     const depts = await deptService.findByOrg(db, ctx.orgId);
 
-    // Get unassigned agents count (where department_id IS NULL)
+    // Get unassigned agents counts (where department_id IS NULL)
     let unassignedCount = 0;
+    let unassignedActiveCount = 0;
     try {
       const [result] = await db
-        .select({ count: sql<number>`count(*)::int` })
+        .select({
+          count: sql<number>`count(*)::int`,
+          activeCount: sql<number>`coalesce(count(*) filter (where ${agents.status} = 'active'), 0)::int`,
+        })
         .from(agents)
         .where(and(eq(agents.orgId, ctx.orgId), sql`${agents.departmentId} IS NULL`));
       unassignedCount = result?.count ?? 0;
+      unassignedActiveCount = result?.activeCount ?? 0;
     } catch {
       // department_id column may not exist yet
       unassignedCount = 0;
+      unassignedActiveCount = 0;
     }
 
     const result = depts.map((d) => ({
@@ -51,6 +57,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       budget: d.budget,
       status: d.status,
       agentCount: d.agentCount,
+      activeCount: d.activeCount,
       createdAt: d.createdAt,
     }));
 
@@ -64,6 +71,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
         budget: null,
         status: 'active',
         agentCount: unassignedCount,
+        activeCount: unassignedActiveCount,
         createdAt: null as unknown as Date,
       });
     }
