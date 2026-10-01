@@ -1,99 +1,119 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileText, FileJson } from "lucide-react";
+import { FileJson, FileText } from "lucide-react";
 
-interface AuditEvent {
-  id: number | string;
-  occurred_at?: string;
-  occurredAt?: string;
-  actor_type?: string;
-  actorType?: string;
-  actor_id?: string;
-  actorId?: string;
-  action?: string;
-  outcome?: string;
-  tool?: string;
-  cost?: number;
-  department?: string;
+/**
+ * Export the rows currently on screen (mock `screen-audit`).
+ *
+ * Deliberately client-side over the loaded page: an export that quietly
+ * reaches for a different, larger dataset than the one the founder is looking
+ * at is an export nobody can check. The hashes travel with the rows so an
+ * exported file is self-verifying.
+ */
+
+export interface AuditExportRow {
+  id: number;
+  occurredAt: string;
+  actorType: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorKind: string;
+  action: string;
+  outcome: string;
+  tool: string | null;
+  cost: number | null;
+  taskId: string | null;
+  approvalId: string | null;
+  inputRef: string | null;
+  resultRef: string | null;
+  prevHash: string;
+  hash: string;
 }
 
-function formatCSV(events: AuditEvent[]): string {
-  const headers = ["Time", "Actor Type", "Actor ID", "Action", "Outcome", "Tool", "Cost", "Department"];
-  const rows = events.map((e) => [
-    String(e.occurred_at ?? e.occurredAt ?? ""),
-    String(e.actor_type ?? e.actorType ?? "system"),
-    String(e.actor_id ?? e.actorId ?? ""),
-    String(e.action ?? ""),
-    String(e.outcome ?? ""),
-    String(e.tool ?? ""),
-    String(e.cost ?? 0),
-    String(e.department ?? ""),
-  ]);
-  return [headers.join(","), ...rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))].join("\n");
+function csvCell(value: unknown): string {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
-function downloadFile(content: string, filename: string, type: string) {
+function toCsv(rows: AuditExportRow[]): string {
+  const headers = [
+    "id",
+    "occurred_at",
+    "actor_type",
+    "actor_id",
+    "actor_name",
+    "action",
+    "outcome",
+    "tool",
+    "cost_cents",
+    "task_id",
+    "approval_id",
+    "input_ref",
+    "result_ref",
+    "prev_hash",
+    "hash",
+  ];
+  const lines = rows.map((row) =>
+    [
+      row.id,
+      row.occurredAt,
+      row.actorType,
+      row.actorId,
+      row.actorName,
+      row.action,
+      row.outcome,
+      row.tool,
+      row.cost,
+      row.taskId,
+      row.approvalId,
+      row.inputRef,
+      row.resultRef,
+      row.prevHash,
+      row.hash,
+    ]
+      .map(csvCell)
+      .join(","),
+  );
+  return [headers.join(","), ...lines].join("\n");
+}
+
+function download(content: string, filename: string, type: string) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
   URL.revokeObjectURL(url);
 }
 
-export function AuditExport({ events }: { events: AuditEvent[] }) {
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const handleExportCSV = () => {
-    const csv = formatCSV(events);
-    const date = new Date().toISOString().split("T")[0];
-    downloadFile(csv, `orq8-audit-${date}.csv`, "text/csv");
-    setShowDropdown(false);
-  };
-
-  const handleExportJSON = () => {
-    const json = JSON.stringify(events, null, 2);
-    const date = new Date().toISOString().split("T")[0];
-    downloadFile(json, `orq8-audit-${date}.json`, "application/json");
-    setShowDropdown(false);
-  };
+export function AuditExport({ rows }: { rows: AuditExportRow[] }) {
+  const stamp = new Date().toISOString().split("T")[0];
+  const disabled = rows.length === 0;
+  const buttonClass =
+    "inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated disabled:opacity-40";
 
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
-        onClick={() => setShowDropdown(!showDropdown)}
-        disabled={events.length === 0}
-        className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+        disabled={disabled}
+        onClick={() => download(toCsv(rows), `orq8-audit-${stamp}.csv`, "text/csv")}
+        className={buttonClass}
       >
-        <Download className="h-3.5 w-3.5" />
-        Export ({events.length})
+        <FileText aria-hidden="true" className="h-3.5 w-3.5" />
+        Export CSV
       </button>
-      {showDropdown && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-hairline bg-white shadow-lg">
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-ink hover:bg-canvas rounded-t-lg"
-            >
-              <FileText className="h-4 w-4 text-muted" />
-              Export as CSV
-            </button>
-            <button
-              type="button"
-              onClick={handleExportJSON}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-ink hover:bg-canvas rounded-b-lg"
-            >
-              <FileJson className="h-4 w-4 text-muted" />
-              Export as JSON
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() =>
+          download(JSON.stringify(rows, null, 2), `orq8-audit-${stamp}.json`, "application/json")
+        }
+        className={buttonClass}
+      >
+        <FileJson aria-hidden="true" className="h-3.5 w-3.5" />
+        Export JSON
+      </button>
+    </>
   );
 }
