@@ -65,14 +65,27 @@ attention and traces are not empty.
    There is a real pending approval and a real failed task in it.
 4. **Tasks** (`/app/tasks`) — the board: Backlog / In progress / Done plus the
    sticky detail column. Run the pending task; watch it move.
-5. **An employee** — open **Iris** from `/app/agents` and use the new workspace
+5. **Goals** (`/app/goals`) — rebuilt to the mock's commitments list: one
+   expandable row per goal (status chip, meter, "N steps · due date"), and
+   inside it the **lineage chain** (Strategy → Objective → Key result →
+   Initiative → this goal, read from the real strategy tree through the goal's
+   tasks) and the **plan steps** as chips carrying each task's live status and
+   owner. A step an open gate is holding says "Paused". A goal with no strategy
+   link says so instead of inventing a parent.
+6. **Audit trail** (`/app/audit`) — now the real `audit_events` trail, not
+   activity rows: event, actor (human / AI / system), outcome and the payload
+   refs per row, expandable to the JSON with the **hash and previous hash**.
+   The header verifies the org's hash chain end to end and states the result;
+   the filter chips are the domains this org has actually written (auth, task,
+   credits…). Export CSV / JSON include the hashes.
+7. **An employee** — open **Iris** from `/app/agents` and use the new workspace
    (section 3 below). This is the biggest new surface of the run.
-6. **Departments** (`/app/departments`) — four cards, real counts, real
+8. **Departments** (`/app/departments`) — four cards, real counts, real
    utilization. It printed `NaN%` before this run. Click a department's name to
    open the new **workspace** (section 3b below).
-7. **Finance** (`/app/finance`) — the honest empty state: $0.00 and why, not a
+9. **Finance** (`/app/finance`) — the honest empty state: $0.00 and why, not a
    fabricated chart.
-8. **Theme toggle** — flip light/dark in the account menu and re-walk the same
+10. **Theme toggle** — flip light/dark in the account menu and re-walk the same
    screens. The sidebar follows the theme now; it used to be permanently black.
 
 ---
@@ -168,6 +181,8 @@ live stack.
 | 10 | **`.text-muted` rendered the marketing-light teal on the dark console** — `--muted-foreground` is declared at `:root` with its `var()` already substituted there, so inheriting it into `.console` bypassed every console token: every muted label (page subtitles, table captions, metadata) rendered `#356267` on `#0B0F14` | At **2.85:1** it was below even the 3:1 a drawn mark needs, on the muted label used on every console page — not a subtle tint problem, text that is hard to read. The contrast audit never saw it because it measures tokens, not the utility that resolves through a different alias | `.console` re-points `--muted-foreground`; measured live: dark `#97A3B4` (7.52:1), light `#5C6878` (5.67:1); the audit now measures the alias and treats an unmeasurable pair as a failure |
 | 11 | **Four screens scrolled sideways at 375px** — the departments header button row, the approval card's Approve/Reject pair, the engineering registry grid (a `truncate` description forces a grid item's `auto` min-width) and the quality tab strip all overflowed the viewport | A founder on a phone gets a page that pans horizontally; it reads as broken, not dense | Each now wraps or shrinks (`min-w-0` on the grid items); the sweep gained `--width` and an overflow check, and is **37/37 clean at 375px** |
 | 12 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
+| 13 | **The audit page showed empty Event and Outcome columns** — it read `/v1/activity`, whose rows have no `action` or `outcome` fields at all; the real trail (`audit_events`, docs/34.4) had no org-scoped read anywhere in the API | The one page whose job is proof rendered two blank columns on every load | New `GET /v1/audit` (+ domain filter + actor resolution) and `GET /v1/audit/verify`; the page renders the real rows, verifies the hash chain end to end, and says "verification unavailable — check the hashes yourself" when it cannot |
+| 14 | **Every console element without its own text colour inherited near-black** — `<body>` carries `.text-foreground`, but the shadcn alias layer (`--foreground`, `--muted`, `--border`, `--card`… all declared at `:root`) substitutes its `var()`s against the *light* palette, so `.console` never received dark values. Same defect family as #10, one layer out: 108 `bg-muted` call sites painted `#F7F9F9` blocks and 30 files of `text-brand-deep` read 2.85:1 on the dark canvas | Text invisible on the dark console on every page that used the standard aliases; the goals rewrite is what finally exposed it element-by-element | `.console` is now **self-contained**: it sets `color` itself, re-points the whole shadcn alias layer plus `--orq-brand/-deep/-soft` (brand weight becomes the raised-neutral ladder; tile colour stays dark in both themes so white labels hold), the 30 legacy `text-brand-deep` call sites became `text-ink`, and the contrast audit gained five pairs (inherited foreground, muted chip, brand-soft chip, brand tile in both themes) so it cannot return |
 
 Also fixed in this run: the sidebar was hard-coded ink-black (broke light mode),
 the light `--console-on-red` token did not exist (one “on-warm” value cannot
@@ -183,11 +198,11 @@ honesty rules and a six-step pre-ship checklist.
 | Check | Result |
 | --- | --- |
 | `pnpm typecheck` | clean — all 7 packages |
-| `pnpm test` | **1,156 passing, 0 failing** (api 846 + 3 skipped, core 213, web 72, db 20, auth 5) |
+| `pnpm test` | **1,165 passing, 0 failing** (api 855 + 3 skipped, core 213, web 72, db 20, auth 5) — includes the new goal-lineage (5) and audit-trail (4) integration suites |
 | `node scripts/route-sweep.mjs --base http://localhost:3112` | **37/37 routes clean** — includes the new department workspace and an employee workspace, discovered dynamically |
 | `node scripts/content-audit.mjs --base …` | clean — no `NaN` / `undefined` / `null%` / `[object Object]` |
 | `node scripts/content-audit-browser.mjs --base …` | clean — real Chromium, rendered text |
-| `pnpm audit:contrast` | **pass** — every required pair, both console themes, including the `.text-muted` alias |
+| `pnpm audit:contrast` | **pass** — every required pair, both console themes, including the `.text-muted` alias, the inherited foreground and the muted / brand-soft / tile surfaces |
 | `node scripts/scan-rsc-boundary.mjs` | clean (2 hits, both legitimate tests) |
 | `pnpm --filter @orq8/web build` | green — 180 static pages |
 | Live workspace walk | Growth: 4 members, 1 needs-you card, 26 tools resolved through the runtime's role resolver, real memory/activity rows; a throwaway empty department rendered its explained empty state |
@@ -221,9 +236,11 @@ Not done, in the order I would do them next:
    spot-checked rather than all walked by eye.
 5. **`docs/68` requirement matrix** — the changelog entries for this run are
    written; a full matrix re-walk is not.
-6. **A few legacy screens still use the old light utilities** (the departments
-   *list* page is the clearest example): they render correctly inside the
-   console, but they are not yet rewritten in the console's own classes.
+6. **Most legacy screens still use the old light utilities** (the departments
+   *list* page is the clearest example). They now render *correctly* inside the
+   console — defect 14 re-pointed the aliases they lean on — but they are not
+   yet rewritten in the console's own classes, and their washes/accents resolve
+   to neutral surfaces rather than the mock's compositions.
 
 ---
 
