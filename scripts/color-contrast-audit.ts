@@ -47,6 +47,20 @@ function readTokens(block: string): Record<string, string> {
   return tokens;
 }
 
+/**
+ * Every custom property in a block, whatever its prefix. The console re-points
+ * `--orq-*` at `--console-*` primitives, so measuring the console needs both
+ * halves of the chain in one map.
+ */
+function readVars(block: string): Record<string, string> {
+  const tokens: Record<string, string> = {};
+  for (const match of block.matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)) {
+    const [, name, value] = match;
+    if (name && value) tokens[name] = value.trim();
+  }
+  return tokens;
+}
+
 type Rgb = [number, number, number];
 
 function hexToRgb(hex: string): Rgb {
@@ -163,6 +177,82 @@ const SHARED: Pair[] = [
   { use: "tertiary text on the disabled surface", fg: "--orq-disabled-text", bg: "--orq-disabled-surface", min: AA_TEXT },
   { use: "black label on the pale accent fill", fg: "--orq-ink", bg: "--orq-ink-accent", min: AA_TEXT },
 ];
+
+/**
+ * The console (the authenticated app) is a second design system living inside
+ * the first: `.console` re-points every `--orq-*` token at `--console-*
+ * primitives, and the light theme overrides only the primitives. Nothing above
+ * measures it — SCOPED runs against `:root` and the ink band — which meant the
+ * whole redesign palette was unchecked by the CI rule it wrote for itself. The
+ * light console values in particular exist *because* they have to survive on
+ * white (#5C9E31 lime, #E8761A orange, #C23B3B red), so the claim is worth
+ * measuring rather than asserting.
+ *
+ * Each pair is printed for both themes on one line: the light column is the
+ * one that fails when someone reaches for a brighter accent.
+ */
+const CONSOLE_PAIRS: Array<{ use: string; fg: string; bg: string; min: number }> = [
+  { use: "body text on the page", fg: "--orq-text-primary", bg: "--orq-surface-page", min: AA_TEXT },
+  { use: "secondary text on the page", fg: "--orq-text-secondary", bg: "--orq-surface-page", min: AA_TEXT },
+  { use: "body text on a card", fg: "--orq-text-primary", bg: "--orq-surface-white", min: AA_TEXT },
+  { use: "secondary text on a card", fg: "--orq-text-secondary", bg: "--orq-surface-white", min: AA_TEXT },
+  { use: "body text on a raised row", fg: "--orq-text-primary", bg: "--orq-surface-secondary", min: AA_TEXT },
+  { use: "secondary text on a raised row", fg: "--orq-text-secondary", bg: "--orq-surface-secondary", min: AA_TEXT },
+  { use: "error text on the page", fg: "--orq-text-error", bg: "--orq-surface-page", min: AA_TEXT },
+  { use: "error text on a card", fg: "--orq-text-error", bg: "--orq-surface-white", min: AA_TEXT },
+  { use: "label on the primary CTA", fg: "--orq-on-warm", bg: "--orq-warm", min: AA_TEXT },
+  { use: "label on a destructive fill", fg: "--orq-on-error", bg: "--orq-error-fill", min: AA_TEXT },
+  { use: "focus ring on the page", fg: "--orq-focus-ring", bg: "--orq-surface-page", min: AA_UI },
+  { use: "active mark on a card", fg: "--orq-mark-active", bg: "--orq-surface-white", min: AA_UI },
+  { use: "warm mark on a card", fg: "--orq-mark-warm", bg: "--orq-surface-white", min: AA_UI },
+  { use: "blocked mark on the page", fg: "--orq-error-fill", bg: "--orq-surface-page", min: AA_UI },
+  { use: "chart lime on a card", fg: "--orq-chart-1", bg: "--orq-surface-white", min: AA_UI },
+  { use: "chart warm on a card", fg: "--orq-chart-4", bg: "--orq-surface-white", min: AA_UI },
+  // Info has no Tailwind utility yet, so it is named by its primitive.
+  { use: "info mark on a card", fg: "--console-info", bg: "--console-surface", min: AA_UI },
+];
+
+/**
+ * Measure the console palette in both of its themes.
+ *
+ * The dark theme is `.console`; the light theme is the same block with the
+ * primitives overridden by `.console[data-console-theme="light"]`, so the two
+ * maps are built by layering rather than duplicating values — which also means
+ * a new console primitive is measured as soon as both themes define it.
+ */
+function auditConsole(): number {
+  const base = readTokens(readBlock(css, ":root {"));
+  const dark = readVars(readBlock(css, ".console {"));
+  const light = readVars(readBlock(css, '.console[data-console-theme="light"] {'));
+  const themes = {
+    dark: { ...base, ...dark },
+    light: { ...base, ...dark, ...light },
+  };
+
+  let failed = 0;
+  for (const pair of CONSOLE_PAIRS) {
+    const columns: string[] = [];
+    for (const theme of ["dark", "light"] as const) {
+      const tokens = themes[theme];
+      const fg = resolve(tokens[pair.fg] ?? "", tokens);
+      const bg = resolve(tokens[pair.bg] ?? "", tokens);
+      if (!fg || !bg) {
+        columns.push(`${theme} unmeasurable`);
+        continue;
+      }
+      const ratio = contrast(fg, bg);
+      const ok = ratio >= pair.min;
+      if (!ok) failed += 1;
+      columns.push(
+        `${theme} ${ok ? "pass" : "FAIL"} ${ratio.toFixed(2).padStart(5)}:1 [${toHex(fg)} on ${toHex(bg)}]`,
+      );
+    }
+    const flag = pair.min === AA_TEXT ? "AA" : "UI";
+    console.log(`  (${flag} >= ${pair.min})  ${pair.use}`);
+    console.log(`        ${columns.join("   ·   ")}`);
+  }
+  return failed;
+}
 
 /**
  * The marketing page is the pale mint environment rather than the product's
@@ -314,6 +404,9 @@ for (const pair of [...SCOPED, ...SHARED, ...MARKETING, ...generatedPairs()]) {
 
 console.log("\n=== SEQUENTIAL RAMP ===");
 failures += auditRamp(scopes.light);
+
+console.log("\n=== CONSOLE (the authenticated app) ===");
+failures += auditConsole();
 
 // Report the light scope separately so a light-only failure is obvious.
 console.log("\n=== REQUIRED — light scope ===");

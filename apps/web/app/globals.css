@@ -1006,6 +1006,11 @@ body {
   --console-muted: #97a3b4;
   --console-body: #e6eaf0;
   --console-on-orange: #231206;
+  /* The two themes' reds are opposite weights: dark's #e07a7a is pale, so its
+     label is near-black; light's #c23b3b is deep, so its label is white. One
+     shared "on-warm" value cannot serve both — measured, it put 3.43:1 on a
+     destructive button. */
+  --console-on-red: #231206;
 
   /* Surfaces — the mock's raised ladder */
   --orq-ink: var(--console-bg);
@@ -1097,7 +1102,7 @@ body {
   --orq-error: var(--console-red);
   --orq-error-fill: var(--console-red);
   --orq-error-soft: rgba(224, 122, 122, 0.08);
-  --orq-on-error: var(--console-on-orange);
+  --orq-on-error: var(--console-on-red);
 }
 
 /* Compatibility shim (docs/71 Phase 2): literal `bg-white` call sites in
@@ -1124,12 +1129,18 @@ body {
   --console-line: #e3e8ee;
   --console-line-strong: #c9d2dc;
   --console-lime: #5c9e31;
-  --console-orange: #e8761a;
+  /* #E8761A measured 2.81:1 as a state dot on a light card — below the 3:1 a
+     drawn mark needs, i.e. the "needs you" signal quietly disappearing on white.
+     Four percent deeper clears it (3.20:1) and is indistinguishable as a fill. */
+  --console-orange: #dc6d14;
   --console-red: #c23b3b;
   --console-info: #2563eb;
   --console-muted: #5c6878;
   --console-body: #2a3340;
-  --console-on-orange: #ffffff;
+  /* The dark theme already labels orange with near-black; white on #E8761A was
+     2.98:1, so the primary button's own label failed AA in light mode only. */
+  --console-on-orange: #231206;
+  --console-on-red: #ffffff;
 
   --orq-ink: #ffffff;
   --orq-overlay: rgba(14, 21, 32, 0.35);

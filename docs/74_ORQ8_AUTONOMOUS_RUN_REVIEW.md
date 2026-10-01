@@ -116,11 +116,15 @@ live stack.
 | 6 | **A governance-blocked execution never incremented `tasksFailed`** — the pre-execution block persisted the failed task and wrote activity, but skipped the employee's counter | Iris read "Blocked · Last task failed" beside "Tasks failed 0" — two numbers the founder cannot reconcile, on the screen that judges reliability | Iris now reports `TASKS FAILED 1` |
 | 7 | **`usePageContext` looped forever** — the hook called `setPageContext` during render and its guard was always true | Any page that registered EA context froze its own main thread. Nothing had called it yet; the new employee workspace was the first caller and locked up | Hook now registers in an effect keyed on the context's contents; the page is interactive |
 | 8 | **Activity summaries stuttered** — `Execution blocked: Execution blocked by autonomy level: …` | Copy defect in the founder's feed | Reads `Failed: <task>` with the reason carried once |
+| 9 | **Light mode never persisted** — the server shell (a server component) imported the theme cookie *name* from `components/theme-toggle.tsx`, a `"use client"` module. On the server that import is a client reference, not the string, so the cookie lookup could never match and every request fell back to dark | The toggle appeared to work, then silently reverted on the next navigation. The failure was invisible: the code read as correctly wired | Server HTML carries `data-console-theme="light"` after switching; `scripts/scan-rsc-boundary.mjs` was extended to flag SCREAMING_SNAKE constants imported from client modules so this class cannot return |
+| 10 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
 
-Also fixed in this run: the sidebar was hard-coded ink-black (broke light mode)
-and `docs/73_ORQ8_CONSOLE_UI_SKILL.md` was written to stop the console drifting
-into generic dashboard UI — token table, colour discipline, the four primitives,
-the honesty rules and a six-step pre-ship checklist.
+Also fixed in this run: the sidebar was hard-coded ink-black (broke light mode),
+the light `--console-on-red` token did not exist (one “on-warm” value cannot
+label both a pale dark-theme red and a deep light-theme red), and
+`docs/73_ORQ8_CONSOLE_UI_SKILL.md` was written to stop the console drifting into
+generic dashboard UI — token table, colour discipline, the four primitives, the
+honesty rules and a six-step pre-ship checklist.
 
 ---
 

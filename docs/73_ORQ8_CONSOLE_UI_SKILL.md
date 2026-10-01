@@ -41,9 +41,27 @@ Dark console — locked:
 | Orange (needs you) | `#E9974F` | `bg-warm`, `text-warm-ink`, `text-on-warm` |
 | Red (blocked / failed) | `#E07A7A` | `text-error-ink`, `bg-error-soft` |
 | Info | `#8FB8D8` | `var(--orq-info)` (no Tailwind utility yet) |
+| Label on orange | `#231206` | `--console-on-orange` → `text-on-warm` |
+| Label on red | `#231206` | `--console-on-red` → `--orq-on-error` |
 
 Light console is the same token names with the light pair (`#FFFFFF` / `#F7F8FA`
-/ `#EEF1F4` / `#E3E8EE` / `#5C9E31` / `#E8761A` / `#C23B3B`). Source of truth:
+/ `#EEF1F4` / `#E3E8EE` / `#5C9E31` / `#DC6D14` / `#C23B3B`), plus
+`--console-on-red: #FFFFFF`.
+
+**Two light values are measured, not chosen by eye** (`pnpm audit:contrast`,
+which now covers both console themes):
+
+- Light orange is `#DC6D14`, four percent deeper than the originally written
+  `#E8761A`, because `#E8761A` draws a state dot at **2.81:1** on a light card —
+  under the 3:1 a drawn mark needs, i.e. the "needs you" signal quietly
+  disappearing on white. `#DC6D14` measures 3.17:1 and is indistinguishable as
+  a fill.
+- Label-on-red is a **separate primitive** from label-on-orange. The two
+  themes' reds are opposite weights (dark's `#E07A7A` is pale, light's
+  `#C23B3B` is deep), so one shared label value cannot serve both: near-black
+  on the light red measured 3.43:1.
+
+Source of truth:
 `packages/core/src/design-tokens.ts` (`CONSOLE_DARK`, `CONSOLE_LIGHT`) with a
 local mirror in `apps/web/lib/console-theme.ts` (the web app must not import
 `@orq8/core` — it drags pino into the client bundle).
@@ -112,7 +130,12 @@ from every operational page (the dock) within one interaction. Verify at 1440,
 ## 8. The check before you ship a screen
 
 1. `pnpm --filter @orq8/web typecheck` — clean.
-2. `pnpm --filter @orq8/web test:contrast` — clean (this is the CI rule).
+2. `pnpm audit:contrast` — clean. This is the CI contrast rule, and it measures
+   **both console themes** as well as the marketing palette. (An earlier version
+   of this checklist named a `test:contrast` script that has never existed, and
+   the audit itself did not read the console tokens — so the entire redesign
+   palette was unmeasured while this file claimed otherwise. If a checklist step
+   has never been run, it is not a step.)
 3. `node scripts/scan-rsc-boundary.mjs` — no server file imports a function from
    a `"use client"` module (this is what crashed the dashboard: a server page
    called `computeScore()` from a client component).
@@ -130,3 +153,10 @@ from every operational page (the dock) within one interaction. Verify at 1440,
   `bg-elevated` + `text-ink`/`text-muted`. Keep it that way.
 - `/app/skin-preview` is a live harness for the two palettes. It is a developer
   surface, not a product page.
+- **Never import a value from a `"use client"` module into a server file.**
+  Components may cross that boundary; plain values may not. The theme cookie
+  NAME was exported from `theme-toggle.tsx` and read by `app/app/layout.tsx`, so
+  the server received a client reference instead of a string, the lookup always
+  missed, and every page load silently discarded the founder's light-mode choice
+  — it looked perfectly wired. `node scripts/scan-rsc-boundary.mjs` now flags
+  constants as well as functions.
