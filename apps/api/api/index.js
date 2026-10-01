@@ -15124,6 +15124,12 @@ var init_zod = __esm({
 });
 
 // ../../packages/core/src/config.ts
+function envSurface() {
+  return Object.keys(envSchema.shape).sort();
+}
+function envRequiredInProduction() {
+  return ["DATABASE_URL", "SESSION_SECRET", "ENCRYPTION_KEY"];
+}
 function platformAdminEmails(config2) {
   return new Set(
     (config2.PLATFORM_ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
@@ -15146,10 +15152,39 @@ function loadConfig(env = process.env) {
   }
   return config2;
 }
+function capabilityReadiness(config2) {
+  const env = config2;
+  const present = (key) => {
+    const value = env[key];
+    return typeof value === "string" ? value.trim().length > 0 : value !== void 0 && value !== null;
+  };
+  const capabilities = CAPABILITIES.map((definition) => {
+    const { devAlternative, ...rest } = definition;
+    const keys2 = [...definition.requires, ...definition.anyOf.flat()];
+    const configured = keys2.filter(present);
+    const missing = keys2.filter((key) => !present(key));
+    const requiresSatisfied = definition.requires.every(present);
+    const anyOfSatisfied = definition.anyOf.length === 0 || definition.anyOf.some((group) => group.some(present));
+    const devOnly = !(requiresSatisfied && anyOfSatisfied) && (devAlternative ?? []).some(present);
+    return {
+      ...rest,
+      status: requiresSatisfied && anyOfSatisfied ? "ready" : devOnly ? "dev_only" : "configuration_required",
+      configured,
+      missing
+    };
+  });
+  return {
+    ready: capabilities.filter((c) => c.status === "ready").length,
+    configurationRequired: capabilities.filter((c) => c.status === "configuration_required").length,
+    devOnly: capabilities.filter((c) => c.status === "dev_only").length,
+    blocking: capabilities.filter((c) => c.productionCritical && c.status !== "ready").map((c) => c.id),
+    capabilities
+  };
+}
 function allowedOrigins(config2) {
   return config2.ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean);
 }
-var envSchema, DEV_ONLY_SECRETS;
+var envSchema, DEV_ONLY_SECRETS, CAPABILITIES;
 var init_config = __esm({
   "../../packages/core/src/config.ts"() {
     "use strict";
@@ -15274,6 +15309,159 @@ var init_config = __esm({
       "dev-only-session-secret-change-me",
       "dev-only-encryption-key-32-bytes!!"
     ];
+    CAPABILITIES = [
+      {
+        id: "database",
+        label: "Database",
+        requires: ["DATABASE_URL"],
+        anyOf: [],
+        productionCritical: true,
+        degraded: false,
+        impact: "The API cannot start.",
+        docs: "docs/58"
+      },
+      {
+        id: "secrets",
+        label: "Session and encryption keys",
+        requires: ["SESSION_SECRET", "ENCRYPTION_KEY"],
+        anyOf: [],
+        productionCritical: true,
+        degraded: false,
+        impact: "A production boot refuses to start, and stored integration credentials cannot be decrypted.",
+        docs: "docs/37"
+      },
+      {
+        id: "web_origin",
+        label: "Browser origin and CORS",
+        requires: ["APP_URL", "ALLOWED_ORIGINS"],
+        anyOf: [],
+        productionCritical: true,
+        degraded: false,
+        impact: "The deployed web app is not an allowed origin, so every request from the product is refused by the API.",
+        docs: "docs/58.5"
+      },
+      {
+        id: "model_gateway",
+        label: "Model gateway (OpenRouter primary, NVIDIA fallback)",
+        requires: [],
+        anyOf: [
+          ["OPENROUTER_API_KEY", "OPENROUTER_API_KEYS"],
+          ["NVIDIA_API_KEY", "NVIDIA_API_KEYS"]
+        ],
+        productionCritical: true,
+        degraded: false,
+        impact: "AI employees cannot think: execution falls back to structured output and the work is marked failed.",
+        docs: "docs/22"
+      },
+      {
+        id: "email",
+        label: "Transactional email",
+        requires: [],
+        anyOf: [["RESEND_API_KEY"], ["SMTP_HOST"]],
+        productionCritical: true,
+        degraded: false,
+        impact: "Confirmation and invitation mail is written to the log instead of delivered, so a new account can never confirm its address.",
+        docs: "docs/66.18"
+      },
+      {
+        id: "embeddings",
+        label: "Embeddings (semantic memory)",
+        requires: ["EMBEDDING_BASE_URL"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Memory retrieval is keyword-only: relevant knowledge can be missed when the wording differs.",
+        docs: "docs/21"
+      },
+      {
+        id: "storage",
+        label: "File storage",
+        requires: ["S3_ENDPOINT", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET"],
+        anyOf: [],
+        devAlternative: ["LOCAL_STORAGE_DIR"],
+        productionCritical: false,
+        degraded: true,
+        impact: "Uploads land on the instance disk and are lost when it is replaced.",
+        docs: "docs/42"
+      },
+      {
+        id: "realtime",
+        label: "Realtime fan-out",
+        requires: ["REDIS_URL"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Live updates are published in-process only, so a second API instance does not see them.",
+        docs: "docs/36"
+      },
+      {
+        id: "scheduler",
+        label: "Scheduled jobs",
+        requires: ["INTERNAL_TOKEN"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Scheduled jobs cannot authenticate, so consolidation, briefings and anomaly scans do not run.",
+        docs: "docs/52"
+      },
+      {
+        id: "search",
+        label: "Web search",
+        requires: ["SERPAPI_KEY"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Research and prospecting tools refuse with a configuration error.",
+        docs: "docs/25"
+      },
+      {
+        id: "github_oauth",
+        label: "GitHub (connect a repository)",
+        requires: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "The engineering workspace cannot connect a repository.",
+        docs: "docs/58.6"
+      },
+      {
+        id: "google_oauth",
+        label: "Google sign-in",
+        requires: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Only email and password sign-in is offered.",
+        docs: "docs/37"
+      },
+      {
+        id: "billing",
+        label: "Billing (Stripe)",
+        requires: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Plans cannot be purchased; credits can only be granted by hand.",
+        docs: "docs/24"
+      },
+      {
+        id: "observability",
+        label: "Tracing export",
+        requires: ["OTEL_EXPORTER_OTLP_ENDPOINT"],
+        anyOf: [],
+        productionCritical: false,
+        degraded: true,
+        impact: "Traces stay in the process log; nothing is exported to a collector.",
+        docs: "docs/39"
+      }
+    ];
+  }
+});
+
+// ../../packages/core/src/design-tokens.ts
+var init_design_tokens = __esm({
+  "../../packages/core/src/design-tokens.ts"() {
+    "use strict";
   }
 });
 
@@ -19974,6 +20162,7 @@ var init_src = __esm({
   "../../packages/core/src/index.ts"() {
     "use strict";
     init_config();
+    init_design_tokens();
     init_crypto();
     init_errors3();
     init_logger();
@@ -28144,6 +28333,7 @@ __export(schema_exports, {
   integrationCapabilities: () => integrationCapabilities,
   integrationCredentials: () => integrationCredentials,
   integrationProviders: () => integrationProviders,
+  invitations: () => invitations,
   jobRuns: () => jobRuns,
   keyResults: () => keyResults,
   knowledgeEntities: () => knowledgeEntities,
@@ -28182,7 +28372,7 @@ __export(schema_exports, {
   waitlistSignups: () => waitlistSignups,
   webhookEvents: () => webhookEvents
 });
-var users, organizations, memberships, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, goals, tasks, approvals, activityEvents, llmPerformance, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
+var users, organizations, memberships, invitations, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, goals, tasks, approvals, activityEvents, llmPerformance, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
 var init_schema2 = __esm({
   "../../packages/db/src/schema.ts"() {
     "use strict";
@@ -28236,6 +28426,28 @@ var init_schema2 = __esm({
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
       },
       (t) => [uniqueIndex("memberships_org_user_idx").on(t.orgId, t.userId)]
+    );
+    invitations = pgTable(
+      "invitations",
+      {
+        id: uuid3("id").primaryKey().defaultRandom(),
+        orgId: uuid3("org_id").notNull().references(() => organizations.id),
+        email: text("email").notNull(),
+        role: text("role").notNull().default("member"),
+        // owner|admin|member|viewer (docs/34.3)
+        tokenHash: text("token_hash").notNull(),
+        invitedBy: uuid3("invited_by").references(() => users.id),
+        status: text("status").notNull().default("pending"),
+        // pending|accepted|revoked|expired
+        expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+        acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+        acceptedBy: uuid3("accepted_by").references(() => users.id),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+      },
+      (t) => [
+        uniqueIndex("invitations_token_hash_idx").on(t.tokenHash),
+        index("invitations_org_idx").on(t.orgId, t.status)
+      ]
     );
     sessions = pgTable(
       "sessions",
@@ -28572,8 +28784,11 @@ var init_schema2 = __esm({
         agentId: uuid3("agent_id").references(() => agents.id),
         title: text("title").notNull(),
         description: text("description"),
+        // awaiting_approval (migration 0036): the work is stopped pending a founder
+        // decision, so it must NOT read as pending — the batch runner selects
+        // pending, and gated work must never be silently re-executed by a pass.
         status: text("status").notNull().default("pending"),
-        // pending | in_progress | completed | failed | cancelled
+        // pending | in_progress | awaiting_approval | completed | failed | cancelled
         priority: text("priority").notNull().default("normal"),
         // low | normal | high | urgent
         dueDate: timestamp("due_date", { withTimezone: true }),
@@ -28617,11 +28832,23 @@ var init_schema2 = __esm({
         decisionNote: text("decision_note"),
         // CEO's note when approving/modifying/rejecting
         decidedAt: timestamp("decided_at", { withTimezone: true }),
+        // The work this decision gates (migration 0036). Without these a founder was
+        // shown a sentence and asked to rule on nothing: approving released no work,
+        // rejecting stopped none. Approve resumes the task; reject cancels it with
+        // decisionNote as the reason.
+        taskId: uuid3("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+        toolId: text("tool_id"),
+        // the tool the agent asked to use, when the gate came from a tool call
+        toolParams: jsonb("tool_params"),
+        // the exact call, so the founder authorises something specific
+        // Set when the gate opened AND the work resumed — makes the grant single-use.
+        releasedAt: timestamp("released_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
       },
       (t) => [
         index("approvals_org_idx").on(t.orgId),
-        index("approvals_status_idx").on(t.orgId, t.status)
+        index("approvals_status_idx").on(t.orgId, t.status),
+        index("approvals_task_idx").on(t.taskId, t.status)
       ]
     );
     activityEvents = pgTable(
@@ -28790,6 +29017,11 @@ var init_schema2 = __esm({
         taskId: uuid3("task_id").references(() => tasks.id),
         importance: integer2("importance").notNull().default(5),
         // 1-10
+        // Retrieval evidence (Gap D, docs/66 §66.14): how many times this entry has
+        // been surfaced to an employee working on a task, and when it last was.
+        // Incremented by the context builders, never by a read API alone.
+        useCount: integer2("use_count").notNull().default(0),
+        lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
         // Semantic embedding — pgvector, dimension matches EMBED_DIM default (768 for
         // nomic-embed-text, ADR-012). Nullable: entries created before embedding was
         // available, or when no embedding provider is configured, fall back to keyword
@@ -30862,7 +31094,7 @@ var require_utils2 = __commonJS({
     var nodeCrypto = require("crypto");
     module2.exports = {
       postgresMd5PasswordHash,
-      randomBytes: randomBytes9,
+      randomBytes: randomBytes10,
       deriveKey,
       sha256: sha2563,
       hashByName,
@@ -30872,7 +31104,7 @@ var require_utils2 = __commonJS({
     var webCrypto = nodeCrypto.webcrypto || globalThis.crypto;
     var subtleCrypto = webCrypto.subtle;
     var textEncoder = new TextEncoder();
-    function randomBytes9(length) {
+    function randomBytes10(length) {
       return webCrypto.getRandomValues(Buffer.alloc(length));
     }
     async function md5(string4) {
@@ -35361,17 +35593,52 @@ var init_node_postgres = __esm({
 });
 
 // ../../packages/db/src/db.ts
+function readCa(value) {
+  const trimmed = value?.trim();
+  if (!trimmed) return void 0;
+  if (trimmed.includes("BEGIN CERTIFICATE")) return trimmed;
+  try {
+    return (0, import_node_fs.readFileSync)(trimmed, "utf8");
+  } catch {
+    return void 0;
+  }
+}
+function databaseSslOptions(databaseUrl, env = process.env) {
+  let url2;
+  try {
+    url2 = new URL(databaseUrl);
+  } catch {
+    return false;
+  }
+  const mode = (url2.searchParams.get("sslmode") ?? url2.searchParams.get("ssl") ?? "").toLowerCase();
+  if (mode === "disable" || mode === "false") return false;
+  if (!mode && LOCAL_HOSTS.has(url2.hostname)) return false;
+  const ca = readCa(env.DATABASE_CA_CERT);
+  if (ca) return { rejectUnauthorized: true, ca };
+  if (mode === "verify-full" || mode === "verify-ca") return { rejectUnauthorized: true };
+  return { rejectUnauthorized: false };
+}
+function createPool(databaseUrl) {
+  return new Pool({
+    connectionString: databaseUrl,
+    max: 10,
+    ssl: databaseSslOptions(databaseUrl)
+  });
+}
 function createDb(databaseUrl) {
-  const pool = new Pool({ connectionString: databaseUrl, max: 10 });
+  const pool = createPool(databaseUrl);
   const db = drizzle(pool, { schema: schema_exports });
   return { db, pool };
 }
+var import_node_fs, LOCAL_HOSTS;
 var init_db2 = __esm({
   "../../packages/db/src/db.ts"() {
     "use strict";
+    import_node_fs = require("node:fs");
     init_node_postgres();
     init_esm();
     init_schema2();
+    LOCAL_HOSTS = /* @__PURE__ */ new Set(["localhost", "127.0.0.1", "::1", "db", "postgres"]);
   }
 });
 
@@ -35392,9 +35659,11 @@ __export(src_exports, {
   companyMemory: () => companyMemory,
   connectorOutcomes: () => connectorOutcomes,
   createDb: () => createDb,
+  createPool: () => createPool,
   creditAlerts: () => creditAlerts,
   creditBalances: () => creditBalances,
   creditTransactions: () => creditTransactions,
+  databaseSslOptions: () => databaseSslOptions,
   decisions: () => decisions,
   departmentTemplates: () => departmentTemplates,
   departments: () => departments,
@@ -35407,6 +35676,7 @@ __export(src_exports, {
   integrationCapabilities: () => integrationCapabilities,
   integrationCredentials: () => integrationCredentials,
   integrationProviders: () => integrationProviders,
+  invitations: () => invitations,
   jobRuns: () => jobRuns,
   keyResults: () => keyResults,
   knowledgeEntities: () => knowledgeEntities,
@@ -81731,7 +82001,15 @@ async function findSessionByToken(db, token, redis) {
     role: memberships.role
   }).from(sessions).innerJoin(users, eq(sessions.userId, users.id)).innerJoin(
     memberships,
-    and(eq(memberships.orgId, sessions.orgId), eq(memberships.userId, sessions.userId))
+    and(
+      eq(memberships.orgId, sessions.orgId),
+      eq(memberships.userId, sessions.userId),
+      // The membership must be ACTIVE. Without this the join only proved a
+      // membership row existed, so a removed member's session kept
+      // authenticating with the role they used to hold — removing somebody
+      // took them off the member list and left their access untouched.
+      eq(memberships.status, "active")
+    )
   ).where(eq(sessions.tokenHash, tokenHash)).limit(1);
   if (!row) return null;
   if (redis?.isConnected() && !row.session.revokedAt) {
@@ -81763,6 +82041,9 @@ async function findSessionByToken(db, token, redis) {
     platformRole: row.user.platformRole
   };
 }
+async function switchOrg(db, sessionId, orgId) {
+  await db.update(sessions).set({ orgId }).where(eq(sessions.id, sessionId));
+}
 async function revokeSession(db, sessionId, redis) {
   await db.update(sessions).set({ revokedAt: /* @__PURE__ */ new Date() }).where(eq(sessions.id, sessionId));
   if (redis?.isConnected()) {
@@ -81773,6 +82054,28 @@ async function revokeSession(db, sessionId, redis) {
       }
     } catch {
     }
+  }
+}
+async function revokeOrgSessions(db, userId, orgId, redis) {
+  try {
+    const rows = await db.select({ id: sessions.id, tokenHash: sessions.tokenHash, revokedAt: sessions.revokedAt, expiresAt: sessions.expiresAt }).from(sessions).where(and(eq(sessions.userId, userId), eq(sessions.orgId, orgId)));
+    if (redis?.isConnected() && rows.length > 0) {
+      const keys2 = rows.map((s) => `${SESSION_CACHE_PREFIX}${s.tokenHash}`);
+      await redis.del(...keys2);
+    }
+    const now = /* @__PURE__ */ new Date();
+    let revoked = 0;
+    for (const row of rows) {
+      const unrevoked = !row.revokedAt;
+      const unexpired = row.expiresAt.getTime() > now.getTime();
+      if (unrevoked && unexpired) {
+        await revokeSession(db, row.id, redis);
+        revoked += 1;
+      }
+    }
+    return revoked;
+  } catch {
+    return 0;
   }
 }
 async function invalidateUserSessions(db, userId, redis) {
@@ -82264,6 +82567,24 @@ async function decide(db, orgId, id, status, decisionNote) {
   }
   return row;
 }
+async function findOpenGate(db, orgId, taskId) {
+  const rows = await db.select().from(approvals).where(and(eq(approvals.orgId, orgId), eq(approvals.taskId, taskId), eq(approvals.status, "pending"))).limit(1);
+  return rows[0];
+}
+async function findGrantedGate(db, orgId, taskId) {
+  const rows = await db.select().from(approvals).where(
+    and(
+      eq(approvals.orgId, orgId),
+      eq(approvals.taskId, taskId),
+      inArray(approvals.status, ["approved", "modified"]),
+      isNull(approvals.releasedAt)
+    )
+  ).orderBy(desc(approvals.decidedAt)).limit(1);
+  return rows[0];
+}
+async function markGateReleased(db, approvalId) {
+  await db.update(approvals).set({ releasedAt: /* @__PURE__ */ new Date() }).where(eq(approvals.id, approvalId));
+}
 async function countPending(db, orgId) {
   const rows = await db.select({ id: approvals.id }).from(approvals).where(and(eq(approvals.orgId, orgId), eq(approvals.status, "pending")));
   return rows.length;
@@ -82368,6 +82689,7 @@ var init_audit = __esm({
 var transactional_exports = {};
 __export(transactional_exports, {
   creditAlertEmail: () => creditAlertEmail,
+  invitationEmail: () => invitationEmail,
   passwordResetEmail: () => passwordResetEmail,
   verificationEmail: () => verificationEmail,
   weeklyReportEmail: () => weeklyReportEmail
@@ -82403,6 +82725,37 @@ function cta(href, label) {
 }
 function divider() {
   return `<hr style="border:none;border-top:1px solid ${HAIRLINE};margin:20px 0;" />`;
+}
+function invitationEmail(input) {
+  const days = input.expiresInDays ?? 14;
+  const subject = `You've been invited to join ${input.orgName} on ORQ8`;
+  const inviter = input.invitedBy ? `${input.invitedBy} invited you` : "You have been invited";
+  const text2 = [
+    `${inviter} to join ${input.orgName} on ORQ8 as ${input.role}.`,
+    "",
+    "Open this link to accept:",
+    input.acceptUrl,
+    "",
+    `The link can be used once and expires in ${days} days. It only works for this email address, so it cannot be forwarded to someone else.`,
+    "If you weren't expecting this, you can ignore this email.",
+    "",
+    "ORQ8 \u2014 the AI organization operating system."
+  ].join("\n");
+  const html = shell(
+    "invitation \xB7 join a company",
+    [
+      p(`${inviter} to join <strong>${input.orgName}</strong> on ORQ8 as <strong>${input.role}</strong>.`),
+      cta(input.acceptUrl, "Accept invitation"),
+      p(
+        `<span style="color:${MUTED};font-size:13px;">The link can be used once and expires in ${days} days. It is tied to this email address, so forwarding it will not let anyone else in.</span>`
+      ),
+      divider(),
+      p(
+        `<span style="color:${MUTED};font-size:12px;">If the button does not work, paste this into your browser:<br /><span style="word-break:break-all;">${input.acceptUrl}</span></span>`
+      )
+    ].join("")
+  );
+  return { subject, text: text2, html };
 }
 function verificationEmail(input) {
   const subject = "Verify your email for ORQ8";
@@ -82789,6 +83142,701 @@ var init_notification_preferences = __esm({
   }
 });
 
+// src/services/anomaly-detector.ts
+function isStalledGoal(updatedAt, now, days = STALL_DAYS) {
+  return now.getTime() - updatedAt.getTime() > days * 24 * 60 * 60 * 1e3;
+}
+function isAtRiskGoal(dueDate, progress, now, hours = AT_RISK_HOURS, progressFloor = AT_RISK_PROGRESS) {
+  if (!dueDate) return false;
+  const remainingMs = dueDate.getTime() - now.getTime();
+  return remainingMs >= 0 && remainingMs <= hours * 60 * 60 * 1e3 && progress < progressFloor;
+}
+function isBlockedTask(updatedAt, now, days = BLOCKED_DAYS) {
+  return now.getTime() - updatedAt.getTime() > days * 24 * 60 * 60 * 1e3;
+}
+function isFailureSpike(current, previous) {
+  return current >= FAILURE_MIN && current >= previous * FAILURE_MULTIPLIER;
+}
+function isSpendSpike(current, previous) {
+  if (current < SPEND_MIN) return false;
+  if (previous === 0) return current >= SPEND_MIN * 2;
+  return current >= previous * SPEND_MULTIPLIER;
+}
+async function scanOrgAnomalies(db, orgId, now = /* @__PURE__ */ new Date()) {
+  const anomalies = [];
+  const activeGoals = await db.select({ id: goals.id, title: goals.title, status: goals.status, progress: goals.progress, dueDate: goals.dueDate, updatedAt: goals.updatedAt }).from(goals).where(and(eq(goals.orgId, orgId), eq(goals.status, "active"))).limit(100);
+  for (const goal of activeGoals) {
+    if (isStalledGoal(goal.updatedAt, now)) {
+      const stalledDays = Math.floor((now.getTime() - goal.updatedAt.getTime()) / (24 * 60 * 60 * 1e3));
+      anomalies.push({
+        severity: "warning",
+        category: "goal",
+        message: `Goal "${goal.title}" has had no progress for ${stalledDays}d \u2014 stalled.`,
+        refId: goal.id,
+        detectedAt: now.toISOString()
+      });
+    }
+    if (isAtRiskGoal(goal.dueDate, goal.progress, now)) {
+      const hoursLeft = Math.max(1, Math.ceil((goal.dueDate.getTime() - now.getTime()) / (60 * 60 * 1e3)));
+      anomalies.push({
+        severity: "critical",
+        category: "goal",
+        message: `Goal "${goal.title}" is due in ~${hoursLeft}h at ${goal.progress}% progress \u2014 at risk.`,
+        refId: goal.id,
+        detectedAt: now.toISOString()
+      });
+    }
+  }
+  const blockedTasks = await db.select({ id: tasks.id, title: tasks.title, status: tasks.status, updatedAt: tasks.updatedAt }).from(tasks).where(
+    and(
+      eq(tasks.orgId, orgId),
+      sql`${tasks.status} NOT IN ('completed', 'failed', 'cancelled')`
+    )
+  ).limit(200);
+  for (const task of blockedTasks) {
+    if (isBlockedTask(task.updatedAt, now)) {
+      const days = Math.floor((now.getTime() - task.updatedAt.getTime()) / (24 * 60 * 60 * 1e3));
+      anomalies.push({
+        severity: "warning",
+        category: "task",
+        message: `Task "${task.title}" has been ${task.status === "pending" ? "waiting" : "in progress"} ${days}d \u2014 blocked?`,
+        refId: task.id,
+        detectedAt: now.toISOString()
+      });
+    }
+  }
+  const windowStart = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1e3);
+  const prevStart = new Date(windowStart.getTime() - 3 * 24 * 60 * 60 * 1e3);
+  const [failedCurrent] = await db.select({ n: count() }).from(tasks).where(
+    and(
+      eq(tasks.orgId, orgId),
+      eq(tasks.status, "failed"),
+      gte(tasks.updatedAt, windowStart),
+      lt(tasks.updatedAt, now)
+    )
+  );
+  const [failedPrevious] = await db.select({ n: count() }).from(tasks).where(
+    and(
+      eq(tasks.orgId, orgId),
+      eq(tasks.status, "failed"),
+      gte(tasks.updatedAt, prevStart),
+      lt(tasks.updatedAt, windowStart)
+    )
+  );
+  const failedNow = failedCurrent?.n ?? 0;
+  const failedThen = failedPrevious?.n ?? 0;
+  if (isFailureSpike(failedNow, failedThen)) {
+    anomalies.push({
+      severity: "critical",
+      category: "failure",
+      message: `Task failure spike: ${failedNow} failures in the last 3 days (vs ${failedThen} previously).`,
+      refId: null,
+      detectedAt: now.toISOString()
+    });
+  }
+  const [usageCurrent] = await db.select({ total: sql`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` }).from(creditTransactions).where(
+    and(
+      eq(creditTransactions.orgId, orgId),
+      eq(creditTransactions.type, "usage"),
+      gte(creditTransactions.createdAt, windowStart),
+      lt(creditTransactions.createdAt, now)
+    )
+  );
+  const [usagePrevious] = await db.select({ total: sql`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` }).from(creditTransactions).where(
+    and(
+      eq(creditTransactions.orgId, orgId),
+      eq(creditTransactions.type, "usage"),
+      gte(creditTransactions.createdAt, prevStart),
+      lt(creditTransactions.createdAt, windowStart)
+    )
+  );
+  const spentNow = usageCurrent?.total ?? 0;
+  const spentThen = usagePrevious?.total ?? 0;
+  if (isSpendSpike(spentNow, spentThen)) {
+    anomalies.push({
+      severity: "warning",
+      category: "spend",
+      message: `Credit spend spike: ${spentNow} credits used in the last 3 days (vs ${spentThen} previously).`,
+      refId: null,
+      detectedAt: now.toISOString()
+    });
+  }
+  anomalies.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  return { orgId, scannedAt: now.toISOString(), anomalies };
+}
+function severityRank(s) {
+  return s === "critical" ? 0 : s === "warning" ? 1 : 2;
+}
+var STALL_DAYS, AT_RISK_HOURS, AT_RISK_PROGRESS, BLOCKED_DAYS, FAILURE_MIN, FAILURE_MULTIPLIER, SPEND_MIN, SPEND_MULTIPLIER;
+var init_anomaly_detector = __esm({
+  "src/services/anomaly-detector.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    STALL_DAYS = 3;
+    AT_RISK_HOURS = 72;
+    AT_RISK_PROGRESS = 60;
+    BLOCKED_DAYS = 2;
+    FAILURE_MIN = 3;
+    FAILURE_MULTIPLIER = 2;
+    SPEND_MIN = 50;
+    SPEND_MULTIPLIER = 2;
+  }
+});
+
+// src/services/realtime.ts
+function registerRealtimeEndpoint(app, deps) {
+  app.get("/v1/events", async (request, reply) => {
+    const { requireAuth: requireAuth2 } = await Promise.resolve().then(() => (init_auth(), auth_exports));
+    const ctx = await requireAuth2(request, deps);
+    const mine = [];
+    for (const clients of connections.values()) {
+      for (const c of clients) {
+        if (c.userId === ctx.userId) mine.push(c);
+      }
+    }
+    mine.sort((a, b) => a.connectedAt.getTime() - b.connectedAt.getTime());
+    if (mine.length >= MAX_CONNECTIONS_PER_USER) {
+      const evictCount = mine.length - MAX_CONNECTIONS_PER_USER + 1;
+      for (const dead of mine.slice(0, evictCount)) {
+        dead.alive = false;
+        for (const clients of connections.values()) clients.delete(dead);
+      }
+      for (const [orgId, clients] of connections) {
+        if (clients.size === 0) connections.delete(orgId);
+      }
+    }
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no"
+      // Disable nginx buffering
+    });
+    const client = {
+      reply,
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      connectedAt: /* @__PURE__ */ new Date(),
+      alive: true
+    };
+    const orgClients = connections.get(ctx.orgId) ?? /* @__PURE__ */ new Set();
+    orgClients.add(client);
+    connections.set(ctx.orgId, orgClients);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeatInterval);
+      orgClients.delete(client);
+      if (orgClients.size === 0) {
+        connections.delete(ctx.orgId);
+      }
+    };
+    const sendEvent = (event) => {
+      if (!client.alive) return;
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}
+
+`);
+      } catch {
+        client.alive = false;
+        cleanup();
+      }
+    };
+    sendEvent({ type: "heartbeat", timestamp: Date.now() });
+    const heartbeatInterval = setInterval(() => {
+      sendEvent({ type: "heartbeat", timestamp: Date.now() });
+    }, 3e4);
+    request.raw.on("close", cleanup);
+    reply.raw.on("error", cleanup);
+  });
+}
+function broadcastToOrg(orgId, event) {
+  const orgClients = connections.get(orgId);
+  if (!orgClients || orgClients.size === 0) return;
+  const payload = `data: ${JSON.stringify(event)}
+
+`;
+  for (const client of [...orgClients]) {
+    if (!client.alive) continue;
+    try {
+      client.reply.raw.write(payload);
+    } catch {
+      client.alive = false;
+      orgClients.delete(client);
+    }
+  }
+}
+var connections, MAX_CONNECTIONS_PER_USER;
+var init_realtime = __esm({
+  "src/services/realtime.ts"() {
+    "use strict";
+    connections = /* @__PURE__ */ new Map();
+    MAX_CONNECTIONS_PER_USER = 8;
+  }
+});
+
+// src/services/attention.ts
+function formatCents(cents) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+function isPermissionRequest(action) {
+  return /^tool:/i.test(action.trim()) || /wants to use tool/i.test(action);
+}
+function approvalSource(action) {
+  return isPermissionRequest(action) ? "permission" : "approval";
+}
+function approvalSeverity(riskLevel) {
+  if (riskLevel === "high") return "critical";
+  if (riskLevel === "medium") return "warning";
+  return "info";
+}
+function blockedTaskSeverity(priority) {
+  if (priority === "urgent") return "critical";
+  if (priority === "high") return "warning";
+  return "info";
+}
+function failureSeverity(priority, now, updatedAt) {
+  const fresh = now.getTime() - updatedAt.getTime() < 24 * 60 * 60 * 1e3;
+  if (priority === "urgent" || priority === "high" && fresh) return "critical";
+  return "warning";
+}
+function creditAlertSeverity(type) {
+  if (type === "exhausted" || type === "critical") return "critical";
+  if (type === "low") return "warning";
+  return "info";
+}
+function creditAlertLabel(type) {
+  if (type === "exhausted") return "Work Credits exhausted";
+  if (type === "critical") return "Work Credits critically low";
+  if (type === "low") return "Work Credits running low";
+  if (type === "warning") return "Work Credits usage update";
+  if (type === "renewal_reminder") return "Work Credits renew soon";
+  return "Work Credits alert";
+}
+function deadlineSeverity(overdue) {
+  return overdue ? "critical" : "warning";
+}
+function urgencyLabel(priority) {
+  if (priority === "urgent" || priority === "high") return "High priority work";
+  return "Work";
+}
+function daysSince(from, now) {
+  return Math.max(0, Math.floor((now.getTime() - from.getTime()) / (24 * 60 * 60 * 1e3)));
+}
+function hoursUntil(when, now) {
+  return Math.max(0, Math.round((when.getTime() - now.getTime()) / (60 * 60 * 1e3)));
+}
+function excerpt(text2, max2 = 240) {
+  if (!text2) return null;
+  const trimmed = text2.trim().replace(/\s+/g, " ");
+  if (trimmed.length === 0) return null;
+  return trimmed.length > max2 ? `${trimmed.slice(0, max2 - 1)}\u2026` : trimmed;
+}
+function askEa(eaName, prompt) {
+  return { kind: "ask_ea", label: `Ask ${eaName}`, prompt };
+}
+function compareAttentionItems(a, b) {
+  const bySeverity = ATTENTION_SEVERITY_RANK[a.severity] - ATTENTION_SEVERITY_RANK[b.severity];
+  if (bySeverity !== 0) return bySeverity;
+  const bySource = ATTENTION_SOURCE_RANK[a.source] - ATTENTION_SOURCE_RANK[b.source];
+  if (bySource !== 0) return bySource;
+  const byAge = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  if (byAge !== 0) return byAge;
+  return a.id.localeCompare(b.id);
+}
+function summarizeAttention(items) {
+  const bySource = {};
+  for (const source of ATTENTION_SOURCES) bySource[source] = 0;
+  let critical = 0;
+  let warning = 0;
+  let info = 0;
+  for (const item of items) {
+    bySource[item.source] += 1;
+    if (item.severity === "critical") critical += 1;
+    else if (item.severity === "warning") warning += 1;
+    else info += 1;
+  }
+  return { total: items.length, critical, warning, info, bySource };
+}
+function classifyApproval(row, eaName) {
+  const source = approvalSource(row.action);
+  const severity = approvalSeverity(row.riskLevel);
+  const who = row.agentName ?? "Executive Agent";
+  const costImpact = row.cost > 0 ? `${formatCents(row.cost)} of Work Credits at stake` : null;
+  const riskImpact = row.riskLevel === "high" ? "High risk action" : row.riskLevel === "medium" ? "Medium risk action" : null;
+  const blocked = row.taskTitle ? `\u201C${row.taskTitle}\u201D` : null;
+  const viaTool = row.toolId ? `the \`${row.toolId}\` tool` : null;
+  const whatItBlocks = blocked ?? viaTool;
+  const base = excerpt(row.description) ?? (source === "permission" ? `${who} asked for permission to run a gated tool.` : `${who} is waiting on a decision before it can proceed.`);
+  const why = whatItBlocks ? `${who} is stopped on ${whatItBlocks} until you decide. ${base}` : base;
+  return {
+    id: `${source}:${row.id}`,
+    source,
+    severity,
+    what: row.action,
+    why,
+    who,
+    authority: blocked ? `Nothing runs until you decide: approving resumes ${blocked} and spends the grant; rejecting stops it and keeps your reason.` : viaTool ? `${who} cannot run ${viaTool} under its authority profile until you approve it.` : source === "permission" ? `${who} cannot run this tool under its authority profile until you approve it.` : "Nothing is executed before your decision; approving records the decision and releases the action.",
+    impact: costImpact ?? riskImpact,
+    next: "Approve or reject this request.",
+    entity: { type: "approval", id: row.id },
+    createdAt: row.createdAt.toISOString(),
+    dueAt: null,
+    actions: [
+      {
+        kind: "approve",
+        label: "Approve",
+        endpoint: `/v1/approvals/${row.id}`,
+        method: "PATCH",
+        payload: { status: "approved" }
+      },
+      {
+        kind: "reject",
+        label: "Reject",
+        endpoint: `/v1/approvals/${row.id}`,
+        method: "PATCH",
+        payload: { status: "rejected" }
+      },
+      askEa(eaName, `Explain what approving "${row.action}" would do, and what happens if I reject it.`)
+    ]
+  };
+}
+function classifyBlockedTask(row, now, eaName) {
+  const days = daysSince(row.updatedAt, now);
+  const who = row.agentName ?? "Unassigned";
+  return {
+    id: `blocked_work:${row.id}`,
+    source: "blocked_work",
+    severity: blockedTaskSeverity(row.priority),
+    what: row.title,
+    why: `No progress for ${days} day${days === 1 ? "" : "s"} while marked ${row.status === "pending" ? "waiting" : "in progress"}.`,
+    who,
+    authority: "You own the priority call: unblock, reassign, or cancel the work.",
+    impact: `${urgencyLabel(row.priority)} is stalled`,
+    next: "Cancel it, or ask the Executive Agent how to unblock it.",
+    entity: { type: "task", id: row.id },
+    createdAt: row.createdAt.toISOString(),
+    dueAt: row.dueDate ? row.dueDate.toISOString() : null,
+    actions: [
+      {
+        kind: "cancel",
+        label: "Cancel task",
+        endpoint: `/v1/tasks/${row.id}`,
+        method: "PATCH",
+        payload: { status: "cancelled" }
+      },
+      askEa(eaName, `Task "${row.title}" has been stuck for ${days} days. What is blocking it and what should I do?`)
+    ]
+  };
+}
+function classifyFailedTask(row, now, eaName) {
+  const reason = excerpt(row.result, 200);
+  const who = row.agentName ?? "Unassigned";
+  return {
+    id: `failure:${row.id}`,
+    source: "failure",
+    severity: failureSeverity(row.priority, now, row.updatedAt),
+    what: row.title,
+    why: reason ? `Last attempt failed: ${reason}` : "The last attempt failed and nothing is retrying it.",
+    who,
+    authority: "You decide whether to retry, cancel, or change the approach.",
+    impact: `${urgencyLabel(row.priority)} needs review`,
+    next: "Retry the task or cancel it.",
+    entity: { type: "task", id: row.id },
+    createdAt: row.createdAt.toISOString(),
+    dueAt: row.dueDate ? row.dueDate.toISOString() : null,
+    actions: [
+      {
+        // The real retry path (docs/66 §66.19): it re-runs the work and reports
+        // the outcome. Patching the status back to `pending` only requeued it,
+        // so the button claimed a retry and then left the founder to trigger it
+        // a second time from the batch runner.
+        kind: "retry",
+        label: "Retry",
+        endpoint: `/v1/commands/tasks/${row.id}/retry`,
+        method: "POST",
+        payload: {}
+      },
+      {
+        kind: "cancel",
+        label: "Cancel task",
+        endpoint: `/v1/tasks/${row.id}`,
+        method: "PATCH",
+        payload: { status: "cancelled" }
+      },
+      askEa(eaName, `Task "${row.title}" failed. Why did it fail and should I retry it?`)
+    ]
+  };
+}
+function classifyCreditAlert(row, eaName) {
+  const meta3 = row.metadata ?? {};
+  const remaining = typeof meta3.remaining === "number" ? meta3.remaining : null;
+  const total = typeof meta3.total === "number" ? meta3.total : null;
+  const impact = remaining !== null && total !== null ? `${remaining} of ${total} credits remaining this period` : null;
+  return {
+    id: `credits:${row.id}`,
+    source: "credits",
+    severity: creditAlertSeverity(row.type),
+    what: creditAlertLabel(row.type),
+    why: row.message,
+    who: null,
+    authority: "Work Credits fund every AI employee action; you decide whether to top up or change the plan.",
+    impact,
+    next: "Acknowledge the alert or review Work Credits.",
+    entity: { type: "credit_alert", id: row.id },
+    createdAt: row.sentAt.toISOString(),
+    dueAt: null,
+    actions: [
+      {
+        kind: "acknowledge",
+        label: "Acknowledge",
+        endpoint: `/v1/credits/alerts/${row.id}/read`,
+        method: "PATCH",
+        payload: {}
+      },
+      askEa(eaName, `Work Credits are running low. Which work should I pause first, and what will a top-up cost?`)
+    ]
+  };
+}
+function classifyGoalDeadline(row, now, eaName) {
+  const due = row.dueDate;
+  const overdue = due.getTime() < now.getTime();
+  const why = overdue ? `Overdue by ${daysSince(due, now)} day${daysSince(due, now) === 1 ? "" : "s"} at ${row.progress}% progress.` : `Due in about ${hoursUntil(due, now)}h at ${row.progress}% progress.`;
+  return {
+    id: `deadline:${row.id}`,
+    source: "deadline",
+    severity: deadlineSeverity(overdue),
+    what: row.title,
+    why,
+    who: null,
+    authority: "You set the deadline; the work can be re-planned or paused.",
+    impact: `${row.progress}% complete`,
+    next: overdue ? "Re-plan the goal or pause it." : "Decide whether the deadline still holds.",
+    entity: { type: "goal", id: row.id },
+    createdAt: row.createdAt.toISOString(),
+    dueAt: due.toISOString(),
+    actions: [
+      {
+        kind: "pause",
+        label: "Pause goal",
+        endpoint: `/v1/goals/${row.id}`,
+        method: "PATCH",
+        payload: { status: "paused" }
+      },
+      askEa(eaName, `Goal "${row.title}" is ${overdue ? "overdue" : "close to its deadline"} at ${row.progress}%. What should change?`)
+    ]
+  };
+}
+function classifyEscalation(row, eaName) {
+  const recommendation = excerpt(row.whatWasDecided, 200);
+  return {
+    id: `escalation:${row.id}`,
+    source: "escalation",
+    severity: "critical",
+    what: row.title,
+    why: recommendation ? `The council flagged this for your approval. Recommendation: ${recommendation}` : "The council flagged this recommendation for your approval.",
+    who: "Decision Council",
+    authority: "The council never executes. Your verdict is the authorisation.",
+    impact: `Council confidence: ${row.confidence}`,
+    next: "Record your verdict on the recommendation.",
+    entity: { type: "decision", id: row.id },
+    createdAt: row.createdAt.toISOString(),
+    dueAt: null,
+    actions: [
+      {
+        kind: "approve",
+        label: "Approve",
+        endpoint: `/v1/decisions/${row.id}`,
+        method: "PATCH",
+        payload: { founderVerdict: "approved" }
+      },
+      {
+        kind: "reject",
+        label: "Reject",
+        endpoint: `/v1/decisions/${row.id}`,
+        method: "PATCH",
+        payload: { founderVerdict: "rejected" }
+      },
+      askEa(eaName, `Walk me through the council recommendation "${row.title}" before I decide.`)
+    ]
+  };
+}
+async function collectAttention(db, orgId, options = {}) {
+  const now = options.now ?? /* @__PURE__ */ new Date();
+  const eaName = options.eaName ?? "the Executive Agent";
+  const limits = { ...DEFAULT_ATTENTION_LIMITS, ...options.limits };
+  const truncated = { any: false };
+  const cap = (rows, limit) => {
+    if (rows.length > limit) {
+      truncated.any = true;
+      return rows.slice(0, limit);
+    }
+    return rows;
+  };
+  const pendingApprovalRows = await db.select({
+    id: approvals.id,
+    action: approvals.action,
+    description: approvals.description,
+    cost: approvals.cost,
+    riskLevel: approvals.riskLevel,
+    createdAt: approvals.createdAt,
+    agentName: agents.name,
+    agentRole: agents.role,
+    taskId: approvals.taskId,
+    toolId: approvals.toolId,
+    taskTitle: tasks.title
+  }).from(approvals).leftJoin(agents, eq(approvals.agentId, agents.id)).leftJoin(tasks, eq(approvals.taskId, tasks.id)).where(and(eq(approvals.orgId, orgId), eq(approvals.status, "pending"))).orderBy(approvals.createdAt).limit(limits.approvals + 1);
+  const approvalItems = cap(pendingApprovalRows, limits.approvals).map((row) => classifyApproval(row, eaName));
+  const openTaskRows = await db.select({
+    id: tasks.id,
+    title: tasks.title,
+    status: tasks.status,
+    priority: tasks.priority,
+    createdAt: tasks.createdAt,
+    updatedAt: tasks.updatedAt,
+    dueDate: tasks.dueDate,
+    agentName: agents.name
+  }).from(tasks).leftJoin(agents, eq(tasks.agentId, agents.id)).where(
+    and(
+      eq(tasks.orgId, orgId),
+      inArray(tasks.priority, ["high", "urgent"]),
+      sql`${tasks.status} NOT IN ('completed', 'failed', 'cancelled')`
+    )
+  ).orderBy(tasks.updatedAt).limit(limits.blocked + 1);
+  const blockedItems = cap(
+    openTaskRows.filter((row) => isBlockedTask(row.updatedAt, now)),
+    limits.blocked
+  ).map((row) => classifyBlockedTask(row, now, eaName));
+  const failureSince = new Date(now.getTime() - FAILURE_REVIEW_DAYS * 24 * 60 * 60 * 1e3);
+  const failedTaskRows = await db.select({
+    id: tasks.id,
+    title: tasks.title,
+    status: tasks.status,
+    priority: tasks.priority,
+    result: tasks.result,
+    createdAt: tasks.createdAt,
+    updatedAt: tasks.updatedAt,
+    dueDate: tasks.dueDate,
+    agentName: agents.name
+  }).from(tasks).leftJoin(agents, eq(tasks.agentId, agents.id)).where(and(eq(tasks.orgId, orgId), eq(tasks.status, "failed"), lt(tasks.updatedAt, now))).orderBy(desc(tasks.updatedAt)).limit(limits.failures + 1);
+  const failureItems = cap(failedTaskRows, limits.failures).map((row) => classifyFailedTask(row, now, eaName));
+  const alertRows = await db.select({
+    id: creditAlerts.id,
+    type: creditAlerts.type,
+    message: creditAlerts.message,
+    sentAt: creditAlerts.sentAt,
+    metadata: creditAlerts.metadata
+  }).from(creditAlerts).where(and(eq(creditAlerts.orgId, orgId), isNull(creditAlerts.readAt))).orderBy(desc(creditAlerts.sentAt)).limit(limits.credits + 1);
+  const creditItems = cap(alertRows, limits.credits).map((row) => classifyCreditAlert({ ...row, metadata: row.metadata }, eaName));
+  const atRiskHorizon = new Date(now.getTime() + AT_RISK_HOURS * 60 * 60 * 1e3);
+  const goalRows = await db.select({
+    id: goals.id,
+    title: goals.title,
+    progress: goals.progress,
+    priority: goals.priority,
+    dueDate: goals.dueDate,
+    createdAt: goals.createdAt
+  }).from(goals).where(
+    and(
+      eq(goals.orgId, orgId),
+      eq(goals.status, "active"),
+      sql`${goals.dueDate} IS NOT NULL`,
+      sql`${goals.dueDate} <= ${atRiskHorizon.toISOString()}`
+    )
+  ).orderBy(goals.dueDate).limit(limits.deadlines + 1);
+  const deadlineItems = cap(
+    goalRows.filter(
+      (row) => row.dueDate !== null && (row.dueDate.getTime() <= now.getTime() || isAtRiskGoal(row.dueDate, row.progress, now, AT_RISK_HOURS, AT_RISK_PROGRESS))
+    ),
+    limits.deadlines
+  ).map((row) => classifyGoalDeadline({ ...row, dueDate: row.dueDate }, now, eaName));
+  const escalationRows = await db.select({
+    id: decisions.id,
+    title: decisions.title,
+    confidence: decisions.confidence,
+    whatWasDecided: decisions.whatWasDecided,
+    createdAt: decisions.createdAt
+  }).from(decisions).where(
+    and(
+      eq(decisions.orgId, orgId),
+      eq(decisions.decisionMakerType, "ai_council"),
+      ne(decisions.status, "pending"),
+      isNull(decisions.founderVerdict),
+      sql`(${decisions.councilDetail} ->> 'requiresFounderApproval') = 'true'`
+    )
+  ).orderBy(desc(decisions.createdAt)).limit(limits.escalations + 1);
+  const escalationItems = cap(escalationRows, limits.escalations).map((row) => classifyEscalation(row, eaName));
+  const merged = [
+    ...approvalItems,
+    ...blockedItems,
+    ...failureItems,
+    ...creditItems,
+    ...deadlineItems,
+    ...escalationItems
+  ].sort(compareAttentionItems);
+  let items = merged;
+  if (merged.length > limits.total) {
+    truncated.any = true;
+    items = merged.slice(0, limits.total);
+  }
+  const summary = summarizeAttention(items);
+  return {
+    items,
+    summary,
+    generatedAt: now.toISOString(),
+    quiet: summary.total === 0,
+    truncated: truncated.any
+  };
+}
+function notifyAttentionChanged(orgId, reason) {
+  broadcastToOrg(orgId, { type: "attention.changed", reason });
+}
+var DEFAULT_ATTENTION_LIMITS, FAILURE_REVIEW_DAYS, ATTENTION_SEVERITY_RANK, ATTENTION_SOURCE_RANK, ATTENTION_SOURCES;
+var init_attention = __esm({
+  "src/services/attention.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_anomaly_detector();
+    init_realtime();
+    DEFAULT_ATTENTION_LIMITS = {
+      approvals: 40,
+      blocked: 25,
+      failures: 25,
+      credits: 10,
+      deadlines: 25,
+      escalations: 25,
+      total: 50
+    };
+    FAILURE_REVIEW_DAYS = 7;
+    ATTENTION_SEVERITY_RANK = {
+      critical: 0,
+      warning: 1,
+      info: 2
+    };
+    ATTENTION_SOURCE_RANK = {
+      approval: 0,
+      permission: 1,
+      escalation: 2,
+      blocked_work: 3,
+      failure: 4,
+      credits: 5,
+      deadline: 6
+    };
+    ATTENTION_SOURCES = [
+      "approval",
+      "permission",
+      "blocked_work",
+      "failure",
+      "credits",
+      "deadline",
+      "escalation"
+    ];
+  }
+});
+
 // src/services/credit-alerts.ts
 var credit_alerts_exports = {};
 __export(credit_alerts_exports, {
@@ -82858,6 +83906,7 @@ async function checkAndAlert(db, orgId, balance, opts) {
       daysRemaining: balance.daysRemaining
     }
   );
+  notifyAttentionChanged(orgId, "credits.alert");
   try {
     await notifyWithPrefs({
       db,
@@ -83026,6 +84075,7 @@ var init_credit_alerts = __esm({
     init_drizzle_orm();
     init_src2();
     init_notification_preferences();
+    init_attention();
     ALERT_THRESHOLDS = {
       /** Below this utilization %, send a warning */
       warning: 80,
@@ -83037,6 +84087,380 @@ var init_credit_alerts = __esm({
       exhausted: 100
     };
     ALERT_COOLDOWN_MS = 4 * 60 * 60 * 1e3;
+  }
+});
+
+// src/services/credits.ts
+async function getOrCreateBalance(db, orgId) {
+  const now = /* @__PURE__ */ new Date();
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const [sub] = await db.select().from(subscriptions).where(
+    and(
+      eq(subscriptions.orgId, orgId),
+      eq(subscriptions.status, "active")
+    )
+  ).limit(1);
+  let subId;
+  let subPlan;
+  let subIncludedCredits;
+  if (sub) {
+    subId = sub.id;
+    subPlan = sub.plan;
+    subIncludedCredits = sub.includedCredits;
+    if (sub.currentPeriodEnd < now) {
+      const includedCredits = PLAN_CREDITS[sub.plan] ?? PLAN_CREDITS.trial;
+      const [newSub] = await db.update(subscriptions).set({
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        includedCredits,
+        updatedAt: now
+      }).where(eq(subscriptions.id, sub.id)).returning();
+      if (newSub) {
+        subIncludedCredits = newSub.includedCredits;
+      }
+      const [existingBalance] = await db.select().from(creditBalances).where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, periodStart)
+        )
+      ).limit(1);
+      if (!existingBalance) {
+        await db.insert(creditBalances).values({
+          orgId,
+          subscriptionId: subId,
+          includedCredits: subIncludedCredits,
+          purchasedCredits: 0,
+          usedCredits: 0,
+          periodStart,
+          periodEnd
+        });
+        await db.insert(creditTransactions).values({
+          orgId,
+          type: "rollover",
+          amount: subIncludedCredits,
+          description: `Monthly credit allocation for ${subPlan} plan`,
+          referenceId: subId,
+          referenceType: "subscription"
+        });
+      }
+    }
+  } else {
+    const [created] = await db.insert(subscriptions).values({
+      orgId,
+      plan: "trial",
+      billingCycle: "monthly",
+      status: "active",
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+      includedCredits: PLAN_CREDITS.trial,
+      maxAgents: 3
+    }).returning();
+    subId = created.id;
+    subPlan = "trial";
+    subIncludedCredits = PLAN_CREDITS.trial ?? 100;
+    await db.insert(creditBalances).values({
+      orgId,
+      subscriptionId: subId,
+      includedCredits: subIncludedCredits,
+      purchasedCredits: 0,
+      usedCredits: 0,
+      periodStart,
+      periodEnd
+    });
+  }
+  let [balance] = await db.select().from(creditBalances).where(
+    and(
+      eq(creditBalances.orgId, orgId),
+      gte(creditBalances.periodStart, periodStart),
+      lte(creditBalances.periodEnd, periodEnd)
+    )
+  ).limit(1);
+  if (!balance) {
+    const [created] = await db.insert(creditBalances).values({
+      orgId,
+      subscriptionId: subId,
+      includedCredits: subIncludedCredits,
+      purchasedCredits: 0,
+      usedCredits: 0,
+      periodStart,
+      periodEnd
+    }).returning();
+    balance = created;
+  }
+  const total = balance.includedCredits + balance.purchasedCredits;
+  const remaining = total - balance.usedCredits;
+  const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1e3 * 60 * 60 * 24)));
+  return {
+    orgId,
+    included: balance.includedCredits,
+    purchased: balance.purchasedCredits,
+    used: balance.usedCredits,
+    remaining,
+    total,
+    utilizationPercent: total > 0 ? Math.round(balance.usedCredits / total * 100) : 0,
+    periodStart: balance.periodStart,
+    periodEnd: balance.periodEnd,
+    daysRemaining,
+    isLow: remaining > 0 && remaining / total < 0.2,
+    isCritical: remaining > 0 && remaining / total < 0.05
+  };
+}
+async function hasEnoughCredits(db, orgId, operationType = "default") {
+  const balance = await getOrCreateBalance(db, orgId);
+  const required2 = OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default;
+  return {
+    allowed: balance.remaining >= required2,
+    balance,
+    required: required2
+  };
+}
+async function consumeCredits(db, orgId, operationType, description, referenceId, referenceType, options = {}) {
+  const balance = await getOrCreateBalance(db, orgId);
+  const cost = options.amount !== void 0 ? Math.max(0, Math.round(options.amount)) : OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default;
+  if (cost === 0) return { balance, consumed: 0 };
+  if (balance.remaining < cost) {
+    throw new CreditExhaustedError(orgId, balance.remaining, cost, operationType);
+  }
+  const total = balance.included + balance.purchased;
+  const result = await db.update(creditBalances).set({
+    usedCredits: balance.used + cost,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(
+    and(
+      eq(creditBalances.orgId, orgId),
+      gte(creditBalances.periodStart, balance.periodStart),
+      // Atomic guard: only update if we won't overspend
+      sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`
+    )
+  ).returning();
+  if (result.length === 0) {
+    throw new CreditExhaustedError(orgId, 0, cost, operationType);
+  }
+  await db.insert(creditTransactions).values({
+    orgId,
+    type: "usage",
+    amount: -cost,
+    description,
+    referenceId: referenceId ?? null,
+    referenceType: referenceType ?? null
+  });
+  await appendAudit(db, {
+    orgId,
+    actorType: "system",
+    action: "credits.consumed",
+    outcome: "success",
+    cost: cost ?? 0
+  });
+  const updatedBalance = await getOrCreateBalance(db, orgId);
+  try {
+    const { checkAndAlert: checkAndAlert2 } = await Promise.resolve().then(() => (init_credit_alerts(), credit_alerts_exports));
+    await checkAndAlert2(db, orgId, updatedBalance);
+  } catch {
+  }
+  return { balance: updatedBalance, consumed: cost };
+}
+async function addPurchasedCredits(db, orgId, amount, description = "Credit top-up") {
+  const balance = await getOrCreateBalance(db, orgId);
+  await db.update(creditBalances).set({
+    purchasedCredits: balance.purchased + amount,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(
+    and(
+      eq(creditBalances.orgId, orgId),
+      gte(creditBalances.periodStart, balance.periodStart)
+    )
+  );
+  await db.insert(creditTransactions).values({
+    orgId,
+    type: "purchase",
+    amount: amount ?? 0,
+    description
+  });
+  await appendAudit(db, {
+    orgId,
+    actorType: "system",
+    action: "credits.purchased",
+    outcome: "success",
+    cost: amount ?? 0
+  });
+  return getOrCreateBalance(db, orgId);
+}
+async function getTransactionHistory(db, orgId, limit = 50, offset = 0) {
+  return db.select().from(creditTransactions).where(eq(creditTransactions.orgId, orgId)).orderBy(desc(creditTransactions.createdAt)).limit(limit).offset(offset);
+}
+async function getUsageSummary(db, orgId) {
+  const balance = await getOrCreateBalance(db, orgId);
+  const transactions = await db.select().from(creditTransactions).where(
+    and(
+      eq(creditTransactions.orgId, orgId),
+      eq(creditTransactions.type, "usage"),
+      gte(creditTransactions.createdAt, balance.periodStart),
+      lte(creditTransactions.createdAt, balance.periodEnd)
+    )
+  ).orderBy(desc(creditTransactions.createdAt));
+  const byOperationMap = /* @__PURE__ */ new Map();
+  for (const tx of transactions) {
+    const key = tx.description?.split(":")[0] ?? "unknown";
+    const existing = byOperationMap.get(key) ?? { count: 0, totalCost: 0 };
+    existing.count += 1;
+    existing.totalCost += Math.abs(tx.amount);
+    byOperationMap.set(key, existing);
+  }
+  const byOperation = Array.from(byOperationMap.entries()).map(([type, data]) => ({
+    type,
+    ...data
+  }));
+  const dailyMap = /* @__PURE__ */ new Map();
+  for (const tx of transactions) {
+    const date6 = tx.createdAt.toISOString().split("T")[0] ?? "unknown";
+    dailyMap.set(date6, (dailyMap.get(date6) ?? 0) + Math.abs(tx.amount));
+  }
+  const dailyUsage = Array.from(dailyMap.entries()).map(([date6, cost]) => ({ date: date6, cost })).sort((a, b) => a.date.localeCompare(b.date));
+  return {
+    totalUsed: balance.used,
+    byOperation,
+    byAgent: [],
+    dailyUsage,
+    period: { start: balance.periodStart, end: balance.periodEnd }
+  };
+}
+var PLAN_CREDITS, OPERATION_COSTS, CreditExhaustedError;
+var init_credits = __esm({
+  "src/services/credits.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_audit();
+    PLAN_CREDITS = {
+      trial: 100,
+      founder: 1e3,
+      team: 4e3,
+      company: 12e3,
+      enterprise: 5e4
+    };
+    OPERATION_COSTS = {
+      // Low-cost operations
+      "task.planned": 1,
+      "task.created": 1,
+      "research.quick": 1,
+      "analysis.quick": 1,
+      // Standard operations
+      "task.executed": 2,
+      "task.research": 2,
+      "task.write": 2,
+      "task.plan": 2,
+      "task.analyze": 2,
+      "task.communicate": 2,
+      "task.execute": 2,
+      "task.report": 2,
+      "task.manage": 2,
+      "research.standard": 2,
+      "analysis.standard": 2,
+      "writing.standard": 2,
+      "planning.standard": 2,
+      // High-cost operations
+      "research.deep": 5,
+      "analysis.deep": 5,
+      "writing.long": 5,
+      "code.generation": 5,
+      "code.review": 3,
+      // Communication (external = more expensive)
+      "communication.internal": 2,
+      "communication.external": 5,
+      // Default
+      "default": 2
+    };
+    CreditExhaustedError = class extends Error {
+      constructor(orgId, remaining, required2, operationType) {
+        super(
+          `Work Credits exhausted: ${remaining} remaining, ${required2} required for "${operationType}". Upgrade your plan or purchase additional credits.`
+        );
+        this.orgId = orgId;
+        this.remaining = remaining;
+        this.required = required2;
+        this.operationType = operationType;
+        this.name = "CreditExhaustedError";
+      }
+      orgId;
+      remaining;
+      required;
+      operationType;
+    };
+  }
+});
+
+// src/services/autonomy.ts
+function normalizeAutonomyLevel(value) {
+  return typeof value === "string" && AUTONOMY_LEVELS.includes(value) ? value : "execute_with_approval";
+}
+function enforceAutonomy(level, action) {
+  const rank = LEVEL_RANK[level];
+  switch (action) {
+    case "task_execute":
+      if (rank < 1) {
+        return { allowed: false, reason: "This agent is in observe mode and cannot execute tasks.", requiresApproval: false };
+      }
+      if (level === "recommend") {
+        return { allowed: true, reason: "This agent may execute internal tasks; results are recommendations.", requiresApproval: true };
+      }
+      return { allowed: true, reason: "Task execution permitted at this autonomy level.", requiresApproval: false };
+    case "connector_read":
+      return { allowed: true, reason: "Read-only observation of external systems is permitted at every level.", requiresApproval: false };
+    case "draft_external":
+      if (rank < 2) {
+        return { allowed: false, reason: "This agent cannot create external drafts below draft level.", requiresApproval: false };
+      }
+      return { allowed: true, reason: "Draft creation permitted \u2014 nothing is sent or published without approval.", requiresApproval: false };
+    case "connector_action":
+      if (rank < 3) {
+        return { allowed: false, reason: "This agent cannot act in external systems below execute-with-approval level.", requiresApproval: false };
+      }
+      if (level === "execute_with_approval") {
+        return { allowed: true, reason: "External action permitted with founder approval.", requiresApproval: true };
+      }
+      return { allowed: true, reason: "External action permitted at autonomous level.", requiresApproval: false };
+    case "external_communicate":
+      if (rank < 3) {
+        return { allowed: false, reason: "This agent cannot communicate externally below execute-with-approval level.", requiresApproval: false };
+      }
+      if (level === "execute_with_approval") {
+        return { allowed: true, reason: "External communication permitted with founder approval.", requiresApproval: true };
+      }
+      return { allowed: true, reason: "External communication permitted at autonomous level.", requiresApproval: false };
+    case "modify_resources":
+      if (rank < 4) {
+        return { allowed: false, reason: "This agent cannot modify organizational resources below autonomous level.", requiresApproval: true };
+      }
+      return { allowed: true, reason: "Resource modification permitted at autonomous level.", requiresApproval: false };
+  }
+}
+function autonomyLabel(level) {
+  switch (level) {
+    case "observe":
+      return "Observe \u2014 read and research only";
+    case "recommend":
+      return "Recommend \u2014 executes internally, results are advisory";
+    case "draft":
+      return "Draft \u2014 can draft external content, never sends";
+    case "execute_with_approval":
+      return "Execute with approval \u2014 consequential actions need the founder";
+    case "autonomous":
+      return "Autonomous \u2014 full execution within constitution and budget";
+  }
+}
+var AUTONOMY_LEVELS, LEVEL_RANK;
+var init_autonomy = __esm({
+  "src/services/autonomy.ts"() {
+    "use strict";
+    AUTONOMY_LEVELS = ["observe", "recommend", "draft", "execute_with_approval", "autonomous"];
+    LEVEL_RANK = {
+      observe: 0,
+      recommend: 1,
+      draft: 2,
+      execute_with_approval: 3,
+      autonomous: 4
+    };
   }
 });
 
@@ -83655,99 +85079,6 @@ var init_teams = __esm({
   }
 });
 
-// src/services/realtime.ts
-function registerRealtimeEndpoint(app, deps) {
-  app.get("/v1/events", async (request, reply) => {
-    const { requireAuth: requireAuth2 } = await Promise.resolve().then(() => (init_auth(), auth_exports));
-    const ctx = await requireAuth2(request, deps);
-    const mine = [];
-    for (const clients of connections.values()) {
-      for (const c of clients) {
-        if (c.userId === ctx.userId) mine.push(c);
-      }
-    }
-    mine.sort((a, b) => a.connectedAt.getTime() - b.connectedAt.getTime());
-    if (mine.length >= MAX_CONNECTIONS_PER_USER) {
-      const evictCount = mine.length - MAX_CONNECTIONS_PER_USER + 1;
-      for (const dead of mine.slice(0, evictCount)) {
-        dead.alive = false;
-        for (const clients of connections.values()) clients.delete(dead);
-      }
-      for (const [orgId, clients] of connections) {
-        if (clients.size === 0) connections.delete(orgId);
-      }
-    }
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no"
-      // Disable nginx buffering
-    });
-    const client = {
-      reply,
-      orgId: ctx.orgId,
-      userId: ctx.userId,
-      connectedAt: /* @__PURE__ */ new Date(),
-      alive: true
-    };
-    const orgClients = connections.get(ctx.orgId) ?? /* @__PURE__ */ new Set();
-    orgClients.add(client);
-    connections.set(ctx.orgId, orgClients);
-    let cleanedUp = false;
-    const cleanup = () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      clearInterval(heartbeatInterval);
-      orgClients.delete(client);
-      if (orgClients.size === 0) {
-        connections.delete(ctx.orgId);
-      }
-    };
-    const sendEvent = (event) => {
-      if (!client.alive) return;
-      try {
-        reply.raw.write(`data: ${JSON.stringify(event)}
-
-`);
-      } catch {
-        client.alive = false;
-        cleanup();
-      }
-    };
-    sendEvent({ type: "heartbeat", timestamp: Date.now() });
-    const heartbeatInterval = setInterval(() => {
-      sendEvent({ type: "heartbeat", timestamp: Date.now() });
-    }, 3e4);
-    request.raw.on("close", cleanup);
-    reply.raw.on("error", cleanup);
-  });
-}
-function broadcastToOrg(orgId, event) {
-  const orgClients = connections.get(orgId);
-  if (!orgClients || orgClients.size === 0) return;
-  const payload = `data: ${JSON.stringify(event)}
-
-`;
-  for (const client of [...orgClients]) {
-    if (!client.alive) continue;
-    try {
-      client.reply.raw.write(payload);
-    } catch {
-      client.alive = false;
-      orgClients.delete(client);
-    }
-  }
-}
-var connections, MAX_CONNECTIONS_PER_USER;
-var init_realtime = __esm({
-  "src/services/realtime.ts"() {
-    "use strict";
-    connections = /* @__PURE__ */ new Map();
-    MAX_CONNECTIONS_PER_USER = 8;
-  }
-});
-
 // src/services/emergency-stop.ts
 var emergency_stop_exports = {};
 __export(emergency_stop_exports, {
@@ -83884,6 +85215,3398 @@ var init_emergency_stop = __esm({
   }
 });
 
+// src/services/llm-tracer.ts
+function traceId() {
+  traceCounter++;
+  return `trace_${Date.now()}_${traceCounter}`;
+}
+function startTrace(params) {
+  const id = traceId();
+  const startedAt = /* @__PURE__ */ new Date();
+  const entry = {
+    id,
+    orgId: params.orgId,
+    commandId: params.commandId,
+    taskId: params.taskId,
+    agentId: params.agentId,
+    phase: params.phase,
+    model: params.model ?? "unknown",
+    provider: params.provider ?? extractProvider(params.model),
+    startedAt,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    success: false,
+    retryAttempt: params.retryAttempt ?? 0,
+    maxRetries: params.maxRetries ?? 2,
+    temperature: params.temperature ?? 0.7,
+    maxTokens: params.maxTokens ?? 2048,
+    routingSource: params.routingSource ?? "default"
+  };
+  recentTraces.push(entry);
+  if (recentTraces.length > MAX_RECENT_TRACES) {
+    recentTraces.shift();
+  }
+  return { traceId: id, startedAt };
+}
+function endTrace(traceId2, result) {
+  const entry = recentTraces.find((t) => t.id === traceId2);
+  if (!entry) return;
+  entry.completedAt = /* @__PURE__ */ new Date();
+  entry.durationMs = entry.completedAt.getTime() - entry.startedAt.getTime();
+  entry.success = result.success;
+  entry.promptTokens = result.promptTokens ?? 0;
+  entry.completionTokens = result.completionTokens ?? 0;
+  entry.totalTokens = result.totalTokens ?? 0;
+  entry.error = result.error;
+  entry.responsePreview = result.responsePreview?.slice(0, 200);
+  if (result.model) entry.model = result.model;
+}
+async function persistTrace(db, trace) {
+  if (!trace.completedAt) return;
+  const summary = [
+    `[${trace.phase}]`,
+    trace.success ? "\u2705" : "\u274C",
+    `${trace.model}`,
+    `${trace.durationMs}ms`,
+    `${trace.totalTokens} tokens`,
+    trace.retryAttempt > 0 ? `(retry ${trace.retryAttempt}/${trace.maxRetries})` : ""
+  ].filter(Boolean).join(" ");
+  try {
+    await db.insert(activityEvents).values({
+      orgId: trace.orgId,
+      agentId: trace.agentId ?? null,
+      taskId: trace.taskId ?? null,
+      type: trace.success ? "llm.success" : "llm.error",
+      summary,
+      reason: trace.error ?? `LLM call completed in ${trace.durationMs}ms`,
+      cost: Math.max(0, Math.ceil(trace.totalTokens / 1e3)),
+      department: null
+    });
+  } catch {
+  }
+  try {
+    await db.insert(llmPerformance).values({
+      orgId: trace.orgId,
+      phase: trace.phase,
+      model: trace.model,
+      provider: trace.provider,
+      agentId: trace.agentId ?? null,
+      taskId: trace.taskId ?? null,
+      success: trace.success,
+      error: trace.error ?? null,
+      durationMs: trace.durationMs ?? null,
+      promptTokens: trace.promptTokens,
+      completionTokens: trace.completionTokens,
+      totalTokens: trace.totalTokens,
+      retryAttempt: trace.retryAttempt,
+      routingSource: trace.routingSource ?? "default"
+    });
+  } catch {
+  }
+}
+function getTraceById(traceId2) {
+  return recentTraces.find((t) => t.id === traceId2);
+}
+function getRecentTraces(orgId, limit = 50) {
+  return recentTraces.filter((t) => t.orgId === orgId).slice(-limit);
+}
+function getTraceSummary(orgId) {
+  const traces = recentTraces.filter((t) => t.orgId === orgId && t.completedAt);
+  const totalCalls = traces.length;
+  const successfulCalls = traces.filter((t) => t.success).length;
+  const failedCalls = totalCalls - successfulCalls;
+  const totalTokens = traces.reduce((sum2, t) => sum2 + t.totalTokens, 0);
+  const totalDurationMs = traces.reduce((sum2, t) => sum2 + (t.durationMs ?? 0), 0);
+  const averageDurationMs = totalCalls > 0 ? totalDurationMs / totalCalls : 0;
+  const tokensPerSecond = totalDurationMs > 0 ? totalTokens / (totalDurationMs / 1e3) : 0;
+  const byPhase = {};
+  const byModel = {};
+  for (const t of traces) {
+    let phaseEntry = byPhase[t.phase];
+    if (!phaseEntry) {
+      phaseEntry = { calls: 0, tokens: 0, avgDurationMs: 0 };
+      byPhase[t.phase] = phaseEntry;
+    }
+    phaseEntry.calls++;
+    phaseEntry.tokens += t.totalTokens;
+    phaseEntry.avgDurationMs += t.durationMs ?? 0;
+    let modelEntry = byModel[t.model];
+    if (!modelEntry) {
+      modelEntry = { calls: 0, tokens: 0 };
+      byModel[t.model] = modelEntry;
+    }
+    modelEntry.calls++;
+    modelEntry.tokens += t.totalTokens;
+  }
+  for (const phase of Object.values(byPhase)) {
+    phase.avgDurationMs = phase.calls > 0 ? phase.avgDurationMs / phase.calls : 0;
+  }
+  const retryCalls = traces.filter((t) => t.retryAttempt > 0).length;
+  return {
+    totalCalls,
+    successfulCalls,
+    failedCalls,
+    totalTokens,
+    totalDurationMs,
+    averageDurationMs,
+    tokensPerSecond,
+    byPhase,
+    byModel,
+    retryRate: totalCalls > 0 ? retryCalls / totalCalls : 0,
+    errorRate: totalCalls > 0 ? failedCalls / totalCalls : 0
+  };
+}
+function extractProvider(model) {
+  if (!model) return "unknown";
+  const lower = model.toLowerCase();
+  if (lower.includes("gpt") || lower.includes("o1") || lower.includes("o3")) return "openai";
+  if (lower.includes("claude")) return "anthropic";
+  if (lower.includes("llama") || lower.includes("mistral") || lower.includes("mixtral")) return "meta";
+  if (lower.includes("gemini")) return "google";
+  return "litellm";
+}
+var recentTraces, MAX_RECENT_TRACES, traceCounter;
+var init_llm_tracer = __esm({
+  "src/services/llm-tracer.ts"() {
+    "use strict";
+    init_src2();
+    recentTraces = [];
+    MAX_RECENT_TRACES = 200;
+    traceCounter = 0;
+  }
+});
+
+// src/services/model-router.ts
+function uniqueKeys(keys2) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const k of keys2) {
+    const trimmed = k?.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      out.push(trimmed);
+    }
+  }
+  return out;
+}
+function keySuffix(key) {
+  return key.slice(-6);
+}
+function isConfiguredProvider(provider) {
+  if (!provider) return false;
+  return provider.keys.length > 0 || provider.requiresAuth === false;
+}
+function modelSatisfiesRequirements(model, requirements) {
+  for (const cap of requirements.requiredCapabilities) {
+    if (!model.capabilities.includes(cap)) return false;
+  }
+  if (requirements.minContextWindow && model.contextWindow < requirements.minContextWindow) {
+    return false;
+  }
+  if (requirements.maxCostPer1k && model.costPer1kInput > requirements.maxCostPer1k) {
+    return false;
+  }
+  if (requirements.needsStructuredOutput && !model.supportsStructuredOutput) {
+    return false;
+  }
+  if (requirements.needsToolCalling && !model.supportsToolCalling) {
+    return false;
+  }
+  return true;
+}
+function scoreModel(model, requirements) {
+  let score = 0;
+  if (!modelSatisfiesRequirements(model, requirements)) return -1;
+  if (requirements.preferredCapabilities) {
+    for (const cap of requirements.preferredCapabilities) {
+      if (model.capabilities.includes(cap)) score += 10;
+    }
+  }
+  if (requirements.speedPreference && requirements.speedPreference !== "any") {
+    if (model.speedRating === requirements.speedPreference) score += 5;
+  }
+  score += Math.max(0, 10 - model.costPer1kInput * 1e3);
+  if (model.contextWindow >= 1e5) score += 3;
+  else if (model.contextWindow >= 32e3) score += 2;
+  else if (model.contextWindow >= 8e3) score += 1;
+  return score;
+}
+async function readProviderError(response) {
+  try {
+    const text2 = await response.text();
+    if (!text2) return "";
+    try {
+      const parsed = JSON.parse(text2);
+      const err = parsed.error;
+      if (typeof err === "string") return err;
+      if (err?.message) {
+        return typeof err.code !== "undefined" ? `${err.message} (code ${err.code})` : err.message;
+      }
+      if (parsed.message) return parsed.message;
+    } catch {
+    }
+    return text2.replace(/\s+/g, " ").slice(0, 300);
+  } catch {
+    return "";
+  }
+}
+function getModelRouter(config2) {
+  if (!routerInstance) {
+    routerInstance = new ModelRouter(config2);
+  }
+  return routerInstance;
+}
+function resetModelRouter() {
+  routerInstance = null;
+}
+var PROVIDER_PRIORITY, MODEL_REGISTRY, ModelRouter, NvidiaAdapter, OpenRouterAdapter, LiteLLMAdapter, OllamaAdapter, routerInstance;
+var init_model_router = __esm({
+  "src/services/model-router.ts"() {
+    "use strict";
+    PROVIDER_PRIORITY = [
+      "openrouter",
+      "nvidia",
+      "litellm",
+      "ollama"
+    ];
+    MODEL_REGISTRY = [
+      // NVIDIA models
+      {
+        id: "nvidia/nemotron-3-super-120b-a12b",
+        provider: "nvidia",
+        displayName: "Nemotron 3 Super 120B",
+        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research"],
+        contextWindow: 128e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: true,
+        supportsStructuredOutput: true,
+        supportsVision: false,
+        costPer1kInput: 35e-5,
+        costPer1kOutput: 14e-4,
+        speedRating: "medium",
+        status: "available"
+      },
+      {
+        id: "nvidia/nemotron-3.5-lightning-30b-a3b",
+        provider: "nvidia",
+        displayName: "Nemotron 3.5 Lightning 30B",
+        capabilities: ["fast_response", "summarization", "structured_output"],
+        contextWindow: 32e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: false,
+        supportsStructuredOutput: true,
+        supportsVision: false,
+        costPer1kInput: 14e-5,
+        costPer1kOutput: 56e-5,
+        speedRating: "fast",
+        status: "available"
+      },
+      {
+        id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        provider: "nvidia",
+        displayName: "Nemotron 3 Nano Omni 30B (Reasoning)",
+        capabilities: ["reasoning", "coding", "research"],
+        contextWindow: 32e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: false,
+        supportsStructuredOutput: false,
+        supportsVision: false,
+        costPer1kInput: 14e-5,
+        costPer1kOutput: 56e-5,
+        speedRating: "medium",
+        status: "available"
+      },
+      {
+        id: "meta/llama-3.2-11b-vision-instruct",
+        provider: "nvidia",
+        displayName: "Llama 3.2 11B Vision",
+        capabilities: ["vision", "summarization", "fast_response"],
+        contextWindow: 128e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: false,
+        supportsStructuredOutput: false,
+        supportsVision: true,
+        costPer1kInput: 14e-5,
+        costPer1kOutput: 56e-5,
+        speedRating: "fast",
+        status: "available"
+      },
+      // OpenRouter models (popular choices)
+      {
+        id: "anthropic/claude-3.5-sonnet",
+        provider: "openrouter",
+        displayName: "Claude 3.5 Sonnet",
+        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research", "creative_writing"],
+        contextWindow: 2e5,
+        maxOutput: 8192,
+        supportsStreaming: true,
+        supportsToolCalling: true,
+        supportsStructuredOutput: true,
+        supportsVision: true,
+        costPer1kInput: 3e-3,
+        costPer1kOutput: 0.015,
+        speedRating: "medium",
+        status: "available"
+      },
+      {
+        id: "openai/gpt-4o",
+        provider: "openrouter",
+        displayName: "GPT-4o",
+        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research", "vision"],
+        contextWindow: 128e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: true,
+        supportsStructuredOutput: true,
+        supportsVision: true,
+        costPer1kInput: 25e-4,
+        costPer1kOutput: 0.01,
+        speedRating: "medium",
+        status: "available"
+      },
+      {
+        id: "openai/gpt-4o-mini",
+        provider: "openrouter",
+        displayName: "GPT-4o Mini",
+        capabilities: ["fast_response", "structured_output", "summarization"],
+        contextWindow: 128e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: true,
+        supportsStructuredOutput: true,
+        supportsVision: true,
+        costPer1kInput: 15e-5,
+        costPer1kOutput: 6e-4,
+        speedRating: "fast",
+        status: "available"
+      },
+      {
+        id: "google/gemini-2.0-flash-001",
+        provider: "openrouter",
+        displayName: "Gemini 2.0 Flash",
+        capabilities: ["fast_response", "reasoning", "vision", "structured_output"],
+        contextWindow: 1048576,
+        maxOutput: 8192,
+        supportsStreaming: true,
+        supportsToolCalling: true,
+        supportsStructuredOutput: true,
+        supportsVision: true,
+        costPer1kInput: 75e-6,
+        costPer1kOutput: 3e-4,
+        speedRating: "fast",
+        status: "available"
+      },
+      {
+        id: "meta-llama/llama-3.1-70b-instruct",
+        provider: "openrouter",
+        displayName: "Llama 3.1 70B",
+        capabilities: ["reasoning", "coding", "research", "structured_output"],
+        contextWindow: 128e3,
+        maxOutput: 4096,
+        supportsStreaming: true,
+        supportsToolCalling: false,
+        supportsStructuredOutput: true,
+        supportsVision: false,
+        costPer1kInput: 52e-5,
+        costPer1kOutput: 75e-5,
+        speedRating: "medium",
+        status: "available"
+      }
+    ];
+    ModelRouter = class {
+      providers = /* @__PURE__ */ new Map();
+      modelRegistry = /* @__PURE__ */ new Map();
+      constructor(config2) {
+        for (const model of MODEL_REGISTRY) {
+          this.modelRegistry.set(model.id, model);
+        }
+        this.initializeProviders(config2);
+      }
+      /**
+       * Initialize providers from configuration.
+       */
+      initializeProviders(config2) {
+        const nvidiaKeys = uniqueKeys([
+          config2.NVIDIA_API_KEY,
+          ...config2.NVIDIA_API_KEYS?.split(",").map((k) => k.trim()) ?? []
+        ]);
+        if (nvidiaKeys.length > 0) {
+          const nvidiaModels = MODEL_REGISTRY.filter((m) => m.provider === "nvidia");
+          const defaultModel = config2.NVIDIA_MODEL || nvidiaModels[0]?.id || "";
+          const fallbacks = (config2.NVIDIA_MODEL_FALLBACKS?.split(",").map((m) => m.trim()) ?? []).filter((m) => m !== defaultModel);
+          this.providers.set("nvidia", new NvidiaAdapter(
+            config2.NVIDIA_BASE_URL,
+            nvidiaKeys,
+            defaultModel,
+            fallbacks,
+            config2
+          ));
+        }
+        const openrouterKeys = uniqueKeys([
+          config2.OPENROUTER_API_KEY,
+          ...config2.OPENROUTER_API_KEYS?.split(",").map((k) => k.trim()) ?? []
+        ]);
+        if (openrouterKeys.length > 0) {
+          const openrouterModels = MODEL_REGISTRY.filter((m) => m.provider === "openrouter");
+          const defaultModel = config2.OPENROUTER_MODEL || openrouterModels[0]?.id || "";
+          const fallbacks = (config2.OPENROUTER_MODEL_FALLBACKS?.split(",").map((m) => m.trim()) ?? []).filter((m) => m !== defaultModel);
+          this.providers.set("openrouter", new OpenRouterAdapter(
+            config2.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+            openrouterKeys,
+            defaultModel,
+            fallbacks,
+            config2
+          ));
+        }
+        if (config2.LITELLM_BASE_URL) {
+          this.providers.set("litellm", new LiteLLMAdapter(
+            config2.LITELLM_BASE_URL,
+            [config2.LITELLM_MASTER_KEY ?? "sk-orq8-dev-litellm"],
+            "llama3.2",
+            [],
+            config2
+          ));
+        }
+        if (config2.OLLAMA_BASE_URL) {
+          this.providers.set("ollama", new OllamaAdapter(
+            config2.OLLAMA_BASE_URL,
+            [],
+            config2.OLLAMA_MODEL || "llama3.1",
+            [],
+            config2
+          ));
+        }
+      }
+      /**
+       * Get the ordered list of providers (priority order).
+       */
+      getProviderChain() {
+        const chain = [];
+        for (const id of PROVIDER_PRIORITY) {
+          const provider = this.providers.get(id);
+          if (isConfiguredProvider(provider)) {
+            chain.push(provider);
+          }
+        }
+        return chain;
+      }
+      /**
+       * Select the best model for a task based on requirements.
+       * Returns the model definition and provider.
+       */
+      selectModel(requirements) {
+        const chain = this.getProviderChain();
+        let bestScore = -1;
+        let bestModel = null;
+        let bestProvider = null;
+        for (const provider of chain) {
+          for (const modelDef of provider.models) {
+            const score = scoreModel(modelDef, requirements);
+            if (score > bestScore) {
+              bestScore = score;
+              bestModel = modelDef;
+              bestProvider = provider;
+            }
+          }
+        }
+        if (bestModel && bestProvider) {
+          return { model: bestModel, provider: bestProvider };
+        }
+        return null;
+      }
+      /**
+       * Execute a chat completion through the router.
+       * Handles provider fallback, key rotation, and error recovery.
+       */
+      async complete(options) {
+        const chain = this.getProviderChain();
+        if (chain.length === 0) {
+          return {
+            response: null,
+            provider: "openrouter",
+            model: options.model || "unknown",
+            keySuffix: "",
+            latencyMs: 0,
+            fallbacksUsed: 0,
+            error: "No providers configured"
+          };
+        }
+        let targetModel = options.model;
+        let targetProvider;
+        if (targetModel) {
+          for (const provider of chain) {
+            const modelDef = provider.models.find((m) => m.id === targetModel);
+            if (modelDef) {
+              targetProvider = provider;
+              break;
+            }
+          }
+        }
+        const hintedProvider = options.providerHint ? this.providers.get(options.providerHint) : void 0;
+        const hintedIsUsable = isConfiguredProvider(hintedProvider);
+        if (!targetProvider && options.requirements) {
+          const selected = this.selectModel(options.requirements);
+          if (selected) {
+            targetModel = selected.model.id;
+            targetProvider = selected.provider;
+          }
+        }
+        if (!targetProvider && hintedIsUsable) {
+          targetProvider = hintedProvider;
+          targetModel = targetModel || hintedProvider.defaultModel;
+        }
+        if (!targetProvider && chain.length > 0) {
+          targetProvider = chain[0];
+          targetModel = targetModel || chain[0]?.defaultModel;
+        }
+        const attempts = [];
+        const pinnedModel = Boolean(options.model);
+        if (targetModel && targetProvider) {
+          attempts.push({ provider: targetProvider, model: targetModel });
+          for (const fallback of targetProvider.modelFallbacks) {
+            if (fallback !== targetModel) {
+              attempts.push({ provider: targetProvider, model: fallback });
+            }
+          }
+        }
+        if (!pinnedModel) {
+          for (const provider of chain) {
+            if (!targetProvider || provider.id !== targetProvider.id) {
+              attempts.push({ provider, model: provider.defaultModel });
+            }
+          }
+        }
+        let fallbacksUsed = 0;
+        let lastError = "";
+        const attemptLog = [];
+        for (const attempt of attempts) {
+          const startTime = Date.now();
+          try {
+            const result = await attempt.provider.complete({
+              model: attempt.model,
+              messages: options.messages,
+              temperature: options.temperature,
+              max_tokens: options.max_tokens,
+              response_format: options.response_format
+            });
+            const latencyMs = Date.now() - startTime;
+            if (result.response) {
+              attempt.provider.recordSuccess(result.keyUsed, latencyMs);
+              attemptLog.push({ provider: attempt.provider.id, model: attempt.model });
+              return {
+                response: result.response,
+                provider: attempt.provider.id,
+                model: attempt.model,
+                keySuffix: result.keyUsed,
+                latencyMs,
+                fallbacksUsed,
+                attempts: attemptLog
+              };
+            }
+            if (result.error) {
+              attempt.provider.recordFailure(result.keyUsed, result.error);
+              lastError = result.error;
+              attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: result.error });
+            } else {
+              attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: "empty response" });
+            }
+            fallbacksUsed++;
+          } catch (err) {
+            const latencyMs = Date.now() - startTime;
+            const errorMsg = err instanceof Error ? err.message : "unknown error";
+            lastError = errorMsg;
+            attemptLog.push({ provider: attempt.provider.id, model: attempt.model, error: errorMsg });
+            fallbacksUsed++;
+          }
+        }
+        return {
+          response: null,
+          provider: targetProvider?.id ?? chain[0]?.id ?? "openrouter",
+          model: targetModel || "unknown",
+          keySuffix: "",
+          latencyMs: 0,
+          fallbacksUsed,
+          attempts: attemptLog,
+          error: lastError || "All providers failed"
+        };
+      }
+      /**
+       * Get health status of all providers.
+       */
+      getHealthStatus() {
+        const result = [];
+        for (const [id, adapter] of this.providers) {
+          const keyStates = adapter.getKeyStates();
+          const healthyKeys = keyStates.filter((k) => k.health === "healthy").length;
+          result.push({
+            provider: id,
+            label: adapter.label,
+            healthy: healthyKeys > 0,
+            keys: keyStates,
+            models: adapter.models.map((m) => m.id)
+          });
+        }
+        return result;
+      }
+      /**
+       * Get the model registry.
+       */
+      getModelRegistry() {
+        return Array.from(this.modelRegistry.values());
+      }
+    };
+    NvidiaAdapter = class {
+      id = "nvidia";
+      label = "NVIDIA NIM";
+      baseUrl;
+      keys;
+      models;
+      defaultModel;
+      modelFallbacks;
+      keyStates = /* @__PURE__ */ new Map();
+      keyCursor = 0;
+      config;
+      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
+        this.baseUrl = baseUrl;
+        this.keys = keys2;
+        this.defaultModel = defaultModel;
+        this.modelFallbacks = modelFallbacks;
+        this.config = config2;
+        for (const key of keys2) {
+          const suffix = keySuffix(key);
+          this.keyStates.set(suffix, {
+            suffix,
+            enabled: true,
+            health: "healthy",
+            inFlight: 0,
+            lastSuccess: null,
+            lastFailure: null,
+            failureCount: 0,
+            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
+            cooldownUntil: null,
+            latencyMs: 0,
+            successRate: 1
+          });
+        }
+        this.models = MODEL_REGISTRY.filter((m) => m.provider === "nvidia");
+      }
+      async complete(options) {
+        const startTime = Date.now();
+        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
+        const keyIdx = options.keyIndex ?? this.selectKey();
+        const key = this.keys[keyIdx] ?? "";
+        const suffix = keySuffix(key);
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(new Error("timeout")),
+            this.config.LLM_HEADERS_TIMEOUT_MS
+          );
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: options.model,
+              messages: options.messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.max_tokens ?? 2048,
+              ...options.response_format ? { response_format: options.response_format } : {}
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (!response.ok) {
+            const detail = await readProviderError(response);
+            const error51 = `HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+            this.recordFailure(suffix, error51, response.status);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          const data = await response.json();
+          if (!data.choices?.length) {
+            const error51 = "provider returned no choices";
+            this.recordFailure(suffix, error51);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          this.recordSuccess(suffix, Date.now() - startTime);
+          return {
+            response: data,
+            keyUsed: suffix,
+            latencyMs: Date.now() - startTime
+          };
+        } catch (err) {
+          const error51 = err instanceof Error ? err.message : "network error";
+          this.recordFailure(suffix, error51);
+          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+        }
+      }
+      async probe(model, keyIndex) {
+        const keyIdx = keyIndex ?? 0;
+        const key = this.keys[keyIdx] ?? "";
+        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1e4);
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: "hi" }],
+              max_tokens: 1
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (response.status === 404) {
+            const text2 = await response.text();
+            let accountId;
+            try {
+              const body = JSON.parse(text2);
+              const detail = typeof body.detail === "string" ? body.detail : "";
+              const match = detail.match(/Account\s+ID:\s*([\w.-]+)/i);
+              accountId = match?.[1];
+            } catch {
+            }
+            return { available: false, status: 404, accountId };
+          }
+          return { available: response.ok, status: response.status };
+        } catch (err) {
+          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
+        }
+      }
+      getKeyStates() {
+        return Array.from(this.keyStates.values());
+      }
+      recordSuccess(keySuffix2, latencyMs) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastSuccess = Date.now();
+        state.failureCount = 0;
+        state.health = "healthy";
+        state.cooldownUntil = null;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
+        state.successRate = Math.min(1, state.successRate + 0.1);
+      }
+      recordFailure(keySuffix2, error51, statusCode) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastFailure = Date.now();
+        state.failureCount++;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.successRate = Math.max(0, state.successRate - 0.2);
+        if (statusCode === 429) {
+          state.rateLimit.isLimited = true;
+          state.rateLimit.recentHits.push(Date.now());
+          const cutoff = Date.now() - 6e4;
+          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
+          if (state.rateLimit.recentHits.length >= 3) {
+            state.health = "cooldown";
+            state.cooldownUntil = Date.now() + 3e4;
+          }
+        } else if (statusCode === 401 || statusCode === 403) {
+          state.health = "disabled";
+          state.enabled = false;
+        } else if (statusCode === 404) {
+          state.health = "degraded";
+        } else if (state.failureCount >= 3) {
+          state.health = "cooldown";
+          state.cooldownUntil = Date.now() + 6e4;
+        }
+      }
+      selectKey() {
+        const now = Date.now();
+        const available = [];
+        for (let i = 0; i < this.keys.length; i++) {
+          const key = this.keys[i];
+          if (!key) continue;
+          const suffix = keySuffix(key);
+          const state = this.keyStates.get(suffix);
+          if (!state) continue;
+          if (!state.enabled || state.health === "disabled") continue;
+          if (state.cooldownUntil && state.cooldownUntil > now) continue;
+          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) {
+            continue;
+          }
+          available.push({ index: i, state });
+        }
+        if (available.length === 0) {
+          return this.keyCursor++ % this.keys.length;
+        }
+        available.sort((a, b) => {
+          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
+          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
+          return a.state.inFlight - b.state.inFlight;
+        });
+        const selected = available[0];
+        if (selected) {
+          selected.state.inFlight++;
+          return selected.index;
+        }
+        return this.keyCursor++ % this.keys.length;
+      }
+    };
+    OpenRouterAdapter = class {
+      id = "openrouter";
+      label = "OpenRouter";
+      baseUrl;
+      keys;
+      models;
+      defaultModel;
+      modelFallbacks;
+      keyStates = /* @__PURE__ */ new Map();
+      keyCursor = 0;
+      config;
+      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
+        this.baseUrl = baseUrl;
+        this.keys = keys2;
+        this.defaultModel = defaultModel;
+        this.modelFallbacks = modelFallbacks;
+        this.config = config2;
+        for (const key of keys2) {
+          const suffix = keySuffix(key);
+          this.keyStates.set(suffix, {
+            suffix,
+            enabled: true,
+            health: "healthy",
+            inFlight: 0,
+            lastSuccess: null,
+            lastFailure: null,
+            failureCount: 0,
+            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
+            cooldownUntil: null,
+            latencyMs: 0,
+            successRate: 1
+          });
+        }
+        this.models = MODEL_REGISTRY.filter((m) => m.provider === "openrouter");
+      }
+      async complete(options) {
+        const startTime = Date.now();
+        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+        const keyIdx = options.keyIndex ?? this.selectKey();
+        const key = this.keys[keyIdx] ?? "";
+        const suffix = keySuffix(key);
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(new Error("timeout")),
+            this.config.LLM_HEADERS_TIMEOUT_MS
+          );
+          const headers = {
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://orq8.ai",
+            "X-Title": "ORQ8 AI Executive OS"
+          };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: options.model,
+              messages: options.messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.max_tokens ?? 2048,
+              ...options.response_format ? { response_format: options.response_format } : {}
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (!response.ok) {
+            const detail = await readProviderError(response);
+            const error51 = `HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+            this.recordFailure(suffix, error51, response.status);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          const data = await response.json();
+          if (!data.choices?.length) {
+            const error51 = "provider returned no choices";
+            this.recordFailure(suffix, error51);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          this.recordSuccess(suffix, Date.now() - startTime);
+          return {
+            response: data,
+            keyUsed: suffix,
+            latencyMs: Date.now() - startTime
+          };
+        } catch (err) {
+          const error51 = err instanceof Error ? err.message : "network error";
+          this.recordFailure(suffix, error51);
+          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+        }
+      }
+      async probe(model, keyIndex) {
+        const keyIdx = keyIndex ?? 0;
+        const key = this.keys[keyIdx] ?? "";
+        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1e4);
+          const headers = {
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://orq8.ai",
+            "X-Title": "ORQ8 AI Executive OS"
+          };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: "hi" }],
+              max_tokens: 1
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          return { available: response.ok, status: response.status };
+        } catch (err) {
+          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
+        }
+      }
+      getKeyStates() {
+        return Array.from(this.keyStates.values());
+      }
+      recordSuccess(keySuffix2, latencyMs) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastSuccess = Date.now();
+        state.failureCount = 0;
+        state.health = "healthy";
+        state.cooldownUntil = null;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
+        state.successRate = Math.min(1, state.successRate + 0.1);
+      }
+      recordFailure(keySuffix2, error51, statusCode) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastFailure = Date.now();
+        state.failureCount++;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.successRate = Math.max(0, state.successRate - 0.2);
+        if (statusCode === 429) {
+          state.rateLimit.isLimited = true;
+          state.rateLimit.recentHits.push(Date.now());
+          const cutoff = Date.now() - 6e4;
+          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
+          if (state.rateLimit.recentHits.length >= 3) {
+            state.health = "cooldown";
+            state.cooldownUntil = Date.now() + 3e4;
+          }
+        } else if (statusCode === 401 || statusCode === 403) {
+          state.health = "disabled";
+          state.enabled = false;
+        } else if (state.failureCount >= 3) {
+          state.health = "cooldown";
+          state.cooldownUntil = Date.now() + 6e4;
+        }
+      }
+      selectKey() {
+        const now = Date.now();
+        const available = [];
+        for (let i = 0; i < this.keys.length; i++) {
+          const key = this.keys[i];
+          if (!key) continue;
+          const suffix = keySuffix(key);
+          const state = this.keyStates.get(suffix);
+          if (!state) continue;
+          if (!state.enabled || state.health === "disabled") continue;
+          if (state.cooldownUntil && state.cooldownUntil > now) continue;
+          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) {
+            continue;
+          }
+          available.push({ index: i, state });
+        }
+        if (available.length === 0) {
+          return this.keyCursor++ % this.keys.length;
+        }
+        available.sort((a, b) => {
+          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
+          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
+          return a.state.inFlight - b.state.inFlight;
+        });
+        const selected = available[0];
+        if (selected) {
+          selected.state.inFlight++;
+          return selected.index;
+        }
+        return this.keyCursor++ % this.keys.length;
+      }
+    };
+    LiteLLMAdapter = class {
+      id = "litellm";
+      label = "LiteLLM";
+      baseUrl;
+      keys;
+      models;
+      defaultModel;
+      modelFallbacks;
+      keyStates = /* @__PURE__ */ new Map();
+      keyCursor = 0;
+      config;
+      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
+        this.baseUrl = baseUrl;
+        this.keys = keys2;
+        this.defaultModel = defaultModel;
+        this.modelFallbacks = modelFallbacks;
+        this.config = config2;
+        for (const key of keys2) {
+          const suffix = keySuffix(key);
+          this.keyStates.set(suffix, {
+            suffix,
+            enabled: true,
+            health: "healthy",
+            inFlight: 0,
+            lastSuccess: null,
+            lastFailure: null,
+            failureCount: 0,
+            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
+            cooldownUntil: null,
+            latencyMs: 0,
+            successRate: 1
+          });
+        }
+        this.models = [];
+      }
+      async complete(options) {
+        const startTime = Date.now();
+        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
+        const keyIdx = options.keyIndex ?? this.selectKey();
+        const key = this.keys[keyIdx] ?? "";
+        const suffix = keySuffix(key);
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(new Error("timeout")),
+            this.config.LLM_HEADERS_TIMEOUT_MS
+          );
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: options.model,
+              messages: options.messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.max_tokens ?? 2048,
+              ...options.response_format ? { response_format: options.response_format } : {}
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (!response.ok) {
+            const detail = await readProviderError(response);
+            const error51 = `HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+            this.recordFailure(suffix, error51, response.status);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          const data = await response.json();
+          if (!data.choices?.length) {
+            const error51 = "provider returned no choices";
+            this.recordFailure(suffix, error51);
+            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+          }
+          this.recordSuccess(suffix, Date.now() - startTime);
+          return {
+            response: data,
+            keyUsed: suffix,
+            latencyMs: Date.now() - startTime
+          };
+        } catch (err) {
+          const error51 = err instanceof Error ? err.message : "network error";
+          this.recordFailure(suffix, error51);
+          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
+        }
+      }
+      async probe(model, keyIndex) {
+        const keyIdx = keyIndex ?? 0;
+        const key = this.keys[keyIdx] ?? "";
+        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1e4);
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: "hi" }],
+              max_tokens: 1
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          return { available: response.ok, status: response.status };
+        } catch (err) {
+          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
+        }
+      }
+      getKeyStates() {
+        return Array.from(this.keyStates.values());
+      }
+      recordSuccess(keySuffix2, latencyMs) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastSuccess = Date.now();
+        state.failureCount = 0;
+        state.health = "healthy";
+        state.cooldownUntil = null;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
+        state.successRate = Math.min(1, state.successRate + 0.1);
+      }
+      recordFailure(keySuffix2, error51, statusCode) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastFailure = Date.now();
+        state.failureCount++;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.successRate = Math.max(0, state.successRate - 0.2);
+        if (statusCode === 429) {
+          state.rateLimit.isLimited = true;
+          state.rateLimit.recentHits.push(Date.now());
+          const cutoff = Date.now() - 6e4;
+          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
+          if (state.rateLimit.recentHits.length >= 3) {
+            state.health = "cooldown";
+            state.cooldownUntil = Date.now() + 3e4;
+          }
+        } else if (statusCode === 401 || statusCode === 403) {
+          state.health = "disabled";
+          state.enabled = false;
+        } else if (state.failureCount >= 3) {
+          state.health = "cooldown";
+          state.cooldownUntil = Date.now() + 6e4;
+        }
+      }
+      selectKey() {
+        const now = Date.now();
+        const available = [];
+        for (let i = 0; i < this.keys.length; i++) {
+          const key = this.keys[i];
+          if (!key) continue;
+          const suffix = keySuffix(key);
+          const state = this.keyStates.get(suffix);
+          if (!state) continue;
+          if (!state.enabled || state.health === "disabled") continue;
+          if (state.cooldownUntil && state.cooldownUntil > now) continue;
+          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) continue;
+          available.push({ index: i, state });
+        }
+        if (available.length === 0) {
+          return this.keyCursor++ % this.keys.length;
+        }
+        available.sort((a, b) => {
+          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
+          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
+          return a.state.inFlight - b.state.inFlight;
+        });
+        const selected = available[0];
+        if (selected) {
+          selected.state.inFlight++;
+          return selected.index;
+        }
+        return this.keyCursor++ % this.keys.length;
+      }
+    };
+    OllamaAdapter = class {
+      id = "ollama";
+      label = "Ollama (Local)";
+      /** Local models — no API key required, so it stays usable with an empty pool. */
+      requiresAuth = false;
+      baseUrl;
+      keys;
+      models;
+      defaultModel;
+      modelFallbacks;
+      keyStates = /* @__PURE__ */ new Map();
+      config;
+      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
+        this.baseUrl = baseUrl;
+        this.keys = keys2;
+        this.defaultModel = defaultModel;
+        this.modelFallbacks = modelFallbacks;
+        this.config = config2;
+        this.keyStates.set("no-auth", {
+          suffix: "no-auth",
+          enabled: true,
+          health: "healthy",
+          inFlight: 0,
+          lastSuccess: null,
+          lastFailure: null,
+          failureCount: 0,
+          rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
+          cooldownUntil: null,
+          latencyMs: 0,
+          successRate: 1
+        });
+        this.models = [];
+      }
+      async complete(options) {
+        const startTime = Date.now();
+        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/v1/chat/completions";
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(new Error("timeout")),
+            this.config.LLM_HEADERS_TIMEOUT_MS
+          );
+          const headers = { "Content-Type": "application/json" };
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: options.model,
+              messages: options.messages,
+              temperature: options.temperature ?? 0.7,
+              max_tokens: options.max_tokens ?? 2048,
+              ...options.response_format ? { response_format: options.response_format } : {}
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (!response.ok) {
+            const error51 = `HTTP ${response.status}`;
+            this.recordFailure("no-auth", error51, response.status);
+            return { response: null, keyUsed: "no-auth", latencyMs: Date.now() - startTime, error: error51 };
+          }
+          const data = await response.json();
+          this.recordSuccess("no-auth", Date.now() - startTime);
+          return {
+            response: data,
+            keyUsed: "no-auth",
+            latencyMs: Date.now() - startTime
+          };
+        } catch (err) {
+          const error51 = err instanceof Error ? err.message : "network error";
+          this.recordFailure("no-auth", error51);
+          return { response: null, keyUsed: "no-auth", latencyMs: Date.now() - startTime, error: error51 };
+        }
+      }
+      async probe(model, keyIndex) {
+        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/v1/chat/completions";
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1e4);
+          const headers = { "Content-Type": "application/json" };
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model,
+              messages: [{ role: "user", content: "hi" }],
+              max_tokens: 1
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          return { available: response.ok, status: response.status };
+        } catch (err) {
+          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
+        }
+      }
+      getKeyStates() {
+        return Array.from(this.keyStates.values());
+      }
+      recordSuccess(keySuffix2, latencyMs) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastSuccess = Date.now();
+        state.failureCount = 0;
+        state.health = "healthy";
+        state.cooldownUntil = null;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
+        state.successRate = Math.min(1, state.successRate + 0.1);
+      }
+      recordFailure(keySuffix2, error51, statusCode) {
+        const state = this.keyStates.get(keySuffix2);
+        if (!state) return;
+        state.lastFailure = Date.now();
+        state.failureCount++;
+        state.inFlight = Math.max(0, state.inFlight - 1);
+        state.successRate = Math.max(0, state.successRate - 0.2);
+        if (state.failureCount >= 3) {
+          state.health = "cooldown";
+          state.cooldownUntil = Date.now() + 6e4;
+        }
+      }
+      selectKey() {
+        return 0;
+      }
+    };
+    routerInstance = null;
+  }
+});
+
+// src/services/circuit-breaker.ts
+var circuit_breaker_exports = {};
+__export(circuit_breaker_exports, {
+  getAllCircuitStates: () => getAllCircuitStates,
+  getState: () => getState,
+  isAvailable: () => isAvailable,
+  recordFailure: () => recordFailure,
+  recordSuccess: () => recordSuccess,
+  resetAllCircuits: () => resetAllCircuits,
+  resetCircuit: () => resetCircuit
+});
+function getCircuitKey(providerId, model) {
+  return model ? `${providerId}:${model}` : providerId;
+}
+function getOrCreateCircuit(key) {
+  let circuit = circuits.get(key);
+  if (!circuit) {
+    circuit = {
+      state: "closed",
+      failureCount: 0,
+      successCount: 0,
+      lastFailureTime: null,
+      lastSuccessTime: null,
+      lastStateChange: Date.now(),
+      halfOpenAttempts: 0
+    };
+    circuits.set(key, circuit);
+  }
+  return circuit;
+}
+function isAvailable(providerId, model) {
+  const key = getCircuitKey(providerId, model);
+  const circuit = getOrCreateCircuit(key);
+  if (circuit.state === "closed") return true;
+  if (circuit.state === "open") {
+    const config2 = DEFAULT_CONFIG;
+    if (circuit.lastFailureTime && Date.now() - circuit.lastFailureTime >= config2.cooldownMs) {
+      circuit.state = "half_open";
+      circuit.halfOpenAttempts = 0;
+      circuit.lastStateChange = Date.now();
+      return true;
+    }
+    return false;
+  }
+  if (circuit.state === "half_open") {
+    return circuit.halfOpenAttempts < DEFAULT_CONFIG.halfOpenMaxAttempts;
+  }
+  return false;
+}
+function recordSuccess(providerId, model) {
+  const key = getCircuitKey(providerId, model);
+  const circuit = getOrCreateCircuit(key);
+  circuit.lastSuccessTime = Date.now();
+  if (circuit.state === "half_open") {
+    circuit.successCount++;
+    if (circuit.successCount >= DEFAULT_CONFIG.halfOpenSuccessThreshold) {
+      circuit.state = "closed";
+      circuit.failureCount = 0;
+      circuit.successCount = 0;
+      circuit.halfOpenAttempts = 0;
+      circuit.lastStateChange = Date.now();
+    }
+  } else if (circuit.state === "closed") {
+    circuit.failureCount = 0;
+  }
+}
+function recordFailure(providerId, model) {
+  const key = getCircuitKey(providerId, model);
+  const circuit = getOrCreateCircuit(key);
+  circuit.failureCount++;
+  circuit.lastFailureTime = Date.now();
+  if (circuit.state === "half_open") {
+    circuit.state = "open";
+    circuit.halfOpenAttempts = 0;
+    circuit.lastStateChange = Date.now();
+  } else if (circuit.state === "closed") {
+    if (circuit.failureCount >= DEFAULT_CONFIG.failureThreshold) {
+      circuit.state = "open";
+      circuit.lastStateChange = Date.now();
+    }
+  }
+}
+function getState(providerId, model) {
+  const key = getCircuitKey(providerId, model);
+  return getOrCreateCircuit(key);
+}
+function getAllCircuitStates() {
+  const result = [];
+  for (const [key, circuit] of circuits) {
+    const [providerId, model] = key.split(":");
+    const cooldownRemaining = circuit.state === "open" && circuit.lastFailureTime ? Math.max(0, DEFAULT_CONFIG.cooldownMs - (Date.now() - circuit.lastFailureTime)) : 0;
+    result.push({
+      key,
+      providerId: providerId ?? key,
+      model,
+      state: circuit.state,
+      failureCount: circuit.failureCount,
+      lastFailureTime: circuit.lastFailureTime,
+      lastSuccessTime: circuit.lastSuccessTime,
+      cooldownRemainingMs: cooldownRemaining
+    });
+  }
+  return result;
+}
+function resetCircuit(providerId, model) {
+  const key = getCircuitKey(providerId, model);
+  circuits.delete(key);
+}
+function resetAllCircuits() {
+  circuits.clear();
+}
+var DEFAULT_CONFIG, circuits;
+var init_circuit_breaker = __esm({
+  "src/services/circuit-breaker.ts"() {
+    "use strict";
+    DEFAULT_CONFIG = {
+      failureThreshold: 5,
+      cooldownMs: 6e4,
+      // 1 minute
+      halfOpenMaxAttempts: 1,
+      halfOpenSuccessThreshold: 1
+    };
+    circuits = /* @__PURE__ */ new Map();
+    if (typeof setInterval !== "undefined") {
+      setInterval(() => {
+        const now = Date.now();
+        const maxAge = 30 * 6e4;
+        for (const [key, circuit] of circuits) {
+          if (circuit.state === "closed" && circuit.lastSuccessTime && now - circuit.lastSuccessTime > maxAge) {
+            circuits.delete(key);
+          }
+        }
+      }, 3e5);
+    }
+  }
+});
+
+// src/services/llm.ts
+var llm_exports = {};
+__export(llm_exports, {
+  LLMTimeoutError: () => LLMTimeoutError,
+  __resetNvidiaDiagnostics: () => __resetNvidiaDiagnostics,
+  __resetNvidiaKeyCursor: () => __resetNvidiaKeyCursor,
+  __resetNvidiaKeyHealth: () => __resetNvidiaKeyHealth,
+  buildNvidia404Hint: () => buildNvidia404Hint,
+  buildProviderChain: () => buildProviderChain,
+  chat: () => chat,
+  chatCompletion: () => chatCompletion,
+  chatCompletionsEndpoint: () => chatCompletionsEndpoint,
+  chatJson: () => chatJson,
+  getModelRouter: () => getModelRouter,
+  getPrimaryProviderId: () => getPrimaryProviderId,
+  getServedProvider: () => getServedProvider,
+  parseNvidia404Body: () => parseNvidia404Body,
+  popNvidiaDiagnostics: () => popNvidiaDiagnostics,
+  resetModelRouter: () => resetModelRouter
+});
+function buildProviderChain(config2) {
+  const chain = [];
+  const openrouterKeys = uniqueKeys2([
+    config2.OPENROUTER_API_KEY,
+    ...config2.OPENROUTER_API_KEYS?.split(",").map((k) => k.trim()) ?? []
+  ]);
+  if (openrouterKeys.length > 0) {
+    chain.push({
+      id: "openrouter",
+      label: "OpenRouter",
+      baseUrl: config2.OPENROUTER_BASE_URL,
+      apiKeys: openrouterKeys,
+      defaultModel: config2.OPENROUTER_MODEL,
+      modelFallbacks: uniqueKeys2(config2.OPENROUTER_MODEL_FALLBACKS?.split(",") ?? []).filter((m) => m !== config2.OPENROUTER_MODEL)
+    });
+  }
+  const nvidiaKeys = uniqueKeys2([
+    config2.NVIDIA_API_KEY,
+    ...config2.NVIDIA_API_KEYS?.split(",").map((k) => k.trim()) ?? []
+  ]);
+  if (nvidiaKeys.length > 0) {
+    chain.push({
+      id: "nvidia",
+      label: "NVIDIA NIM",
+      baseUrl: config2.NVIDIA_BASE_URL,
+      apiKeys: nvidiaKeys,
+      defaultModel: config2.NVIDIA_MODEL,
+      modelFallbacks: uniqueKeys2(config2.NVIDIA_MODEL_FALLBACKS?.split(",") ?? []).filter((m) => m !== config2.NVIDIA_MODEL)
+    });
+  }
+  if (config2.LITELLM_BASE_URL) {
+    chain.push({
+      id: "litellm",
+      label: "LiteLLM",
+      baseUrl: config2.LITELLM_BASE_URL,
+      apiKeys: [config2.LITELLM_MASTER_KEY ?? "sk-orq8-dev-litellm"],
+      defaultModel: "llama3.2"
+    });
+  }
+  if (config2.OLLAMA_BASE_URL) {
+    chain.push({
+      id: "ollama",
+      label: "Ollama",
+      baseUrl: config2.OLLAMA_BASE_URL,
+      apiKeys: [],
+      // local models — no auth
+      defaultModel: config2.OLLAMA_MODEL
+    });
+  }
+  return chain;
+}
+function getPrimaryProviderId(config2) {
+  const chain = buildProviderChain(config2);
+  return chain[0]?.id ?? null;
+}
+function uniqueKeys2(keys2) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const k of keys2) {
+    const trimmed = k?.trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      out.push(trimmed);
+    }
+  }
+  return out;
+}
+function chatCompletionsEndpoint(baseUrl) {
+  const root = baseUrl.trim().replace(/\/+$/, "").replace(/\/v1$/, "");
+  return `${root}/v1/chat/completions`;
+}
+function __resetNvidiaKeyCursor() {
+  nvidiaKeyCursor = 0;
+}
+function __resetNvidiaKeyHealth() {
+  keyHealth.clear();
+}
+function recordRateLimit(key, now = Date.now()) {
+  let h = keyHealth.get(key);
+  if (!h) {
+    h = { rateLimitHits: [] };
+    keyHealth.set(key, h);
+  }
+  h.rateLimitHits.push(now);
+}
+function isKeyHot(key, now = Date.now()) {
+  const h = keyHealth.get(key);
+  if (!h) return false;
+  const cutoff = now - KEY_HEALTH_WINDOW_MS;
+  while (h.rateLimitHits.length > 0) {
+    const oldest = h.rateLimitHits[0];
+    if (oldest === void 0 || oldest >= cutoff) break;
+    h.rateLimitHits.shift();
+  }
+  if (h.rateLimitHits.length === 0) {
+    keyHealth.delete(key);
+    return false;
+  }
+  return h.rateLimitHits.length >= KEY_HOT_THRESHOLD;
+}
+function orderKeysForAttempt(keys2, startIdx, now = Date.now()) {
+  const rotated = keys2.map((_, i) => keys2[(startIdx + i) % keys2.length]).filter((k) => k !== void 0);
+  return rotated.sort((a, b) => Number(isKeyHot(a, now)) - Number(isKeyHot(b, now)));
+}
+function storeNvidiaDiagnostics(orgId, diags) {
+  if (diags.length === 0) return;
+  nvidiaDiagnosticsStore.set(orgId, diags);
+  if (nvidiaDiagnosticsStore.size > MAX_DIAGNOSTIC_ORGS) {
+    const firstKey = nvidiaDiagnosticsStore.keys().next().value;
+    if (firstKey !== void 0) nvidiaDiagnosticsStore.delete(firstKey);
+  }
+}
+function popNvidiaDiagnostics(orgId) {
+  const diags = nvidiaDiagnosticsStore.get(orgId) ?? [];
+  nvidiaDiagnosticsStore.delete(orgId);
+  return diags;
+}
+function __resetNvidiaDiagnostics() {
+  nvidiaDiagnosticsStore.clear();
+}
+function retryAfterMs(headers) {
+  const raw = headers.get("retry-after");
+  if (!raw) return 0;
+  const secs = Number(raw);
+  if (Number.isFinite(secs)) return Math.min(Math.max(secs, 0), 5) * 1e3;
+  const date6 = Date.parse(raw);
+  if (!Number.isNaN(date6)) return Math.min(Math.max(date6 - Date.now(), 0), 5e3);
+  return 0;
+}
+async function fetchWithTimeout(url2, init, opts) {
+  const controller = new AbortController();
+  const headersTimer = setTimeout(
+    () => controller.abort(new LLMTimeoutError("headers", opts.headersTimeoutMs)),
+    opts.headersTimeoutMs
+  );
+  const totalTimer = setTimeout(
+    () => controller.abort(new LLMTimeoutError("total", opts.totalTimeoutMs)),
+    opts.totalTimeoutMs
+  );
+  try {
+    const response = await fetch(url2, { ...init, signal: controller.signal });
+    clearTimeout(headersTimer);
+    return {
+      response,
+      // Total budget still applies to the body read; clear it once done.
+      cancelTotal: () => clearTimeout(totalTimer)
+    };
+  } finally {
+    clearTimeout(headersTimer);
+  }
+}
+async function parseNvidia404Body(response) {
+  try {
+    const text2 = await response.text();
+    let body;
+    try {
+      body = JSON.parse(text2);
+    } catch {
+      return void 0;
+    }
+    const detail = typeof body.detail === "string" ? body.detail : void 0;
+    if (!detail) return void 0;
+    const match = detail.match(/Account\s+ID:\s*([\w.-]+)/i);
+    return {
+      accountId: match?.[1],
+      nvidiaDetail: detail
+    };
+  } catch {
+    return void 0;
+  }
+}
+function buildNvidia404Hint(accountId) {
+  const accountPart = accountId ? ` Your NVIDIA Account ID is **${accountId}** \u2014 log in to [build.nvidia.com](https://build.nvidia.com) and verify that this account has the **"Public API Endpoints"** scope enabled under *Account Settings \u2192 API Keys*.` : ' Log in to [build.nvidia.com](https://build.nvidia.com) and verify your API key has the **"Public API Endpoints"** scope enabled under *Account Settings \u2192 API Keys*.';
+  return `NVIDIA returned 404 "Function not found for account", which usually means the API key lacks access to this model.${accountPart}`;
+}
+async function chatCompletion(config2, options) {
+  const chain = buildProviderChain(config2);
+  if (chain.length === 0) {
+    return null;
+  }
+  const maxRetries = options.retries ?? 2;
+  const baseDelay = options.retryDelayMs ?? 1e3;
+  const traceCtx = options._trace;
+  const explicitModel = options.model;
+  let lastError = "no provider reached";
+  const nvidiaFunctionNotFound = [];
+  const { isAvailable: isAvailable2, recordSuccess: recordSuccess2, recordFailure: recordFailure2 } = await Promise.resolve().then(() => (init_circuit_breaker(), circuit_breaker_exports));
+  for (const provider of chain) {
+    if (!isAvailable2(provider.id)) {
+      lastError = `${provider.label} circuit breaker open (too many recent failures)`;
+      continue;
+    }
+    const endpoint = chatCompletionsEndpoint(provider.baseUrl);
+    const keys2 = provider.apiKeys.length > 0 ? provider.apiKeys : [""];
+    const models = explicitModel ? [explicitModel, provider.defaultModel, ...provider.modelFallbacks ?? []] : [provider.defaultModel, ...provider.modelFallbacks ?? []];
+    const startIdx = provider.id === "nvidia" && keys2.length > 1 ? nvidiaKeyCursor++ % keys2.length : 0;
+    let traceId2;
+    if (traceCtx) {
+      const trace = startTrace({
+        orgId: traceCtx.orgId,
+        phase: traceCtx.phase,
+        model: models[0],
+        provider: provider.id,
+        temperature: options.temperature,
+        maxTokens: options.max_tokens,
+        commandId: traceCtx.commandId,
+        taskId: traceCtx.taskId,
+        agentId: traceCtx.agentId,
+        maxRetries,
+        routingSource: traceCtx.routingSource
+      });
+      traceId2 = trace.traceId;
+    }
+    let providerError = "unknown";
+    const orderedKeys = provider.id === "nvidia" && keys2.length > 1 ? orderKeysForAttempt(keys2, startIdx) : keys2;
+    for (let mi = 0; mi < models.length; mi++) {
+      const model = models[mi];
+      let modelError = "unknown";
+      keyLoop:
+        for (let ki = 0; ki < orderedKeys.length; ki++) {
+          const key = orderedKeys[ki] ?? "";
+          const keyLabel = key ? `key\u2026${key.slice(-6)}` : "no-auth";
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers.Authorization = `Bearer ${key}`;
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+              if (attempt > 0) {
+                const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 500;
+                await new Promise((r) => setTimeout(r, delay));
+              }
+              const { response, cancelTotal } = await fetchWithTimeout(
+                endpoint,
+                {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    model,
+                    messages: options.messages,
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.max_tokens ?? 2048,
+                    ...options.response_format ? { response_format: options.response_format } : {}
+                  })
+                },
+                {
+                  headersTimeoutMs: config2.LLM_HEADERS_TIMEOUT_MS,
+                  totalTimeoutMs: config2.LLM_TIMEOUT_MS
+                }
+              );
+              try {
+                if (!response.ok) {
+                  modelError = `${model} \u2192 ${keyLabel} HTTP ${response.status}`;
+                  const isRateLimited = response.status === 429;
+                  if (isRateLimited) {
+                    if (provider.id === "nvidia") recordRateLimit(key);
+                    const ra = retryAfterMs(response.headers);
+                    if (attempt < maxRetries) {
+                      if (ra > 0) await new Promise((r) => setTimeout(r, ra));
+                      continue;
+                    }
+                    continue keyLoop;
+                  }
+                  if (response.status === 401 || response.status === 403) {
+                    continue keyLoop;
+                  }
+                  if (response.status === 404) {
+                    const parsed404 = await parseNvidia404Body(response);
+                    const accountId = parsed404?.accountId;
+                    const nvidiaDetail = parsed404?.nvidiaDetail;
+                    const hint = buildNvidia404Hint(accountId);
+                    nvidiaFunctionNotFound.push({
+                      model,
+                      keySuffix: key.slice(-6),
+                      accountId,
+                      nvidiaDetail,
+                      hint
+                    });
+                    modelError = `${model} unavailable: HTTP 404${nvidiaDetail ? ` \u2014 ${nvidiaDetail}` : " (no model access for account)"}${accountId ? ` [Account ID: ${accountId}]` : ""}`;
+                    break keyLoop;
+                  }
+                  continue;
+                }
+                const data = await response.json();
+                if (traceId2) {
+                  const usage = data.usage;
+                  endTrace(traceId2, {
+                    success: true,
+                    promptTokens: usage?.prompt_tokens,
+                    completionTokens: usage?.completion_tokens,
+                    totalTokens: usage?.total_tokens,
+                    model: data.model,
+                    responsePreview: data.choices?.[0]?.message?.content
+                  });
+                  if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId2));
+                }
+                if (traceCtx?.orgId) storeNvidiaDiagnostics(traceCtx.orgId, nvidiaFunctionNotFound);
+                recordSuccess2(provider.id, model);
+                return data;
+              } finally {
+                cancelTotal();
+              }
+            } catch (err) {
+              modelError = `${model} \u2192 ${keyLabel}: ${err instanceof Error ? err.message : "network error"}`;
+              if (err instanceof LLMTimeoutError) {
+                modelError = `${model} \u2192 ${keyLabel}: ${err.message}`;
+                if (provider.id === "nvidia") break keyLoop;
+                continue keyLoop;
+              }
+              if (err instanceof DOMException && err.name === "AbortError") {
+                continue keyLoop;
+              }
+            }
+          }
+        }
+      providerError = `${model} unavailable: ${modelError}`;
+    }
+    if (traceId2) {
+      endTrace(traceId2, { success: false, error: `${provider.id} unavailable: ${providerError}` });
+      if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId2));
+    }
+    recordFailure2(provider.id);
+    lastError = `${provider.id}: ${providerError}`;
+  }
+  if (traceCtx?.orgId) storeNvidiaDiagnostics(traceCtx.orgId, nvidiaFunctionNotFound);
+  return null;
+}
+async function chat(config2, systemPrompt, userMessage, options = {}) {
+  const response = await chatCompletion(config2, {
+    model: options.model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ],
+    temperature: options.temperature ?? 0.7,
+    max_tokens: options.max_tokens ?? 2048,
+    retries: options.retries,
+    _trace: options._trace
+  });
+  return response?.choices?.[0]?.message?.content ?? null;
+}
+async function chatJson(config2, systemPrompt, userMessage, options = {}) {
+  const text2 = await chat(config2, systemPrompt, userMessage, {
+    ...options,
+    temperature: options.temperature ?? 0.3,
+    // Lower temp for structured output
+    retries: options.retries ?? 1,
+    // JSON needs higher success rate
+    _trace: options._trace
+  });
+  if (!text2) return null;
+  try {
+    return JSON.parse(text2);
+  } catch {
+    const jsonMatch = text2.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (jsonMatch?.[1]) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+function getServedProvider(orgId, phase, commandId) {
+  const traces = getRecentTraces(orgId, 50).filter(
+    (t) => t.phase === phase && (commandId ? t.commandId === commandId : true)
+  );
+  const last = traces[traces.length - 1];
+  if (!last) return null;
+  if (!last.success) return "none";
+  if (last.provider === "nvidia" || last.provider === "openrouter" || last.provider === "litellm" || last.provider === "ollama") {
+    return last.provider;
+  }
+  return "none";
+}
+function recentTrace(id) {
+  const found = getTraceById(id);
+  return found ?? {
+    id,
+    orgId: "",
+    phase: "fallback",
+    model: "unknown",
+    provider: "unknown",
+    startedAt: /* @__PURE__ */ new Date(),
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    success: false,
+    retryAttempt: 0,
+    maxRetries: 0,
+    routingSource: "default",
+    temperature: 0,
+    maxTokens: 0
+  };
+}
+var nvidiaKeyCursor, KEY_HEALTH_WINDOW_MS, KEY_HOT_THRESHOLD, keyHealth, MAX_DIAGNOSTIC_ORGS, nvidiaDiagnosticsStore, LLMTimeoutError;
+var init_llm = __esm({
+  "src/services/llm.ts"() {
+    "use strict";
+    init_llm_tracer();
+    init_llm_tracer();
+    init_model_router();
+    nvidiaKeyCursor = 0;
+    KEY_HEALTH_WINDOW_MS = 6e4;
+    KEY_HOT_THRESHOLD = 2;
+    keyHealth = /* @__PURE__ */ new Map();
+    MAX_DIAGNOSTIC_ORGS = 100;
+    nvidiaDiagnosticsStore = /* @__PURE__ */ new Map();
+    LLMTimeoutError = class extends Error {
+      constructor(kind, timeoutMs) {
+        super(`LLM ${kind} timeout after ${timeoutMs}ms`);
+        this.kind = kind;
+        this.name = "LLMTimeoutError";
+      }
+      kind;
+    };
+  }
+});
+
+// src/services/tool-registry.ts
+function registerTool(tool) {
+  toolRegistry.set(tool.id, tool);
+}
+function getTool(toolId) {
+  return toolRegistry.get(toolId);
+}
+function getAllTools() {
+  return Array.from(toolRegistry.values());
+}
+function getToolsForRole(role) {
+  return getAllTools().filter((tool) => {
+    if (tool.forbiddenRoles.includes(role)) return false;
+    if (tool.allowedRoles.length > 0 && !tool.allowedRoles.includes(role)) return false;
+    return true;
+  });
+}
+function checkAuthority(tool, ctx) {
+  const auth = ctx.authority;
+  const forbidden3 = auth.forbiddenActions ?? [];
+  if (forbidden3.includes(tool.id)) {
+    return `Tool "${tool.name}" is explicitly forbidden for this agent.`;
+  }
+  if (tool.forbiddenRoles.includes(ctx.agentRole)) {
+    return `Agent role "${ctx.agentRole}" is not permitted to use "${tool.name}".`;
+  }
+  if (tool.allowedRoles.length > 0 && !tool.allowedRoles.includes(ctx.agentRole)) {
+    return `Agent role "${ctx.agentRole}" is not in the allowed roles for "${tool.name}".`;
+  }
+  if (tool.category === "communication" && !auth.canCommunicateExternally) {
+    return `Agent does not have permission for external communications.`;
+  }
+  if (tool.hasSideEffects && !auth.canModifyResources) {
+    return `Agent does not have permission to modify resources.`;
+  }
+  if (!auth.canExecuteTasks) {
+    return `Agent does not have permission to execute tasks.`;
+  }
+  if (auth.spendingLimitCents > 0 && tool.creditCost > auth.spendingLimitCents) {
+    return `Tool cost (${tool.creditCost} credits) exceeds agent spending limit (${auth.spendingLimitCents} credits).`;
+  }
+  return null;
+}
+function needsApproval(tool, ctx) {
+  if (tool.requiresApproval) return true;
+  const auth = ctx.authority;
+  const approvalFor = auth.requiresApprovalFor ?? [];
+  if (tool.riskLevel === "critical") return true;
+  if (tool.riskLevel === "high" && approvalFor.includes("high_impact_decisions")) return true;
+  if (tool.category === "communication" && approvalFor.includes("external_communications")) return true;
+  if (tool.creditCost > 5 && approvalFor.includes("financial_commitments")) return true;
+  return false;
+}
+async function executeTool(config2, db, toolId, ctx, params) {
+  const startTime = Date.now();
+  const idempotencyKey = generateIdempotencyKey(toolId, ctx.agentId, params);
+  const existingResult = await checkIdempotency(db, ctx.orgId, idempotencyKey);
+  if (existingResult) {
+    return existingResult;
+  }
+  const tool = getTool(toolId);
+  if (!tool) {
+    return {
+      success: false,
+      output: null,
+      error: `Tool "${toolId}" not found.`,
+      creditsConsumed: 0,
+      durationMs: Date.now() - startTime,
+      toolId,
+      approvalRequired: false
+    };
+  }
+  const validationError = validateParams(tool, params);
+  if (validationError) {
+    return {
+      success: false,
+      output: null,
+      error: validationError,
+      creditsConsumed: 0,
+      durationMs: Date.now() - startTime,
+      toolId,
+      approvalRequired: false
+    };
+  }
+  const authError = checkAuthority(tool, ctx);
+  if (authError) {
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      // The task this call belongs to, so a task-scoped audit trail is complete:
+      // a denial that names no task is a denial nobody can trace back to work.
+      taskId: ctx.taskId ?? null,
+      action: "tool.denied",
+      tool: toolId,
+      cost: 0,
+      outcome: "denied",
+      inputRef: JSON.stringify({ params, reason: authError })
+    }).catch(() => {
+    });
+    return {
+      success: false,
+      output: null,
+      error: authError,
+      creditsConsumed: 0,
+      durationMs: Date.now() - startTime,
+      toolId,
+      approvalRequired: false
+    };
+  }
+  if (tool.creditCost > 0) {
+    const creditCheck = await hasEnoughCredits(db, ctx.orgId, `tool.${toolId}`);
+    if (!creditCheck.allowed) {
+      return {
+        success: false,
+        output: null,
+        error: `Insufficient credits. ${tool.creditCost} required, ${creditCheck.balance.remaining} remaining.`,
+        creditsConsumed: 0,
+        durationMs: Date.now() - startTime,
+        toolId,
+        approvalRequired: false
+      };
+    }
+  }
+  const approvalRequired = needsApproval(tool, ctx);
+  if (approvalRequired) {
+    const grant = ctx.taskId ? await findGrantedGate(db, ctx.orgId, ctx.taskId) : void 0;
+    if (grant) {
+      await markGateReleased(db, grant.id);
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: "agent",
+        actorId: ctx.agentId,
+        taskId: ctx.taskId ?? null,
+        approvalId: grant.id,
+        action: "approval.grant_consumed",
+        tool: toolId,
+        cost: 0,
+        outcome: "success",
+        resultRef: `approval:${grant.id} \u2192 tool:${toolId}`
+      }).catch(() => {
+      });
+    } else {
+      const { approvals: approvals3 } = await Promise.resolve().then(() => (init_src2(), src_exports));
+      const open = ctx.taskId ? await findOpenGate(db, ctx.orgId, ctx.taskId) : void 0;
+      const approval = open ?? (await db.insert(approvals3).values({
+        orgId: ctx.orgId,
+        agentId: ctx.agentId,
+        taskId: ctx.taskId ?? null,
+        toolId,
+        toolParams: params,
+        action: `Tool: ${tool.name}`,
+        description: `Agent "${ctx.agentName}" wants to use tool "${tool.name}". ${tool.approvalReason ?? ""}`,
+        cost: tool.creditCost,
+        riskLevel: tool.riskLevel === "critical" ? "high" : tool.riskLevel === "high" ? "high" : "medium",
+        status: "pending"
+      }).returning())[0];
+      broadcastToOrg(ctx.orgId, {
+        type: "approval.required",
+        approvalId: approval?.id,
+        agentName: ctx.agentName,
+        toolName: tool.name,
+        riskLevel: tool.riskLevel
+      });
+      return {
+        success: false,
+        output: { message: `Approval required for "${tool.name}". Request sent to founder.`, approvalId: approval?.id },
+        error: `Awaiting founder approval to use "${tool.name}".`,
+        creditsConsumed: 0,
+        durationMs: Date.now() - startTime,
+        toolId,
+        approvalRequired: true,
+        approvalId: approval?.id
+      };
+    }
+  }
+  let result;
+  let executionError;
+  try {
+    const handler2 = toolHandlers.get(toolId);
+    if (!handler2) {
+      executionError = `No handler registered for tool "${toolId}".`;
+    } else {
+      result = await Promise.race([
+        handler2(params, ctx, config2, db),
+        new Promise(
+          (_, reject) => setTimeout(() => reject(new Error(`Tool "${toolId}" timed out after ${tool.timeoutMs}ms`)), tool.timeoutMs)
+        )
+      ]);
+    }
+  } catch (err) {
+    executionError = err instanceof Error ? err.message : "Unknown execution error";
+    if (tool.retryable && tool.maxRetries > 0) {
+      for (let attempt = 1; attempt <= tool.maxRetries; attempt++) {
+        try {
+          await new Promise((r) => setTimeout(r, 1e3 * attempt));
+          const handler2 = toolHandlers.get(toolId);
+          if (handler2) {
+            result = await handler2(params, ctx, config2, db);
+            executionError = void 0;
+            break;
+          }
+        } catch (retryErr) {
+          executionError = retryErr instanceof Error ? retryErr.message : "Retry failed";
+        }
+      }
+    }
+  }
+  let creditsConsumed = 0;
+  if (tool.creditCost > 0 && !executionError) {
+    try {
+      const creditResult = await consumeCredits(
+        db,
+        ctx.orgId,
+        `tool.${toolId}`,
+        `Tool: ${tool.name} by ${ctx.agentName}`,
+        ctx.taskId,
+        "tool",
+        { amount: tool.creditCost }
+      );
+      creditsConsumed = creditResult.consumed;
+    } catch (err) {
+      if (err instanceof CreditExhaustedError) {
+        executionError = `Credits exhausted during tool execution: ${err.message}`;
+      }
+    }
+  }
+  const durationMs = Date.now() - startTime;
+  const success2 = !executionError;
+  await appendAudit(db, {
+    orgId: ctx.orgId,
+    actorType: "agent",
+    actorId: ctx.agentId,
+    taskId: ctx.taskId ?? null,
+    action: success2 ? "tool.executed" : "tool.failed",
+    tool: toolId,
+    cost: creditsConsumed,
+    outcome: success2 ? "success" : "failure",
+    inputRef: JSON.stringify({ params }),
+    resultRef: success2 ? JSON.stringify({ output: result }).slice(0, 500) : executionError
+  }).catch(() => {
+  });
+  broadcastToOrg(ctx.orgId, {
+    type: success2 ? "tool.completed" : "tool.failed",
+    toolId,
+    toolName: tool.name,
+    agentName: ctx.agentName,
+    durationMs,
+    creditsConsumed
+  });
+  if (creditsConsumed > 0) {
+    await db.update(agents).set({
+      creditsUsed: sql`${agents.creditsUsed} + ${creditsConsumed}`,
+      lastActiveAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(agents.id, ctx.agentId)).catch(() => {
+    });
+  }
+  const finalResult = {
+    success: success2,
+    output: success2 ? result : null,
+    error: executionError,
+    creditsConsumed,
+    durationMs,
+    toolId,
+    approvalRequired: false
+  };
+  if (success2 && !finalResult.approvalRequired) {
+    storeIdempotencyResult(ctx.orgId, idempotencyKey, finalResult);
+  }
+  return finalResult;
+}
+function registerToolHandler(toolId, handler2) {
+  toolHandlers.set(toolId, handler2);
+}
+function validateParams(tool, params) {
+  for (const param2 of tool.parameters) {
+    if (param2.required && !(param2.name in params) && param2.defaultValue === void 0) {
+      return `Missing required parameter "${param2.name}" for tool "${tool.name}".`;
+    }
+    if (param2.name in params && param2.enum && !param2.enum.includes(String(params[param2.name]))) {
+      return `Parameter "${param2.name}" must be one of: ${param2.enum.join(", ")}.`;
+    }
+  }
+  return null;
+}
+function registerBuiltinTools() {
+  registerTool({
+    id: "web_search",
+    name: "Web Search",
+    description: "Search the web for current information on any topic. Returns relevant results with titles, URLs, and content snippets.",
+    category: "research",
+    parameters: [
+      { name: "query", type: "string", description: "Search query", required: true },
+      { name: "depth", type: "string", description: "Search depth", required: false, defaultValue: "standard", enum: ["standard", "deep"] }
+    ],
+    outputDescription: "Search results with titles, URLs, and content snippets",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 15e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "analyze_competitor",
+    name: "Analyze Competitor",
+    description: "Research and analyze a specific competitor. Returns their positioning, strengths, weaknesses, and market strategy.",
+    category: "research",
+    parameters: [
+      { name: "competitor_name", type: "string", description: "Name of the competitor", required: true },
+      { name: "focus_areas", type: "array", description: "Specific areas to focus on", required: false }
+    ],
+    outputDescription: "Competitive analysis with positioning, strengths, weaknesses, and strategy",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 5e3,
+    timeoutMs: 3e4,
+    allowedRoles: ["market_researcher", "data_analyst", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "research_market",
+    name: "Research Market",
+    description: "Research a market or industry. Returns size, trends, growth, key players, and opportunities.",
+    category: "research",
+    parameters: [
+      { name: "market", type: "string", description: "Market or industry to research", required: true },
+      { name: "specific_questions", type: "array", description: "Specific questions to answer", required: false }
+    ],
+    outputDescription: "Market research report with size, trends, players, and opportunities",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 8e3,
+    timeoutMs: 45e3,
+    allowedRoles: ["market_researcher", "data_analyst", "financial_analyst", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "write_blog_post",
+    name: "Write Blog Post",
+    description: "Write a complete blog post on a given topic with title, sections, and call-to-action.",
+    category: "content",
+    parameters: [
+      { name: "topic", type: "string", description: "Blog post topic", required: true },
+      { name: "tone", type: "string", description: "Writing tone", required: false, defaultValue: "professional", enum: ["professional", "casual", "technical", "persuasive", "educational"] },
+      { name: "word_count", type: "number", description: "Target word count", required: false, defaultValue: 800 },
+      { name: "audience", type: "string", description: "Target audience", required: false }
+    ],
+    outputDescription: "Complete blog post with title, introduction, body sections, and conclusion",
+    riskLevel: "low",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 5e3,
+    timeoutMs: 3e4,
+    allowedRoles: ["content_writer", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "write_email",
+    name: "Write Email",
+    description: "Draft a professional email with subject line, body, and call-to-action.",
+    category: "content",
+    parameters: [
+      { name: "recipient", type: "string", description: "Who the email is for", required: true },
+      { name: "purpose", type: "string", description: "Purpose of the email", required: true },
+      { name: "tone", type: "string", description: "Email tone", required: false, defaultValue: "professional" },
+      { name: "key_points", type: "array", description: "Key points to include", required: false }
+    ],
+    outputDescription: "Complete email with subject line and body",
+    riskLevel: "medium",
+    requiresApproval: true,
+    approvalReason: "External communications require founder approval",
+    creditCost: 1,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 15e3,
+    allowedRoles: ["communications_agent", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "write_report",
+    name: "Write Report",
+    description: "Create a structured report with executive summary, findings, analysis, and recommendations.",
+    category: "content",
+    parameters: [
+      { name: "topic", type: "string", description: "Report topic", required: true },
+      { name: "findings", type: "array", description: "Key findings to include", required: true },
+      { name: "recommendations", type: "array", description: "Recommendations", required: false },
+      { name: "format", type: "string", description: "Report format", required: false, defaultValue: "standard", enum: ["standard", "executive", "detailed"] }
+    ],
+    outputDescription: "Structured report with executive summary, findings, and recommendations",
+    riskLevel: "low",
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 8e3,
+    timeoutMs: 45e3,
+    allowedRoles: ["data_analyst", "financial_analyst", "market_researcher", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "analyze_data",
+    name: "Analyze Data",
+    description: "Analyze structured or unstructured data to identify patterns, trends, and insights.",
+    category: "analysis",
+    parameters: [
+      { name: "data_description", type: "string", description: "Description of the data to analyze", required: true },
+      { name: "analysis_type", type: "string", description: "Type of analysis", required: false, defaultValue: "general", enum: ["general", "trend", "comparison", "forecast", "sentiment"] },
+      { name: "questions", type: "array", description: "Specific questions to answer", required: false }
+    ],
+    outputDescription: "Data analysis with patterns, trends, insights, and actionable recommendations",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 5e3,
+    timeoutMs: 3e4,
+    allowedRoles: ["data_analyst", "financial_analyst", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "financial_analysis",
+    name: "Financial Analysis",
+    description: "Analyze financial data, create projections, assess budgets, and provide financial guidance.",
+    category: "analysis",
+    parameters: [
+      { name: "analysis_type", type: "string", description: "Type of financial analysis", required: true, enum: ["budget", "revenue", "cost", "projection", "comparison"] },
+      { name: "data", type: "string", description: "Financial data or description", required: true },
+      { name: "period", type: "string", description: "Time period", required: false }
+    ],
+    outputDescription: "Financial analysis with projections and recommendations",
+    riskLevel: "low",
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 5e3,
+    timeoutMs: 3e4,
+    allowedRoles: ["financial_analyst", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "create_plan",
+    name: "Create Plan",
+    description: "Create a structured plan with phases, milestones, dependencies, and success criteria.",
+    category: "planning",
+    parameters: [
+      { name: "objective", type: "string", description: "What the plan should achieve", required: true },
+      { name: "timeframe", type: "string", description: "Timeframe for the plan", required: false },
+      { name: "constraints", type: "array", description: "Known constraints or limitations", required: false },
+      { name: "resources", type: "array", description: "Available resources", required: false }
+    ],
+    outputDescription: "Structured plan with phases, milestones, and success criteria",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 4e3,
+    timeoutMs: 2e4,
+    allowedRoles: ["executive_agent", "operations_manager"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "decompose_task",
+    name: "Decompose Task",
+    description: "Break a complex objective into specific, actionable sub-tasks with clear assignments.",
+    category: "planning",
+    parameters: [
+      { name: "objective", type: "string", description: "The objective to decompose", required: true },
+      { name: "available_roles", type: "array", description: "Available agent roles", required: false },
+      { name: "max_tasks", type: "number", description: "Maximum number of sub-tasks", required: false, defaultValue: 5 }
+    ],
+    outputDescription: "List of sub-tasks with titles, descriptions, and role assignments",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 15e3,
+    allowedRoles: ["executive_agent", "operations_manager"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "review_code",
+    name: "Review Code",
+    description: "Review code for quality, security, performance, and best practices. Returns findings and recommendations.",
+    category: "engineering",
+    parameters: [
+      { name: "code", type: "string", description: "Code to review", required: true },
+      { name: "language", type: "string", description: "Programming language", required: false },
+      { name: "focus", type: "array", description: "Specific areas to focus on", required: false }
+    ],
+    outputDescription: "Code review with findings, severity, and recommendations",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 8e3,
+    timeoutMs: 45e3,
+    allowedRoles: ["software_engineer", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "write_code",
+    name: "Write Code",
+    description: "Generate code for a specific task. Returns implementation with comments and usage examples.",
+    category: "engineering",
+    parameters: [
+      { name: "description", type: "string", description: "What the code should do", required: true },
+      { name: "language", type: "string", description: "Programming language", required: true },
+      { name: "context", type: "string", description: "Additional context (existing code, patterns)", required: false }
+    ],
+    outputDescription: "Code implementation with comments and examples",
+    riskLevel: "medium",
+    requiresApproval: false,
+    creditCost: 5,
+    estimatedDurationMs: 1e4,
+    timeoutMs: 6e4,
+    allowedRoles: ["software_engineer", "executive_agent"],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "store_memory",
+    name: "Store Company Memory",
+    description: "Store important information in company memory for future reference.",
+    category: "memory",
+    parameters: [
+      { name: "content", type: "string", description: "Information to store", required: true },
+      { name: "category", type: "string", description: "Memory category", required: true, enum: ["fact", "decision", "lesson", "preference", "workflow", "context"] },
+      { name: "importance", type: "number", description: "Importance level (1-10)", required: false, defaultValue: 5 }
+    ],
+    outputDescription: "Confirmation that memory was stored",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 0,
+    estimatedDurationMs: 1e3,
+    timeoutMs: 5e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: true,
+    maxRetries: 2
+  });
+  registerTool({
+    id: "search_memory",
+    name: "Search Company Memory",
+    description: "Search company memory for relevant information.",
+    category: "memory",
+    parameters: [
+      { name: "query", type: "string", description: "Search query", required: true },
+      { name: "category", type: "string", description: "Filter by category", required: false },
+      { name: "limit", type: "number", description: "Maximum results", required: false, defaultValue: 10 }
+    ],
+    outputDescription: "Relevant memory entries with content, category, and importance",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 0,
+    estimatedDurationMs: 500,
+    timeoutMs: 3e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "github_read_file",
+    name: "GitHub: Read Repository File",
+    description: "Read a file (content + metadata) from a repository branch.",
+    category: "engineering",
+    parameters: [
+      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
+      { name: "repo", type: "string", description: "Repository name", required: true },
+      { name: "path", type: "string", description: "File path inside the repo (no traversal allowed)", required: true },
+      { name: "ref", type: "string", description: "Branch or ref (default: default branch)", required: false }
+    ],
+    outputDescription: "File name, path, sha, size and content",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "gmail_create_draft",
+    name: "Gmail: Create Draft",
+    description: "Draft an email. Nothing is sent \u2014 the draft is stored in Gmail for founder review.",
+    category: "communication",
+    parameters: [
+      { name: "to", type: "array", description: "Recipient email addresses", required: true },
+      { name: "cc", type: "array", description: "CC recipients", required: false },
+      { name: "subject", type: "string", description: "Email subject", required: true },
+      { name: "body", type: "string", description: "Email body", required: true },
+      { name: "inReplyToMessageId", type: "string", description: "Message id to reply to", required: false }
+    ],
+    outputDescription: "Draft id + confirmation that nothing was sent",
+    riskLevel: "low",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "gmail_send_draft",
+    name: "Gmail: Send Draft",
+    description: "Send a previously created Gmail draft. Capability-gated; if the capability requires approval, a founder approval is requested and nothing is sent.",
+    category: "communication",
+    parameters: [
+      { name: "draftId", type: "string", description: "Gmail draft id to send", required: true }
+    ],
+    outputDescription: "Message id when sent, or pending-approval id",
+    riskLevel: "high",
+    requiresApproval: true,
+    approvalReason: "Sending external email requires founder approval.",
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "gmail_search",
+    name: "Gmail: Search Messages",
+    description: "Search the connected Gmail mailbox for messages matching a query.",
+    category: "communication",
+    parameters: [
+      { name: "query", type: "string", description: "Gmail search query (e.g. from:alice subject:invoice)", required: false },
+      { name: "maxResults", type: "number", description: "Max results (default 10, cap 50)", required: false }
+    ],
+    outputDescription: "Matching message list",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2500,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "linear_list_issues",
+    name: "Linear: List Issues",
+    description: "List issues from the connected Linear workspace.",
+    category: "engineering",
+    parameters: [
+      { name: "teamId", type: "string", description: "Linear team id filter", required: false },
+      { name: "limit", type: "number", description: "Max results (default 10, cap 50)", required: false }
+    ],
+    outputDescription: "List of Linear issues with id, identifier, title, state and url",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2500,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "linear_create_issue",
+    name: "Linear: Create Issue",
+    description: "Create an issue in a Linear team.",
+    category: "engineering",
+    parameters: [
+      { name: "teamId", type: "string", description: "Linear team id", required: false },
+      { name: "teamName", type: "string", description: "Linear team name (resolved to id)", required: false },
+      { name: "title", type: "string", description: "Issue title", required: true },
+      { name: "description", type: "string", description: "Issue description", required: false },
+      { name: "priority", type: "number", description: "Priority 0-4", required: false }
+    ],
+    outputDescription: "Created issue with identifier and url",
+    riskLevel: "medium",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "linear_get_issue",
+    name: "Linear: Get Issue",
+    description: "Fetch a single Linear issue by id or identifier.",
+    category: "engineering",
+    parameters: [
+      { name: "issueId", type: "string", description: "Linear issue id or identifier (e.g. ENG-12)", required: true }
+    ],
+    outputDescription: "Issue details with state and url",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "linear_update_issue",
+    name: "Linear: Update Issue",
+    description: "Update a Linear issue title, description, priority or state.",
+    category: "engineering",
+    parameters: [
+      { name: "issueId", type: "string", description: "Linear issue id", required: true },
+      { name: "title", type: "string", description: "New title", required: false },
+      { name: "description", type: "string", description: "New description", required: false },
+      { name: "priority", type: "number", description: "New priority 0-4", required: false },
+      { name: "stateId", type: "string", description: "Target workflow state id", required: false }
+    ],
+    outputDescription: "Updated issue",
+    riskLevel: "medium",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "linear_archive_issue",
+    name: "Linear: Archive Issue",
+    description: "Archive (soft-delete) a Linear issue.",
+    category: "engineering",
+    parameters: [
+      { name: "issueId", type: "string", description: "Linear issue id", required: true }
+    ],
+    outputDescription: "Archive confirmation",
+    riskLevel: "high",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "github_list_repositories",
+    name: "GitHub: List Repositories",
+    description: "List repositories the connected GitHub account can access.",
+    category: "engineering",
+    parameters: [
+      { name: "visibility", type: "string", description: "Filter by visibility", required: false, defaultValue: "all", enum: ["all", "public", "private"] }
+    ],
+    outputDescription: "List of repositories with owner, name, url and description",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "github_list_issues",
+    name: "GitHub: List Issues",
+    description: "List open issues in a repository.",
+    category: "engineering",
+    parameters: [
+      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
+      { name: "repo", type: "string", description: "Repository name", required: true },
+      { name: "state", type: "string", description: "Issue state filter", required: false, defaultValue: "open", enum: ["open", "closed", "all"] }
+    ],
+    outputDescription: "List of issues with number, title, state and url",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 1,
+    estimatedDurationMs: 2e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: true,
+    maxRetries: 1
+  });
+  registerTool({
+    id: "github_create_issue",
+    name: "GitHub: Create Issue",
+    description: "Create an issue in a repository on behalf of the organization.",
+    category: "engineering",
+    parameters: [
+      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
+      { name: "repo", type: "string", description: "Repository name", required: true },
+      { name: "title", type: "string", description: "Issue title", required: true },
+      { name: "body", type: "string", description: "Issue body", required: false },
+      { name: "labels", type: "array", description: "Labels to apply", required: false }
+    ],
+    outputDescription: "Created issue with number and url",
+    riskLevel: "medium",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "github_comment_on_issue",
+    name: "GitHub: Comment on Issue",
+    description: "Post a comment on an existing issue.",
+    category: "engineering",
+    parameters: [
+      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
+      { name: "repo", type: "string", description: "Repository name", required: true },
+      { name: "issueNumber", type: "number", description: "Issue number", required: true },
+      { name: "body", type: "string", description: "Comment body", required: true }
+    ],
+    outputDescription: "Created comment with id and url",
+    riskLevel: "medium",
+    requiresApproval: false,
+    creditCost: 2,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "github_create_pull_request",
+    name: "GitHub: Create Pull Request",
+    description: "Open a pull request in a repository.",
+    category: "engineering",
+    parameters: [
+      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
+      { name: "repo", type: "string", description: "Repository name", required: true },
+      { name: "title", type: "string", description: "Pull request title", required: true },
+      { name: "head", type: "string", description: "Head branch", required: true },
+      { name: "base", type: "string", description: "Base branch", required: true },
+      { name: "body", type: "string", description: "Pull request body", required: false }
+    ],
+    outputDescription: "Created pull request with number and url",
+    riskLevel: "high",
+    requiresApproval: false,
+    creditCost: 3,
+    estimatedDurationMs: 3e3,
+    timeoutMs: 25e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "get_org_status",
+    name: "Get Organization Status",
+    description: "Get the current status of the organization including agents, tasks, goals, and credits.",
+    category: "system",
+    parameters: [],
+    outputDescription: "Organization status summary",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 0,
+    estimatedDurationMs: 500,
+    timeoutMs: 3e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: false,
+    retryable: false,
+    maxRetries: 0
+  });
+  registerTool({
+    id: "notify_founder",
+    name: "Notify Founder",
+    description: "Send a notification to the founder about important updates, results, or issues.",
+    category: "system",
+    parameters: [
+      { name: "title", type: "string", description: "Notification title", required: true },
+      { name: "message", type: "string", description: "Notification message", required: true },
+      { name: "type", type: "string", description: "Notification type", required: false, defaultValue: "info", enum: ["info", "success", "warning", "error"] }
+    ],
+    outputDescription: "Confirmation that notification was sent",
+    riskLevel: "safe",
+    requiresApproval: false,
+    creditCost: 0,
+    estimatedDurationMs: 500,
+    timeoutMs: 3e3,
+    allowedRoles: [],
+    forbiddenRoles: [],
+    hasSideEffects: true,
+    retryable: true,
+    maxRetries: 2
+  });
+}
+function generateIdempotencyKey(toolId, agentId, params) {
+  const paramStr = JSON.stringify(params, Object.keys(params).sort());
+  let hash3 = 0;
+  const str = `${toolId}:${agentId}:${paramStr}`;
+  for (let i = 0; i < str.length; i++) {
+    const char2 = str.charCodeAt(i);
+    hash3 = (hash3 << 5) - hash3 + char2;
+    hash3 = hash3 & hash3;
+  }
+  return `tool_${toolId}_${Math.abs(hash3).toString(36)}`;
+}
+async function checkIdempotency(db, orgId, key) {
+  const cacheKey = `${orgId}:${key}`;
+  const cached2 = idempotencyCache.get(cacheKey);
+  if (cached2 && Date.now() - cached2.timestamp < IDEMPOTENCY_TTL_MS) {
+    return cached2.result;
+  }
+  try {
+    const recentAudit2 = await db.select().from(auditEvents).where(
+      and(
+        eq(auditEvents.orgId, orgId),
+        eq(auditEvents.action, "tool.executed"),
+        sql`${auditEvents.inputRef}::text LIKE ${"%" + key + "%"}`
+      )
+    ).orderBy(auditEvents.occurredAt).limit(1);
+    if (recentAudit2.length > 0) {
+      const result = {
+        success: true,
+        output: { idempotent: true, message: "Tool was already executed (idempotent replay)" },
+        creditsConsumed: 0,
+        durationMs: 0,
+        toolId: key.split("_")[1] ?? "",
+        approvalRequired: false
+      };
+      return result;
+    }
+  } catch {
+  }
+  return null;
+}
+function storeIdempotencyResult(orgId, key, result) {
+  const cacheKey = `${orgId}:${key}`;
+  if (idempotencyCache.size >= MAX_IDEMPOTENCY_ENTRIES) {
+    const oldest = idempotencyCache.keys().next().value;
+    if (oldest) idempotencyCache.delete(oldest);
+  }
+  idempotencyCache.set(cacheKey, { result, timestamp: Date.now() });
+}
+var toolRegistry, toolHandlers, idempotencyCache, IDEMPOTENCY_TTL_MS, MAX_IDEMPOTENCY_ENTRIES;
+var init_tool_registry = __esm({
+  "src/services/tool-registry.ts"() {
+    "use strict";
+    init_audit();
+    init_credits();
+    init_realtime();
+    init_approvals();
+    init_drizzle_orm();
+    init_src2();
+    toolRegistry = /* @__PURE__ */ new Map();
+    toolHandlers = /* @__PURE__ */ new Map();
+    idempotencyCache = /* @__PURE__ */ new Map();
+    IDEMPOTENCY_TTL_MS = 5 * 60 * 1e3;
+    MAX_IDEMPOTENCY_ENTRIES = 1e3;
+  }
+});
+
+// src/services/task-tools.ts
+function describeParams(tool) {
+  if (tool.parameters.length === 0) return "no parameters";
+  return tool.parameters.map((param2) => `${param2.name}:${param2.type}${param2.required ? "" : "?"}`).join(", ");
+}
+function buildToolSection(role) {
+  const tools = getToolsForRole(role);
+  if (tools.length === 0) return null;
+  const lines = tools.map(
+    (tool) => `- ${tool.id} \u2014 ${tool.name}: ${tool.description} (params: ${describeParams(tool)}; risk ${tool.riskLevel}; ${tool.creditCost} credit${tool.creditCost === 1 ? "" : "s"})`
+  );
+  return [
+    "You can use tools to do this work. To request one, reply with ONLY a fenced block:",
+    "",
+    "```tool",
+    '{"toolId": "<id>", "params": {"<name>": "<value>"}}',
+    "```",
+    "",
+    "You will receive the result and continue. If the work needs no tool, answer normally.",
+    "",
+    "Available to you:",
+    ...lines
+  ].join("\n");
+}
+function parseToolRequest(text2) {
+  const match = TOOL_BLOCK.exec(text2);
+  const body = match?.[1];
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body.trim());
+    if (typeof parsed.toolId !== "string" || parsed.toolId.trim().length === 0) return null;
+    return {
+      toolId: parsed.toolId.trim(),
+      params: parsed.params && typeof parsed.params === "object" && !Array.isArray(parsed.params) ? parsed.params : {}
+    };
+  } catch {
+    return null;
+  }
+}
+function formatToolResultForPrompt(toolId, result) {
+  if (result.approvalRequired) {
+    return `Tool "${toolId}" needs the founder's approval and has not run.`;
+  }
+  if (!result.success) {
+    return `Tool "${toolId}" did not run: ${result.error ?? "unknown error"}.`;
+  }
+  const output = typeof result.output === "string" ? result.output : JSON.stringify(result.output ?? null);
+  return `Tool "${toolId}" succeeded. Output:
+${(output ?? "").slice(0, 2e3)}`;
+}
+function describeToolCall(toolId, result) {
+  const seconds = Math.round(result.durationMs / 100) / 10;
+  if (result.approvalRequired) return `${toolId}: stopped for your approval`;
+  if (!result.success) return `${toolId}: refused (${result.error ?? "unknown error"})`;
+  return `${toolId}: ran in ${seconds}s, ${result.creditsConsumed} credit${result.creditsConsumed === 1 ? "" : "s"}`;
+}
+var MAX_TASK_TOOL_ROUNDS, TOOL_BLOCK;
+var init_task_tools = __esm({
+  "src/services/task-tools.ts"() {
+    "use strict";
+    init_tool_registry();
+    MAX_TASK_TOOL_ROUNDS = 3;
+    TOOL_BLOCK = /```tool[ \t]*\r?\n([\s\S]*?)```/i;
+  }
+});
+
+// src/services/model-intelligence.ts
+function clampIntensity(value, criticalAt, highAt) {
+  if (value >= criticalAt) return "critical";
+  if (value >= highAt) return "high";
+  if (value >= 1) return "medium";
+  return "low";
+}
+function classifyTask(input) {
+  const text2 = [input.title, input.description ?? "", input.agentRole ?? "", input.department ?? ""].join(" ").slice(0, 4e3);
+  const signals = [];
+  let complexity = 1;
+  for (const s of COMPLEXITY_SIGNALS) {
+    if (s.pattern.test(text2)) {
+      complexity += s.weight;
+      signals.push(s.label);
+    }
+  }
+  let riskScore = 0;
+  let riskDomains = [];
+  for (const d of RISK_DOMAINS) {
+    if (d.pattern.test(text2)) {
+      riskScore += d.risk === "critical" ? 3 : d.risk === "high" ? 2 : 1;
+      riskDomains.push(d.domain);
+      signals.push(`risk domain: ${d.domain}`);
+    }
+  }
+  let impactScore = 0;
+  for (const s of IMPACT_SIGNALS) {
+    if (s.pattern.test(text2)) {
+      impactScore += s.weight;
+      signals.push(s.label);
+    }
+  }
+  const priorityBoost = input.priority === "urgent" ? 1 : input.priority === "high" ? 0.5 : 0;
+  complexity += priorityBoost;
+  if (priorityBoost > 0) signals.push(`priority: ${input.priority}`);
+  const businessImpact = clampIntensity(impactScore, 3, 1.5);
+  const reasoning = clampIntensity(complexity, 4, 2.5);
+  const level = Math.min(5, Math.max(1, Math.round(complexity)));
+  const requiredAccuracy = riskScore >= 3 || businessImpact === "critical" ? "critical" : businessImpact === "high" ? "high" : reasoning;
+  return {
+    complexity: level,
+    reasoning,
+    risk: riskScore >= 3 ? "critical" : riskScore >= 2 ? "high" : riskScore >= 1 ? "medium" : "low",
+    businessImpact,
+    requiredAccuracy,
+    signals: signals.slice(0, MAX_SIGNALS).concat(riskDomains.length ? [] : [])
+  };
+}
+function tierOf(model) {
+  const cheap = model.costPer1kInput <= 2e-4;
+  const expensive = model.costPer1kInput >= 2e-3;
+  const reasons = model.capabilities.includes("reasoning");
+  const fast = model.speedRating === "fast";
+  if (cheap && fast && !reasons) return 0;
+  if (reasons && expensive) return 3;
+  if (reasons) return 2;
+  return 1;
+}
+function modelsByTier() {
+  const out = { 0: [], 1: [], 2: [], 3: [] };
+  for (const m of MODEL_REGISTRY) out[tierOf(m)].push(m);
+  for (const tier of Object.keys(out)) {
+    out[tier].sort((a, b) => a.costPer1kInput - b.costPer1kInput);
+  }
+  return out;
+}
+function diverseModelsFor(count4, opts) {
+  const tiers = modelsByTier();
+  const ladder = opts.allowExpensive ? [2, 3, 1, 0] : [2, 1, 0];
+  const available = [];
+  for (const tier of ladder) {
+    for (const m of tiers[tier]) {
+      if (opts.allowExpensive || m.costPer1kInput <= 3e-3) available.push(m);
+    }
+  }
+  const chosen = [];
+  const seenProviders = /* @__PURE__ */ new Set();
+  for (const m of available) {
+    if (chosen.length >= count4) break;
+    if (!seenProviders.has(m.provider)) {
+      chosen.push(m);
+      seenProviders.add(m.provider);
+    }
+  }
+  for (const m of available) {
+    if (chosen.length >= count4) break;
+    if (!chosen.includes(m)) chosen.push(m);
+  }
+  return chosen.slice(0, count4).map((m) => m.id);
+}
+function strongestModelId() {
+  const tiers = modelsByTier();
+  const flagship = tiers[3] ?? [];
+  if (flagship.length > 0) return flagship[flagship.length - 1].id;
+  for (const tier of [2, 1, 0]) {
+    const pool = tiers[tier] ?? [];
+    if (pool.length > 0) return pool[pool.length - 1].id;
+  }
+  return void 0;
+}
+function extractAmount(text2) {
+  const kMatch = text2.match(/\$\s?([\d,.]+)\s?k\b/i) ?? text2.match(/\b([\d,.]+)\s?k\s?(dollars?|usd)?\b/i);
+  if (kMatch) {
+    const n = Number.parseFloat((kMatch[1] ?? "").replace(/,/g, ""));
+    if (!Number.isNaN(n)) return n * 1e3;
+  }
+  const plain = text2.match(/\$\s?([\d,]+)/);
+  if (plain) {
+    const n = Number.parseFloat((plain[1] ?? "").replace(/,/g, ""));
+    if (!Number.isNaN(n)) return n;
+  }
+  return null;
+}
+function evaluateEscalation(input) {
+  const text2 = `${input.question} ${input.context ?? ""}`.slice(0, 4e3);
+  const amount = extractAmount(text2);
+  const departments2 = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text2)).map((h) => h.slug);
+  const irreversible = /\b(irreversib|permanent|cannot be undone|terminate)\b/i.test(text2);
+  const security = /\b(security|vulnerab|breach|exploit)\b/i.test(text2);
+  const legal = /\b(legal|lawsuit|regulat|complian)\b/i.test(text2);
+  const strategic = /\b(strategy|strategic|pivot|roadmap|positioning)\b/i.test(text2);
+  const financial = amount !== null || /\b(budget|spend|invest|pay)\b/i.test(text2);
+  const departmentCount = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text2)).length;
+  const dimensions = [irreversible, security, legal, strategic, financial].filter(Boolean).length;
+  const effectiveDimensions = dimensions + (departmentCount >= 3 ? 1 : 0);
+  const budgets = { none: 0, single_agent: 0.05, dual_review: 0.25, department_council: 1, executive_deliberation: 5 };
+  let level;
+  let requiresFounderApproval = false;
+  if (effectiveDimensions >= 4 || amount !== null && amount >= 1e4 || irreversible && financial) {
+    level = "executive_deliberation";
+    requiresFounderApproval = true;
+  } else if (effectiveDimensions >= 2 || departmentCount >= 3 || amount !== null && amount >= 1e3) {
+    level = "department_council";
+    requiresFounderApproval = amount !== null && amount >= 1e3;
+  } else if (effectiveDimensions === 1 || amount !== null && amount >= 100) {
+    level = "dual_review";
+  } else {
+    level = "single_agent";
+  }
+  const parts = [];
+  if (amount !== null) parts.push(`amount $${amount}`);
+  if (irreversible) parts.push("irreversible");
+  if (security) parts.push("security");
+  if (legal) parts.push("legal");
+  if (strategic) parts.push("strategic");
+  if (financial) parts.push("financial");
+  return {
+    level,
+    budgetUsd: budgets[level],
+    departments: departments2.length > 0 ? departments2 : ["executive"],
+    requiresFounderApproval,
+    rationale: parts.length > 0 ? `Escalated on: ${parts.join(", ")}` : "No high-impact signals detected"
+  };
+}
+var RISK_DOMAINS, COMPLEXITY_SIGNALS, IMPACT_SIGNALS, MAX_SIGNALS, DEPARTMENT_HINTS;
+var init_model_intelligence = __esm({
+  "src/services/model-intelligence.ts"() {
+    "use strict";
+    init_model_router();
+    RISK_DOMAINS = [
+      { pattern: /\b(security|vulnerab|penetration|exploit|breach|auth[^o]|encryption)\b/i, domain: "security", risk: "critical" },
+      { pattern: /\b(legal|contract|complian|regulat|GDPR|license|liab)/i, domain: "legal", risk: "high" },
+      { pattern: /\b(financ|budget|payroll|invoice|tax|accounting|revenue recognition)\b/i, domain: "finance", risk: "high" },
+      { pattern: /\b(architecture|migration|database schema|infrastructure|production deploy|scaling)\b/i, domain: "architecture", risk: "high" },
+      { pattern: /\b(strategy|strategic|roadmap|pricing strategy|market position)\b/i, domain: "strategy", risk: "medium" }
+    ];
+    COMPLEXITY_SIGNALS = [
+      { pattern: /\b(design|architect|plan|compare|evaluate|trade-?off|refactor|migrat)\w*/i, weight: 1.5, label: "design/planning verbs" },
+      { pattern: /\b(analy[sz]e|investigat|research|audit|assess)\w*/i, weight: 1, label: "analysis verbs" },
+      { pattern: /\b(write|draft|format|tag|label|summariz|extract|classify|translate)\w*/i, weight: -0.5, label: "atomic verbs" },
+      { pattern: /\b(security|legal|financial|strategic|critical)\b/i, weight: 1, label: "high-stakes domain terms" },
+      { pattern: /\b(multi-?step|comprehensive|end-to-end|cross-department)\b/i, weight: 1, label: "multi-step scope" }
+    ];
+    IMPACT_SIGNALS = [
+      { pattern: /\$\s?[\d,]+|\b\d+\s?k\b|\b\d+\s?dollars?\b/i, weight: 2, label: "explicit monetary amount" },
+      { pattern: /\b(launch|customer-facing|production|revenue|churn)\b/i, weight: 1, label: "business-outcome terms" },
+      { pattern: /\b(irreversib|permanent|delete all|terminate)\b/i, weight: 1.5, label: "irreversibility" }
+    ];
+    MAX_SIGNALS = 5;
+    DEPARTMENT_HINTS = [
+      { pattern: /\b(financ|budget|cost|revenue|pric)/i, slug: "finance" },
+      { pattern: /\b(legal|contract|complian|regulat)/i, slug: "legal" },
+      { pattern: /\b(security|vulnerab|breach)/i, slug: "security" },
+      { pattern: /\b(engineer|technical|architecture|build)/i, slug: "engineering" },
+      { pattern: /\b(marketing|campaign|brand|acquisition)/i, slug: "marketing" },
+      { pattern: /\b(sales|deal|pipeline|customer)/i, slug: "sales" },
+      { pattern: /\b(product|feature|roadmap)/i, slug: "product" },
+      { pattern: /\b(hiring|recruit|people|team size)/i, slug: "people" }
+    ];
+  }
+});
+
+// src/services/model-selector.ts
+async function getRoutingPerformance(db, orgId) {
+  const since = new Date(Date.now() - ROUTING_WINDOW_DAYS * 24 * 60 * 60 * 1e3);
+  const rows = await db.select({
+    model: llmPerformance.model,
+    calls: sql`count(*)::int`,
+    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
+    failures: sql`count(*) filter (where not ${llmPerformance.success})::int`,
+    avgDurationMs: sql`coalesce(avg(${llmPerformance.durationMs}), 0)::int`
+  }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, since))).groupBy(llmPerformance.model);
+  const stats = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    stats.set(r.model, {
+      model: r.model,
+      calls: r.calls,
+      successes: r.successes,
+      failures: r.failures,
+      successRate: r.calls > 0 ? r.successes / r.calls : 0,
+      avgDurationMs: r.avgDurationMs
+    });
+  }
+  const totalCalls = [...stats.values()].reduce((acc, s) => acc + s.calls, 0);
+  return { stats, sufficientData: totalCalls >= MIN_CALLS_FOR_ROUTING_SUCCESS };
+}
+async function selectMeasuredModel(db, orgId, routing, calibration) {
+  const tiers = modelsByTier();
+  let minTier = routing.risk === "critical" || routing.complexity >= 4 ? 2 : routing.complexity >= 3 || routing.reasoning !== "low" ? 1 : 0;
+  const consequential = routing.risk === "critical" || routing.complexity >= 3;
+  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && minTier < calibration.minConsequentialTier) {
+    minTier = calibration.minConsequentialTier;
+  }
+  const candidates = [];
+  for (let tier = minTier; tier <= 3; tier++) {
+    for (const m of tiers[tier]) candidates.push(m.id);
+  }
+  const staticPick = candidates[0];
+  const perf = await getRoutingPerformance(db, orgId);
+  if (candidates.length <= 1) {
+    return { modelId: staticPick, source: "static" };
+  }
+  if (perf.stats.size === 0) {
+    return { modelId: staticPick, source: "static", reason: "insufficient measured history" };
+  }
+  const degraded = new Set(
+    candidates.filter((id) => {
+      const s = perf.stats.get(id);
+      return s !== void 0 && s.failures >= MIN_CALLS_FOR_ROUTING_FAILURE && s.successRate <= SUCCESS_RATE_CEILING_DEGRADED;
+    })
+  );
+  for (const id of candidates) {
+    if (degraded.has(id)) continue;
+    const s = perf.stats.get(id);
+    if (s !== void 0 && s.successes >= MIN_CALLS_FOR_ROUTING_SUCCESS && s.successRate >= SUCCESS_RATE_FLOOR) {
+      if (id === staticPick) {
+        return { modelId: id, source: "static", reason: void 0 };
+      }
+      return {
+        modelId: id,
+        source: "measured",
+        reason: `${id} has ${s.successes} measured successes at ${Math.round(s.successRate * 100)}% over ${ROUTING_WINDOW_DAYS}d \u2014 preferred over the static default`
+      };
+    }
+  }
+  const firstHealthy = candidates.find((id) => !degraded.has(id));
+  if (firstHealthy && firstHealthy !== staticPick) {
+    return {
+      modelId: firstHealthy,
+      source: "measured",
+      reason: `static default is measured-degraded in this org (${[...degraded].join(", ")})`
+    };
+  }
+  return { modelId: staticPick, source: "static", reason: degraded.size > 0 ? "degraded candidate not present in registry candidates" : void 0 };
+}
+var MIN_CALLS_FOR_ROUTING_SUCCESS, MIN_CALLS_FOR_ROUTING_FAILURE, SUCCESS_RATE_FLOOR, SUCCESS_RATE_CEILING_DEGRADED, ROUTING_WINDOW_DAYS;
+var init_model_selector = __esm({
+  "src/services/model-selector.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_model_intelligence();
+    MIN_CALLS_FOR_ROUTING_SUCCESS = 8;
+    MIN_CALLS_FOR_ROUTING_FAILURE = 4;
+    SUCCESS_RATE_FLOOR = 0.9;
+    SUCCESS_RATE_CEILING_DEGRADED = 0.7;
+    ROUTING_WINDOW_DAYS = 14;
+  }
+});
+
+// src/services/decision-calibration.ts
+function computeConfidenceCalibration(decisionRows) {
+  const byBand = /* @__PURE__ */ new Map();
+  for (const band of BANDS) byBand.set(band, { resolved: 0, validated: 0, reversed: 0 });
+  let unresolvedBandCount = 0;
+  for (const d of decisionRows) {
+    if (!d.outcomeFiledAt || !d.predictionAccuracy) continue;
+    const band = d.confidence;
+    const bucket = byBand.get(band);
+    if (!bucket) {
+      unresolvedBandCount += 1;
+      continue;
+    }
+    bucket.resolved += 1;
+    if (d.predictionAccuracy === "accurate") bucket.validated += 1;
+    else if (d.predictionAccuracy === "inaccurate") bucket.reversed += 1;
+  }
+  const bands = BANDS.map((band) => {
+    const bucket = byBand.get(band);
+    const accuracyPct = bucket.resolved >= MIN_RESOLVED_FOR_ACCURACY ? Math.round(bucket.validated / bucket.resolved * 100) : null;
+    return { band, ...bucket, accuracyPct };
+  });
+  const high = bands.find((b) => b.band === "high");
+  const low = bands.find((b) => b.band === "low");
+  const calibrationGapPct = high.accuracyPct !== null && low.accuracyPct !== null ? high.accuracyPct - low.accuracyPct : null;
+  return {
+    bands,
+    fullyCalibrated: bands.every((b) => b.accuracyPct !== null),
+    calibrationGapPct,
+    totalResolved: bands.reduce((sum2, b) => sum2 + b.resolved, 0),
+    unresolvedBandCount
+  };
+}
+var MIN_RESOLVED_FOR_ACCURACY, BANDS;
+var init_decision_calibration = __esm({
+  "src/services/decision-calibration.ts"() {
+    "use strict";
+    MIN_RESOLVED_FOR_ACCURACY = 3;
+    BANDS = ["high", "medium", "low"];
+  }
+});
+
+// src/services/calibration-routing.ts
+function calibrationRoutingAdvice(calibration) {
+  if (!calibration || calibration.totalResolved === 0) {
+    return {
+      active: false,
+      reason: "No filed outcomes yet \u2014 calibration cannot steer routing.",
+      minConsequentialTier: null,
+      councilRequiresFounderApproval: false
+    };
+  }
+  const high = calibration.bands.find((b) => b.band === "high");
+  const low = calibration.bands.find((b) => b.band === "low");
+  const highMeasurable = !!high && high.accuracyPct !== null;
+  const lowMeasurable = !!low && low.accuracyPct !== null;
+  if (!highMeasurable && !lowMeasurable) {
+    return {
+      active: false,
+      reason: `Calibration has ${calibration.totalResolved} resolved outcome(s) but no band has the minimum sample yet \u2014 routing unchanged.`,
+      minConsequentialTier: null,
+      councilRequiresFounderApproval: false
+    };
+  }
+  if (highMeasurable && lowMeasurable && calibration.calibrationGapPct !== null && calibration.calibrationGapPct < 0) {
+    return {
+      active: true,
+      reason: `Measured calibration is inverted (high ${high.accuracyPct}% vs low ${low.accuracyPct}%) \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
+      minConsequentialTier: 2,
+      councilRequiresFounderApproval: true
+    };
+  }
+  if (highMeasurable && high.accuracyPct !== null && high.accuracyPct < 50) {
+    return {
+      active: true,
+      reason: `High-confidence recommendations validate only ${high.accuracyPct}% of the time \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
+      minConsequentialTier: 2,
+      councilRequiresFounderApproval: true
+    };
+  }
+  return {
+    active: false,
+    reason: highMeasurable ? `High-confidence recommendations validate at ${high.accuracyPct}% \u2014 calibration is healthy; no routing override.` : "Only low-confidence outcomes are measurable so far \u2014 no routing override.",
+    minConsequentialTier: null,
+    councilRequiresFounderApproval: false
+  };
+}
+async function getCalibrationAdvice(db, orgId) {
+  const cached2 = adviceCache.get(orgId);
+  if (cached2 && Date.now() - cached2.at < ADVICE_TTL_MS) return cached2.advice;
+  try {
+    const rows = await db.select({
+      confidence: decisions.confidence,
+      predictionAccuracy: decisions.predictionAccuracy,
+      outcomeFiledAt: decisions.outcomeFiledAt
+    }).from(decisions).where(eq(decisions.orgId, orgId));
+    const advice = calibrationRoutingAdvice(computeConfidenceCalibration(rows));
+    adviceCache.set(orgId, { advice, at: Date.now() });
+    return advice;
+  } catch {
+    return calibrationRoutingAdvice(null);
+  }
+}
+var ADVICE_TTL_MS, adviceCache;
+var init_calibration_routing = __esm({
+  "src/services/calibration-routing.ts"() {
+    "use strict";
+    init_src2();
+    init_drizzle_orm();
+    init_decision_calibration();
+    ADVICE_TTL_MS = 5 * 60 * 1e3;
+    adviceCache = /* @__PURE__ */ new Map();
+  }
+});
+
 // src/services/embeddings.ts
 function cosineSimilarity(a, b) {
   if (a.length === 0 || a.length !== b.length) return 0;
@@ -83978,6 +88701,19 @@ var init_embeddings = __esm({
 });
 
 // src/services/memory.ts
+function significantTerms(query) {
+  const seen = /* @__PURE__ */ new Set();
+  const terms = [];
+  for (const raw of query.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (raw.length < 3) continue;
+    if (STOPWORDS.has(raw)) continue;
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    terms.push(raw);
+    if (terms.length >= 12) break;
+  }
+  return terms;
+}
 async function findByOrg6(db, orgId, opts = {}, config2) {
   if (opts.query && config2) {
     const semantic = await searchSemantic(db, orgId, opts.query, config2, {
@@ -83998,15 +88734,34 @@ async function findByOrg6(db, orgId, opts = {}, config2) {
   if (opts.agentId) {
     conditions.push(eq(companyMemory.agentId, opts.agentId));
   }
-  if (opts.query) {
+  const terms = opts.query ? significantTerms(opts.query) : [];
+  if (terms.length > 0) {
     conditions.push(
       or(
-        ilike(companyMemory.content, `%${opts.query}%`),
+        ...terms.map((t) => ilike(companyMemory.content, `%${t}%`)),
         ilike(companyMemory.source, `%${opts.query}%`)
       )
     );
   }
-  return db.select().from(companyMemory).where(and(...conditions)).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
+  const relevance = terms.length > 0 ? sql`(${sql.join(
+    terms.map((t) => sql`(case when lower(${companyMemory.content}) like ${`%${t}%`} then 1 else 0 end)`),
+    sql` + `
+  )})` : null;
+  return db.select().from(companyMemory).where(and(...conditions)).orderBy(
+    ...relevance ? [desc(relevance)] : [],
+    desc(companyMemory.importance),
+    desc(companyMemory.createdAt)
+  ).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
+}
+async function stampMemoryUsage(db, ids) {
+  if (ids.length === 0) return;
+  try {
+    await db.update(companyMemory).set({
+      useCount: sql`${companyMemory.useCount} + 1`,
+      lastUsedAt: /* @__PURE__ */ new Date()
+    }).where(inArray(companyMemory.id, ids));
+  } catch {
+  }
 }
 async function findById5(db, orgId, id) {
   const rows = await db.select().from(companyMemory).where(and(eq(companyMemory.id, id), eq(companyMemory.orgId, orgId))).limit(1);
@@ -84070,25 +88825,3036 @@ async function retrieveForContext(db, orgId, opts = {}) {
 }
 async function retrieveSemanticForContext(db, orgId, opts = {}, config2) {
   const maxEntries = Math.min(opts.maxEntries ?? 12, 30);
-  if (opts.query?.trim()) {
-    return findByOrg6(db, orgId, {
-      query: opts.query.trim().slice(0, 500),
-      category: opts.category,
-      minImportance: opts.minImportance,
-      limit: maxEntries
-    }, config2);
-  }
-  const conditions = [eq(companyMemory.orgId, orgId)];
-  if (opts.category) conditions.push(eq(companyMemory.category, opts.category));
-  if (opts.minImportance) conditions.push(sql`${companyMemory.importance} >= ${opts.minImportance}`);
-  return db.select().from(companyMemory).where(and(...conditions)).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(maxEntries);
+  const rows = opts.query?.trim() ? await findByOrg6(db, orgId, {
+    query: opts.query.trim().slice(0, 500),
+    category: opts.category,
+    minImportance: opts.minImportance,
+    limit: maxEntries
+  }, config2) : await (async () => {
+    const conditions = [eq(companyMemory.orgId, orgId)];
+    if (opts.category) conditions.push(eq(companyMemory.category, opts.category));
+    if (opts.minImportance) conditions.push(sql`${companyMemory.importance} >= ${opts.minImportance}`);
+    return db.select().from(companyMemory).where(and(...conditions)).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(maxEntries);
+  })();
+  await stampMemoryUsage(db, rows.map((r) => String(r.id)));
+  return rows;
 }
+var STOPWORDS;
 var init_memory = __esm({
   "src/services/memory.ts"() {
     "use strict";
     init_drizzle_orm();
     init_src2();
     init_embeddings();
+    STOPWORDS = /* @__PURE__ */ new Set([
+      "the",
+      "and",
+      "for",
+      "with",
+      "that",
+      "this",
+      "from",
+      "into",
+      "about",
+      "over",
+      "our",
+      "your",
+      "their",
+      "its",
+      "his",
+      "her",
+      "are",
+      "was",
+      "were",
+      "been",
+      "has",
+      "have",
+      "had",
+      "not",
+      "but",
+      "all",
+      "any",
+      "can",
+      "will",
+      "would",
+      "should",
+      "could",
+      "may",
+      "might",
+      "must",
+      "than",
+      "then",
+      "them",
+      "they",
+      "you",
+      "our",
+      "out",
+      "off",
+      "per",
+      "via",
+      "use",
+      "using",
+      "get",
+      "got",
+      "make",
+      "made",
+      "new",
+      "one",
+      "two",
+      "how",
+      "what",
+      "when",
+      "where",
+      "which",
+      "who",
+      "why",
+      "please",
+      "need",
+      "needs",
+      "want",
+      "wants",
+      "some",
+      "also"
+    ]);
+  }
+});
+
+// src/services/crypto.ts
+function getKey() {
+  const envKey = process.env.ENCRYPTION_KEY ?? process.env.SECRET_KEY ?? "";
+  if (!envKey) {
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("[crypto] ENCRYPTION_KEY not set \u2014 using insecure dev key. Set ENCRYPTION_KEY in production.");
+    }
+    return (0, import_node_crypto5.createHash)("sha256").update("orq8-dev-only-insecure-key-do-not-use-in-prod").digest();
+  }
+  return (0, import_node_crypto5.createHash)("sha256").update(envKey).digest();
+}
+function encryptSecret(plaintext) {
+  const key = getKey();
+  const iv = (0, import_node_crypto5.randomBytes)(12);
+  const cipher = (0, import_node_crypto5.createCipheriv)("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `v1:${iv.toString("base64")}:${tag.toString("base64")}:${encrypted.toString("base64")}`;
+}
+function decryptSecret(payload) {
+  try {
+    const [version3, ivB64, tagB64, dataB64] = payload.split(":");
+    if (version3 !== "v1" || !ivB64 || !tagB64 || !dataB64) return null;
+    const key = getKey();
+    const decipher = (0, import_node_crypto5.createDecipheriv)("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
+    decipher.setAuthTag(Buffer.from(tagB64, "base64"));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(dataB64, "base64")),
+      decipher.final()
+    ]);
+    return decrypted.toString("utf8");
+  } catch {
+    return null;
+  }
+}
+var import_node_crypto5;
+var init_crypto2 = __esm({
+  "src/services/crypto.ts"() {
+    "use strict";
+    import_node_crypto5 = require("node:crypto");
+  }
+});
+
+// src/services/integrations.ts
+async function listProviders(db, orgId) {
+  return db.select().from(integrationProviders).where(eq(integrationProviders.orgId, orgId)).orderBy(desc(integrationProviders.updatedAt));
+}
+async function getProvider(db, orgId, id) {
+  const rows = await db.select().from(integrationProviders).where(and(eq(integrationProviders.id, id), eq(integrationProviders.orgId, orgId))).limit(1);
+  return rows[0];
+}
+async function getProviderByName(db, orgId, name2) {
+  const rows = await db.select().from(integrationProviders).where(and(eq(integrationProviders.orgId, orgId), eq(integrationProviders.name, name2))).limit(1);
+  return rows[0];
+}
+async function createProvider(db, data) {
+  const rows = await db.insert(integrationProviders).values(data).returning();
+  const row = rows[0];
+  if (!row) throw new Error("createProvider returned no row");
+  await appendAudit(db, {
+    orgId: data.orgId,
+    actorType: "user",
+    action: "integration.connected",
+    outcome: "success"
+  });
+  return row;
+}
+async function updateProviderStatus(db, id, status, error51) {
+  const updates = { status, updatedAt: /* @__PURE__ */ new Date() };
+  if (error51) updates.error = error51;
+  const rows = await db.update(integrationProviders).set(updates).where(eq(integrationProviders.id, id)).returning();
+  return rows[0];
+}
+async function deleteProvider(db, orgId, id) {
+  const rows = await db.delete(integrationProviders).where(and(eq(integrationProviders.id, id), eq(integrationProviders.orgId, orgId))).returning({ id: integrationProviders.id });
+  return rows.length > 0;
+}
+async function getCredentials(db, providerId) {
+  const rows = await db.select().from(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).limit(1);
+  return rows[0];
+}
+async function setCredentials(db, providerId, data) {
+  const encrypted = data.encryptedSecret ? encryptSecret(data.encryptedSecret) : "";
+  const toStore = {
+    credentialType: data.credentialType ?? "oauth",
+    encryptedSecret: encrypted,
+    publicRef: data.publicRef ?? null,
+    tokenExpiresAt: data.tokenExpiresAt ?? null,
+    scopes: data.scopes ?? [],
+    refreshTokenHash: data.refreshTokenHash ?? null,
+    refreshTokenExpiresAt: data.refreshTokenExpiresAt ?? null
+  };
+  const [existing] = await db.select().from(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).limit(1);
+  if (existing) {
+    const rows2 = await db.update(integrationCredentials).set({ ...toStore, providerId, updatedAt: /* @__PURE__ */ new Date() }).where(eq(integrationCredentials.id, existing.id)).returning();
+    return rows2[0];
+  }
+  const rows = await db.insert(integrationCredentials).values({ ...toStore, providerId }).returning();
+  return rows[0];
+}
+function decryptCredentialSecret(credential) {
+  if (!credential?.encryptedSecret) return null;
+  return decryptSecret(credential.encryptedSecret);
+}
+async function deleteCredentials(db, providerId) {
+  const rows = await db.delete(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).returning({ id: integrationCredentials.id });
+  return rows.length > 0;
+}
+async function listCapabilities(db, providerId) {
+  return db.select().from(integrationCapabilities).where(eq(integrationCapabilities.providerId, providerId));
+}
+async function getCapability(db, providerId, capability) {
+  const rows = await db.select().from(integrationCapabilities).where(
+    and(
+      eq(integrationCapabilities.providerId, providerId),
+      eq(integrationCapabilities.capability, capability)
+    )
+  ).limit(1);
+  return rows[0];
+}
+async function upsertCapability(db, data) {
+  const [existing] = await db.select().from(integrationCapabilities).where(
+    and(
+      eq(integrationCapabilities.providerId, data.providerId),
+      eq(integrationCapabilities.capability, data.capability)
+    )
+  ).limit(1);
+  if (existing) {
+    const rows2 = await db.update(integrationCapabilities).set(data).where(eq(integrationCapabilities.id, existing.id)).returning();
+    return rows2[0];
+  }
+  const rows = await db.insert(integrationCapabilities).values(data).returning();
+  return rows[0];
+}
+async function listAgentAccess(db, orgId, agentId) {
+  return db.select().from(agentIntegrationAccess).where(and(eq(agentIntegrationAccess.orgId, orgId), eq(agentIntegrationAccess.agentId, agentId)));
+}
+async function getAgentAccess(db, orgId, agentId, providerId) {
+  const rows = await db.select().from(agentIntegrationAccess).where(
+    and(
+      eq(agentIntegrationAccess.orgId, orgId),
+      eq(agentIntegrationAccess.agentId, agentId),
+      eq(agentIntegrationAccess.providerId, providerId)
+    )
+  ).limit(1);
+  return rows[0];
+}
+async function grantAgentAccess(db, data) {
+  const [existing] = await db.select().from(agentIntegrationAccess).where(
+    and(
+      eq(agentIntegrationAccess.orgId, data.orgId),
+      eq(agentIntegrationAccess.agentId, data.agentId),
+      eq(agentIntegrationAccess.providerId, data.providerId)
+    )
+  ).limit(1);
+  if (existing) {
+    const rows2 = await db.update(agentIntegrationAccess).set({ ...data, capabilities: data.capabilities }).where(eq(agentIntegrationAccess.id, existing.id)).returning();
+    return rows2[0];
+  }
+  const rows = await db.insert(agentIntegrationAccess).values(data).returning();
+  return rows[0];
+}
+async function revokeAgentAccess(db, orgId, agentId, providerId) {
+  const rows = await db.delete(agentIntegrationAccess).where(
+    and(
+      eq(agentIntegrationAccess.orgId, orgId),
+      eq(agentIntegrationAccess.agentId, agentId),
+      eq(agentIntegrationAccess.providerId, providerId)
+    )
+  ).returning({ id: agentIntegrationAccess.id });
+  return rows.length > 0;
+}
+async function recordOutcome(db, data) {
+  const rows = await db.insert(connectorOutcomes).values(data).returning();
+  const row = rows[0];
+  if (!row) throw new Error("recordOutcome returned no row");
+  return row;
+}
+async function listOutcomes(db, orgId, opts = {}) {
+  const conditions = [eq(connectorOutcomes.orgId, orgId)];
+  if (opts.provider) conditions.push(eq(connectorOutcomes.provider, opts.provider));
+  if (opts.status) conditions.push(eq(connectorOutcomes.status, opts.status));
+  return db.select().from(connectorOutcomes).where(and(...conditions)).orderBy(desc(connectorOutcomes.createdAt)).limit(opts.limit ?? 50);
+}
+function classifyConnectorState(input) {
+  if (!input.hasCredential) return { state: "disconnected", requiresReconnect: false };
+  if (input.expiredByTime) return { state: "expired", requiresReconnect: true };
+  if (input.probeHealthy === null) return { state: "error", requiresReconnect: false };
+  if (input.probeHealthy) return { state: "healthy", requiresReconnect: false };
+  const status = input.probeStatus ?? 0;
+  if (status === 401 || status === 403) return { state: "expired", requiresReconnect: true };
+  return { state: "degraded", requiresReconnect: false };
+}
+async function latestOutcome(db, orgId, provider) {
+  const rows = await db.select().from(connectorOutcomes).where(and(eq(connectorOutcomes.orgId, orgId), eq(connectorOutcomes.provider, provider))).orderBy(desc(connectorOutcomes.createdAt)).limit(1);
+  return rows[0];
+}
+async function canAgentUseCapability(db, orgId, agentId, providerName, capability) {
+  const provider = await getProviderByName(db, orgId, providerName);
+  if (!provider) return { allowed: false, requiresApproval: false };
+  const access = await getAgentAccess(db, orgId, agentId, provider.id);
+  if (!access) return { allowed: false, requiresApproval: false, provider };
+  const allowedCapabilities = Array.isArray(access.capabilities) ? access.capabilities : [];
+  const granted = (cap2) => allowedCapabilities.includes(cap2) || allowedCapabilities.includes(`${providerName}.${cap2}`);
+  if (!granted(capability)) {
+    return { allowed: false, requiresApproval: false, provider };
+  }
+  const cap = await getCapability(db, provider.id, capability);
+  if (cap && !cap.allowed) {
+    return { allowed: false, requiresApproval: false, provider };
+  }
+  const approvalRequiredFor = Array.isArray(cap?.approvalRequiredFor) ? cap.approvalRequiredFor : [];
+  const requiresApproval = approvalRequiredFor.includes(capability);
+  return { allowed: true, requiresApproval, provider };
+}
+var init_integrations = __esm({
+  "src/services/integrations.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_crypto2();
+    init_src2();
+    init_audit();
+  }
+});
+
+// src/services/connector-actions.ts
+async function resolveAgent(db, orgId, agentId) {
+  const rows = await db.select({ id: agents.id, name: agents.name, status: agents.status }).from(agents).where(eq(agents.id, agentId)).limit(1);
+  const agent = rows[0];
+  if (!agent || agent.status === "archived") {
+    throw new ConnectorActionError("Agent not found or archived", "not_found");
+  }
+  const inOrg = await db.select({ id: agents.id }).from(agents).where(and(eq(agents.id, agentId), eq(agents.orgId, orgId))).limit(1);
+  if (!inOrg[0]) throw new ConnectorActionError("Agent not found in this organization", "not_found");
+  return agent;
+}
+async function githubFetch(db, ctx, capability, method, path2, body, actionName) {
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto6.randomUUID)();
+  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
+    db,
+    ctx.orgId,
+    ctx.agentId,
+    "github",
+    capability
+  );
+  const action = actionName ?? (path2.split("/").pop() ?? capability);
+  const baseOutcome = {
+    orgId: ctx.orgId,
+    agentId: ctx.agentId,
+    taskId: ctx.taskId ?? null,
+    provider: "github",
+    capability,
+    action,
+    correlationId,
+    requiresApproval
+  };
+  if (!provider) {
+    throw new ConnectorActionError("GitHub is not connected for this organization", "not_connected");
+  }
+  if (!allowed) {
+    await recordOutcome(db, {
+      ...baseOutcome,
+      providerId: provider.id,
+      status: "denied",
+      summary: `Denied: agent lacks capability ${capability} for GitHub`
+    });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.denied",
+      outcome: "denied",
+      resultRef: JSON.stringify({ provider: "github", capability, action })
+    });
+    throw new ConnectorActionError(
+      `Agent is not authorized for GitHub capability "${capability}". Grant it in Integrations \u2192 Agent access.`,
+      "capability_denied"
+    );
+  }
+  const credential = await getCredentials(db, provider.id);
+  const token = decryptCredentialSecret(credential);
+  if (!token) {
+    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
+    await recordOutcome(db, {
+      ...baseOutcome,
+      providerId: provider.id,
+      status: "failed",
+      error: "GitHub connection has no usable token \u2014 reconnect required",
+      summary: "Failed: no usable GitHub token"
+    });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.failed",
+      outcome: "failure",
+      resultRef: JSON.stringify({ provider: "github", capability, action, error: "no_token" })
+    });
+    throw new ConnectorActionError("GitHub connection has no usable token \u2014 reconnect required", "not_connected");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetchImpl(`${GITHUB_API}${path2}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        ...body ? { "content-type": "application/json" } : {}
+      },
+      body: body ? JSON.stringify(body) : void 0,
+      signal: controller.signal
+    });
+  } catch (error51) {
+    clearTimeout(timer);
+    const message = error51 instanceof Error ? error51.message : "Network error";
+    await updateProviderStatus(db, provider.id, "degraded", message);
+    await recordOutcome(db, {
+      ...baseOutcome,
+      providerId: provider.id,
+      status: "failed",
+      error: message,
+      summary: `Failed: GitHub request error (${action})`
+    });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.failed",
+      outcome: "failure",
+      resultRef: JSON.stringify({ provider: "github", capability, action, error: message.slice(0, 200) })
+    });
+    throw new ConnectorActionError(`GitHub request failed: ${message}`, "provider_error");
+  }
+  clearTimeout(timer);
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const payload = await response.json();
+      detail = payload.message ?? "";
+    } catch {
+    }
+    const message = `${response.status} ${detail}`.trim();
+    if (response.status === 401 || response.status === 403) {
+      await updateProviderStatus(db, provider.id, "expired", message);
+    } else if (response.status === 429) {
+      await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
+    } else {
+      await updateProviderStatus(db, provider.id, "degraded", message);
+    }
+    await recordOutcome(db, {
+      ...baseOutcome,
+      providerId: provider.id,
+      status: "failed",
+      error: message,
+      summary: `Failed: GitHub rejected ${action} (${response.status})`
+    });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.failed",
+      outcome: "failure",
+      resultRef: JSON.stringify({ provider: "github", capability, action, status: response.status })
+    });
+    throw new ConnectorActionError(
+      response.status === 429 ? "GitHub rate limit reached \u2014 retry later" : `GitHub rejected the request: ${message}`,
+      response.status === 429 ? "rate_limited" : "provider_error"
+    );
+  }
+  const data = await response.json();
+  await updateProviderStatus(db, provider.id, "connected");
+  await recordOutcome(db, {
+    ...baseOutcome,
+    providerId: provider.id,
+    status: "success",
+    summary: `GitHub ${action} completed`,
+    result: data
+  });
+  await appendAudit(db, {
+    orgId: ctx.orgId,
+    actorType: "agent",
+    actorId: ctx.agentId,
+    action: `connector.action.${action}`,
+    outcome: "success",
+    resultRef: JSON.stringify({ provider: "github", capability, correlationId })
+  });
+  return { data, providerId: provider.id, requiresApproval };
+}
+async function githubListRepositories(db, ctx, params) {
+  const { data } = await githubFetch(db, ctx, GITHUB_CAPABILITIES.readRepositories, "GET", "/user/repos", void 0, "list_repositories");
+  return { capability: GITHUB_CAPABILITIES.readRepositories, action: "list_repositories", providerResourceId: null, providerUrl: null, status: "success", result: data };
+}
+async function githubListIssues(db, ctx, params) {
+  const state = params.state ?? "open";
+  const { data } = await githubFetch(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.readIssues,
+    "GET",
+    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues?state=${state}&per_page=30`,
+    void 0,
+    "list_issues"
+  );
+  return { capability: GITHUB_CAPABILITIES.readIssues, action: "list_issues", providerResourceId: null, providerUrl: null, status: "success", result: data };
+}
+async function githubCreateIssue(db, ctx, params) {
+  if (!params.owner || !params.repo || !params.title?.trim()) {
+    throw new ConnectorActionError("owner, repo and title are required", "invalid_params");
+  }
+  const { data } = await githubFetch(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.createIssues,
+    "POST",
+    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues`,
+    { title: params.title, body: params.body ?? "", labels: params.labels ?? [] },
+    "create_issue"
+  );
+  return {
+    capability: GITHUB_CAPABILITIES.createIssues,
+    action: "create_issue",
+    providerResourceId: String(data.number),
+    providerUrl: data.html_url,
+    status: "success",
+    result: { number: data.number, url: data.html_url, title: params.title }
+  };
+}
+async function githubCommentOnIssue(db, ctx, params) {
+  if (!params.owner || !params.repo || !params.issueNumber || !params.body?.trim()) {
+    throw new ConnectorActionError("owner, repo, issueNumber and body are required", "invalid_params");
+  }
+  const { data } = await githubFetch(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.commentOnIssues,
+    "POST",
+    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues/${params.issueNumber}/comments`,
+    { body: params.body },
+    "comment_on_issue"
+  );
+  return {
+    capability: GITHUB_CAPABILITIES.commentOnIssues,
+    action: "comment_on_issue",
+    providerResourceId: String(data.id),
+    providerUrl: data.html_url,
+    status: "success",
+    result: { commentId: data.id, url: data.html_url }
+  };
+}
+async function githubReadFile(db, ctx, params) {
+  const { owner, repo, path: path2 } = params;
+  if (!owner || !repo || !path2?.trim()) {
+    throw new ConnectorActionError("owner, repo and path are required", "invalid_params");
+  }
+  if (path2.startsWith("/") || path2.includes("\\") || path2.split("/").includes("..")) {
+    throw new ConnectorActionError("Invalid file path \u2014 traversal is not allowed", "invalid_params");
+  }
+  const ref = params.ref?.trim() ? `?ref=${encodeURIComponent(params.ref.trim())}` : "";
+  const { data } = await githubFetch(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.readFiles,
+    "GET",
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path2)}${ref}`,
+    void 0,
+    "read_file"
+  );
+  return {
+    capability: GITHUB_CAPABILITIES.readFiles,
+    action: "read_file",
+    providerResourceId: data.sha,
+    providerUrl: data.html_url,
+    status: "success",
+    // Return metadata always; content only when the API returned it (text files).
+    result: {
+      name: data.name,
+      path: data.path,
+      sha: data.sha,
+      size: data.size,
+      type: data.type,
+      downloadUrl: data.download_url,
+      content: data.content ?? null
+    }
+  };
+}
+async function githubCreatePullRequest(db, ctx, params) {
+  if (!params.owner || !params.repo || !params.title?.trim() || !params.head || !params.base) {
+    throw new ConnectorActionError("owner, repo, title, head and base are required", "invalid_params");
+  }
+  const { data } = await githubFetch(
+    db,
+    ctx,
+    GITHUB_CAPABILITIES.createPullRequests,
+    "POST",
+    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/pulls`,
+    { title: params.title, head: params.head, base: params.base, body: params.body ?? "" },
+    "create_pull_request"
+  );
+  return {
+    capability: GITHUB_CAPABILITIES.createPullRequests,
+    action: "create_pull_request",
+    providerResourceId: String(data.number),
+    providerUrl: data.html_url,
+    status: "success",
+    result: { number: data.number, url: data.html_url, title: params.title }
+  };
+}
+async function dispatchGithubAction(db, ctx, action, params) {
+  await resolveAgent(db, ctx.orgId, ctx.agentId);
+  switch (action) {
+    case "list_repositories":
+      return githubListRepositories(db, ctx, { visibility: params.visibility ?? "all" });
+    case "list_issues":
+      return githubListIssues(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        state: params.state ?? "open"
+      });
+    case "read_file":
+      return githubReadFile(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        path: String(params.path ?? ""),
+        ref: params.ref ? String(params.ref) : void 0
+      });
+    case "create_issue":
+      return githubCreateIssue(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        title: String(params.title ?? ""),
+        body: params.body ? String(params.body) : void 0,
+        labels: Array.isArray(params.labels) ? params.labels.map(String) : void 0
+      });
+    case "comment_on_issue":
+      return githubCommentOnIssue(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        issueNumber: Number(params.issueNumber),
+        body: String(params.body ?? "")
+      });
+    case "create_pull_request":
+      return githubCreatePullRequest(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        title: String(params.title ?? ""),
+        head: String(params.head ?? ""),
+        base: String(params.base ?? ""),
+        body: params.body ? String(params.body) : void 0
+      });
+    default:
+      throw new ConnectorActionError(`Unknown GitHub action: ${String(action)}`, "invalid_params");
+  }
+}
+var import_node_crypto6, GITHUB_CAPABILITIES, ConnectorActionError, fetchImpl, GITHUB_API, REQUEST_TIMEOUT_MS;
+var init_connector_actions = __esm({
+  "src/services/connector-actions.ts"() {
+    "use strict";
+    import_node_crypto6 = require("node:crypto");
+    init_drizzle_orm();
+    init_src2();
+    init_audit();
+    init_integrations();
+    GITHUB_CAPABILITIES = {
+      readRepositories: "read_repositories",
+      readIssues: "read_issues",
+      readPullRequests: "read_pull_requests",
+      readFiles: "read_files",
+      createIssues: "create_issues",
+      commentOnIssues: "comment_on_issues",
+      createPullRequests: "create_pull_requests"
+    };
+    ConnectorActionError = class extends Error {
+      constructor(message, code) {
+        super(message);
+        this.code = code;
+        this.name = "ConnectorActionError";
+      }
+      code;
+    };
+    fetchImpl = fetch;
+    GITHUB_API = "https://api.github.com";
+    REQUEST_TIMEOUT_MS = 2e4;
+  }
+});
+
+// src/services/connector-gmail.ts
+function isEmailValid(email3) {
+  return typeof email3 === "string" && email3.length <= 320 && EMAIL_RE.test(email3);
+}
+function buildMimeMessage(params) {
+  const lines = [
+    `To: ${params.to.join(", ")}`,
+    params.cc?.length ? `Cc: ${params.cc.join(", ")}` : null,
+    `Subject: ${params.subject}`,
+    params.inReplyToMessageId ? `In-Reply-To: <${params.inReplyToMessageId}@mail.gmail.com>` : null,
+    `References: ${params.inReplyToMessageId ? `<${params.inReplyToMessageId}@mail.gmail.com>` : ""}`.trim(),
+    'Content-Type: text/plain; charset="UTF-8"',
+    "MIME-Version: 1.0",
+    "",
+    params.body
+  ].filter((l) => l !== null && l !== "");
+  return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
+}
+async function gmailFetch(db, ctx, capability, method, path2, json3) {
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto7.randomUUID)();
+  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
+    db,
+    ctx.orgId,
+    ctx.agentId,
+    "gmail",
+    capability
+  );
+  const action = path2.split("/").filter(Boolean).pop() ?? capability;
+  const baseOutcome = {
+    orgId: ctx.orgId,
+    agentId: ctx.agentId,
+    taskId: ctx.taskId ?? null,
+    provider: "gmail",
+    capability,
+    action,
+    correlationId,
+    requiresApproval
+  };
+  if (!provider) throw new ConnectorActionError("Gmail is not connected for this organization", "not_connected");
+  if (!allowed) {
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "denied", summary: `Denied: agent lacks capability ${capability} for Gmail` });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.denied",
+      outcome: "denied",
+      resultRef: JSON.stringify({ provider: "gmail", capability, action })
+    });
+    throw new ConnectorActionError(`Agent is not authorized for Gmail capability "${capability}".`, "capability_denied");
+  }
+  const credential = await getCredentials(db, provider.id);
+  const decrypted = decryptCredentialSecret(credential);
+  let token = null;
+  if (decrypted) {
+    try {
+      const parsed = JSON.parse(decrypted);
+      token = parsed.accessToken ?? null;
+    } catch {
+      token = decrypted;
+    }
+  }
+  if (!token) {
+    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: "no_token", summary: "Failed: no usable Gmail token" });
+    throw new ConnectorActionError("Gmail connection has no usable token \u2014 reconnect required", "not_connected");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS2);
+  let response;
+  try {
+    response = await fetchImpl2(`${GMAIL_API}${path2}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json"
+      },
+      body: json3 ? JSON.stringify(json3) : void 0,
+      signal: controller.signal
+    });
+  } catch (error51) {
+    clearTimeout(timer);
+    const message = error51 instanceof Error ? error51.message : "Network error";
+    await updateProviderStatus(db, provider.id, "degraded", message);
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Gmail request error (${action})` });
+    throw new ConnectorActionError(`Gmail request failed: ${message}`, "provider_error");
+  }
+  clearTimeout(timer);
+  if (!response.ok) {
+    const text2 = await response.text().catch(() => "");
+    const message = `${response.status} ${text2.slice(0, 200)}`.trim();
+    if (response.status === 401 || response.status === 403) await updateProviderStatus(db, provider.id, "expired", message);
+    else if (response.status === 429) await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
+    else await updateProviderStatus(db, provider.id, "degraded", message);
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Gmail rejected ${action} (${response.status})` });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.failed",
+      outcome: "failure",
+      resultRef: JSON.stringify({ provider: "gmail", capability, action, status: response.status })
+    });
+    throw new ConnectorActionError(response.status === 429 ? "Gmail rate limit reached \u2014 retry later" : `Gmail rejected the request: ${message}`, response.status === 429 ? "rate_limited" : "provider_error");
+  }
+  const data = await response.json().catch(() => ({}));
+  await updateProviderStatus(db, provider.id, "connected");
+  await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "success", summary: `Gmail ${action} completed`, result: data });
+  await appendAudit(db, {
+    orgId: ctx.orgId,
+    actorType: "agent",
+    actorId: ctx.agentId,
+    action: `connector.action.${action}`,
+    outcome: "success",
+    resultRef: JSON.stringify({ provider: "gmail", capability, correlationId })
+  });
+  return { data, providerId: provider.id, requiresApproval };
+}
+function validateEmailInput(params) {
+  if (!Array.isArray(params.to) || params.to.length === 0 || params.to.some((t) => !isEmailValid(t))) {
+    throw new ConnectorActionError("At least one valid recipient is required", "invalid_params");
+  }
+  if (params.cc && params.cc.some((c) => !isEmailValid(c))) {
+    throw new ConnectorActionError("Invalid cc recipient", "invalid_params");
+  }
+  if (!params.subject?.trim()) throw new ConnectorActionError("subject is required", "invalid_params");
+  if (!params.body?.trim()) throw new ConnectorActionError("body is required", "invalid_params");
+}
+async function gmailCreateDraft(db, ctx, params) {
+  validateEmailInput(params);
+  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.draftEmail, "POST", "/drafts", {
+    message: { raw: buildMimeMessage(params) }
+  });
+  const id = typeof data.id === "string" ? data.id : null;
+  return {
+    capability: GMAIL_CAPABILITIES.draftEmail,
+    action: "create_draft",
+    providerResourceId: id,
+    providerUrl: null,
+    status: "success",
+    result: { draftId: id, message: `Draft created (id: ${id ?? "unknown"}) \u2014 nothing was sent.` }
+  };
+}
+async function gmailSendDraft(db, ctx, params) {
+  if (!params.draftId?.trim()) throw new ConnectorActionError("draftId is required", "invalid_params");
+  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
+    db,
+    ctx.orgId,
+    ctx.agentId,
+    "gmail",
+    GMAIL_CAPABILITIES.sendEmail
+  );
+  if (!provider) throw new ConnectorActionError("Gmail is not connected for this organization", "not_connected");
+  if (!allowed) {
+    await recordOutcome(db, {
+      orgId: ctx.orgId,
+      agentId: ctx.agentId,
+      taskId: ctx.taskId ?? null,
+      provider: "gmail",
+      providerId: provider.id,
+      capability: GMAIL_CAPABILITIES.sendEmail,
+      action: "send_draft",
+      status: "denied",
+      summary: "Denied: agent lacks gmail.email.send capability",
+      correlationId: ctx.correlationId ?? (0, import_node_crypto7.randomUUID)()
+    });
+    throw new ConnectorActionError("Agent is not authorized to send Gmail.", "capability_denied");
+  }
+  if (requiresApproval) {
+    const approval = await createApproval(db, {
+      orgId: ctx.orgId,
+      agentId: ctx.agentId,
+      action: "Gmail: send draft",
+      description: `AI employee wants to SEND a Gmail draft (${params.draftId}). Approval is required before anything is transmitted.`,
+      cost: 0,
+      riskLevel: "high",
+      status: "pending"
+    });
+    await recordOutcome(db, {
+      orgId: ctx.orgId,
+      agentId: ctx.agentId,
+      taskId: ctx.taskId ?? null,
+      provider: "gmail",
+      providerId: provider.id,
+      capability: GMAIL_CAPABILITIES.sendEmail,
+      action: "send_draft",
+      status: "pending_approval",
+      requiresApproval: true,
+      approvalId: approval.id,
+      summary: `Send queued for founder approval (${approval.id}). Nothing was sent.`,
+      correlationId: ctx.correlationId ?? (0, import_node_crypto7.randomUUID)()
+    });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.approval_required",
+      outcome: "success",
+      resultRef: JSON.stringify({ provider: "gmail", capability: GMAIL_CAPABILITIES.sendEmail, approvalId: approval.id })
+    });
+    return {
+      capability: GMAIL_CAPABILITIES.sendEmail,
+      action: "send_draft",
+      providerResourceId: null,
+      providerUrl: null,
+      status: "success",
+      result: { mode: "pending_approval", approvalId: approval.id, message: "Send requires founder approval. Nothing was sent." }
+    };
+  }
+  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.sendEmail, "POST", "/drafts/send", {
+    id: params.draftId
+  });
+  const msg = data.message;
+  const id = msg?.id ?? (typeof data.id === "string" ? data.id : null);
+  return {
+    capability: GMAIL_CAPABILITIES.sendEmail,
+    action: "send_draft",
+    providerResourceId: id,
+    providerUrl: null,
+    status: "success",
+    result: { messageId: id, message: `Draft sent (message id: ${id ?? "unknown"}).` }
+  };
+}
+async function gmailSearch(db, ctx, params) {
+  const max2 = Math.min(params.maxResults && params.maxResults > 0 ? params.maxResults : 10, 50);
+  const query = params.query?.trim() ? `?q=${encodeURIComponent(params.query.trim())}&maxResults=${max2}` : `?maxResults=${max2}`;
+  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.draftEmail, "GET", `/messages${query}`);
+  return {
+    capability: GMAIL_CAPABILITIES.draftEmail,
+    action: "search",
+    providerResourceId: null,
+    providerUrl: null,
+    status: "success",
+    result: data
+  };
+}
+async function dispatchGmailAction(db, ctx, action, params) {
+  switch (action) {
+    case "create_draft":
+      return gmailCreateDraft(db, ctx, {
+        to: Array.isArray(params.to) ? params.to.map(String) : [],
+        cc: Array.isArray(params.cc) ? params.cc.map(String) : void 0,
+        subject: String(params.subject ?? ""),
+        body: String(params.body ?? ""),
+        inReplyToMessageId: params.inReplyToMessageId ? String(params.inReplyToMessageId) : void 0
+      });
+    case "send_draft":
+      return gmailSendDraft(db, ctx, { draftId: String(params.draftId ?? "") });
+    case "search":
+      return gmailSearch(db, ctx, {
+        query: params.query ? String(params.query) : void 0,
+        maxResults: Number(params.maxResults ?? 10)
+      });
+    default:
+      throw new ConnectorActionError(`Unknown Gmail action: ${String(action)}`, "invalid_params");
+  }
+}
+var import_node_crypto7, GMAIL_CAPABILITIES, GMAIL_API, REQUEST_TIMEOUT_MS2, fetchImpl2, EMAIL_RE;
+var init_connector_gmail = __esm({
+  "src/services/connector-gmail.ts"() {
+    "use strict";
+    import_node_crypto7 = require("node:crypto");
+    init_audit();
+    init_integrations();
+    init_approvals();
+    init_connector_actions();
+    GMAIL_CAPABILITIES = {
+      draftEmail: "gmail.email.draft",
+      sendEmail: "gmail.email.send"
+    };
+    GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
+    REQUEST_TIMEOUT_MS2 = 2e4;
+    fetchImpl2 = fetch;
+    EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  }
+});
+
+// src/services/connector-linear.ts
+async function linearGraphql(db, ctx, capability, action, query, variables) {
+  const correlationId = ctx.correlationId ?? (0, import_node_crypto8.randomUUID)();
+  const { allowed, provider } = await canAgentUseCapability(db, ctx.orgId, ctx.agentId, "linear", capability);
+  const baseOutcome = {
+    orgId: ctx.orgId,
+    agentId: ctx.agentId,
+    taskId: ctx.taskId ?? null,
+    provider: "linear",
+    capability,
+    action,
+    correlationId,
+    requiresApproval: false
+  };
+  if (!provider) throw new ConnectorActionError("Linear is not connected for this organization", "not_connected");
+  if (!allowed) {
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "denied", summary: `Denied: agent lacks capability ${capability} for Linear` });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.denied",
+      outcome: "denied",
+      resultRef: JSON.stringify({ provider: "linear", capability, action })
+    });
+    throw new ConnectorActionError(`Agent is not authorized for Linear capability "${capability}".`, "capability_denied");
+  }
+  const credential = await getCredentials(db, provider.id);
+  const token = decryptCredentialSecret(credential);
+  if (!token) {
+    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: "no_token", summary: "Failed: no usable Linear token" });
+    throw new ConnectorActionError("Linear connection has no usable token \u2014 reconnect required", "not_connected");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS3);
+  let response;
+  try {
+    response = await fetchImpl3(LINEAR_API, {
+      method: "POST",
+      headers: {
+        authorization: token.startsWith("lin_api_") ? token : `Bearer ${token}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal
+    });
+  } catch (error51) {
+    clearTimeout(timer);
+    const message = error51 instanceof Error ? error51.message : "Network error";
+    await updateProviderStatus(db, provider.id, "degraded", message);
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Linear request error (${action})` });
+    throw new ConnectorActionError(`Linear request failed: ${message}`, "provider_error");
+  }
+  clearTimeout(timer);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.errors?.length) {
+    const message = body.errors?.[0]?.message ?? `${response.status}`;
+    if (response.status === 401 || response.status === 403) await updateProviderStatus(db, provider.id, "expired", message);
+    else if (response.status === 429) await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
+    else await updateProviderStatus(db, provider.id, "degraded", message.slice(0, 300));
+    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Linear rejected ${action} (${response.status})` });
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "agent",
+      actorId: ctx.agentId,
+      action: "connector.action.failed",
+      outcome: "failure",
+      resultRef: JSON.stringify({ provider: "linear", capability, action, status: response.status })
+    });
+    throw new ConnectorActionError(response.status === 429 ? "Linear rate limit reached \u2014 retry later" : `Linear rejected the request: ${message}`, response.status === 429 ? "rate_limited" : "provider_error");
+  }
+  await updateProviderStatus(db, provider.id, "connected");
+  await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "success", summary: `Linear ${action} completed`, result: body.data ?? {} });
+  await appendAudit(db, {
+    orgId: ctx.orgId,
+    actorType: "agent",
+    actorId: ctx.agentId,
+    action: `connector.action.${action}`,
+    outcome: "success",
+    resultRef: JSON.stringify({ provider: "linear", capability, correlationId })
+  });
+  return { data: body.data ?? {}, providerId: provider.id };
+}
+async function linearCreateIssue(db, ctx, params) {
+  if (!params.title?.trim()) throw new ConnectorActionError("title is required", "invalid_params");
+  if (!params.teamId && !params.teamName?.trim()) throw new ConnectorActionError("teamId or teamName is required", "invalid_params");
+  let teamId = params.teamId;
+  if (!teamId && params.teamName) {
+    const { data: data2 } = await linearGraphql(
+      db,
+      ctx,
+      LINEAR_CAPABILITIES.createIssues,
+      "create_issue",
+      `query { teams(first: 50) { nodes { id name } } }`,
+      {}
+    );
+    const teams3 = data2.teams?.nodes ?? [];
+    const match = teams3.find((t) => t.name.toLowerCase() === params.teamName.toLowerCase());
+    if (!match) throw new ConnectorActionError(`No Linear team named "${params.teamName}" on the connected account`, "not_found");
+    teamId = match.id;
+  }
+  const { data } = await linearGraphql(
+    db,
+    ctx,
+    LINEAR_CAPABILITIES.createIssues,
+    "create_issue",
+    `mutation($teamId: String!, $title: String!, $description: String, $priority: Int) {
+       issueCreate(input: { teamId: $teamId, title: $title, description: $description, priority: $priority }) {
+         success
+         issue { ${ISSUE_FRAGMENT} }
+       }
+     }`,
+    { teamId, title: params.title, description: params.description ?? void 0, priority: params.priority ?? void 0 }
+  );
+  const issue2 = data.issueCreate?.issue ?? data;
+  const url2 = typeof issue2.url === "string" ? issue2.url : null;
+  return {
+    capability: LINEAR_CAPABILITIES.createIssues,
+    action: "create_issue",
+    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
+    providerUrl: url2,
+    status: "success",
+    result: issue2
+  };
+}
+async function linearGetIssue(db, ctx, params) {
+  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
+  const { data } = await linearGraphql(
+    db,
+    ctx,
+    LINEAR_CAPABILITIES.readIssues,
+    "get_issue",
+    `query($id: String!) { issue(id: $id) { ${ISSUE_FRAGMENT} } }`,
+    { id: params.issueId }
+  );
+  const issue2 = data.issue;
+  if (!issue2) throw new ConnectorActionError("Linear issue not found", "not_found");
+  return {
+    capability: LINEAR_CAPABILITIES.readIssues,
+    action: "get_issue",
+    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
+    providerUrl: typeof issue2.url === "string" ? issue2.url : null,
+    status: "success",
+    result: issue2
+  };
+}
+async function linearUpdateIssue(db, ctx, params) {
+  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
+  const input = {};
+  if (params.title !== void 0) input.title = params.title;
+  if (params.description !== void 0) input.description = params.description;
+  if (params.priority !== void 0) input.priority = params.priority;
+  if (params.stateId !== void 0) input.stateId = params.stateId;
+  if (Object.keys(input).length === 0) throw new ConnectorActionError("At least one field to update is required", "invalid_params");
+  const { data } = await linearGraphql(
+    db,
+    ctx,
+    LINEAR_CAPABILITIES.updateIssues,
+    "update_issue",
+    `mutation($id: String!, $input: IssueUpdateInput!) {
+       issueUpdate(id: $id, input: $input) { success issue { ${ISSUE_FRAGMENT} } }
+     }`,
+    { id: params.issueId, input }
+  );
+  const issue2 = data.issueUpdate?.issue ?? {};
+  return {
+    capability: LINEAR_CAPABILITIES.updateIssues,
+    action: "update_issue",
+    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
+    providerUrl: typeof issue2.url === "string" ? issue2.url : null,
+    status: "success",
+    result: issue2
+  };
+}
+async function linearArchiveIssue(db, ctx, params) {
+  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
+  const { data } = await linearGraphql(
+    db,
+    ctx,
+    LINEAR_CAPABILITIES.deleteIssues,
+    "archive_issue",
+    `mutation($id: String!) { issueArchive(id: $id) { success } }`,
+    { id: params.issueId }
+  );
+  const success2 = data.issueArchive?.success ?? false;
+  if (!success2) throw new ConnectorActionError("Linear archive did not report success", "provider_error");
+  return {
+    capability: LINEAR_CAPABILITIES.deleteIssues,
+    action: "archive_issue",
+    providerResourceId: params.issueId,
+    providerUrl: null,
+    status: "success",
+    result: { archived: true, issueId: params.issueId }
+  };
+}
+async function linearListIssues(db, ctx, params) {
+  const limit = Math.min(params.limit && params.limit > 0 ? params.limit : 10, 50);
+  const where = params.teamId ? `filter: { team: { id: { eq: "${params.teamId}" } } }` : "";
+  const { data } = await linearGraphql(
+    db,
+    ctx,
+    LINEAR_CAPABILITIES.readIssues,
+    "list_issues",
+    `query($limit: Int!) { issues(first: $limit ${where}) { nodes { ${ISSUE_FRAGMENT} } } }`,
+    { limit }
+  );
+  return {
+    capability: LINEAR_CAPABILITIES.readIssues,
+    action: "list_issues",
+    providerResourceId: null,
+    providerUrl: null,
+    status: "success",
+    result: data
+  };
+}
+async function dispatchLinearAction(db, ctx, action, params) {
+  switch (action) {
+    case "create_issue":
+      return linearCreateIssue(db, ctx, {
+        teamId: params.teamId ? String(params.teamId) : void 0,
+        teamName: params.teamName ? String(params.teamName) : void 0,
+        title: String(params.title ?? ""),
+        description: params.description ? String(params.description) : void 0,
+        priority: params.priority !== void 0 ? Number(params.priority) : void 0
+      });
+    case "get_issue":
+      return linearGetIssue(db, ctx, { issueId: String(params.issueId ?? "") });
+    case "update_issue":
+      return linearUpdateIssue(db, ctx, {
+        issueId: String(params.issueId ?? ""),
+        title: params.title !== void 0 ? String(params.title) : void 0,
+        description: params.description !== void 0 ? String(params.description) : void 0,
+        priority: params.priority !== void 0 ? Number(params.priority) : void 0,
+        stateId: params.stateId !== void 0 ? String(params.stateId) : void 0
+      });
+    case "archive_issue":
+      return linearArchiveIssue(db, ctx, { issueId: String(params.issueId ?? "") });
+    case "list_issues":
+      return linearListIssues(db, ctx, {
+        teamId: params.teamId ? String(params.teamId) : void 0,
+        limit: params.limit !== void 0 ? Number(params.limit) : void 0
+      });
+    default:
+      throw new ConnectorActionError(`Unknown Linear action: ${String(action)}`, "invalid_params");
+  }
+}
+var import_node_crypto8, LINEAR_CAPABILITIES, LINEAR_API, REQUEST_TIMEOUT_MS3, fetchImpl3, ISSUE_FRAGMENT;
+var init_connector_linear = __esm({
+  "src/services/connector-linear.ts"() {
+    "use strict";
+    import_node_crypto8 = require("node:crypto");
+    init_audit();
+    init_integrations();
+    init_connector_actions();
+    LINEAR_CAPABILITIES = {
+      readIssues: "linear.issue.read",
+      createIssues: "linear.issue.create",
+      updateIssues: "linear.issue.update",
+      deleteIssues: "linear.issue.delete"
+    };
+    LINEAR_API = "https://api.linear.app/graphql";
+    REQUEST_TIMEOUT_MS3 = 2e4;
+    fetchImpl3 = fetch;
+    ISSUE_FRAGMENT = `
+  id
+  identifier
+  title
+  description
+  priority
+  state { name }
+  url
+  createdAt
+  updatedAt
+`;
+  }
+});
+
+// src/services/mcp.ts
+function hasCapability(granted, provider, required2) {
+  return granted.includes(required2) || granted.includes(`${provider}.${required2}`);
+}
+function getConnectorToolCatalog(provider) {
+  return CONNECTOR_TOOL_CATALOG[provider] ?? [];
+}
+async function listMcpServers(db, orgId) {
+  return db.select().from(mcpServers).where(eq(mcpServers.orgId, orgId)).orderBy(mcpServers.name);
+}
+async function getMcpServer(db, orgId, id) {
+  const rows = await db.select().from(mcpServers).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).limit(1);
+  return rows[0];
+}
+async function getMcpServerByProvider(db, orgId, provider) {
+  const rows = await db.select().from(mcpServers).where(and(eq(mcpServers.orgId, orgId), eq(mcpServers.provider, provider))).limit(1);
+  return rows[0];
+}
+async function registerMcpServer(db, data) {
+  const existing = await getMcpServerByProvider(db, data.orgId, data.provider);
+  if (existing) return existing;
+  const isConnector = MCP_PROVIDERS.includes(data.provider);
+  const rows = await db.insert(mcpServers).values({
+    orgId: data.orgId,
+    name: data.name,
+    description: data.description ?? null,
+    provider: data.provider,
+    transport: isConnector ? "connector" : "streamable_http",
+    status: isConnector ? "unconfigured" : "unconfigured",
+    riskLevel: data.riskLevel ?? "medium",
+    allowedAgents: data.allowedAgents ?? []
+  }).returning();
+  const server = rows[0];
+  if (!server) throw new Error("registerMcpServer returned no row");
+  if (isConnector) {
+    for (const tool of getConnectorToolCatalog(data.provider)) {
+      await db.insert(mcpTools).values({
+        orgId: data.orgId,
+        serverId: server.id,
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        riskLevel: tool.riskLevel,
+        requiredCapability: tool.requiredCapability,
+        requiresApproval: tool.requiresApproval,
+        supportsDryRun: tool.supportsDryRun,
+        idempotent: tool.idempotent
+      });
+    }
+  }
+  await appendAudit(db, {
+    orgId: data.orgId,
+    actorType: "user",
+    action: "mcp.server_registered",
+    outcome: "success",
+    resultRef: JSON.stringify({ provider: data.provider, toolCount: isConnector ? getConnectorToolCatalog(data.provider).length : 0 })
+  });
+  return server;
+}
+async function updateMcpServer(db, orgId, id, updates) {
+  const rows = await db.update(mcpServers).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).returning();
+  return rows[0];
+}
+async function deleteMcpServer(db, orgId, id) {
+  const rows = await db.delete(mcpServers).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).returning({ id: mcpServers.id });
+  return rows.length > 0;
+}
+async function listMcpTools(db, serverId) {
+  return db.select().from(mcpTools).where(eq(mcpTools.serverId, serverId)).orderBy(mcpTools.name);
+}
+async function getMcpTool(db, orgId, id) {
+  const rows = await db.select().from(mcpTools).where(and(eq(mcpTools.id, id), eq(mcpTools.orgId, orgId))).limit(1);
+  return rows[0];
+}
+async function discoverMcpTools(db, orgId, agentId, agentCapabilities) {
+  const servers = await listMcpServers(db, orgId);
+  const enabledServers = servers.filter((s) => s.enabled);
+  if (enabledServers.length === 0) return [];
+  const serverIds = enabledServers.map((s) => s.id);
+  const tools = await db.select().from(mcpTools).where(and(eq(mcpTools.orgId, orgId), inArray(mcpTools.serverId, serverIds)));
+  const serverById = new Map(enabledServers.map((s) => [s.id, s]));
+  const out = [];
+  for (const tool of tools) {
+    const server = serverById.get(tool.serverId);
+    if (!server || !tool.enabled) continue;
+    const allowlist = server.allowedAgents ?? [];
+    if (allowlist.length > 0 && !allowlist.includes(agentId)) continue;
+    if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) continue;
+    out.push({ ...tool, serverName: server.name, provider: server.provider, serverStatus: server.status, requiresApproval: tool.requiresApproval });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+async function checkMcpToolPermission(db, orgId, agentId, toolId, agentCapabilities) {
+  const tool = await getMcpTool(db, orgId, toolId);
+  if (!tool) return { allowed: false, requiresApproval: false, reason: "tool_not_found" };
+  const server = await getMcpServer(db, orgId, tool.serverId);
+  if (!server || !server.enabled) return { allowed: false, requiresApproval: false, reason: "server_disabled" };
+  if (!tool.enabled) return { allowed: false, requiresApproval: false, reason: "tool_disabled" };
+  const allowlist = server.allowedAgents ?? [];
+  if (allowlist.length > 0 && !allowlist.includes(agentId)) {
+    return { allowed: false, requiresApproval: false, reason: "agent_not_allowed" };
+  }
+  if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) {
+    return { allowed: false, requiresApproval: false, reason: "capability_denied" };
+  }
+  return { allowed: true, requiresApproval: tool.requiresApproval };
+}
+async function executeMcpTool(db, ctx, toolId, params, agentCapabilities) {
+  const tool = await getMcpTool(db, ctx.orgId, toolId);
+  if (!tool) {
+    return { status: "error", code: "tool_not_found", message: "MCP tool not found in this organization" };
+  }
+  const server = await getMcpServer(db, ctx.orgId, tool.serverId);
+  if (!server || !server.enabled || !tool.enabled) {
+    return { status: "error", code: "server_disabled", message: "MCP server or tool is disabled" };
+  }
+  const permission = await checkMcpToolPermission(db, ctx.orgId, ctx.agentId, toolId, agentCapabilities);
+  if (!permission.allowed) {
+    return { status: "error", code: permission.reason ?? "capability_denied", message: "Agent is not permitted to use this tool" };
+  }
+  if (permission.requiresApproval) {
+    return { status: "error", code: "approval_required", message: "This tool requires approval before execution" };
+  }
+  if (server.provider !== "custom" && tool.requiredCapability) {
+    const { allowed } = await canAgentUseCapability(db, ctx.orgId, ctx.agentId, server.provider, tool.requiredCapability);
+    if (!allowed) {
+      return { status: "error", code: "capability_denied", message: `Agent lacks capability ${tool.requiredCapability} on ${server.provider}` };
+    }
+  }
+  try {
+    switch (server.provider) {
+      case "github":
+        return await dispatchGithubTool(tool.name, db, ctx, params);
+      case "gmail":
+        return await dispatchGmailAction(db, ctx, mapGmailAction(tool.name), params);
+      case "linear":
+        return await dispatchLinearAction(db, ctx, mapLinearAction(tool.name), params);
+      default:
+        return {
+          status: "error",
+          code: "transport_unsupported",
+          message: `MCP server '${server.provider}' has no executable transport client; register a connector-backed server (github | gmail | linear) instead`
+        };
+    }
+  } catch (err) {
+    if (err instanceof ConnectorActionError) {
+      return { status: "error", code: err.code, message: err.message };
+    }
+    return { status: "error", code: "provider_error", message: err instanceof Error ? err.message : "Unknown MCP execution error" };
+  }
+}
+async function dispatchGithubTool(name2, db, ctx, params) {
+  switch (name2) {
+    case "list_repositories":
+      return githubListRepositories(db, ctx, { visibility: params.visibility === void 0 ? void 0 : String(params.visibility) });
+    case "list_issues":
+      return githubListIssues(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        state: params.state === void 0 ? void 0 : String(params.state)
+      });
+    case "read_file":
+      return githubReadFile(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        path: String(params.path ?? ""),
+        ref: params.branch === void 0 ? void 0 : String(params.branch)
+      });
+    case "create_issue":
+      return githubCreateIssue(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        title: String(params.title ?? ""),
+        body: params.body === void 0 ? void 0 : String(params.body),
+        labels: Array.isArray(params.labels) ? params.labels.map(String) : void 0
+      });
+    case "comment_on_issue":
+      return githubCommentOnIssue(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        issueNumber: Number(params.issueNumber ?? 0),
+        body: String(params.body ?? "")
+      });
+    case "create_pull_request":
+      return githubCreatePullRequest(db, ctx, {
+        owner: String(params.owner ?? ""),
+        repo: String(params.repo ?? ""),
+        title: String(params.title ?? ""),
+        head: String(params.head ?? ""),
+        base: String(params.base ?? ""),
+        body: params.body === void 0 ? void 0 : String(params.body)
+      });
+    default:
+      throw new ConnectorActionError(`Unknown GitHub MCP tool: ${name2}`, "invalid_params");
+  }
+}
+function mapGmailAction(name2) {
+  if (name2 === "send_draft") return "send_draft";
+  if (name2 === "create_draft") return "create_draft";
+  return "search";
+}
+function mapLinearAction(name2) {
+  switch (name2) {
+    case "create_issue":
+      return "create_issue";
+    case "get_issue":
+      return "get_issue";
+    case "update_issue":
+      return "update_issue";
+    case "archive_issue":
+      return "archive_issue";
+    default:
+      return "list_issues";
+  }
+}
+var MCP_PROVIDERS, CONNECTOR_TOOL_CATALOG;
+var init_mcp = __esm({
+  "src/services/mcp.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_connector_actions();
+    init_connector_gmail();
+    init_connector_linear();
+    init_integrations();
+    init_audit();
+    MCP_PROVIDERS = ["github", "gmail", "linear"];
+    CONNECTOR_TOOL_CATALOG = {
+      github: [
+        {
+          name: "list_repositories",
+          description: "List repositories the connected GitHub account can see.",
+          riskLevel: "low",
+          requiredCapability: GITHUB_CAPABILITIES.readRepositories,
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { visibility: { type: "string", enum: ["all", "public", "private"] } },
+          provider: "github",
+          action: "list_repositories"
+        },
+        {
+          name: "list_issues",
+          description: "List issues in a repository.",
+          riskLevel: "low",
+          requiredCapability: GITHUB_CAPABILITIES.readIssues,
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, state: { type: "string", enum: ["open", "closed", "all"] } },
+          provider: "github",
+          action: "list_issues"
+        },
+        {
+          name: "read_file",
+          description: "Read a file from a repository branch.",
+          riskLevel: "low",
+          requiredCapability: GITHUB_CAPABILITIES.readFiles,
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, path: { type: "string" }, branch: { type: "string" } },
+          provider: "github",
+          action: "read_file"
+        },
+        {
+          name: "create_issue",
+          description: "Create an issue in a repository. External write \u2014 approval-gated by policy.",
+          riskLevel: "medium",
+          requiredCapability: GITHUB_CAPABILITIES.createIssues,
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, title: { type: "string" }, body: { type: "string" }, labels: { type: "array" } },
+          provider: "github",
+          action: "create_issue"
+        },
+        {
+          name: "comment_on_issue",
+          description: "Comment on an existing GitHub issue.",
+          riskLevel: "medium",
+          requiredCapability: GITHUB_CAPABILITIES.commentOnIssues,
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" }, body: { type: "string" } },
+          provider: "github",
+          action: "comment_on_issue"
+        },
+        {
+          name: "create_pull_request",
+          description: "Open a pull request between two branches.",
+          riskLevel: "high",
+          requiredCapability: GITHUB_CAPABILITIES.createPullRequests,
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, title: { type: "string" }, head: { type: "string" }, base: { type: "string" }, body: { type: "string" } },
+          provider: "github",
+          action: "create_pull_request"
+        }
+      ],
+      gmail: [
+        {
+          name: "search",
+          description: "Search the connected Gmail inbox.",
+          riskLevel: "low",
+          requiredCapability: "gmail.search",
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { query: { type: "string" }, maxResults: { type: "number" } },
+          provider: "gmail",
+          action: "search"
+        },
+        {
+          name: "create_draft",
+          description: "Create a Gmail draft. Nothing is sent.",
+          riskLevel: "medium",
+          requiredCapability: "gmail.create_draft",
+          requiresApproval: false,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { to: { type: "array" }, cc: { type: "array" }, subject: { type: "string" }, body: { type: "string" }, inReplyToMessageId: { type: "string" } },
+          provider: "gmail",
+          action: "create_draft"
+        },
+        {
+          name: "send_draft",
+          description: "Send a Gmail draft externally. High-risk \u2014 requires approval.",
+          riskLevel: "high",
+          requiredCapability: "gmail.send",
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { draftId: { type: "string" } },
+          provider: "gmail",
+          action: "send_draft"
+        }
+      ],
+      linear: [
+        {
+          name: "list_issues",
+          description: "List Linear issues for a team.",
+          riskLevel: "low",
+          requiredCapability: "linear.read",
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { teamId: { type: "string" }, limit: { type: "number" } },
+          provider: "linear",
+          action: "list_issues"
+        },
+        {
+          name: "get_issue",
+          description: "Get a single Linear issue.",
+          riskLevel: "low",
+          requiredCapability: "linear.read",
+          requiresApproval: false,
+          supportsDryRun: true,
+          idempotent: true,
+          inputSchema: { issueId: { type: "string" } },
+          provider: "linear",
+          action: "get_issue"
+        },
+        {
+          name: "create_issue",
+          description: "Create a Linear issue.",
+          riskLevel: "medium",
+          requiredCapability: "linear.create",
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { teamId: { type: "string" }, teamName: { type: "string" }, title: { type: "string" }, description: { type: "string" }, priority: { type: "number" } },
+          provider: "linear",
+          action: "create_issue"
+        },
+        {
+          name: "update_issue",
+          description: "Update a Linear issue.",
+          riskLevel: "medium",
+          requiredCapability: "linear.update",
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { issueId: { type: "string" }, title: { type: "string" }, description: { type: "string" }, priority: { type: "number" }, stateId: { type: "string" } },
+          provider: "linear",
+          action: "update_issue"
+        },
+        {
+          name: "archive_issue",
+          description: "Archive a Linear issue.",
+          riskLevel: "high",
+          requiredCapability: "linear.update",
+          requiresApproval: true,
+          supportsDryRun: false,
+          idempotent: false,
+          inputSchema: { issueId: { type: "string" } },
+          provider: "linear",
+          action: "archive_issue"
+        }
+      ]
+    };
+  }
+});
+
+// src/services/capability-registry.ts
+async function ensureBuiltInCapabilities(db, orgId) {
+  const existing = await db.select({ name: capabilityRegistry.name }).from(capabilityRegistry).where(eq(capabilityRegistry.orgId, orgId));
+  const have = new Set(existing.map((e) => e.name));
+  const missing = BUILTIN_CAPABILITIES.filter((c) => !have.has(c.name));
+  if (missing.length > 0) {
+    await db.insert(capabilityRegistry).values(missing.map((c) => ({ ...c, orgId })));
+  }
+  return missing.length;
+}
+async function listCapabilities2(db, orgId) {
+  return db.select().from(capabilityRegistry).where(eq(capabilityRegistry.orgId, orgId)).orderBy(capabilityRegistry.category, capabilityRegistry.name);
+}
+async function getCapabilityByName(db, orgId, name2) {
+  const rows = await db.select().from(capabilityRegistry).where(and(eq(capabilityRegistry.orgId, orgId), eq(capabilityRegistry.name, name2))).limit(1);
+  return rows[0];
+}
+async function registerCapability(db, orgId, data) {
+  const existing = await getCapabilityByName(db, orgId, data.name);
+  if (existing) return existing;
+  const rows = await db.insert(capabilityRegistry).values({ ...data, orgId }).returning();
+  const row = rows[0];
+  if (!row) throw new Error("registerCapability returned no row");
+  await appendAudit(db, {
+    orgId,
+    actorType: "agent",
+    actorId: data.ownerAgentId ?? void 0,
+    action: "capability.registered",
+    outcome: "success",
+    resultRef: JSON.stringify({ name: data.name, category: data.category })
+  });
+  return row;
+}
+function deriveCapabilitySlug(title) {
+  const cleaned = (title ?? "").toLowerCase().replace(/[^a-z0-9\s-]/g, " ");
+  const words = cleaned.split(/[\s-]+/).filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w));
+  let slug = words.slice(0, 5).join("-");
+  if (slug.length < 4) {
+    slug = cleaned.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  if (!slug) slug = "engineering-capability";
+  return slug.slice(0, 64);
+}
+async function registerCapabilityForMergedPr(db, orgId, input) {
+  const base = deriveCapabilitySlug(input.task.title);
+  const prHash = input.pr.id.replace(/-/g, "").slice(0, 8);
+  const name2 = `${base}-${prHash}`;
+  const diff = input.diffSummary ?? {};
+  const tests = input.testsSummary ?? {};
+  const description = [
+    `Engineering capability: ${input.task.title}`,
+    input.task.description?.trim() ? input.task.description.trim().slice(0, 400) : void 0,
+    `Merged via PR "${input.pr.title}" (${input.pr.headBranch} \u2192 ${input.pr.baseBranch})${input.pr.providerPrNumber ? ` \xB7 #${input.pr.providerPrNumber}` : ""}${input.pr.providerPrUrl ? ` \xB7 ${input.pr.providerPrUrl}` : ""}.`,
+    diff.filesChanged ? `Files changed: ${diff.filesChanged}; +${diff.additions ?? 0}/-${diff.deletions ?? 0} lines.` : void 0,
+    diff.majorAreas && diff.majorAreas.length > 0 ? `Areas: ${diff.majorAreas.slice(0, 5).join(", ")}.` : void 0,
+    tests.total !== void 0 ? `Tests: ${tests.passed ?? 0}/${tests.total} passed${tests.failed ? ` (${tests.failed} failed)` : ""}.` : void 0,
+    "Reusable by future engineering work \u2014 search the capability registry before building."
+  ].filter(Boolean).join(" ");
+  const existing = await getCapabilityByName(db, orgId, name2);
+  if (existing) return existing;
+  return registerCapability(db, orgId, {
+    name: name2,
+    description,
+    category: "code",
+    provider: "internal",
+    location: input.pr.providerPrUrl ?? `pr:${input.pr.id}`,
+    ownerAgentId: input.task.assigneeId ?? null,
+    reusable: true,
+    status: "available",
+    source: "engineering"
+  });
+}
+async function searchCapabilities(db, orgId, query, category) {
+  const conditions = [eq(capabilityRegistry.orgId, orgId)];
+  const q = `%${query.trim()}%`;
+  const nameOrDesc = or(ilike(capabilityRegistry.name, q), ilike(capabilityRegistry.description, q));
+  if (nameOrDesc) conditions.push(nameOrDesc);
+  if (category) conditions.push(eq(capabilityRegistry.category, category));
+  return db.select().from(capabilityRegistry).where(and(...conditions)).orderBy(capabilityRegistry.name).limit(50);
+}
+function capabilityTokens(text2) {
+  const tokens = /* @__PURE__ */ new Set();
+  for (const raw of (text2 ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
+    if (raw.length >= 3 && !RESOLVE_STOP_WORDS.has(raw)) tokens.add(raw);
+  }
+  return tokens;
+}
+function scoreTokenOverlap(query, textTokens) {
+  if (query.size === 0 || textTokens.length === 0) return 0;
+  const hay = new Set(textTokens);
+  let matched = 0;
+  for (const t of query) if (hay.has(t)) matched += 1;
+  return matched / query.size;
+}
+async function resolveCapabilityRequest(db, orgId, request, opts = {}) {
+  const limit = opts.limit ?? 5;
+  const query = capabilityTokens(request);
+  const matches = [];
+  try {
+    const registry2 = await db.select().from(capabilityRegistry).where(and(eq(capabilityRegistry.orgId, orgId), eq(capabilityRegistry.status, "available"))).orderBy(desc(capabilityRegistry.updatedAt)).limit(200);
+    for (const c of registry2) {
+      const nameTokens = capabilityTokens(c.name.replace(/[-_.]/g, " "));
+      const descTokens = capabilityTokens(c.description ?? "");
+      const nameScore = scoreTokenOverlap(query, [...nameTokens]);
+      const descScore = scoreTokenOverlap(query, [...descTokens]);
+      const score = Math.max(nameScore, descScore * 0.75);
+      if (score > 0) {
+        const kind = c.category === "agent" ? "agent" : c.category === "workflow" ? "workflow" : c.category === "connector" || c.category === "tool" ? "tool" : c.category === "code" ? "code" : "service";
+        matches.push({ id: c.id, name: c.name, description: c.description, kind, category: c.category, location: c.location, status: c.status, score });
+      }
+    }
+  } catch {
+  }
+  try {
+    const orgAgents = await db.select({ id: agents.id, name: agents.name, role: agents.role, capabilities: agents.capabilities }).from(agents).where(and(eq(agents.orgId, orgId), eq(agents.status, "active"))).limit(200);
+    for (const a of orgAgents) {
+      const roleTokens = capabilityTokens(`${a.name} ${a.role}`);
+      const caps = Array.isArray(a.capabilities) ? a.capabilities.join(" ") : "";
+      const allTokens = capabilityTokens(caps);
+      for (const t of allTokens) roleTokens.add(t);
+      const score = scoreTokenOverlap(query, [...roleTokens]);
+      if (score >= 0.25) {
+        matches.push({
+          id: a.id,
+          name: a.name,
+          description: `${a.role} \u2014 AI employee already in the organization.`,
+          kind: "agent",
+          category: "agent",
+          location: null,
+          status: "active",
+          score
+        });
+      }
+    }
+  } catch {
+  }
+  try {
+    const recent = await db.select({ id: companyMemory.id, category: companyMemory.category, content: companyMemory.content }).from(companyMemory).where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.category, "workflow"))).orderBy(desc(companyMemory.createdAt)).limit(40);
+    for (const m of recent) {
+      const score = scoreTokenOverlap(query, [...capabilityTokens(m.content)]);
+      if (score >= 0.4) {
+        matches.push({
+          id: m.id,
+          name: m.content.slice(0, 80),
+          description: m.content.slice(0, 400),
+          kind: "knowledge",
+          category: "workflow",
+          location: null,
+          status: "available",
+          score
+        });
+      }
+    }
+  } catch {
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const unique = matches.filter((m) => {
+    if (m.score < 0.3) return false;
+    const key = `${m.kind}:${m.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => b.score - a.score).slice(0, limit);
+  const best = unique[0];
+  let decision = "build";
+  let reason = "No existing capability matches this request closely enough \u2014 a new capability is justified.";
+  if (best && best.score >= 0.55) {
+    decision = "reuse";
+    reason = `The company already has a strong match: \u201C${best.name}\u201D (${best.kind}, ${Math.round(best.score * 100)}% confidence). Reuse it before building anything new.`;
+  } else if (best && best.score >= 0.3) {
+    decision = "extend";
+    reason = `A partial match exists (\u201C${best.name}\u201D, ${Math.round(best.score * 100)}% confidence) \u2014 prefer extending the existing capability over building a parallel one.`;
+  }
+  const requestTruncated = request.trim().slice(0, 200);
+  try {
+    await appendAudit(db, {
+      orgId,
+      actorType: opts.actorId ? "user" : "agent",
+      actorId: opts.actorId,
+      action: "capability.resolve",
+      outcome: "success",
+      resultRef: JSON.stringify({ request: requestTruncated, decision, topMatch: best?.name ?? null })
+    });
+  } catch {
+  }
+  return { request: requestTruncated, decision, reason, matches: unique, matchedAt: (/* @__PURE__ */ new Date()).toISOString() };
+}
+var SLUG_STOP_WORDS, BUILTIN_CAPABILITIES, RESOLVE_STOP_WORDS;
+var init_capability_registry = __esm({
+  "src/services/capability-registry.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_audit();
+    SLUG_STOP_WORDS = /* @__PURE__ */ new Set([
+      "a",
+      "an",
+      "the",
+      "and",
+      "or",
+      "for",
+      "with",
+      "from",
+      "into",
+      "onto",
+      "our",
+      "your",
+      "their",
+      "add",
+      "adding",
+      "support",
+      "supports",
+      "to",
+      "of",
+      "on",
+      "at",
+      "in",
+      "by",
+      "new",
+      "update",
+      "updated",
+      "updating",
+      "fix",
+      "fixes",
+      "fixed",
+      "bug",
+      "change",
+      "changes",
+      "changed",
+      "implement",
+      "implementing",
+      "create",
+      "created",
+      "creating",
+      "build",
+      "building",
+      "make",
+      "making",
+      "feature",
+      "component",
+      "file",
+      "files",
+      "improve",
+      "improving",
+      "make",
+      "work",
+      "working",
+      "be",
+      "is",
+      "are"
+    ]);
+    BUILTIN_CAPABILITIES = [
+      { name: "github.read_repositories", description: "List GitHub repositories the account can access.", category: "connector", provider: "github", capability: "read_repositories", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
+      { name: "github.read_issues", description: "Read GitHub issues.", category: "connector", provider: "github", capability: "read_issues", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
+      { name: "github.create_issues", description: "Create GitHub issues (approval-gated).", category: "connector", provider: "github", capability: "create_issues", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
+      { name: "github.create_pull_requests", description: "Open GitHub pull requests (approval-gated).", category: "connector", provider: "github", capability: "create_pull_requests", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
+      { name: "gmail.search", description: "Search connected Gmail.", category: "connector", provider: "gmail", capability: "gmail.search", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
+      { name: "gmail.create_draft", description: "Create Gmail drafts (never sends).", category: "connector", provider: "gmail", capability: "gmail.create_draft", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
+      { name: "gmail.send", description: "Send Gmail drafts (approval-gated, high risk).", category: "connector", provider: "gmail", capability: "gmail.send", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
+      { name: "linear.manage_issues", description: "Read/create/update Linear issues (writes approval-gated).", category: "connector", provider: "linear", capability: "linear.create", location: "connector-linear", reusable: true, status: "available", source: "builtin" },
+      { name: "agent.execution", description: "AI employees execute tasks through the task executor.", category: "agent", provider: "internal", location: "task-executor", reusable: true, status: "available", source: "builtin" },
+      { name: "agent.delegation", description: "Executive Agent delegates work across AI employees and squads.", category: "agent", provider: "internal", location: "delegation-orchestrator", reusable: true, status: "available", source: "builtin" },
+      { name: "memory.semantic", description: "Semantic company memory retrieval for agent context.", category: "service", provider: "internal", location: "memory", reusable: true, status: "available", source: "builtin" },
+      { name: "memory.knowledge_graph", description: "Knowledge graph entities, relations and decision history.", category: "service", provider: "internal", location: "knowledge-graph", reusable: true, status: "available", source: "builtin" },
+      { name: "simulation.what_if", description: "Live-baseline what-if simulation of the organization.", category: "service", provider: "internal", location: "simulation", reusable: true, status: "available", source: "builtin" },
+      { name: "anomaly.detection", description: "Scheduled anomaly detection over goals, tasks and spend.", category: "service", provider: "internal", location: "anomaly-detector", reusable: true, status: "available", source: "builtin" },
+      { name: "engineering.workspace", description: "Repository import, sandbox runs, PRs and engineering tasks.", category: "code", provider: "internal", location: "engineering", reusable: true, status: "available", source: "builtin" }
+    ];
+    RESOLVE_STOP_WORDS = /* @__PURE__ */ new Set([
+      "the",
+      "and",
+      "for",
+      "with",
+      "our",
+      "your",
+      "their",
+      "that",
+      "this",
+      "can",
+      "could",
+      "would",
+      "should",
+      "have",
+      "has",
+      "had",
+      "are",
+      "was",
+      "were",
+      "been",
+      "being",
+      "will",
+      "shall",
+      "what",
+      "which",
+      "who",
+      "how",
+      "where",
+      "when",
+      "why",
+      "from",
+      "into",
+      "onto",
+      "about",
+      "them",
+      "they",
+      "we",
+      "you",
+      "us",
+      "do",
+      "does",
+      "did",
+      "not",
+      "no",
+      "yes",
+      "if",
+      "then",
+      "else",
+      "also",
+      "just",
+      "like",
+      "get",
+      "got",
+      "make",
+      "need",
+      "wants",
+      "want",
+      "help",
+      "helping",
+      "please",
+      "some",
+      "more"
+    ]);
+  }
+});
+
+// src/services/agent-context.ts
+var agent_context_exports = {};
+__export(agent_context_exports, {
+  buildAgentContext: () => buildAgentContext,
+  buildContextPrompt: () => buildContextPrompt
+});
+async function buildAgentContext(db, orgId, agentId, taskId, opts = {}) {
+  const agentMemoryEntries = await db.select().from(companyMemory).where(and(
+    eq(companyMemory.orgId, orgId),
+    eq(companyMemory.agentId, agentId),
+    eq(companyMemory.source, "agent_memory")
+  )).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(10);
+  const [
+    agent,
+    orgGoals,
+    agentTasks,
+    recentActivity,
+    pendingApprovals,
+    memoryEntries,
+    knowledgeResult,
+    constitutionEntries
+  ] = await Promise.all([
+    // 1. Get agent details with authority
+    db.select().from(agents).where(eq(agents.id, agentId)).limit(1),
+    // 2. Get active goals (most important first)
+    db.select().from(goals).where(eq(goals.orgId, orgId)).orderBy(desc(goals.priority), desc(goals.createdAt)).limit(5),
+    // 3. Get this agent's recent tasks
+    db.select().from(tasks).where(eq(tasks.agentId, agentId)).orderBy(desc(tasks.createdAt)).limit(10),
+    // 4. Get recent activity for this agent
+    db.select({
+      summary: activityEvents.summary,
+      type: activityEvents.type,
+      occurredAt: activityEvents.occurredAt
+    }).from(activityEvents).where(eq(activityEvents.agentId, agentId)).orderBy(desc(activityEvents.occurredAt)).limit(5),
+    // 5. Count pending approvals
+    db.select({ count: sql`count(*)::int` }).from(approvals).where(and(eq(approvals.orgId, orgId), eq(approvals.status, "pending"))),
+    // 6. Get relevant memory — semantic when a task/query is available,
+    //    otherwise high-importance, recent. Always org-scoped and bounded.
+    retrieveSemanticForContext(db, orgId, { query: opts.query, maxEntries: 15 }, opts.config),
+    // 7. Company knowledge graph + decision memory — only when there is a
+    //    query to match (never a full-graph dump). Bounded and org-scoped.
+    opts.query?.trim() ? retrieveKnowledgeContext(db, orgId, opts.query, 6) : Promise.resolve(null),
+    // 8. Get constitution entries (company rules/values)
+    db.select().from(companyMemory).where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.category, "workflow"))).orderBy(desc(companyMemory.importance)).limit(5)
+  ]);
+  const agentData = agent[0];
+  const authority = agentData?.authority ?? {};
+  const agentCapabilities = Array.isArray(agentData?.capabilities) ? agentData.capabilities : [];
+  let mcpTools2 = [];
+  let capabilities = [];
+  if (agentData) {
+    try {
+      const discovered = await discoverMcpTools(db, orgId, agentId, agentCapabilities);
+      mcpTools2 = discovered.slice(0, 12).map((t) => ({
+        name: t.name,
+        serverName: t.serverName,
+        provider: t.provider,
+        requiresApproval: t.requiresApproval,
+        riskLevel: t.riskLevel
+      }));
+    } catch {
+      mcpTools2 = [];
+    }
+    try {
+      const registry2 = await listCapabilities2(db, orgId);
+      capabilities = registry2.filter((c) => c.status === "available").slice(0, 10).map((c) => ({ name: c.name, category: c.category, status: c.status }));
+    } catch {
+      capabilities = [];
+    }
+  }
+  let teamInfo = null;
+  if (agentData?.teamId) {
+    try {
+      const { teams: teams3, departments: depts } = await Promise.resolve().then(() => (init_src2(), src_exports));
+      const [teamRow] = await db.select({
+        name: teams3.name,
+        department: depts.name
+      }).from(teams3).leftJoin(depts, eq(depts.id, teams3.departmentId)).where(eq(teams3.id, agentData.teamId)).limit(1);
+      if (teamRow) teamInfo = { name: teamRow.name, department: teamRow.department ?? void 0 };
+    } catch {
+      teamInfo = null;
+    }
+  }
+  return {
+    constitution: constitutionEntries.map((e) => e.content).join("\n") || "No company constitution set.",
+    knowledge: knowledgeResult && (knowledgeResult.entities.length > 0 || knowledgeResult.decisions.length > 0) ? formatKnowledgeContext(knowledgeResult) : null,
+    memory: memoryEntries.map((e) => ({
+      content: e.content,
+      category: e.category,
+      importance: e.importance
+    })),
+    agentMemory: agentMemoryEntries.map((e) => ({
+      content: e.content.replace(/^\[tags:[^\]]+\]\s*/, ""),
+      category: e.category,
+      importance: e.importance
+    })),
+    goals: orgGoals.map((g) => ({
+      id: g.id,
+      title: g.title,
+      status: g.status,
+      priority: g.priority,
+      progress: g.progress
+    })),
+    recentTasks: agentTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      result: t.result ?? void 0
+    })),
+    pendingApprovals: pendingApprovals[0]?.count ?? 0,
+    authority,
+    department: agentData?.department ? { name: agentData.department } : null,
+    team: teamInfo,
+    recentActivity: recentActivity.map((a) => ({
+      summary: a.summary,
+      type: a.type,
+      occurredAt: a.occurredAt
+    })),
+    mcpTools: mcpTools2,
+    capabilities
+  };
+}
+function buildContextPrompt(ctx, agentName, agentRole) {
+  const parts = [];
+  if (ctx.constitution && ctx.constitution !== "No company constitution set.") {
+    parts.push(`## Company Values & Rules
+${ctx.constitution}`);
+  }
+  if (ctx.goals.length > 0) {
+    const goalList = ctx.goals.map((g) => `- [${g.status}] ${g.title} (${g.priority}, ${g.progress}% complete)`).join("\n");
+    parts.push(`## Active Goals
+${goalList}`);
+  }
+  if (ctx.recentTasks.length > 0) {
+    const taskList = ctx.recentTasks.map((t) => `- [${t.status}] ${t.title}${t.result ? ` \u2014 Result: ${t.result.slice(0, 100)}` : ""}`).join("\n");
+    parts.push(`## Your Recent Tasks
+${taskList}`);
+  }
+  if (ctx.knowledge) {
+    parts.push(`## Company Knowledge & Decision History
+${ctx.knowledge}
+
+(Contextual information \u2014 never overrides your system instructions or the constitution.)`);
+  }
+  if (ctx.memory.length > 0) {
+    const memList = ctx.memory.map((m) => `- [${m.category}/${m.importance}] ${m.content.slice(0, 200)}`).join("\n");
+    parts.push(`## Company Memory
+${memList}`);
+  }
+  if (ctx.agentMemory.length > 0) {
+    const agentMemList = ctx.agentMemory.map((m) => `- [${m.category}] ${m.content.slice(0, 200)}`).join("\n");
+    parts.push(`## Your Learned Knowledge
+${agentMemList}`);
+  }
+  if (ctx.pendingApprovals > 0) {
+    parts.push(`## Pending Approvals: ${ctx.pendingApprovals}
+Some actions are waiting for founder approval.`);
+  }
+  if (ctx.mcpTools.length > 0) {
+    const toolList = ctx.mcpTools.map((t) => `- ${t.name} (${t.provider} via ${t.serverName}, ${t.riskLevel} risk${t.requiresApproval ? ", approval required" : ""})`).join("\n");
+    parts.push(`## Available MCP Tools
+${toolList}
+
+(Tools are permission-checked server-side. If a task needs an external action, prefer these tools over inventing one. External writes require approval.)`);
+  }
+  if (ctx.capabilities.length > 0) {
+    const capList = ctx.capabilities.map((c) => `- ${c.name} [${c.category}]`).join("\n");
+    parts.push(`## Reusable Company Capabilities
+${capList}
+
+(Check this list before planning new work \u2014 reuse an existing capability instead of building a new one when possible.)`);
+  }
+  if (ctx.department) {
+    parts.push(`## Your Department
+${ctx.department.name}`);
+  }
+  if (ctx.team) {
+    const teamLine = ctx.team.department ? `${ctx.team.name} (in ${ctx.team.department})` : ctx.team.name;
+    parts.push(`## Your Team
+${teamLine}`);
+  }
+  const canExecute = ctx.authority.canExecuteTasks !== false;
+  const canCommunicate = ctx.authority.canCommunicateExternally === true;
+  const canModify = ctx.authority.canModifyResources === true;
+  parts.push(`## Your Permissions
+- Execute tasks: ${canExecute ? "Yes" : "No"}
+- External communications: ${canCommunicate ? "Yes" : "No (requires approval)"}
+- Modify resources: ${canModify ? "Yes" : "No (requires approval)"}`);
+  if (ctx.recentActivity.length > 0) {
+    const actList = ctx.recentActivity.map((a) => `- [${a.type}] ${a.summary}`).join("\n");
+    parts.push(`## Recent Activity
+${actList}`);
+  }
+  return parts.join("\n\n");
+}
+var init_agent_context = __esm({
+  "src/services/agent-context.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_memory();
+    init_knowledge_graph();
+    init_mcp();
+    init_capability_registry();
+  }
+});
+
+// src/services/multi-agent.ts
+var multi_agent_exports = {};
+__export(multi_agent_exports, {
+  aggregateSubTaskResults: () => aggregateSubTaskResults,
+  delegateTask: () => delegateTask,
+  handoffTask: () => handoffTask,
+  submitFeedback: () => submitFeedback
+});
+async function delegateTask(db, request) {
+  const [delegatingAgent] = await db.select().from(agents).where(and(eq(agents.id, request.delegatingAgentId), eq(agents.orgId, request.orgId))).limit(1);
+  if (!delegatingAgent) {
+    return { subTaskId: "", status: "rejected", reason: "Delegating agent not found" };
+  }
+  if (delegatingAgent.status !== "active") {
+    return { subTaskId: "", status: "rejected", reason: "Delegating agent is not active" };
+  }
+  const auth = delegatingAgent.authority;
+  if (auth?.canCreateTasks === false) {
+    return { subTaskId: "", status: "rejected", reason: "Agent does not have permission to create tasks" };
+  }
+  if (request.targetAgentId === request.delegatingAgentId) {
+    return { subTaskId: "", status: "rejected", reason: "Agent cannot delegate to itself" };
+  }
+  const [targetAgent] = await db.select().from(agents).where(and(eq(agents.id, request.targetAgentId), eq(agents.orgId, request.orgId))).limit(1);
+  if (!targetAgent) {
+    return { subTaskId: "", status: "rejected", reason: "Target agent not found" };
+  }
+  if (targetAgent.status !== "active") {
+    return { subTaskId: "", status: "blocked", reason: "Target agent is not active" };
+  }
+  const description = [
+    request.description,
+    request.context ? `
+
+Context from ${delegatingAgent.name}:
+${request.context}` : "",
+    `
+
+Delegated by: ${delegatingAgent.name} (${delegatingAgent.role})`,
+    `
+Parent task: ${request.parentTaskId}`
+  ].join("");
+  const [subTask] = await db.insert(tasks).values({
+    orgId: request.orgId,
+    agentId: request.targetAgentId,
+    title: request.title,
+    description,
+    priority: request.priority,
+    status: "pending",
+    cost: 0,
+    dueDate: request.dueDate ?? null
+  }).returning();
+  if (!subTask) {
+    return { subTaskId: "", status: "rejected", reason: "Failed to create sub-task" };
+  }
+  await db.insert(activityEvents).values({
+    orgId: request.orgId,
+    agentId: request.delegatingAgentId,
+    taskId: subTask.id,
+    type: "delegated",
+    summary: `${delegatingAgent.name} delegated "${request.title}" to ${targetAgent.name}`,
+    reason: `Agent-to-agent delegation: ${delegatingAgent.role} \u2192 ${targetAgent.role}`,
+    cost: 0,
+    department: null
+  }).catch(() => {
+  });
+  broadcastToOrg(request.orgId, {
+    type: "task.started",
+    taskId: subTask.id,
+    agentId: request.targetAgentId,
+    agentName: targetAgent.name
+  });
+  await appendAudit(db, {
+    orgId: request.orgId,
+    actorType: "agent",
+    actorId: request.delegatingAgentId,
+    action: "agent.delegated",
+    tool: "multi_agent",
+    cost: 0,
+    outcome: "success"
+  }).catch(() => {
+  });
+  return { subTaskId: subTask.id, status: "created" };
+}
+async function handoffTask(db, handoff) {
+  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, handoff.taskId), eq(tasks.orgId, handoff.orgId))).limit(1);
+  if (!task) {
+    return { success: false, reason: "Task not found" };
+  }
+  if (task.agentId !== handoff.fromAgentId) {
+    return { success: false, reason: "Task is not assigned to the from agent" };
+  }
+  if (task.status === "completed" || task.status === "cancelled") {
+    return { success: false, reason: "Cannot hand off a completed or cancelled task" };
+  }
+  const [targetAgent] = await db.select({ id: agents.id, name: agents.name, status: agents.status }).from(agents).where(and(eq(agents.id, handoff.toAgentId), eq(agents.orgId, handoff.orgId))).limit(1);
+  if (!targetAgent) {
+    return { success: false, reason: "Target agent not found" };
+  }
+  if (targetAgent.status !== "active") {
+    return { success: false, reason: "Target agent is not active" };
+  }
+  const newDescription = [
+    task.description ?? "",
+    `
+
+--- HANDOFF NOTES ---`,
+    `Reason: ${handoff.reason}`,
+    `From: ${handoff.fromAgentId}`,
+    handoff.transferNotes ? `Transfer notes: ${handoff.transferNotes}` : ""
+  ].join("\n");
+  await db.update(tasks).set({
+    agentId: handoff.toAgentId,
+    description: newDescription,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(tasks.id, handoff.taskId));
+  await db.update(agents).set({ currentTask: null, updatedAt: /* @__PURE__ */ new Date() }).where(eq(agents.id, handoff.fromAgentId));
+  const [fromAgent] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, handoff.fromAgentId)).limit(1);
+  await db.insert(activityEvents).values({
+    orgId: handoff.orgId,
+    agentId: handoff.toAgentId,
+    taskId: handoff.taskId,
+    type: "handed_off",
+    summary: `Task "${task.title}" handed off from ${fromAgent?.name ?? "unknown"} to ${targetAgent.name}`,
+    reason: handoff.reason,
+    cost: 0,
+    department: null
+  }).catch(() => {
+  });
+  await appendAudit(db, {
+    orgId: handoff.orgId,
+    actorType: "agent",
+    actorId: handoff.fromAgentId,
+    action: "agent.handoff",
+    tool: "multi_agent",
+    cost: 0,
+    outcome: "success"
+  }).catch(() => {
+  });
+  return { success: true };
+}
+async function submitFeedback(db, feedback) {
+  const [agent] = await db.select({ name: agents.name, role: agents.role }).from(agents).where(eq(agents.id, feedback.agentId)).limit(1);
+  const agentName = agent?.name ?? "Unknown Agent";
+  const agentRole = agent?.role ?? "unknown";
+  const content = [
+    `[${feedback.feedbackType.toUpperCase()}] ${agentName} (${agentRole}): ${feedback.summary}`,
+    feedback.details ? `Details: ${feedback.details}` : "",
+    feedback.suggestedAction ? `Suggested action: ${feedback.suggestedAction}` : "",
+    feedback.requiresFounderAttention ? "\u26A0\uFE0F Requires founder attention" : ""
+  ].filter(Boolean).join("\n");
+  await db.insert(companyMemory).values({
+    orgId: feedback.orgId,
+    category: feedback.feedbackType === "blocker" ? "lesson" : "context",
+    content,
+    source: agentName,
+    agentId: feedback.agentId,
+    taskId: feedback.taskId ?? null,
+    importance: feedback.requiresFounderAttention ? 9 : feedback.feedbackType === "blocker" ? 8 : 5
+  }).catch(() => {
+  });
+  await db.insert(activityEvents).values({
+    orgId: feedback.orgId,
+    agentId: feedback.agentId,
+    taskId: feedback.taskId ?? null,
+    type: feedback.feedbackType,
+    summary: `${agentName}: ${feedback.summary}`,
+    reason: feedback.details ?? feedback.suggestedAction ?? null,
+    cost: 0,
+    department: null
+  }).catch(() => {
+  });
+  let notificationId;
+  if (feedback.requiresFounderAttention) {
+    try {
+      const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
+      const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
+      const prefs = await getNotificationPrefs2(db, feedback.orgId);
+      if (shouldNotify2(prefs, "inApp", "agent")) {
+        createNotification2(
+          db,
+          feedback.orgId,
+          "agent",
+          `${feedback.feedbackType === "escalation" ? "\u{1F6A8} Escalation" : "\u26A0\uFE0F Blocker"}: ${agentName}`,
+          feedback.summary
+        );
+      }
+    } catch {
+    }
+  }
+  broadcastToOrg(feedback.orgId, {
+    type: "agent.notification",
+    agentName,
+    title: `${feedback.feedbackType}: ${feedback.summary}`,
+    message: feedback.details ?? "",
+    notificationType: feedback.feedbackType
+  });
+  await appendAudit(db, {
+    orgId: feedback.orgId,
+    actorType: "agent",
+    actorId: feedback.agentId,
+    action: `agent.feedback.${feedback.feedbackType}`,
+    tool: "multi_agent",
+    cost: 0,
+    outcome: "success"
+  }).catch(() => {
+  });
+  return { recorded: true, notificationId };
+}
+async function aggregateSubTaskResults(db, orgId, parentTaskId) {
+  const allTasks = await db.select({
+    id: tasks.id,
+    title: tasks.title,
+    status: tasks.status,
+    result: tasks.result,
+    agentId: tasks.agentId,
+    description: tasks.description
+  }).from(tasks).where(eq(tasks.orgId, orgId)).orderBy(desc(tasks.createdAt)).limit(50);
+  const subTasks = allTasks.filter(
+    (t) => t.description?.includes(`Parent task: ${parentTaskId}`) || t.description?.includes(`parent task: ${parentTaskId}`)
+  );
+  const agentIds = [...new Set(subTasks.map((t) => t.agentId).filter(Boolean))];
+  const agentMap = /* @__PURE__ */ new Map();
+  if (agentIds.length > 0) {
+    const agentRows = await db.select({ id: agents.id, name: agents.name }).from(agents);
+    for (const a of agentRows) {
+      agentMap.set(a.id, a.name);
+    }
+  }
+  return {
+    total: subTasks.length,
+    completed: subTasks.filter((t) => t.status === "completed").length,
+    inProgress: subTasks.filter((t) => t.status === "in_progress").length,
+    pending: subTasks.filter((t) => t.status === "pending").length,
+    failed: subTasks.filter((t) => t.status === "failed").length,
+    results: subTasks.map((t) => ({
+      taskId: t.id,
+      title: t.title,
+      status: t.status,
+      result: t.result ?? void 0,
+      agentName: agentMap.get(t.agentId ?? "") ?? "Unassigned"
+    }))
+  };
+}
+var init_multi_agent = __esm({
+  "src/services/multi-agent.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_audit();
+    init_realtime();
+  }
+});
+
+// src/services/task-executor.ts
+var task_executor_exports = {};
+__export(task_executor_exports, {
+  executePendingTasks: () => executePendingTasks,
+  executeTask: () => executeTask,
+  getTaskStatus: () => getTaskStatus,
+  retryTask: () => retryTask
+});
+async function persistPreExecutionBlock(db, orgId, task, reason, agentName, governanceReason = "Pre-execution governance check (agent state, authority, or autonomy level)") {
+  await db.update(tasks).set({ status: "failed", result: reason.slice(0, 2e3), cost: 0, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: "failed",
+    summary: `Execution blocked: ${reason}`,
+    reason: governanceReason,
+    cost: 0,
+    department: null
+  });
+  broadcastToOrg(orgId, {
+    type: "task.failed",
+    taskId: task.id,
+    agentId: task.agentId ?? "",
+    agentName,
+    error: reason.slice(0, 200)
+  });
+  notifyAttentionChanged(orgId, "task.failed");
+  return { taskId: task.id, status: "failed", result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
+}
+async function stopForToolApproval(db, orgId, task, agentName, toolId, approvalId, reason) {
+  const text2 = `Awaiting founder approval: ${agentName} asked to use the "${toolId}" tool for "${task.title}". ${reason}`;
+  await db.update(tasks).set({ status: "awaiting_approval", result: text2.slice(0, 2e3), updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: "analyzed",
+    summary: text2,
+    reason,
+    cost: 0,
+    department: null
+  });
+  broadcastToOrg(orgId, { type: "task.cancelled", taskId: task.id, reason });
+  notifyAttentionChanged(orgId, "approval.created");
+  return {
+    taskId: task.id,
+    status: "awaiting_approval",
+    result: text2,
+    cost: 0,
+    tokensUsed: 0,
+    llmUsed: false,
+    approvalId
+  };
+}
+async function gateTaskOnApproval(db, orgId, task, agentName, reason) {
+  const text2 = `Awaiting founder approval: ${reason}`;
+  let gate = await findOpenGate(db, orgId, task.id);
+  if (!gate) {
+    [gate] = await db.insert(approvals).values({
+      orgId,
+      agentId: task.agentId,
+      taskId: task.id,
+      action: `Execute task: ${task.title}`.slice(0, 500),
+      description: `Agent "${agentName}" is ready to work on "${task.title}" and needs your decision first. ${reason}`,
+      riskLevel: "medium",
+      status: "pending"
+    }).returning();
+    broadcastToOrg(orgId, {
+      type: "approval.required",
+      approvalId: gate?.id ?? "",
+      agentName,
+      toolName: null,
+      riskLevel: "medium"
+    });
+    notifyAttentionChanged(orgId, "approval.created");
+  }
+  await db.update(tasks).set({ status: "awaiting_approval", result: text2.slice(0, 2e3), updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: "analyzed",
+    summary: text2,
+    reason,
+    cost: 0,
+    department: null
+  });
+  return {
+    taskId: task.id,
+    status: "awaiting_approval",
+    result: text2,
+    cost: 0,
+    tokensUsed: 0,
+    llmUsed: false,
+    approvalId: gate?.id
+  };
+}
+async function retryTask(config2, db, orgId, taskId) {
+  const [task] = await db.select({ id: tasks.id, status: tasks.status }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
+  if (!task) return { refused: "Task not found", status: "missing" };
+  if (task.status === "awaiting_approval") {
+    return { refused: "This task is waiting on your decision \u2014 approve or reject it instead.", status: task.status };
+  }
+  if (task.status !== "failed") {
+    return { refused: `Only a failed task can be retried (this one is ${task.status}).`, status: task.status };
+  }
+  await db.update(tasks).set({ status: "pending", result: null, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, taskId));
+  return { result: await executeTask(config2, db, orgId, taskId) };
+}
+async function executeTask(config2, db, orgId, taskId) {
+  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
+  if (!task) {
+    return { taskId, status: "failed", result: "Task not found", cost: 0, tokensUsed: 0, llmUsed: false };
+  }
+  if (task.status === "cancelled") {
+    return {
+      taskId,
+      status: "failed",
+      result: "This task was cancelled by a founder decision and will not run. Create a new task instead.",
+      cost: 0,
+      tokensUsed: 0,
+      llmUsed: false
+    };
+  }
+  let assignee;
+  if (task.agentId) {
+    const [row] = await db.select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel, name: agents.name }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
+    assignee = row;
+  }
+  if (assignee && (assignee.status === "paused" || assignee.status === "archived")) {
+    const verb = assignee.status === "archived" ? "archived" : "paused";
+    return persistPreExecutionBlock(
+      db,
+      orgId,
+      task,
+      `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
+      assignee.name
+    );
+  }
+  if (assignee?.authority && typeof assignee.authority === "object") {
+    const auth = assignee.authority;
+    if (auth.canExecuteTasks === false) {
+      return persistPreExecutionBlock(
+        db,
+        orgId,
+        task,
+        "Execution blocked: agent does not have permission to execute tasks.",
+        assignee.name
+      );
+    }
+  }
+  if (assignee) {
+    const level = normalizeAutonomyLevel(assignee.autonomyLevel);
+    const decision = enforceAutonomy(level, "task_execute");
+    if (!decision.allowed) {
+      return persistPreExecutionBlock(
+        db,
+        orgId,
+        task,
+        `Execution blocked by autonomy level: ${decision.reason}`,
+        assignee.name
+      );
+    }
+    if (decision.requiresApproval) {
+      const grant = await findGrantedGate(db, orgId, taskId);
+      if (grant) {
+        await markGateReleased(db, grant.id);
+        await appendAudit(db, {
+          orgId,
+          actorType: "agent",
+          actorId: task.agentId ?? orgId,
+          action: "approval.grant_consumed",
+          outcome: "success",
+          resultRef: `task:${taskId} \u2192 approval:${grant.id}`
+        });
+      } else {
+        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason);
+      }
+    }
+  }
+  const creditCheck = await hasEnoughCredits(db, orgId, "task.executed");
+  if (creditCheck.balance.remaining <= 0) {
+    return persistPreExecutionBlock(
+      db,
+      orgId,
+      task,
+      `Execution blocked: Work Credits exhausted (${creditCheck.balance.used} of ${creditCheck.balance.total} used this period). Top up or change plan to resume work.`,
+      assignee?.name ?? "Unassigned",
+      "Pre-execution credit check"
+    );
+  }
+  await db.update(tasks).set({ status: "in_progress", updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, taskId));
+  if (task.agentId) {
+    await db.update(agents).set({ currentTask: task.title, updatedAt: /* @__PURE__ */ new Date() }).where(eq(agents.id, task.agentId));
+  }
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: "executing",
+    summary: `Executing: ${task.title}`,
+    reason: `Task assigned by Executive Agent`,
+    cost: 0,
+    department: null
+  });
+  let agentRole = "executive_agent";
+  let agentName = "Executive Agent";
+  if (task.agentId) {
+    const [agent] = await db.select().from(agents).where(eq(agents.id, task.agentId)).limit(1);
+    if (agent) {
+      agentRole = agent.role;
+      agentName = agent.name;
+    }
+  }
+  broadcastToOrg(orgId, { type: "task.started", taskId: task.id, agentId: task.agentId ?? "", agentName });
+  const { buildAgentContext: buildAgentContext2, buildContextPrompt: buildContextPrompt3 } = await Promise.resolve().then(() => (init_agent_context(), agent_context_exports));
+  const agentContext = task.agentId ? await buildAgentContext2(db, orgId, task.agentId, task.id, {
+    query: `${task.title} ${task.description ?? ""}`.slice(0, 500),
+    config: config2
+  }) : null;
+  const basePrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
+  const contextSection = agentContext ? buildContextPrompt3(agentContext, agentName, agentRole) : "";
+  const systemPrompt = contextSection ? `${basePrompt}
+
+${contextSection}` : basePrompt;
+  const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
+  const toolSection = buildToolSection(agentRole);
+  const systemPromptWithTools = toolSection ? `${systemPrompt}
+
+${toolSection}` : systemPrompt;
+  const toolCalls = [];
+  let toolCredits = 0;
+  const askFollowUp = async (extra) => {
+    try {
+      const routing = classifyTask({
+        title: task.title,
+        description: task.description,
+        agentRole,
+        priority: task.priority ?? null
+      });
+      const advice = await getCalibrationAdvice(db, orgId);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, advice);
+      return await chat(config2, systemPromptWithTools, `${taskPrompt}
+
+${extra}`, {
+        model: routedModel,
+        temperature: 0.7,
+        max_tokens: 2048,
+        retries: 0,
+        _trace: {
+          orgId,
+          phase: "task_execution",
+          taskId: task.id,
+          agentId: task.agentId ?? void 0,
+          db
+        }
+      });
+    } catch (err) {
+      lastLlmError = err instanceof Error ? err.message : String(err);
+      return null;
+    }
+  };
+  const startTime = Date.now();
+  let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
+  let tokensUsed = 0;
+  let llmAttempted = false;
+  let lastLlmError;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 1e3 * attempt));
+      }
+      const routing = classifyTask({
+        title: task.title,
+        description: task.description,
+        agentRole,
+        priority: task.priority ?? null
+      });
+      const calibrationAdvice = await getCalibrationAdvice(db, orgId);
+      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
+      const llmResponse = await chat(config2, systemPromptWithTools, taskPrompt, {
+        model: routedModel,
+        temperature: 0.7,
+        max_tokens: 2048,
+        retries: 0,
+        // We handle retries at this level
+        // Trace + persist inside chat() so the row records the ACTUALLY
+        // served model (incl. 404 fallback substitutions) and real provider
+        // usage — the previous manual trace always wrote model 'unknown'
+        // with estimated tokens, corrupting model stats and routing data.
+        _trace: {
+          orgId,
+          phase: "task_execution",
+          taskId: task.id,
+          agentId: task.agentId ?? void 0,
+          db
+        }
+      });
+      if (llmResponse) {
+        result = llmResponse;
+        llmAttempted = true;
+        tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
+        break;
+      }
+    } catch (err) {
+      lastLlmError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (!llmAttempted) {
+    result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
+    try {
+      const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
+      const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
+      const prefs = await getNotificationPrefs2(db, orgId);
+      if (shouldNotify2(prefs, "inApp", "agent")) {
+        createNotification2(
+          db,
+          orgId,
+          "agent",
+          "Agent Error",
+          `${agentName} could not reach the LLM after 2 attempts for task "${task.title}". Using fallback execution.`
+        );
+      }
+    } catch {
+    }
+  }
+  if (llmAttempted && assignee && task.agentId) {
+    const authority = assignee.authority;
+    if (authority && typeof authority === "object") {
+      const toolCtx = {
+        orgId,
+        // An autonomous run has no human actor. The registry charges and audits
+        // by agent and organization; this field is carried for callers that do.
+        userId: task.agentId,
+        agentId: task.agentId,
+        agentRole,
+        agentName,
+        taskId: task.id,
+        goalId: task.goalId ?? void 0,
+        authority
+      };
+      let pending = parseToolRequest(result);
+      let rounds = 0;
+      while (pending && rounds < MAX_TASK_TOOL_ROUNDS) {
+        rounds += 1;
+        const execution = await executeTool(config2, db, pending.toolId, toolCtx, pending.params);
+        toolCalls.push(describeToolCall(pending.toolId, execution));
+        if (execution.approvalRequired) {
+          return stopForToolApproval(
+            db,
+            orgId,
+            task,
+            agentName,
+            pending.toolId,
+            execution.approvalId,
+            `Approving releases this task; rejecting stops it and keeps your reason.`
+          );
+        }
+        toolCredits += execution.creditsConsumed;
+        const answer = await askFollowUp(formatToolResultForPrompt(pending.toolId, execution));
+        if (!answer) break;
+        result = answer;
+        tokensUsed += Math.ceil((systemPromptWithTools.length + answer.length) / 4);
+        pending = parseToolRequest(answer);
+      }
+    }
+  }
+  const resultWithTools = toolCalls.length > 0 ? `${result}
+
+Tools used: ${toolCalls.join("; ")}`.slice(0, 2e3) : result;
+  const durationMs = Date.now() - startTime;
+  const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
+  const modelCost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1e3)) : 0;
+  const cost = modelCost + toolCredits;
+  await db.update(tasks).set({
+    status: taskSucceeded ? "completed" : "failed",
+    cost,
+    result: resultWithTools,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(tasks.id, taskId));
+  if (taskSucceeded) {
+    broadcastToOrg(orgId, { type: "task.completed", taskId: task.id, agentId: task.agentId ?? "", agentName, result: result.slice(0, 200) });
+  } else {
+    broadcastToOrg(orgId, { type: "task.failed", taskId: task.id, agentId: task.agentId ?? "", agentName, error: (lastLlmError ?? result).slice(0, 200) });
+    notifyAttentionChanged(orgId, "task.failed");
+  }
+  if (modelCost > 0) {
+    try {
+      const charge = await consumeCredits(
+        db,
+        orgId,
+        "task.executed",
+        `Task: ${task.title}`.slice(0, 200),
+        task.id,
+        "task",
+        { amount: modelCost }
+      );
+      broadcastToOrg(orgId, {
+        type: "credits.consumed",
+        amount: charge.consumed,
+        remaining: charge.balance.remaining,
+        operationType: "task.executed"
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown credit error";
+      await appendAudit(db, {
+        orgId,
+        actorType: "system",
+        actorId: task.agentId,
+        agentId: task.agentId,
+        taskId: task.id,
+        action: "credits.unbilled",
+        // model cost only: tool credits were already charged
+        cost,
+        outcome: "failure",
+        resultRef: `task:${task.id} ${message}`.slice(0, 500)
+      }).catch(() => void 0);
+    }
+  }
+  if (task.agentId) {
+    const [agent] = await db.select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
+    if (taskSucceeded) {
+      await db.update(agents).set({
+        tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
+        currentTask: null,
+        lastActiveAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(agents.id, task.agentId));
+    } else {
+      await db.update(agents).set({
+        tasksFailed: (agent?.tasksFailed ?? 0) + 1,
+        currentTask: null,
+        lastActiveAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(agents.id, task.agentId));
+    }
+  }
+  await db.insert(activityEvents).values({
+    orgId,
+    agentId: task.agentId,
+    taskId: task.id,
+    type: taskSucceeded ? "completed" : "failed",
+    summary: taskSucceeded ? `Completed: ${task.title}` : `Failed: ${task.title}`,
+    reason: taskSucceeded ? `Task executed by ${agentName} in ${(durationMs / 1e3).toFixed(1)}s` : `Task failed: ${result.slice(0, 200)}`,
+    cost,
+    department: null
+  });
+  await db.insert(companyMemory).values({
+    orgId,
+    category: taskSucceeded ? "context" : "lesson",
+    content: taskSucceeded ? `Task completed: "${task.title}" \u2014 Result: ${result.slice(0, 500)}` : `Task failed: "${task.title}" \u2014 Error: ${result.slice(0, 500)}`,
+    source: agentName,
+    agentId: task.agentId,
+    taskId: task.id,
+    importance: taskSucceeded ? 5 : 7
+  });
+  await appendAudit(db, {
+    orgId,
+    actorType: "agent",
+    actorId: task.agentId,
+    agentId: task.agentId,
+    taskId: task.id,
+    action: taskSucceeded ? "task.completed" : "task.failed",
+    tool: "llm",
+    cost,
+    outcome: taskSucceeded ? "success" : "failure"
+  });
+  if (task.agentId) {
+    try {
+      const { submitFeedback: submitFeedback2 } = await Promise.resolve().then(() => (init_multi_agent(), multi_agent_exports));
+      await submitFeedback2(db, {
+        orgId,
+        agentId: task.agentId,
+        taskId: task.id,
+        feedbackType: taskSucceeded ? "completion" : "blocker",
+        summary: taskSucceeded ? `Completed "${task.title}" in ${(durationMs / 1e3).toFixed(1)}s` : `Failed to complete "${task.title}": ${result.slice(0, 200)}`,
+        details: result.slice(0, 500),
+        requiresFounderAttention: !taskSucceeded
+      });
+    } catch {
+    }
+  }
+  try {
+    const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
+    const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
+    const prefs = await getNotificationPrefs2(db, orgId);
+    if (shouldNotify2(prefs, "inApp", "task")) {
+      createNotification2(
+        db,
+        orgId,
+        "task",
+        "Task Completed",
+        `${agentName} completed "${task.title}" in ${(durationMs / 1e3).toFixed(1)}s (${cost} credits)`
+      );
+    }
+  } catch {
+  }
+  return {
+    taskId,
+    status: taskSucceeded ? "completed" : "failed",
+    result: resultWithTools,
+    cost,
+    tokensUsed,
+    llmUsed: llmAttempted
+  };
+}
+async function executePendingTasks(config2, db, orgId) {
+  const pendingTasks = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.orgId, orgId), eq(tasks.status, "pending"))).limit(10);
+  const results = [];
+  for (const task of pendingTasks) {
+    const result = await executeTask(config2, db, orgId, task.id);
+    results.push(result);
+  }
+  return results;
+}
+async function getTaskStatus(db, orgId, taskId) {
+  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
+  if (!task) return null;
+  let activitySummary;
+  if (!task.result) {
+    const [activity] = await db.select({ summary: activityEvents.summary }).from(activityEvents).where(eq(activityEvents.taskId, taskId)).orderBy(activityEvents.occurredAt).limit(1);
+    activitySummary = activity?.summary ?? void 0;
+  }
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    cost: task.cost,
+    agentId: task.agentId,
+    result: task.result ?? activitySummary
+  };
+}
+function buildTaskPrompt(title, description, agentName, agentRole) {
+  return `## Task Assignment
+
+You have been assigned a task by the Executive Agent.
+
+**Task:** ${title}
+**Description:** ${description}
+**Your Role:** ${agentName} (${agentRole.replace(/_/g, " ")})
+
+Complete this task now. Provide:
+1. A clear, structured output
+2. Key findings or deliverables
+3. Any recommendations or next steps
+4. Assumptions or limitations if applicable
+
+Be thorough but concise. Focus on actionable output.`;
+}
+function generateFallbackResult(title, description, agentName) {
+  return `## Task Complete: ${title}
+
+**Assigned to:** ${agentName}
+
+**Summary:**
+This task has been processed by the ${agentName}. The task involved: ${description}
+
+**Status:** Completed (structured output \u2014 LLM was unavailable for full execution)
+
+**Note:** For detailed AI-generated output, ensure the LLM gateway (LiteLLM) is configured and running. The task has been recorded in the system with all context preserved for future reference.`;
+}
+var AGENT_PROMPTS, DEFAULT_AGENT_PROMPT;
+var init_task_executor = __esm({
+  "src/services/task-executor.ts"() {
+    "use strict";
+    init_drizzle_orm();
+    init_src2();
+    init_llm();
+    init_task_tools();
+    init_tool_registry();
+    init_audit();
+    init_autonomy();
+    init_credits();
+    init_realtime();
+    init_attention();
+    init_approvals();
+    init_model_intelligence();
+    init_model_selector();
+    init_calibration_routing();
+    AGENT_PROMPTS = {
+      market_researcher: `You are a Market Researcher AI employee. Your job is to gather, analyze, and synthesize information about markets, competitors, trends, and opportunities. Provide structured, actionable intelligence with clear findings and recommendations. Be specific, cite patterns, and quantify where possible.`,
+      content_writer: `You are a Content Writer AI employee. Your job is to create high-quality written content including articles, reports, briefs, marketing copy, and documentation. Match the tone and style to the audience. Be clear, engaging, and purposeful.`,
+      communications_agent: `You are a Communications Agent AI employee. Your job is to draft professional communications including emails, notifications, status updates, and announcements. Be clear, concise, and appropriate for the audience.`,
+      software_engineer: `You are a Software Engineer AI employee. Your job is to analyze technical requirements, design solutions, write code, review implementations, and provide technical guidance. Be precise, consider edge cases, and follow best practices.`,
+      data_analyst: `You are a Data Analyst AI employee. Your job is to analyze data, identify patterns, create reports, and provide data-driven insights. Present findings clearly with supporting evidence and actionable recommendations.`,
+      operations_manager: `You are an Operations Manager AI employee. Your job is to optimize processes, coordinate workflows, manage resources, and ensure efficient execution. Focus on practical improvements and measurable outcomes.`,
+      financial_analyst: `You are a Financial Analyst AI employee. Your job is to analyze financial data, create projections, assess budgets, and provide financial guidance. Be precise with numbers and clear about assumptions.`,
+      executive_agent: `You are the Executive Agent. Your job is to coordinate across all AI employees, manage priorities, break down complex objectives into actionable plans, and ensure organizational goals are met. Think strategically and communicate clearly.`
+    };
+    DEFAULT_AGENT_PROMPT = `You are an AI employee of ORQ8. Complete the assigned task to the best of your ability. Be thorough, accurate, and provide clear, actionable output.`;
   }
 });
 
@@ -96535,7 +104301,8 @@ var require_nodemailer = __commonJS({
 // src/email/transport.ts
 var transport_exports = {};
 __export(transport_exports, {
-  createEmailTransport: () => createEmailTransport
+  createEmailTransport: () => createEmailTransport,
+  verifyMailProvider: () => verifyMailProvider
 });
 function getTransporter(config2) {
   if (!config2.SMTP_HOST) return void 0;
@@ -96581,6 +104348,64 @@ async function sendViaResend(apiKey, input, from) {
     return { ok: false, error: err instanceof Error ? err.message : "Resend failed" };
   }
 }
+async function verifyMailProvider(config2) {
+  if (config2.RESEND_API_KEY) {
+    try {
+      const res = await fetch("https://api.resend.com/domains?limit=1", {
+        headers: { Authorization: `Bearer ${config2.RESEND_API_KEY}` }
+      });
+      if (!res.ok) {
+        const body = (await res.text()).slice(0, 300);
+        return {
+          ok: false,
+          provider: "resend",
+          detail: `Resend rejected the key (HTTP ${res.status}).`,
+          error: `Resend ${res.status}: ${body}`
+        };
+      }
+      const data = await res.json().catch(() => ({}));
+      const domains = Array.isArray(data.data) ? data.data.length : 0;
+      return {
+        ok: true,
+        provider: "resend",
+        detail: domains > 0 ? `Resend accepted the API key (${domains} sending domain${domains === 1 ? "" : "s"} registered).` : "Resend accepted the API key, but no sending domain is registered yet \u2014 EMAIL_FROM must be on a verified domain."
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Resend unreachable";
+      return {
+        ok: false,
+        provider: "resend",
+        detail: "Resend could not be reached.",
+        error: message
+      };
+    }
+  }
+  const transporter = getTransporter(config2);
+  if (!transporter) {
+    return {
+      ok: false,
+      provider: "none",
+      detail: "No mail provider is configured.",
+      error: "no mail transport configured"
+    };
+  }
+  try {
+    await transporter.verify();
+    return {
+      ok: true,
+      provider: "smtp",
+      detail: `Connected to ${config2.SMTP_HOST}:${config2.SMTP_PORT} and authenticated.`
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "SMTP check failed";
+    return {
+      ok: false,
+      provider: "smtp",
+      detail: `Could not complete an SMTP handshake with ${config2.SMTP_HOST}:${config2.SMTP_PORT}.`,
+      error: message
+    };
+  }
+}
 function createEmailTransport(config2, logger) {
   const resendApiKey = config2.RESEND_API_KEY;
   if (resendApiKey) {
@@ -96591,16 +104416,25 @@ function createEmailTransport(config2, logger) {
         logger.info({ mode: "resend", to: input.to, subject: input.subject }, "sending email via Resend");
         const result = await sendViaResend(resendApiKey, input, from);
         if (!result.ok) logger.error({ err: result.error, to: input.to }, "Resend send failed");
-        return result;
+        return { ...result, delivered: result.ok };
       }
     };
   }
   const transporter = getTransporter(config2);
   if (!transporter) {
+    const printable = config2.NODE_ENV !== "production";
     return {
       async send(input) {
-        logger.info({ mode: "dev-mail", to: input.to, subject: input.subject }, "waitlist email (dev)");
-        return { ok: true, messageId: `dev-${Date.now()}` };
+        if (printable) {
+          logger.warn({ mode: "dev-mail", to: input.to, subject: input.subject }, "no mail provider configured \u2014 printing the message (non-production)");
+          logger.warn({ to: input.to, subject: input.subject, body: input.text }, "mail body");
+          return { ok: true, messageId: `dev-${Date.now()}`, delivered: false };
+        }
+        logger.error(
+          { to: input.to, subject: input.subject },
+          "no mail provider configured \u2014 set RESEND_API_KEY or SMTP; this message was NOT delivered and the account cannot confirm itself"
+        );
+        return { ok: false, error: "no mail transport configured", delivered: false };
       }
     };
   }
@@ -96614,7 +104448,7 @@ function createEmailTransport(config2, logger) {
           text: input.text,
           html: input.html
         });
-        return { ok: true, messageId: info.messageId };
+        return { ok: true, messageId: info.messageId, delivered: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         logger.error({ err: message, to: input.to, subject: input.subject }, "waitlist email failed");
@@ -96628,4508 +104462,6 @@ var init_transport = __esm({
   "src/email/transport.ts"() {
     "use strict";
     import_nodemailer = __toESM(require_nodemailer(), 1);
-  }
-});
-
-// src/services/llm-tracer.ts
-function traceId() {
-  traceCounter++;
-  return `trace_${Date.now()}_${traceCounter}`;
-}
-function startTrace(params) {
-  const id = traceId();
-  const startedAt = /* @__PURE__ */ new Date();
-  const entry = {
-    id,
-    orgId: params.orgId,
-    commandId: params.commandId,
-    taskId: params.taskId,
-    agentId: params.agentId,
-    phase: params.phase,
-    model: params.model ?? "unknown",
-    provider: params.provider ?? extractProvider(params.model),
-    startedAt,
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    success: false,
-    retryAttempt: params.retryAttempt ?? 0,
-    maxRetries: params.maxRetries ?? 2,
-    temperature: params.temperature ?? 0.7,
-    maxTokens: params.maxTokens ?? 2048,
-    routingSource: params.routingSource ?? "default"
-  };
-  recentTraces.push(entry);
-  if (recentTraces.length > MAX_RECENT_TRACES) {
-    recentTraces.shift();
-  }
-  return { traceId: id, startedAt };
-}
-function endTrace(traceId2, result) {
-  const entry = recentTraces.find((t) => t.id === traceId2);
-  if (!entry) return;
-  entry.completedAt = /* @__PURE__ */ new Date();
-  entry.durationMs = entry.completedAt.getTime() - entry.startedAt.getTime();
-  entry.success = result.success;
-  entry.promptTokens = result.promptTokens ?? 0;
-  entry.completionTokens = result.completionTokens ?? 0;
-  entry.totalTokens = result.totalTokens ?? 0;
-  entry.error = result.error;
-  entry.responsePreview = result.responsePreview?.slice(0, 200);
-  if (result.model) entry.model = result.model;
-}
-async function persistTrace(db, trace) {
-  if (!trace.completedAt) return;
-  const summary = [
-    `[${trace.phase}]`,
-    trace.success ? "\u2705" : "\u274C",
-    `${trace.model}`,
-    `${trace.durationMs}ms`,
-    `${trace.totalTokens} tokens`,
-    trace.retryAttempt > 0 ? `(retry ${trace.retryAttempt}/${trace.maxRetries})` : ""
-  ].filter(Boolean).join(" ");
-  try {
-    await db.insert(activityEvents).values({
-      orgId: trace.orgId,
-      agentId: trace.agentId ?? null,
-      taskId: trace.taskId ?? null,
-      type: trace.success ? "llm.success" : "llm.error",
-      summary,
-      reason: trace.error ?? `LLM call completed in ${trace.durationMs}ms`,
-      cost: Math.max(0, Math.ceil(trace.totalTokens / 1e3)),
-      department: null
-    });
-  } catch {
-  }
-  try {
-    await db.insert(llmPerformance).values({
-      orgId: trace.orgId,
-      phase: trace.phase,
-      model: trace.model,
-      provider: trace.provider,
-      agentId: trace.agentId ?? null,
-      taskId: trace.taskId ?? null,
-      success: trace.success,
-      error: trace.error ?? null,
-      durationMs: trace.durationMs ?? null,
-      promptTokens: trace.promptTokens,
-      completionTokens: trace.completionTokens,
-      totalTokens: trace.totalTokens,
-      retryAttempt: trace.retryAttempt,
-      routingSource: trace.routingSource ?? "default"
-    });
-  } catch {
-  }
-}
-function getTraceById(traceId2) {
-  return recentTraces.find((t) => t.id === traceId2);
-}
-function getRecentTraces(orgId, limit = 50) {
-  return recentTraces.filter((t) => t.orgId === orgId).slice(-limit);
-}
-function getTraceSummary(orgId) {
-  const traces = recentTraces.filter((t) => t.orgId === orgId && t.completedAt);
-  const totalCalls = traces.length;
-  const successfulCalls = traces.filter((t) => t.success).length;
-  const failedCalls = totalCalls - successfulCalls;
-  const totalTokens = traces.reduce((sum2, t) => sum2 + t.totalTokens, 0);
-  const totalDurationMs = traces.reduce((sum2, t) => sum2 + (t.durationMs ?? 0), 0);
-  const averageDurationMs = totalCalls > 0 ? totalDurationMs / totalCalls : 0;
-  const tokensPerSecond = totalDurationMs > 0 ? totalTokens / (totalDurationMs / 1e3) : 0;
-  const byPhase = {};
-  const byModel = {};
-  for (const t of traces) {
-    let phaseEntry = byPhase[t.phase];
-    if (!phaseEntry) {
-      phaseEntry = { calls: 0, tokens: 0, avgDurationMs: 0 };
-      byPhase[t.phase] = phaseEntry;
-    }
-    phaseEntry.calls++;
-    phaseEntry.tokens += t.totalTokens;
-    phaseEntry.avgDurationMs += t.durationMs ?? 0;
-    let modelEntry = byModel[t.model];
-    if (!modelEntry) {
-      modelEntry = { calls: 0, tokens: 0 };
-      byModel[t.model] = modelEntry;
-    }
-    modelEntry.calls++;
-    modelEntry.tokens += t.totalTokens;
-  }
-  for (const phase of Object.values(byPhase)) {
-    phase.avgDurationMs = phase.calls > 0 ? phase.avgDurationMs / phase.calls : 0;
-  }
-  const retryCalls = traces.filter((t) => t.retryAttempt > 0).length;
-  return {
-    totalCalls,
-    successfulCalls,
-    failedCalls,
-    totalTokens,
-    totalDurationMs,
-    averageDurationMs,
-    tokensPerSecond,
-    byPhase,
-    byModel,
-    retryRate: totalCalls > 0 ? retryCalls / totalCalls : 0,
-    errorRate: totalCalls > 0 ? failedCalls / totalCalls : 0
-  };
-}
-function extractProvider(model) {
-  if (!model) return "unknown";
-  const lower = model.toLowerCase();
-  if (lower.includes("gpt") || lower.includes("o1") || lower.includes("o3")) return "openai";
-  if (lower.includes("claude")) return "anthropic";
-  if (lower.includes("llama") || lower.includes("mistral") || lower.includes("mixtral")) return "meta";
-  if (lower.includes("gemini")) return "google";
-  return "litellm";
-}
-var recentTraces, MAX_RECENT_TRACES, traceCounter;
-var init_llm_tracer = __esm({
-  "src/services/llm-tracer.ts"() {
-    "use strict";
-    init_src2();
-    recentTraces = [];
-    MAX_RECENT_TRACES = 200;
-    traceCounter = 0;
-  }
-});
-
-// src/services/model-router.ts
-function uniqueKeys(keys2) {
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const k of keys2) {
-    const trimmed = k?.trim();
-    if (trimmed && !seen.has(trimmed)) {
-      seen.add(trimmed);
-      out.push(trimmed);
-    }
-  }
-  return out;
-}
-function keySuffix(key) {
-  return key.slice(-6);
-}
-function modelSatisfiesRequirements(model, requirements) {
-  for (const cap of requirements.requiredCapabilities) {
-    if (!model.capabilities.includes(cap)) return false;
-  }
-  if (requirements.minContextWindow && model.contextWindow < requirements.minContextWindow) {
-    return false;
-  }
-  if (requirements.maxCostPer1k && model.costPer1kInput > requirements.maxCostPer1k) {
-    return false;
-  }
-  if (requirements.needsStructuredOutput && !model.supportsStructuredOutput) {
-    return false;
-  }
-  if (requirements.needsToolCalling && !model.supportsToolCalling) {
-    return false;
-  }
-  return true;
-}
-function scoreModel(model, requirements) {
-  let score = 0;
-  if (!modelSatisfiesRequirements(model, requirements)) return -1;
-  if (requirements.preferredCapabilities) {
-    for (const cap of requirements.preferredCapabilities) {
-      if (model.capabilities.includes(cap)) score += 10;
-    }
-  }
-  if (requirements.speedPreference && requirements.speedPreference !== "any") {
-    if (model.speedRating === requirements.speedPreference) score += 5;
-  }
-  score += Math.max(0, 10 - model.costPer1kInput * 1e3);
-  if (model.contextWindow >= 1e5) score += 3;
-  else if (model.contextWindow >= 32e3) score += 2;
-  else if (model.contextWindow >= 8e3) score += 1;
-  return score;
-}
-function getModelRouter(config2) {
-  if (!routerInstance) {
-    routerInstance = new ModelRouter(config2);
-  }
-  return routerInstance;
-}
-function resetModelRouter() {
-  routerInstance = null;
-}
-var MODEL_REGISTRY, ModelRouter, NvidiaAdapter, OpenRouterAdapter, LiteLLMAdapter, OllamaAdapter, routerInstance;
-var init_model_router = __esm({
-  "src/services/model-router.ts"() {
-    "use strict";
-    MODEL_REGISTRY = [
-      // NVIDIA models
-      {
-        id: "nvidia/nemotron-3-super-120b-a12b",
-        provider: "nvidia",
-        displayName: "Nemotron 3 Super 120B",
-        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research"],
-        contextWindow: 128e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: true,
-        supportsStructuredOutput: true,
-        supportsVision: false,
-        costPer1kInput: 35e-5,
-        costPer1kOutput: 14e-4,
-        speedRating: "medium",
-        status: "available"
-      },
-      {
-        id: "nvidia/nemotron-3.5-lightning-30b-a3b",
-        provider: "nvidia",
-        displayName: "Nemotron 3.5 Lightning 30B",
-        capabilities: ["fast_response", "summarization", "structured_output"],
-        contextWindow: 32e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: false,
-        supportsStructuredOutput: true,
-        supportsVision: false,
-        costPer1kInput: 14e-5,
-        costPer1kOutput: 56e-5,
-        speedRating: "fast",
-        status: "available"
-      },
-      {
-        id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-        provider: "nvidia",
-        displayName: "Nemotron 3 Nano Omni 30B (Reasoning)",
-        capabilities: ["reasoning", "coding", "research"],
-        contextWindow: 32e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: false,
-        supportsStructuredOutput: false,
-        supportsVision: false,
-        costPer1kInput: 14e-5,
-        costPer1kOutput: 56e-5,
-        speedRating: "medium",
-        status: "available"
-      },
-      {
-        id: "meta/llama-3.2-11b-vision-instruct",
-        provider: "nvidia",
-        displayName: "Llama 3.2 11B Vision",
-        capabilities: ["vision", "summarization", "fast_response"],
-        contextWindow: 128e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: false,
-        supportsStructuredOutput: false,
-        supportsVision: true,
-        costPer1kInput: 14e-5,
-        costPer1kOutput: 56e-5,
-        speedRating: "fast",
-        status: "available"
-      },
-      // OpenRouter models (popular choices)
-      {
-        id: "anthropic/claude-3.5-sonnet",
-        provider: "openrouter",
-        displayName: "Claude 3.5 Sonnet",
-        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research", "creative_writing"],
-        contextWindow: 2e5,
-        maxOutput: 8192,
-        supportsStreaming: true,
-        supportsToolCalling: true,
-        supportsStructuredOutput: true,
-        supportsVision: true,
-        costPer1kInput: 3e-3,
-        costPer1kOutput: 0.015,
-        speedRating: "medium",
-        status: "available"
-      },
-      {
-        id: "openai/gpt-4o",
-        provider: "openrouter",
-        displayName: "GPT-4o",
-        capabilities: ["reasoning", "tool_calling", "structured_output", "coding", "research", "vision"],
-        contextWindow: 128e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: true,
-        supportsStructuredOutput: true,
-        supportsVision: true,
-        costPer1kInput: 25e-4,
-        costPer1kOutput: 0.01,
-        speedRating: "medium",
-        status: "available"
-      },
-      {
-        id: "openai/gpt-4o-mini",
-        provider: "openrouter",
-        displayName: "GPT-4o Mini",
-        capabilities: ["fast_response", "structured_output", "summarization"],
-        contextWindow: 128e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: true,
-        supportsStructuredOutput: true,
-        supportsVision: true,
-        costPer1kInput: 15e-5,
-        costPer1kOutput: 6e-4,
-        speedRating: "fast",
-        status: "available"
-      },
-      {
-        id: "google/gemini-2.0-flash-001",
-        provider: "openrouter",
-        displayName: "Gemini 2.0 Flash",
-        capabilities: ["fast_response", "reasoning", "vision", "structured_output"],
-        contextWindow: 1048576,
-        maxOutput: 8192,
-        supportsStreaming: true,
-        supportsToolCalling: true,
-        supportsStructuredOutput: true,
-        supportsVision: true,
-        costPer1kInput: 75e-6,
-        costPer1kOutput: 3e-4,
-        speedRating: "fast",
-        status: "available"
-      },
-      {
-        id: "meta-llama/llama-3.1-70b-instruct",
-        provider: "openrouter",
-        displayName: "Llama 3.1 70B",
-        capabilities: ["reasoning", "coding", "research", "structured_output"],
-        contextWindow: 128e3,
-        maxOutput: 4096,
-        supportsStreaming: true,
-        supportsToolCalling: false,
-        supportsStructuredOutput: true,
-        supportsVision: false,
-        costPer1kInput: 52e-5,
-        costPer1kOutput: 75e-5,
-        speedRating: "medium",
-        status: "available"
-      }
-    ];
-    ModelRouter = class {
-      providers = /* @__PURE__ */ new Map();
-      modelRegistry = /* @__PURE__ */ new Map();
-      constructor(config2) {
-        for (const model of MODEL_REGISTRY) {
-          this.modelRegistry.set(model.id, model);
-        }
-        this.initializeProviders(config2);
-      }
-      /**
-       * Initialize providers from configuration.
-       */
-      initializeProviders(config2) {
-        const nvidiaKeys = uniqueKeys([
-          config2.NVIDIA_API_KEY,
-          ...config2.NVIDIA_API_KEYS?.split(",").map((k) => k.trim()) ?? []
-        ]);
-        if (nvidiaKeys.length > 0) {
-          const nvidiaModels = MODEL_REGISTRY.filter((m) => m.provider === "nvidia");
-          const defaultModel = config2.NVIDIA_MODEL || nvidiaModels[0]?.id || "";
-          const fallbacks = (config2.NVIDIA_MODEL_FALLBACKS?.split(",").map((m) => m.trim()) ?? []).filter((m) => m !== defaultModel);
-          this.providers.set("nvidia", new NvidiaAdapter(
-            config2.NVIDIA_BASE_URL,
-            nvidiaKeys,
-            defaultModel,
-            fallbacks,
-            config2
-          ));
-        }
-        const openrouterKeys = uniqueKeys([
-          config2.OPENROUTER_API_KEY,
-          ...config2.OPENROUTER_API_KEYS?.split(",").map((k) => k.trim()) ?? []
-        ]);
-        if (openrouterKeys.length > 0) {
-          const openrouterModels = MODEL_REGISTRY.filter((m) => m.provider === "openrouter");
-          const defaultModel = config2.OPENROUTER_MODEL || openrouterModels[0]?.id || "";
-          const fallbacks = (config2.OPENROUTER_MODEL_FALLBACKS?.split(",").map((m) => m.trim()) ?? []).filter((m) => m !== defaultModel);
-          this.providers.set("openrouter", new OpenRouterAdapter(
-            config2.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
-            openrouterKeys,
-            defaultModel,
-            fallbacks,
-            config2
-          ));
-        }
-        if (config2.LITELLM_BASE_URL) {
-          this.providers.set("litellm", new LiteLLMAdapter(
-            config2.LITELLM_BASE_URL,
-            [config2.LITELLM_MASTER_KEY ?? "sk-orq8-dev-litellm"],
-            "llama3.2",
-            [],
-            config2
-          ));
-        }
-        if (config2.OLLAMA_BASE_URL) {
-          this.providers.set("ollama", new OllamaAdapter(
-            config2.OLLAMA_BASE_URL,
-            [],
-            config2.OLLAMA_MODEL || "llama3.1",
-            [],
-            config2
-          ));
-        }
-      }
-      /**
-       * Get the ordered list of providers (priority order).
-       */
-      getProviderChain() {
-        const chain = [];
-        const priority = ["nvidia", "openrouter", "litellm", "ollama"];
-        for (const id of priority) {
-          const provider = this.providers.get(id);
-          if (provider && provider.keys.length > 0) {
-            chain.push(provider);
-          }
-        }
-        return chain;
-      }
-      /**
-       * Select the best model for a task based on requirements.
-       * Returns the model definition and provider.
-       */
-      selectModel(requirements) {
-        const chain = this.getProviderChain();
-        let bestScore = -1;
-        let bestModel = null;
-        let bestProvider = null;
-        for (const provider of chain) {
-          for (const modelDef of provider.models) {
-            const score = scoreModel(modelDef, requirements);
-            if (score > bestScore) {
-              bestScore = score;
-              bestModel = modelDef;
-              bestProvider = provider;
-            }
-          }
-        }
-        if (bestModel && bestProvider) {
-          return { model: bestModel, provider: bestProvider };
-        }
-        return null;
-      }
-      /**
-       * Execute a chat completion through the router.
-       * Handles provider fallback, key rotation, and error recovery.
-       */
-      async complete(options) {
-        const chain = this.getProviderChain();
-        if (chain.length === 0) {
-          return {
-            response: null,
-            provider: "nvidia",
-            model: options.model || "unknown",
-            keySuffix: "",
-            latencyMs: 0,
-            fallbacksUsed: 0,
-            error: "No providers configured"
-          };
-        }
-        let targetModel = options.model;
-        let targetProvider;
-        if (targetModel) {
-          for (const provider of chain) {
-            const modelDef = provider.models.find((m) => m.id === targetModel);
-            if (modelDef) {
-              targetProvider = provider;
-              break;
-            }
-          }
-        }
-        if (!targetProvider && options.requirements) {
-          const selected = this.selectModel(options.requirements);
-          if (selected) {
-            targetModel = selected.model.id;
-            targetProvider = selected.provider;
-          }
-        }
-        if (!targetProvider && chain.length > 0) {
-          targetProvider = chain[0];
-          targetModel = targetModel || chain[0]?.defaultModel;
-        }
-        const attempts = [];
-        if (targetModel && targetProvider) {
-          attempts.push({ provider: targetProvider, model: targetModel });
-          for (const fallback of targetProvider.modelFallbacks) {
-            if (fallback !== targetModel) {
-              attempts.push({ provider: targetProvider, model: fallback });
-            }
-          }
-        }
-        for (const provider of chain) {
-          if (!targetProvider || provider.id !== targetProvider.id) {
-            attempts.push({ provider, model: provider.defaultModel });
-          }
-        }
-        let fallbacksUsed = 0;
-        let lastError = "";
-        for (const attempt of attempts) {
-          const startTime = Date.now();
-          try {
-            const result = await attempt.provider.complete({
-              model: attempt.model,
-              messages: options.messages,
-              temperature: options.temperature,
-              max_tokens: options.max_tokens,
-              response_format: options.response_format
-            });
-            const latencyMs = Date.now() - startTime;
-            if (result.response) {
-              attempt.provider.recordSuccess(result.keyUsed, latencyMs);
-              return {
-                response: result.response,
-                provider: attempt.provider.id,
-                model: attempt.model,
-                keySuffix: result.keyUsed,
-                latencyMs,
-                fallbacksUsed
-              };
-            }
-            if (result.error) {
-              attempt.provider.recordFailure(result.keyUsed, result.error);
-              lastError = result.error;
-            }
-            fallbacksUsed++;
-          } catch (err) {
-            const latencyMs = Date.now() - startTime;
-            const errorMsg = err instanceof Error ? err.message : "unknown error";
-            lastError = errorMsg;
-            fallbacksUsed++;
-          }
-        }
-        return {
-          response: null,
-          provider: targetProvider?.id ?? "nvidia",
-          model: targetModel || "unknown",
-          keySuffix: "",
-          latencyMs: 0,
-          fallbacksUsed,
-          error: lastError || "All providers failed"
-        };
-      }
-      /**
-       * Get health status of all providers.
-       */
-      getHealthStatus() {
-        const result = [];
-        for (const [id, adapter] of this.providers) {
-          const keyStates = adapter.getKeyStates();
-          const healthyKeys = keyStates.filter((k) => k.health === "healthy").length;
-          result.push({
-            provider: id,
-            label: adapter.label,
-            healthy: healthyKeys > 0,
-            keys: keyStates,
-            models: adapter.models.map((m) => m.id)
-          });
-        }
-        return result;
-      }
-      /**
-       * Get the model registry.
-       */
-      getModelRegistry() {
-        return Array.from(this.modelRegistry.values());
-      }
-    };
-    NvidiaAdapter = class {
-      id = "nvidia";
-      label = "NVIDIA NIM";
-      baseUrl;
-      keys;
-      models;
-      defaultModel;
-      modelFallbacks;
-      keyStates = /* @__PURE__ */ new Map();
-      keyCursor = 0;
-      config;
-      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
-        this.baseUrl = baseUrl;
-        this.keys = keys2;
-        this.defaultModel = defaultModel;
-        this.modelFallbacks = modelFallbacks;
-        this.config = config2;
-        for (const key of keys2) {
-          const suffix = keySuffix(key);
-          this.keyStates.set(suffix, {
-            suffix,
-            enabled: true,
-            health: "healthy",
-            inFlight: 0,
-            lastSuccess: null,
-            lastFailure: null,
-            failureCount: 0,
-            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
-            cooldownUntil: null,
-            latencyMs: 0,
-            successRate: 1
-          });
-        }
-        this.models = MODEL_REGISTRY.filter((m) => m.provider === "nvidia");
-      }
-      async complete(options) {
-        const startTime = Date.now();
-        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
-        const keyIdx = options.keyIndex ?? this.selectKey();
-        const key = this.keys[keyIdx] ?? "";
-        const suffix = keySuffix(key);
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(
-            () => controller.abort(new Error("timeout")),
-            this.config.LLM_HEADERS_TIMEOUT_MS
-          );
-          const headers = { "Content-Type": "application/json" };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model: options.model,
-              messages: options.messages,
-              temperature: options.temperature ?? 0.7,
-              max_tokens: options.max_tokens ?? 2048,
-              ...options.response_format ? { response_format: options.response_format } : {}
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          if (!response.ok) {
-            const error51 = `HTTP ${response.status}`;
-            this.recordFailure(suffix, error51, response.status);
-            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-          }
-          const data = await response.json();
-          this.recordSuccess(suffix, Date.now() - startTime);
-          return {
-            response: data,
-            keyUsed: suffix,
-            latencyMs: Date.now() - startTime
-          };
-        } catch (err) {
-          const error51 = err instanceof Error ? err.message : "network error";
-          this.recordFailure(suffix, error51);
-          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-        }
-      }
-      async probe(model, keyIndex) {
-        const keyIdx = keyIndex ?? 0;
-        const key = this.keys[keyIdx] ?? "";
-        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 1e4);
-          const headers = { "Content-Type": "application/json" };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: "hi" }],
-              max_tokens: 1
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          if (response.status === 404) {
-            const text2 = await response.text();
-            let accountId;
-            try {
-              const body = JSON.parse(text2);
-              const detail = typeof body.detail === "string" ? body.detail : "";
-              const match = detail.match(/Account\s+ID:\s*([\w.-]+)/i);
-              accountId = match?.[1];
-            } catch {
-            }
-            return { available: false, status: 404, accountId };
-          }
-          return { available: response.ok, status: response.status };
-        } catch (err) {
-          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
-        }
-      }
-      getKeyStates() {
-        return Array.from(this.keyStates.values());
-      }
-      recordSuccess(keySuffix2, latencyMs) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastSuccess = Date.now();
-        state.failureCount = 0;
-        state.health = "healthy";
-        state.cooldownUntil = null;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
-        state.successRate = Math.min(1, state.successRate + 0.1);
-      }
-      recordFailure(keySuffix2, error51, statusCode) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastFailure = Date.now();
-        state.failureCount++;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.successRate = Math.max(0, state.successRate - 0.2);
-        if (statusCode === 429) {
-          state.rateLimit.isLimited = true;
-          state.rateLimit.recentHits.push(Date.now());
-          const cutoff = Date.now() - 6e4;
-          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
-          if (state.rateLimit.recentHits.length >= 3) {
-            state.health = "cooldown";
-            state.cooldownUntil = Date.now() + 3e4;
-          }
-        } else if (statusCode === 401 || statusCode === 403) {
-          state.health = "disabled";
-          state.enabled = false;
-        } else if (statusCode === 404) {
-          state.health = "degraded";
-        } else if (state.failureCount >= 3) {
-          state.health = "cooldown";
-          state.cooldownUntil = Date.now() + 6e4;
-        }
-      }
-      selectKey() {
-        const now = Date.now();
-        const available = [];
-        for (let i = 0; i < this.keys.length; i++) {
-          const key = this.keys[i];
-          if (!key) continue;
-          const suffix = keySuffix(key);
-          const state = this.keyStates.get(suffix);
-          if (!state) continue;
-          if (!state.enabled || state.health === "disabled") continue;
-          if (state.cooldownUntil && state.cooldownUntil > now) continue;
-          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) {
-            continue;
-          }
-          available.push({ index: i, state });
-        }
-        if (available.length === 0) {
-          return this.keyCursor++ % this.keys.length;
-        }
-        available.sort((a, b) => {
-          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
-          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
-          return a.state.inFlight - b.state.inFlight;
-        });
-        const selected = available[0];
-        if (selected) {
-          selected.state.inFlight++;
-          return selected.index;
-        }
-        return this.keyCursor++ % this.keys.length;
-      }
-    };
-    OpenRouterAdapter = class {
-      id = "openrouter";
-      label = "OpenRouter";
-      baseUrl;
-      keys;
-      models;
-      defaultModel;
-      modelFallbacks;
-      keyStates = /* @__PURE__ */ new Map();
-      keyCursor = 0;
-      config;
-      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
-        this.baseUrl = baseUrl;
-        this.keys = keys2;
-        this.defaultModel = defaultModel;
-        this.modelFallbacks = modelFallbacks;
-        this.config = config2;
-        for (const key of keys2) {
-          const suffix = keySuffix(key);
-          this.keyStates.set(suffix, {
-            suffix,
-            enabled: true,
-            health: "healthy",
-            inFlight: 0,
-            lastSuccess: null,
-            lastFailure: null,
-            failureCount: 0,
-            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
-            cooldownUntil: null,
-            latencyMs: 0,
-            successRate: 1
-          });
-        }
-        this.models = MODEL_REGISTRY.filter((m) => m.provider === "openrouter");
-      }
-      async complete(options) {
-        const startTime = Date.now();
-        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-        const keyIdx = options.keyIndex ?? this.selectKey();
-        const key = this.keys[keyIdx] ?? "";
-        const suffix = keySuffix(key);
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(
-            () => controller.abort(new Error("timeout")),
-            this.config.LLM_HEADERS_TIMEOUT_MS
-          );
-          const headers = {
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://orq8.ai",
-            "X-Title": "ORQ8 AI Executive OS"
-          };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model: options.model,
-              messages: options.messages,
-              temperature: options.temperature ?? 0.7,
-              max_tokens: options.max_tokens ?? 2048,
-              ...options.response_format ? { response_format: options.response_format } : {}
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          if (!response.ok) {
-            const error51 = `HTTP ${response.status}`;
-            this.recordFailure(suffix, error51, response.status);
-            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-          }
-          const data = await response.json();
-          this.recordSuccess(suffix, Date.now() - startTime);
-          return {
-            response: data,
-            keyUsed: suffix,
-            latencyMs: Date.now() - startTime
-          };
-        } catch (err) {
-          const error51 = err instanceof Error ? err.message : "network error";
-          this.recordFailure(suffix, error51);
-          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-        }
-      }
-      async probe(model, keyIndex) {
-        const keyIdx = keyIndex ?? 0;
-        const key = this.keys[keyIdx] ?? "";
-        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 1e4);
-          const headers = {
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://orq8.ai",
-            "X-Title": "ORQ8 AI Executive OS"
-          };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: "hi" }],
-              max_tokens: 1
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          return { available: response.ok, status: response.status };
-        } catch (err) {
-          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
-        }
-      }
-      getKeyStates() {
-        return Array.from(this.keyStates.values());
-      }
-      recordSuccess(keySuffix2, latencyMs) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastSuccess = Date.now();
-        state.failureCount = 0;
-        state.health = "healthy";
-        state.cooldownUntil = null;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
-        state.successRate = Math.min(1, state.successRate + 0.1);
-      }
-      recordFailure(keySuffix2, error51, statusCode) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastFailure = Date.now();
-        state.failureCount++;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.successRate = Math.max(0, state.successRate - 0.2);
-        if (statusCode === 429) {
-          state.rateLimit.isLimited = true;
-          state.rateLimit.recentHits.push(Date.now());
-          const cutoff = Date.now() - 6e4;
-          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
-          if (state.rateLimit.recentHits.length >= 3) {
-            state.health = "cooldown";
-            state.cooldownUntil = Date.now() + 3e4;
-          }
-        } else if (statusCode === 401 || statusCode === 403) {
-          state.health = "disabled";
-          state.enabled = false;
-        } else if (state.failureCount >= 3) {
-          state.health = "cooldown";
-          state.cooldownUntil = Date.now() + 6e4;
-        }
-      }
-      selectKey() {
-        const now = Date.now();
-        const available = [];
-        for (let i = 0; i < this.keys.length; i++) {
-          const key = this.keys[i];
-          if (!key) continue;
-          const suffix = keySuffix(key);
-          const state = this.keyStates.get(suffix);
-          if (!state) continue;
-          if (!state.enabled || state.health === "disabled") continue;
-          if (state.cooldownUntil && state.cooldownUntil > now) continue;
-          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) {
-            continue;
-          }
-          available.push({ index: i, state });
-        }
-        if (available.length === 0) {
-          return this.keyCursor++ % this.keys.length;
-        }
-        available.sort((a, b) => {
-          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
-          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
-          return a.state.inFlight - b.state.inFlight;
-        });
-        const selected = available[0];
-        if (selected) {
-          selected.state.inFlight++;
-          return selected.index;
-        }
-        return this.keyCursor++ % this.keys.length;
-      }
-    };
-    LiteLLMAdapter = class {
-      id = "litellm";
-      label = "LiteLLM";
-      baseUrl;
-      keys;
-      models;
-      defaultModel;
-      modelFallbacks;
-      keyStates = /* @__PURE__ */ new Map();
-      keyCursor = 0;
-      config;
-      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
-        this.baseUrl = baseUrl;
-        this.keys = keys2;
-        this.defaultModel = defaultModel;
-        this.modelFallbacks = modelFallbacks;
-        this.config = config2;
-        for (const key of keys2) {
-          const suffix = keySuffix(key);
-          this.keyStates.set(suffix, {
-            suffix,
-            enabled: true,
-            health: "healthy",
-            inFlight: 0,
-            lastSuccess: null,
-            lastFailure: null,
-            failureCount: 0,
-            rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
-            cooldownUntil: null,
-            latencyMs: 0,
-            successRate: 1
-          });
-        }
-        this.models = [];
-      }
-      async complete(options) {
-        const startTime = Date.now();
-        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
-        const keyIdx = options.keyIndex ?? this.selectKey();
-        const key = this.keys[keyIdx] ?? "";
-        const suffix = keySuffix(key);
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(
-            () => controller.abort(new Error("timeout")),
-            this.config.LLM_HEADERS_TIMEOUT_MS
-          );
-          const headers = { "Content-Type": "application/json" };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model: options.model,
-              messages: options.messages,
-              temperature: options.temperature ?? 0.7,
-              max_tokens: options.max_tokens ?? 2048,
-              ...options.response_format ? { response_format: options.response_format } : {}
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          if (!response.ok) {
-            const error51 = `HTTP ${response.status}`;
-            this.recordFailure(suffix, error51, response.status);
-            return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-          }
-          const data = await response.json();
-          this.recordSuccess(suffix, Date.now() - startTime);
-          return {
-            response: data,
-            keyUsed: suffix,
-            latencyMs: Date.now() - startTime
-          };
-        } catch (err) {
-          const error51 = err instanceof Error ? err.message : "network error";
-          this.recordFailure(suffix, error51);
-          return { response: null, keyUsed: suffix, latencyMs: Date.now() - startTime, error: error51 };
-        }
-      }
-      async probe(model, keyIndex) {
-        const keyIdx = keyIndex ?? 0;
-        const key = this.keys[keyIdx] ?? "";
-        const endpoint = this.baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "") + "/v1/chat/completions";
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 1e4);
-          const headers = { "Content-Type": "application/json" };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: "hi" }],
-              max_tokens: 1
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          return { available: response.ok, status: response.status };
-        } catch (err) {
-          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
-        }
-      }
-      getKeyStates() {
-        return Array.from(this.keyStates.values());
-      }
-      recordSuccess(keySuffix2, latencyMs) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastSuccess = Date.now();
-        state.failureCount = 0;
-        state.health = "healthy";
-        state.cooldownUntil = null;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
-        state.successRate = Math.min(1, state.successRate + 0.1);
-      }
-      recordFailure(keySuffix2, error51, statusCode) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastFailure = Date.now();
-        state.failureCount++;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.successRate = Math.max(0, state.successRate - 0.2);
-        if (statusCode === 429) {
-          state.rateLimit.isLimited = true;
-          state.rateLimit.recentHits.push(Date.now());
-          const cutoff = Date.now() - 6e4;
-          state.rateLimit.recentHits = state.rateLimit.recentHits.filter((t) => t > cutoff);
-          if (state.rateLimit.recentHits.length >= 3) {
-            state.health = "cooldown";
-            state.cooldownUntil = Date.now() + 3e4;
-          }
-        } else if (statusCode === 401 || statusCode === 403) {
-          state.health = "disabled";
-          state.enabled = false;
-        } else if (state.failureCount >= 3) {
-          state.health = "cooldown";
-          state.cooldownUntil = Date.now() + 6e4;
-        }
-      }
-      selectKey() {
-        const now = Date.now();
-        const available = [];
-        for (let i = 0; i < this.keys.length; i++) {
-          const key = this.keys[i];
-          if (!key) continue;
-          const suffix = keySuffix(key);
-          const state = this.keyStates.get(suffix);
-          if (!state) continue;
-          if (!state.enabled || state.health === "disabled") continue;
-          if (state.cooldownUntil && state.cooldownUntil > now) continue;
-          if (state.rateLimit.isLimited && state.rateLimit.retryAfter && state.rateLimit.retryAfter > now) continue;
-          available.push({ index: i, state });
-        }
-        if (available.length === 0) {
-          return this.keyCursor++ % this.keys.length;
-        }
-        available.sort((a, b) => {
-          if (a.state.health === "healthy" && b.state.health !== "healthy") return -1;
-          if (a.state.health !== "healthy" && b.state.health === "healthy") return 1;
-          return a.state.inFlight - b.state.inFlight;
-        });
-        const selected = available[0];
-        if (selected) {
-          selected.state.inFlight++;
-          return selected.index;
-        }
-        return this.keyCursor++ % this.keys.length;
-      }
-    };
-    OllamaAdapter = class {
-      id = "ollama";
-      label = "Ollama (Local)";
-      baseUrl;
-      keys;
-      models;
-      defaultModel;
-      modelFallbacks;
-      keyStates = /* @__PURE__ */ new Map();
-      config;
-      constructor(baseUrl, keys2, defaultModel, modelFallbacks, config2) {
-        this.baseUrl = baseUrl;
-        this.keys = keys2;
-        this.defaultModel = defaultModel;
-        this.modelFallbacks = modelFallbacks;
-        this.config = config2;
-        this.keyStates.set("no-auth", {
-          suffix: "no-auth",
-          enabled: true,
-          health: "healthy",
-          inFlight: 0,
-          lastSuccess: null,
-          lastFailure: null,
-          failureCount: 0,
-          rateLimit: { isLimited: false, retryAfter: null, recentHits: [] },
-          cooldownUntil: null,
-          latencyMs: 0,
-          successRate: 1
-        });
-        this.models = [];
-      }
-      async complete(options) {
-        const startTime = Date.now();
-        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/v1/chat/completions";
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(
-            () => controller.abort(new Error("timeout")),
-            this.config.LLM_HEADERS_TIMEOUT_MS
-          );
-          const headers = { "Content-Type": "application/json" };
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model: options.model,
-              messages: options.messages,
-              temperature: options.temperature ?? 0.7,
-              max_tokens: options.max_tokens ?? 2048,
-              ...options.response_format ? { response_format: options.response_format } : {}
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          if (!response.ok) {
-            const error51 = `HTTP ${response.status}`;
-            this.recordFailure("no-auth", error51, response.status);
-            return { response: null, keyUsed: "no-auth", latencyMs: Date.now() - startTime, error: error51 };
-          }
-          const data = await response.json();
-          this.recordSuccess("no-auth", Date.now() - startTime);
-          return {
-            response: data,
-            keyUsed: "no-auth",
-            latencyMs: Date.now() - startTime
-          };
-        } catch (err) {
-          const error51 = err instanceof Error ? err.message : "network error";
-          this.recordFailure("no-auth", error51);
-          return { response: null, keyUsed: "no-auth", latencyMs: Date.now() - startTime, error: error51 };
-        }
-      }
-      async probe(model, keyIndex) {
-        const endpoint = this.baseUrl.replace(/\/+$/, "") + "/v1/chat/completions";
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 1e4);
-          const headers = { "Content-Type": "application/json" };
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              model,
-              messages: [{ role: "user", content: "hi" }],
-              max_tokens: 1
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          return { available: response.ok, status: response.status };
-        } catch (err) {
-          return { available: false, status: 0, error: err instanceof Error ? err.message : "timeout" };
-        }
-      }
-      getKeyStates() {
-        return Array.from(this.keyStates.values());
-      }
-      recordSuccess(keySuffix2, latencyMs) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastSuccess = Date.now();
-        state.failureCount = 0;
-        state.health = "healthy";
-        state.cooldownUntil = null;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.latencyMs = state.latencyMs * 0.8 + latencyMs * 0.2;
-        state.successRate = Math.min(1, state.successRate + 0.1);
-      }
-      recordFailure(keySuffix2, error51, statusCode) {
-        const state = this.keyStates.get(keySuffix2);
-        if (!state) return;
-        state.lastFailure = Date.now();
-        state.failureCount++;
-        state.inFlight = Math.max(0, state.inFlight - 1);
-        state.successRate = Math.max(0, state.successRate - 0.2);
-        if (state.failureCount >= 3) {
-          state.health = "cooldown";
-          state.cooldownUntil = Date.now() + 6e4;
-        }
-      }
-      selectKey() {
-        return 0;
-      }
-    };
-    routerInstance = null;
-  }
-});
-
-// src/services/circuit-breaker.ts
-var circuit_breaker_exports = {};
-__export(circuit_breaker_exports, {
-  getAllCircuitStates: () => getAllCircuitStates,
-  getState: () => getState,
-  isAvailable: () => isAvailable,
-  recordFailure: () => recordFailure,
-  recordSuccess: () => recordSuccess,
-  resetAllCircuits: () => resetAllCircuits,
-  resetCircuit: () => resetCircuit
-});
-function getCircuitKey(providerId, model) {
-  return model ? `${providerId}:${model}` : providerId;
-}
-function getOrCreateCircuit(key) {
-  let circuit = circuits.get(key);
-  if (!circuit) {
-    circuit = {
-      state: "closed",
-      failureCount: 0,
-      successCount: 0,
-      lastFailureTime: null,
-      lastSuccessTime: null,
-      lastStateChange: Date.now(),
-      halfOpenAttempts: 0
-    };
-    circuits.set(key, circuit);
-  }
-  return circuit;
-}
-function isAvailable(providerId, model) {
-  const key = getCircuitKey(providerId, model);
-  const circuit = getOrCreateCircuit(key);
-  if (circuit.state === "closed") return true;
-  if (circuit.state === "open") {
-    const config2 = DEFAULT_CONFIG;
-    if (circuit.lastFailureTime && Date.now() - circuit.lastFailureTime >= config2.cooldownMs) {
-      circuit.state = "half_open";
-      circuit.halfOpenAttempts = 0;
-      circuit.lastStateChange = Date.now();
-      return true;
-    }
-    return false;
-  }
-  if (circuit.state === "half_open") {
-    return circuit.halfOpenAttempts < DEFAULT_CONFIG.halfOpenMaxAttempts;
-  }
-  return false;
-}
-function recordSuccess(providerId, model) {
-  const key = getCircuitKey(providerId, model);
-  const circuit = getOrCreateCircuit(key);
-  circuit.lastSuccessTime = Date.now();
-  if (circuit.state === "half_open") {
-    circuit.successCount++;
-    if (circuit.successCount >= DEFAULT_CONFIG.halfOpenSuccessThreshold) {
-      circuit.state = "closed";
-      circuit.failureCount = 0;
-      circuit.successCount = 0;
-      circuit.halfOpenAttempts = 0;
-      circuit.lastStateChange = Date.now();
-    }
-  } else if (circuit.state === "closed") {
-    circuit.failureCount = 0;
-  }
-}
-function recordFailure(providerId, model) {
-  const key = getCircuitKey(providerId, model);
-  const circuit = getOrCreateCircuit(key);
-  circuit.failureCount++;
-  circuit.lastFailureTime = Date.now();
-  if (circuit.state === "half_open") {
-    circuit.state = "open";
-    circuit.halfOpenAttempts = 0;
-    circuit.lastStateChange = Date.now();
-  } else if (circuit.state === "closed") {
-    if (circuit.failureCount >= DEFAULT_CONFIG.failureThreshold) {
-      circuit.state = "open";
-      circuit.lastStateChange = Date.now();
-    }
-  }
-}
-function getState(providerId, model) {
-  const key = getCircuitKey(providerId, model);
-  return getOrCreateCircuit(key);
-}
-function getAllCircuitStates() {
-  const result = [];
-  for (const [key, circuit] of circuits) {
-    const [providerId, model] = key.split(":");
-    const cooldownRemaining = circuit.state === "open" && circuit.lastFailureTime ? Math.max(0, DEFAULT_CONFIG.cooldownMs - (Date.now() - circuit.lastFailureTime)) : 0;
-    result.push({
-      key,
-      providerId: providerId ?? key,
-      model,
-      state: circuit.state,
-      failureCount: circuit.failureCount,
-      lastFailureTime: circuit.lastFailureTime,
-      lastSuccessTime: circuit.lastSuccessTime,
-      cooldownRemainingMs: cooldownRemaining
-    });
-  }
-  return result;
-}
-function resetCircuit(providerId, model) {
-  const key = getCircuitKey(providerId, model);
-  circuits.delete(key);
-}
-function resetAllCircuits() {
-  circuits.clear();
-}
-var DEFAULT_CONFIG, circuits;
-var init_circuit_breaker = __esm({
-  "src/services/circuit-breaker.ts"() {
-    "use strict";
-    DEFAULT_CONFIG = {
-      failureThreshold: 5,
-      cooldownMs: 6e4,
-      // 1 minute
-      halfOpenMaxAttempts: 1,
-      halfOpenSuccessThreshold: 1
-    };
-    circuits = /* @__PURE__ */ new Map();
-    if (typeof setInterval !== "undefined") {
-      setInterval(() => {
-        const now = Date.now();
-        const maxAge = 30 * 6e4;
-        for (const [key, circuit] of circuits) {
-          if (circuit.state === "closed" && circuit.lastSuccessTime && now - circuit.lastSuccessTime > maxAge) {
-            circuits.delete(key);
-          }
-        }
-      }, 3e5);
-    }
-  }
-});
-
-// src/services/llm.ts
-var llm_exports = {};
-__export(llm_exports, {
-  LLMTimeoutError: () => LLMTimeoutError,
-  __resetNvidiaDiagnostics: () => __resetNvidiaDiagnostics,
-  __resetNvidiaKeyCursor: () => __resetNvidiaKeyCursor,
-  __resetNvidiaKeyHealth: () => __resetNvidiaKeyHealth,
-  buildNvidia404Hint: () => buildNvidia404Hint,
-  buildProviderChain: () => buildProviderChain,
-  chat: () => chat,
-  chatCompletion: () => chatCompletion,
-  chatCompletionsEndpoint: () => chatCompletionsEndpoint,
-  chatJson: () => chatJson,
-  getModelRouter: () => getModelRouter,
-  getPrimaryProviderId: () => getPrimaryProviderId,
-  getServedProvider: () => getServedProvider,
-  parseNvidia404Body: () => parseNvidia404Body,
-  popNvidiaDiagnostics: () => popNvidiaDiagnostics,
-  resetModelRouter: () => resetModelRouter
-});
-function buildProviderChain(config2) {
-  const chain = [];
-  const nvidiaKeys = uniqueKeys2([
-    config2.NVIDIA_API_KEY,
-    ...config2.NVIDIA_API_KEYS?.split(",").map((k) => k.trim()) ?? []
-  ]);
-  if (nvidiaKeys.length > 0) {
-    chain.push({
-      id: "nvidia",
-      label: "NVIDIA NIM",
-      baseUrl: config2.NVIDIA_BASE_URL,
-      apiKeys: nvidiaKeys,
-      defaultModel: config2.NVIDIA_MODEL,
-      modelFallbacks: uniqueKeys2(config2.NVIDIA_MODEL_FALLBACKS?.split(",") ?? []).filter((m) => m !== config2.NVIDIA_MODEL)
-    });
-  }
-  const openrouterKeys = uniqueKeys2([
-    config2.OPENROUTER_API_KEY,
-    ...config2.OPENROUTER_API_KEYS?.split(",").map((k) => k.trim()) ?? []
-  ]);
-  if (openrouterKeys.length > 0) {
-    chain.push({
-      id: "openrouter",
-      label: "OpenRouter",
-      baseUrl: config2.OPENROUTER_BASE_URL,
-      apiKeys: openrouterKeys,
-      defaultModel: config2.OPENROUTER_MODEL,
-      modelFallbacks: uniqueKeys2(config2.OPENROUTER_MODEL_FALLBACKS?.split(",") ?? []).filter((m) => m !== config2.OPENROUTER_MODEL)
-    });
-  }
-  if (config2.LITELLM_BASE_URL) {
-    chain.push({
-      id: "litellm",
-      label: "LiteLLM",
-      baseUrl: config2.LITELLM_BASE_URL,
-      apiKeys: [config2.LITELLM_MASTER_KEY ?? "sk-orq8-dev-litellm"],
-      defaultModel: "llama3.2"
-    });
-  }
-  if (config2.OLLAMA_BASE_URL) {
-    chain.push({
-      id: "ollama",
-      label: "Ollama",
-      baseUrl: config2.OLLAMA_BASE_URL,
-      apiKeys: [],
-      // local models — no auth
-      defaultModel: config2.OLLAMA_MODEL
-    });
-  }
-  return chain;
-}
-function getPrimaryProviderId(config2) {
-  const chain = buildProviderChain(config2);
-  return chain[0]?.id ?? null;
-}
-function uniqueKeys2(keys2) {
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const k of keys2) {
-    const trimmed = k?.trim();
-    if (trimmed && !seen.has(trimmed)) {
-      seen.add(trimmed);
-      out.push(trimmed);
-    }
-  }
-  return out;
-}
-function chatCompletionsEndpoint(baseUrl) {
-  const root = baseUrl.trim().replace(/\/+$/, "").replace(/\/v1$/, "");
-  return `${root}/v1/chat/completions`;
-}
-function __resetNvidiaKeyCursor() {
-  nvidiaKeyCursor = 0;
-}
-function __resetNvidiaKeyHealth() {
-  keyHealth.clear();
-}
-function recordRateLimit(key, now = Date.now()) {
-  let h = keyHealth.get(key);
-  if (!h) {
-    h = { rateLimitHits: [] };
-    keyHealth.set(key, h);
-  }
-  h.rateLimitHits.push(now);
-}
-function isKeyHot(key, now = Date.now()) {
-  const h = keyHealth.get(key);
-  if (!h) return false;
-  const cutoff = now - KEY_HEALTH_WINDOW_MS;
-  while (h.rateLimitHits.length > 0) {
-    const oldest = h.rateLimitHits[0];
-    if (oldest === void 0 || oldest >= cutoff) break;
-    h.rateLimitHits.shift();
-  }
-  if (h.rateLimitHits.length === 0) {
-    keyHealth.delete(key);
-    return false;
-  }
-  return h.rateLimitHits.length >= KEY_HOT_THRESHOLD;
-}
-function orderKeysForAttempt(keys2, startIdx, now = Date.now()) {
-  const rotated = keys2.map((_, i) => keys2[(startIdx + i) % keys2.length]).filter((k) => k !== void 0);
-  return rotated.sort((a, b) => Number(isKeyHot(a, now)) - Number(isKeyHot(b, now)));
-}
-function storeNvidiaDiagnostics(orgId, diags) {
-  if (diags.length === 0) return;
-  nvidiaDiagnosticsStore.set(orgId, diags);
-  if (nvidiaDiagnosticsStore.size > MAX_DIAGNOSTIC_ORGS) {
-    const firstKey = nvidiaDiagnosticsStore.keys().next().value;
-    if (firstKey !== void 0) nvidiaDiagnosticsStore.delete(firstKey);
-  }
-}
-function popNvidiaDiagnostics(orgId) {
-  const diags = nvidiaDiagnosticsStore.get(orgId) ?? [];
-  nvidiaDiagnosticsStore.delete(orgId);
-  return diags;
-}
-function __resetNvidiaDiagnostics() {
-  nvidiaDiagnosticsStore.clear();
-}
-function retryAfterMs(headers) {
-  const raw = headers.get("retry-after");
-  if (!raw) return 0;
-  const secs = Number(raw);
-  if (Number.isFinite(secs)) return Math.min(Math.max(secs, 0), 5) * 1e3;
-  const date6 = Date.parse(raw);
-  if (!Number.isNaN(date6)) return Math.min(Math.max(date6 - Date.now(), 0), 5e3);
-  return 0;
-}
-async function fetchWithTimeout(url2, init, opts) {
-  const controller = new AbortController();
-  const headersTimer = setTimeout(
-    () => controller.abort(new LLMTimeoutError("headers", opts.headersTimeoutMs)),
-    opts.headersTimeoutMs
-  );
-  const totalTimer = setTimeout(
-    () => controller.abort(new LLMTimeoutError("total", opts.totalTimeoutMs)),
-    opts.totalTimeoutMs
-  );
-  try {
-    const response = await fetch(url2, { ...init, signal: controller.signal });
-    clearTimeout(headersTimer);
-    return {
-      response,
-      // Total budget still applies to the body read; clear it once done.
-      cancelTotal: () => clearTimeout(totalTimer)
-    };
-  } finally {
-    clearTimeout(headersTimer);
-  }
-}
-async function parseNvidia404Body(response) {
-  try {
-    const text2 = await response.text();
-    let body;
-    try {
-      body = JSON.parse(text2);
-    } catch {
-      return void 0;
-    }
-    const detail = typeof body.detail === "string" ? body.detail : void 0;
-    if (!detail) return void 0;
-    const match = detail.match(/Account\s+ID:\s*([\w.-]+)/i);
-    return {
-      accountId: match?.[1],
-      nvidiaDetail: detail
-    };
-  } catch {
-    return void 0;
-  }
-}
-function buildNvidia404Hint(accountId) {
-  const accountPart = accountId ? ` Your NVIDIA Account ID is **${accountId}** \u2014 log in to [build.nvidia.com](https://build.nvidia.com) and verify that this account has the **"Public API Endpoints"** scope enabled under *Account Settings \u2192 API Keys*.` : ' Log in to [build.nvidia.com](https://build.nvidia.com) and verify your API key has the **"Public API Endpoints"** scope enabled under *Account Settings \u2192 API Keys*.';
-  return `NVIDIA returned 404 "Function not found for account", which usually means the API key lacks access to this model.${accountPart}`;
-}
-async function chatCompletion(config2, options) {
-  const chain = buildProviderChain(config2);
-  if (chain.length === 0) {
-    return null;
-  }
-  const maxRetries = options.retries ?? 2;
-  const baseDelay = options.retryDelayMs ?? 1e3;
-  const traceCtx = options._trace;
-  const explicitModel = options.model;
-  let lastError = "no provider reached";
-  const nvidiaFunctionNotFound = [];
-  const { isAvailable: isAvailable2, recordSuccess: recordSuccess2, recordFailure: recordFailure2 } = await Promise.resolve().then(() => (init_circuit_breaker(), circuit_breaker_exports));
-  for (const provider of chain) {
-    if (!isAvailable2(provider.id)) {
-      lastError = `${provider.label} circuit breaker open (too many recent failures)`;
-      continue;
-    }
-    const endpoint = chatCompletionsEndpoint(provider.baseUrl);
-    const keys2 = provider.apiKeys.length > 0 ? provider.apiKeys : [""];
-    const models = explicitModel ? [explicitModel, provider.defaultModel, ...provider.modelFallbacks ?? []] : [provider.defaultModel, ...provider.modelFallbacks ?? []];
-    const startIdx = provider.id === "nvidia" && keys2.length > 1 ? nvidiaKeyCursor++ % keys2.length : 0;
-    let traceId2;
-    if (traceCtx) {
-      const trace = startTrace({
-        orgId: traceCtx.orgId,
-        phase: traceCtx.phase,
-        model: models[0],
-        provider: provider.id,
-        temperature: options.temperature,
-        maxTokens: options.max_tokens,
-        commandId: traceCtx.commandId,
-        taskId: traceCtx.taskId,
-        agentId: traceCtx.agentId,
-        maxRetries,
-        routingSource: traceCtx.routingSource
-      });
-      traceId2 = trace.traceId;
-    }
-    let providerError = "unknown";
-    const orderedKeys = provider.id === "nvidia" && keys2.length > 1 ? orderKeysForAttempt(keys2, startIdx) : keys2;
-    for (let mi = 0; mi < models.length; mi++) {
-      const model = models[mi];
-      let modelError = "unknown";
-      keyLoop:
-        for (let ki = 0; ki < orderedKeys.length; ki++) {
-          const key = orderedKeys[ki] ?? "";
-          const keyLabel = key ? `key\u2026${key.slice(-6)}` : "no-auth";
-          const headers = { "Content-Type": "application/json" };
-          if (key) headers.Authorization = `Bearer ${key}`;
-          for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-              if (attempt > 0) {
-                const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 500;
-                await new Promise((r) => setTimeout(r, delay));
-              }
-              const { response, cancelTotal } = await fetchWithTimeout(
-                endpoint,
-                {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({
-                    model,
-                    messages: options.messages,
-                    temperature: options.temperature ?? 0.7,
-                    max_tokens: options.max_tokens ?? 2048,
-                    ...options.response_format ? { response_format: options.response_format } : {}
-                  })
-                },
-                {
-                  headersTimeoutMs: config2.LLM_HEADERS_TIMEOUT_MS,
-                  totalTimeoutMs: config2.LLM_TIMEOUT_MS
-                }
-              );
-              try {
-                if (!response.ok) {
-                  modelError = `${model} \u2192 ${keyLabel} HTTP ${response.status}`;
-                  const isRateLimited = response.status === 429;
-                  if (isRateLimited) {
-                    if (provider.id === "nvidia") recordRateLimit(key);
-                    const ra = retryAfterMs(response.headers);
-                    if (attempt < maxRetries) {
-                      if (ra > 0) await new Promise((r) => setTimeout(r, ra));
-                      continue;
-                    }
-                    continue keyLoop;
-                  }
-                  if (response.status === 401 || response.status === 403) {
-                    continue keyLoop;
-                  }
-                  if (response.status === 404) {
-                    const parsed404 = await parseNvidia404Body(response);
-                    const accountId = parsed404?.accountId;
-                    const nvidiaDetail = parsed404?.nvidiaDetail;
-                    const hint = buildNvidia404Hint(accountId);
-                    nvidiaFunctionNotFound.push({
-                      model,
-                      keySuffix: key.slice(-6),
-                      accountId,
-                      nvidiaDetail,
-                      hint
-                    });
-                    modelError = `${model} unavailable: HTTP 404${nvidiaDetail ? ` \u2014 ${nvidiaDetail}` : " (no model access for account)"}${accountId ? ` [Account ID: ${accountId}]` : ""}`;
-                    break keyLoop;
-                  }
-                  continue;
-                }
-                const data = await response.json();
-                if (traceId2) {
-                  const usage = data.usage;
-                  endTrace(traceId2, {
-                    success: true,
-                    promptTokens: usage?.prompt_tokens,
-                    completionTokens: usage?.completion_tokens,
-                    totalTokens: usage?.total_tokens,
-                    model: data.model,
-                    responsePreview: data.choices?.[0]?.message?.content
-                  });
-                  if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId2));
-                }
-                if (traceCtx?.orgId) storeNvidiaDiagnostics(traceCtx.orgId, nvidiaFunctionNotFound);
-                recordSuccess2(provider.id, model);
-                return data;
-              } finally {
-                cancelTotal();
-              }
-            } catch (err) {
-              modelError = `${model} \u2192 ${keyLabel}: ${err instanceof Error ? err.message : "network error"}`;
-              if (err instanceof LLMTimeoutError) {
-                modelError = `${model} \u2192 ${keyLabel}: ${err.message}`;
-                if (provider.id === "nvidia") break keyLoop;
-                continue keyLoop;
-              }
-              if (err instanceof DOMException && err.name === "AbortError") {
-                continue keyLoop;
-              }
-            }
-          }
-        }
-      providerError = `${model} unavailable: ${modelError}`;
-    }
-    if (traceId2) {
-      endTrace(traceId2, { success: false, error: `${provider.id} unavailable: ${providerError}` });
-      if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId2));
-    }
-    recordFailure2(provider.id);
-    lastError = `${provider.id}: ${providerError}`;
-  }
-  if (traceCtx?.orgId) storeNvidiaDiagnostics(traceCtx.orgId, nvidiaFunctionNotFound);
-  return null;
-}
-async function chat(config2, systemPrompt, userMessage, options = {}) {
-  const response = await chatCompletion(config2, {
-    model: options.model,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
-    ],
-    temperature: options.temperature ?? 0.7,
-    max_tokens: options.max_tokens ?? 2048,
-    retries: options.retries,
-    _trace: options._trace
-  });
-  return response?.choices?.[0]?.message?.content ?? null;
-}
-async function chatJson(config2, systemPrompt, userMessage, options = {}) {
-  const text2 = await chat(config2, systemPrompt, userMessage, {
-    ...options,
-    temperature: options.temperature ?? 0.3,
-    // Lower temp for structured output
-    retries: options.retries ?? 1,
-    // JSON needs higher success rate
-    _trace: options._trace
-  });
-  if (!text2) return null;
-  try {
-    return JSON.parse(text2);
-  } catch {
-    const jsonMatch = text2.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (jsonMatch?.[1]) {
-      try {
-        return JSON.parse(jsonMatch[1]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
-function getServedProvider(orgId, phase, commandId) {
-  const traces = getRecentTraces(orgId, 50).filter(
-    (t) => t.phase === phase && (commandId ? t.commandId === commandId : true)
-  );
-  const last = traces[traces.length - 1];
-  if (!last) return null;
-  if (!last.success) return "none";
-  if (last.provider === "nvidia" || last.provider === "openrouter" || last.provider === "litellm" || last.provider === "ollama") {
-    return last.provider;
-  }
-  return "none";
-}
-function recentTrace(id) {
-  const found = getTraceById(id);
-  return found ?? {
-    id,
-    orgId: "",
-    phase: "fallback",
-    model: "unknown",
-    provider: "unknown",
-    startedAt: /* @__PURE__ */ new Date(),
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    success: false,
-    retryAttempt: 0,
-    maxRetries: 0,
-    routingSource: "default",
-    temperature: 0,
-    maxTokens: 0
-  };
-}
-var nvidiaKeyCursor, KEY_HEALTH_WINDOW_MS, KEY_HOT_THRESHOLD, keyHealth, MAX_DIAGNOSTIC_ORGS, nvidiaDiagnosticsStore, LLMTimeoutError;
-var init_llm = __esm({
-  "src/services/llm.ts"() {
-    "use strict";
-    init_llm_tracer();
-    init_llm_tracer();
-    init_model_router();
-    nvidiaKeyCursor = 0;
-    KEY_HEALTH_WINDOW_MS = 6e4;
-    KEY_HOT_THRESHOLD = 2;
-    keyHealth = /* @__PURE__ */ new Map();
-    MAX_DIAGNOSTIC_ORGS = 100;
-    nvidiaDiagnosticsStore = /* @__PURE__ */ new Map();
-    LLMTimeoutError = class extends Error {
-      constructor(kind, timeoutMs) {
-        super(`LLM ${kind} timeout after ${timeoutMs}ms`);
-        this.kind = kind;
-        this.name = "LLMTimeoutError";
-      }
-      kind;
-    };
-  }
-});
-
-// src/services/model-intelligence.ts
-function clampIntensity(value, criticalAt, highAt) {
-  if (value >= criticalAt) return "critical";
-  if (value >= highAt) return "high";
-  if (value >= 1) return "medium";
-  return "low";
-}
-function classifyTask(input) {
-  const text2 = [input.title, input.description ?? "", input.agentRole ?? "", input.department ?? ""].join(" ").slice(0, 4e3);
-  const signals = [];
-  let complexity = 1;
-  for (const s of COMPLEXITY_SIGNALS) {
-    if (s.pattern.test(text2)) {
-      complexity += s.weight;
-      signals.push(s.label);
-    }
-  }
-  let riskScore = 0;
-  let riskDomains = [];
-  for (const d of RISK_DOMAINS) {
-    if (d.pattern.test(text2)) {
-      riskScore += d.risk === "critical" ? 3 : d.risk === "high" ? 2 : 1;
-      riskDomains.push(d.domain);
-      signals.push(`risk domain: ${d.domain}`);
-    }
-  }
-  let impactScore = 0;
-  for (const s of IMPACT_SIGNALS) {
-    if (s.pattern.test(text2)) {
-      impactScore += s.weight;
-      signals.push(s.label);
-    }
-  }
-  const priorityBoost = input.priority === "urgent" ? 1 : input.priority === "high" ? 0.5 : 0;
-  complexity += priorityBoost;
-  if (priorityBoost > 0) signals.push(`priority: ${input.priority}`);
-  const businessImpact = clampIntensity(impactScore, 3, 1.5);
-  const reasoning = clampIntensity(complexity, 4, 2.5);
-  const level = Math.min(5, Math.max(1, Math.round(complexity)));
-  const requiredAccuracy = riskScore >= 3 || businessImpact === "critical" ? "critical" : businessImpact === "high" ? "high" : reasoning;
-  return {
-    complexity: level,
-    reasoning,
-    risk: riskScore >= 3 ? "critical" : riskScore >= 2 ? "high" : riskScore >= 1 ? "medium" : "low",
-    businessImpact,
-    requiredAccuracy,
-    signals: signals.slice(0, MAX_SIGNALS).concat(riskDomains.length ? [] : [])
-  };
-}
-function tierOf(model) {
-  const cheap = model.costPer1kInput <= 2e-4;
-  const expensive = model.costPer1kInput >= 2e-3;
-  const reasons = model.capabilities.includes("reasoning");
-  const fast = model.speedRating === "fast";
-  if (cheap && fast && !reasons) return 0;
-  if (reasons && expensive) return 3;
-  if (reasons) return 2;
-  return 1;
-}
-function modelsByTier() {
-  const out = { 0: [], 1: [], 2: [], 3: [] };
-  for (const m of MODEL_REGISTRY) out[tierOf(m)].push(m);
-  for (const tier of Object.keys(out)) {
-    out[tier].sort((a, b) => a.costPer1kInput - b.costPer1kInput);
-  }
-  return out;
-}
-function diverseModelsFor(count4, opts) {
-  const tiers = modelsByTier();
-  const ladder = opts.allowExpensive ? [2, 3, 1, 0] : [2, 1, 0];
-  const available = [];
-  for (const tier of ladder) {
-    for (const m of tiers[tier]) {
-      if (opts.allowExpensive || m.costPer1kInput <= 3e-3) available.push(m);
-    }
-  }
-  const chosen = [];
-  const seenProviders = /* @__PURE__ */ new Set();
-  for (const m of available) {
-    if (chosen.length >= count4) break;
-    if (!seenProviders.has(m.provider)) {
-      chosen.push(m);
-      seenProviders.add(m.provider);
-    }
-  }
-  for (const m of available) {
-    if (chosen.length >= count4) break;
-    if (!chosen.includes(m)) chosen.push(m);
-  }
-  return chosen.slice(0, count4).map((m) => m.id);
-}
-function strongestModelId() {
-  const tiers = modelsByTier();
-  const flagship = tiers[3] ?? [];
-  if (flagship.length > 0) return flagship[flagship.length - 1].id;
-  for (const tier of [2, 1, 0]) {
-    const pool = tiers[tier] ?? [];
-    if (pool.length > 0) return pool[pool.length - 1].id;
-  }
-  return void 0;
-}
-function extractAmount(text2) {
-  const kMatch = text2.match(/\$\s?([\d,.]+)\s?k\b/i) ?? text2.match(/\b([\d,.]+)\s?k\s?(dollars?|usd)?\b/i);
-  if (kMatch) {
-    const n = Number.parseFloat((kMatch[1] ?? "").replace(/,/g, ""));
-    if (!Number.isNaN(n)) return n * 1e3;
-  }
-  const plain = text2.match(/\$\s?([\d,]+)/);
-  if (plain) {
-    const n = Number.parseFloat((plain[1] ?? "").replace(/,/g, ""));
-    if (!Number.isNaN(n)) return n;
-  }
-  return null;
-}
-function evaluateEscalation(input) {
-  const text2 = `${input.question} ${input.context ?? ""}`.slice(0, 4e3);
-  const amount = extractAmount(text2);
-  const departments2 = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text2)).map((h) => h.slug);
-  const irreversible = /\b(irreversib|permanent|cannot be undone|terminate)\b/i.test(text2);
-  const security = /\b(security|vulnerab|breach|exploit)\b/i.test(text2);
-  const legal = /\b(legal|lawsuit|regulat|complian)\b/i.test(text2);
-  const strategic = /\b(strategy|strategic|pivot|roadmap|positioning)\b/i.test(text2);
-  const financial = amount !== null || /\b(budget|spend|invest|pay)\b/i.test(text2);
-  const departmentCount = DEPARTMENT_HINTS.filter((h) => h.pattern.test(text2)).length;
-  const dimensions = [irreversible, security, legal, strategic, financial].filter(Boolean).length;
-  const effectiveDimensions = dimensions + (departmentCount >= 3 ? 1 : 0);
-  const budgets = { none: 0, single_agent: 0.05, dual_review: 0.25, department_council: 1, executive_deliberation: 5 };
-  let level;
-  let requiresFounderApproval = false;
-  if (effectiveDimensions >= 4 || amount !== null && amount >= 1e4 || irreversible && financial) {
-    level = "executive_deliberation";
-    requiresFounderApproval = true;
-  } else if (effectiveDimensions >= 2 || departmentCount >= 3 || amount !== null && amount >= 1e3) {
-    level = "department_council";
-    requiresFounderApproval = amount !== null && amount >= 1e3;
-  } else if (effectiveDimensions === 1 || amount !== null && amount >= 100) {
-    level = "dual_review";
-  } else {
-    level = "single_agent";
-  }
-  const parts = [];
-  if (amount !== null) parts.push(`amount $${amount}`);
-  if (irreversible) parts.push("irreversible");
-  if (security) parts.push("security");
-  if (legal) parts.push("legal");
-  if (strategic) parts.push("strategic");
-  if (financial) parts.push("financial");
-  return {
-    level,
-    budgetUsd: budgets[level],
-    departments: departments2.length > 0 ? departments2 : ["executive"],
-    requiresFounderApproval,
-    rationale: parts.length > 0 ? `Escalated on: ${parts.join(", ")}` : "No high-impact signals detected"
-  };
-}
-var RISK_DOMAINS, COMPLEXITY_SIGNALS, IMPACT_SIGNALS, MAX_SIGNALS, DEPARTMENT_HINTS;
-var init_model_intelligence = __esm({
-  "src/services/model-intelligence.ts"() {
-    "use strict";
-    init_model_router();
-    RISK_DOMAINS = [
-      { pattern: /\b(security|vulnerab|penetration|exploit|breach|auth[^o]|encryption)\b/i, domain: "security", risk: "critical" },
-      { pattern: /\b(legal|contract|complian|regulat|GDPR|license|liab)/i, domain: "legal", risk: "high" },
-      { pattern: /\b(financ|budget|payroll|invoice|tax|accounting|revenue recognition)\b/i, domain: "finance", risk: "high" },
-      { pattern: /\b(architecture|migration|database schema|infrastructure|production deploy|scaling)\b/i, domain: "architecture", risk: "high" },
-      { pattern: /\b(strategy|strategic|roadmap|pricing strategy|market position)\b/i, domain: "strategy", risk: "medium" }
-    ];
-    COMPLEXITY_SIGNALS = [
-      { pattern: /\b(design|architect|plan|compare|evaluate|trade-?off|refactor|migrat)\w*/i, weight: 1.5, label: "design/planning verbs" },
-      { pattern: /\b(analy[sz]e|investigat|research|audit|assess)\w*/i, weight: 1, label: "analysis verbs" },
-      { pattern: /\b(write|draft|format|tag|label|summariz|extract|classify|translate)\w*/i, weight: -0.5, label: "atomic verbs" },
-      { pattern: /\b(security|legal|financial|strategic|critical)\b/i, weight: 1, label: "high-stakes domain terms" },
-      { pattern: /\b(multi-?step|comprehensive|end-to-end|cross-department)\b/i, weight: 1, label: "multi-step scope" }
-    ];
-    IMPACT_SIGNALS = [
-      { pattern: /\$\s?[\d,]+|\b\d+\s?k\b|\b\d+\s?dollars?\b/i, weight: 2, label: "explicit monetary amount" },
-      { pattern: /\b(launch|customer-facing|production|revenue|churn)\b/i, weight: 1, label: "business-outcome terms" },
-      { pattern: /\b(irreversib|permanent|delete all|terminate)\b/i, weight: 1.5, label: "irreversibility" }
-    ];
-    MAX_SIGNALS = 5;
-    DEPARTMENT_HINTS = [
-      { pattern: /\b(financ|budget|cost|revenue|pric)/i, slug: "finance" },
-      { pattern: /\b(legal|contract|complian|regulat)/i, slug: "legal" },
-      { pattern: /\b(security|vulnerab|breach)/i, slug: "security" },
-      { pattern: /\b(engineer|technical|architecture|build)/i, slug: "engineering" },
-      { pattern: /\b(marketing|campaign|brand|acquisition)/i, slug: "marketing" },
-      { pattern: /\b(sales|deal|pipeline|customer)/i, slug: "sales" },
-      { pattern: /\b(product|feature|roadmap)/i, slug: "product" },
-      { pattern: /\b(hiring|recruit|people|team size)/i, slug: "people" }
-    ];
-  }
-});
-
-// src/services/decision-calibration.ts
-function computeConfidenceCalibration(decisionRows) {
-  const byBand = /* @__PURE__ */ new Map();
-  for (const band of BANDS) byBand.set(band, { resolved: 0, validated: 0, reversed: 0 });
-  let unresolvedBandCount = 0;
-  for (const d of decisionRows) {
-    if (!d.outcomeFiledAt || !d.predictionAccuracy) continue;
-    const band = d.confidence;
-    const bucket = byBand.get(band);
-    if (!bucket) {
-      unresolvedBandCount += 1;
-      continue;
-    }
-    bucket.resolved += 1;
-    if (d.predictionAccuracy === "accurate") bucket.validated += 1;
-    else if (d.predictionAccuracy === "inaccurate") bucket.reversed += 1;
-  }
-  const bands = BANDS.map((band) => {
-    const bucket = byBand.get(band);
-    const accuracyPct = bucket.resolved >= MIN_RESOLVED_FOR_ACCURACY ? Math.round(bucket.validated / bucket.resolved * 100) : null;
-    return { band, ...bucket, accuracyPct };
-  });
-  const high = bands.find((b) => b.band === "high");
-  const low = bands.find((b) => b.band === "low");
-  const calibrationGapPct = high.accuracyPct !== null && low.accuracyPct !== null ? high.accuracyPct - low.accuracyPct : null;
-  return {
-    bands,
-    fullyCalibrated: bands.every((b) => b.accuracyPct !== null),
-    calibrationGapPct,
-    totalResolved: bands.reduce((sum2, b) => sum2 + b.resolved, 0),
-    unresolvedBandCount
-  };
-}
-var MIN_RESOLVED_FOR_ACCURACY, BANDS;
-var init_decision_calibration = __esm({
-  "src/services/decision-calibration.ts"() {
-    "use strict";
-    MIN_RESOLVED_FOR_ACCURACY = 3;
-    BANDS = ["high", "medium", "low"];
-  }
-});
-
-// src/services/calibration-routing.ts
-function calibrationRoutingAdvice(calibration) {
-  if (!calibration || calibration.totalResolved === 0) {
-    return {
-      active: false,
-      reason: "No filed outcomes yet \u2014 calibration cannot steer routing.",
-      minConsequentialTier: null,
-      councilRequiresFounderApproval: false
-    };
-  }
-  const high = calibration.bands.find((b) => b.band === "high");
-  const low = calibration.bands.find((b) => b.band === "low");
-  const highMeasurable = !!high && high.accuracyPct !== null;
-  const lowMeasurable = !!low && low.accuracyPct !== null;
-  if (!highMeasurable && !lowMeasurable) {
-    return {
-      active: false,
-      reason: `Calibration has ${calibration.totalResolved} resolved outcome(s) but no band has the minimum sample yet \u2014 routing unchanged.`,
-      minConsequentialTier: null,
-      councilRequiresFounderApproval: false
-    };
-  }
-  if (highMeasurable && lowMeasurable && calibration.calibrationGapPct !== null && calibration.calibrationGapPct < 0) {
-    return {
-      active: true,
-      reason: `Measured calibration is inverted (high ${high.accuracyPct}% vs low ${low.accuracyPct}%) \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
-      minConsequentialTier: 2,
-      councilRequiresFounderApproval: true
-    };
-  }
-  if (highMeasurable && high.accuracyPct !== null && high.accuracyPct < 50) {
-    return {
-      active: true,
-      reason: `High-confidence recommendations validate only ${high.accuracyPct}% of the time \u2014 consequential routing raised to the strongest tier and council recommendations now require founder approval.`,
-      minConsequentialTier: 2,
-      councilRequiresFounderApproval: true
-    };
-  }
-  return {
-    active: false,
-    reason: highMeasurable ? `High-confidence recommendations validate at ${high.accuracyPct}% \u2014 calibration is healthy; no routing override.` : "Only low-confidence outcomes are measurable so far \u2014 no routing override.",
-    minConsequentialTier: null,
-    councilRequiresFounderApproval: false
-  };
-}
-async function getCalibrationAdvice(db, orgId) {
-  const cached2 = adviceCache.get(orgId);
-  if (cached2 && Date.now() - cached2.at < ADVICE_TTL_MS) return cached2.advice;
-  try {
-    const rows = await db.select({
-      confidence: decisions.confidence,
-      predictionAccuracy: decisions.predictionAccuracy,
-      outcomeFiledAt: decisions.outcomeFiledAt
-    }).from(decisions).where(eq(decisions.orgId, orgId));
-    const advice = calibrationRoutingAdvice(computeConfidenceCalibration(rows));
-    adviceCache.set(orgId, { advice, at: Date.now() });
-    return advice;
-  } catch {
-    return calibrationRoutingAdvice(null);
-  }
-}
-var ADVICE_TTL_MS, adviceCache;
-var init_calibration_routing = __esm({
-  "src/services/calibration-routing.ts"() {
-    "use strict";
-    init_src2();
-    init_drizzle_orm();
-    init_decision_calibration();
-    ADVICE_TTL_MS = 5 * 60 * 1e3;
-    adviceCache = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/services/crypto.ts
-function getKey() {
-  const envKey = process.env.ENCRYPTION_KEY ?? process.env.SECRET_KEY ?? "";
-  if (!envKey) {
-    if (process.env.NODE_ENV !== "test") {
-      console.warn("[crypto] ENCRYPTION_KEY not set \u2014 using insecure dev key. Set ENCRYPTION_KEY in production.");
-    }
-    return (0, import_node_crypto9.createHash)("sha256").update("orq8-dev-only-insecure-key-do-not-use-in-prod").digest();
-  }
-  return (0, import_node_crypto9.createHash)("sha256").update(envKey).digest();
-}
-function encryptSecret(plaintext) {
-  const key = getKey();
-  const iv = (0, import_node_crypto9.randomBytes)(12);
-  const cipher = (0, import_node_crypto9.createCipheriv)("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `v1:${iv.toString("base64")}:${tag.toString("base64")}:${encrypted.toString("base64")}`;
-}
-function decryptSecret(payload) {
-  try {
-    const [version3, ivB64, tagB64, dataB64] = payload.split(":");
-    if (version3 !== "v1" || !ivB64 || !tagB64 || !dataB64) return null;
-    const key = getKey();
-    const decipher = (0, import_node_crypto9.createDecipheriv)("aes-256-gcm", key, Buffer.from(ivB64, "base64"));
-    decipher.setAuthTag(Buffer.from(tagB64, "base64"));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(dataB64, "base64")),
-      decipher.final()
-    ]);
-    return decrypted.toString("utf8");
-  } catch {
-    return null;
-  }
-}
-var import_node_crypto9;
-var init_crypto2 = __esm({
-  "src/services/crypto.ts"() {
-    "use strict";
-    import_node_crypto9 = require("node:crypto");
-  }
-});
-
-// src/services/integrations.ts
-async function listProviders2(db, orgId) {
-  return db.select().from(integrationProviders).where(eq(integrationProviders.orgId, orgId)).orderBy(desc(integrationProviders.updatedAt));
-}
-async function getProvider(db, orgId, id) {
-  const rows = await db.select().from(integrationProviders).where(and(eq(integrationProviders.id, id), eq(integrationProviders.orgId, orgId))).limit(1);
-  return rows[0];
-}
-async function getProviderByName(db, orgId, name2) {
-  const rows = await db.select().from(integrationProviders).where(and(eq(integrationProviders.orgId, orgId), eq(integrationProviders.name, name2))).limit(1);
-  return rows[0];
-}
-async function createProvider(db, data) {
-  const rows = await db.insert(integrationProviders).values(data).returning();
-  const row = rows[0];
-  if (!row) throw new Error("createProvider returned no row");
-  await appendAudit(db, {
-    orgId: data.orgId,
-    actorType: "user",
-    action: "integration.connected",
-    outcome: "success"
-  });
-  return row;
-}
-async function updateProviderStatus(db, id, status, error51) {
-  const updates = { status, updatedAt: /* @__PURE__ */ new Date() };
-  if (error51) updates.error = error51;
-  const rows = await db.update(integrationProviders).set(updates).where(eq(integrationProviders.id, id)).returning();
-  return rows[0];
-}
-async function deleteProvider(db, orgId, id) {
-  const rows = await db.delete(integrationProviders).where(and(eq(integrationProviders.id, id), eq(integrationProviders.orgId, orgId))).returning({ id: integrationProviders.id });
-  return rows.length > 0;
-}
-async function getCredentials(db, providerId) {
-  const rows = await db.select().from(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).limit(1);
-  return rows[0];
-}
-async function setCredentials(db, providerId, data) {
-  const encrypted = data.encryptedSecret ? encryptSecret(data.encryptedSecret) : "";
-  const toStore = {
-    credentialType: data.credentialType ?? "oauth",
-    encryptedSecret: encrypted,
-    publicRef: data.publicRef ?? null,
-    tokenExpiresAt: data.tokenExpiresAt ?? null,
-    scopes: data.scopes ?? [],
-    refreshTokenHash: data.refreshTokenHash ?? null,
-    refreshTokenExpiresAt: data.refreshTokenExpiresAt ?? null
-  };
-  const [existing] = await db.select().from(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).limit(1);
-  if (existing) {
-    const rows2 = await db.update(integrationCredentials).set({ ...toStore, providerId, updatedAt: /* @__PURE__ */ new Date() }).where(eq(integrationCredentials.id, existing.id)).returning();
-    return rows2[0];
-  }
-  const rows = await db.insert(integrationCredentials).values({ ...toStore, providerId }).returning();
-  return rows[0];
-}
-function decryptCredentialSecret(credential) {
-  if (!credential?.encryptedSecret) return null;
-  return decryptSecret(credential.encryptedSecret);
-}
-async function deleteCredentials(db, providerId) {
-  const rows = await db.delete(integrationCredentials).where(eq(integrationCredentials.providerId, providerId)).returning({ id: integrationCredentials.id });
-  return rows.length > 0;
-}
-async function listCapabilities(db, providerId) {
-  return db.select().from(integrationCapabilities).where(eq(integrationCapabilities.providerId, providerId));
-}
-async function getCapability(db, providerId, capability) {
-  const rows = await db.select().from(integrationCapabilities).where(
-    and(
-      eq(integrationCapabilities.providerId, providerId),
-      eq(integrationCapabilities.capability, capability)
-    )
-  ).limit(1);
-  return rows[0];
-}
-async function upsertCapability(db, data) {
-  const [existing] = await db.select().from(integrationCapabilities).where(
-    and(
-      eq(integrationCapabilities.providerId, data.providerId),
-      eq(integrationCapabilities.capability, data.capability)
-    )
-  ).limit(1);
-  if (existing) {
-    const rows2 = await db.update(integrationCapabilities).set(data).where(eq(integrationCapabilities.id, existing.id)).returning();
-    return rows2[0];
-  }
-  const rows = await db.insert(integrationCapabilities).values(data).returning();
-  return rows[0];
-}
-async function listAgentAccess(db, orgId, agentId) {
-  return db.select().from(agentIntegrationAccess).where(and(eq(agentIntegrationAccess.orgId, orgId), eq(agentIntegrationAccess.agentId, agentId)));
-}
-async function getAgentAccess(db, orgId, agentId, providerId) {
-  const rows = await db.select().from(agentIntegrationAccess).where(
-    and(
-      eq(agentIntegrationAccess.orgId, orgId),
-      eq(agentIntegrationAccess.agentId, agentId),
-      eq(agentIntegrationAccess.providerId, providerId)
-    )
-  ).limit(1);
-  return rows[0];
-}
-async function grantAgentAccess(db, data) {
-  const [existing] = await db.select().from(agentIntegrationAccess).where(
-    and(
-      eq(agentIntegrationAccess.orgId, data.orgId),
-      eq(agentIntegrationAccess.agentId, data.agentId),
-      eq(agentIntegrationAccess.providerId, data.providerId)
-    )
-  ).limit(1);
-  if (existing) {
-    const rows2 = await db.update(agentIntegrationAccess).set({ ...data, capabilities: data.capabilities }).where(eq(agentIntegrationAccess.id, existing.id)).returning();
-    return rows2[0];
-  }
-  const rows = await db.insert(agentIntegrationAccess).values(data).returning();
-  return rows[0];
-}
-async function revokeAgentAccess(db, orgId, agentId, providerId) {
-  const rows = await db.delete(agentIntegrationAccess).where(
-    and(
-      eq(agentIntegrationAccess.orgId, orgId),
-      eq(agentIntegrationAccess.agentId, agentId),
-      eq(agentIntegrationAccess.providerId, providerId)
-    )
-  ).returning({ id: agentIntegrationAccess.id });
-  return rows.length > 0;
-}
-async function recordOutcome(db, data) {
-  const rows = await db.insert(connectorOutcomes).values(data).returning();
-  const row = rows[0];
-  if (!row) throw new Error("recordOutcome returned no row");
-  return row;
-}
-async function listOutcomes(db, orgId, opts = {}) {
-  const conditions = [eq(connectorOutcomes.orgId, orgId)];
-  if (opts.provider) conditions.push(eq(connectorOutcomes.provider, opts.provider));
-  if (opts.status) conditions.push(eq(connectorOutcomes.status, opts.status));
-  return db.select().from(connectorOutcomes).where(and(...conditions)).orderBy(desc(connectorOutcomes.createdAt)).limit(opts.limit ?? 50);
-}
-function classifyConnectorState(input) {
-  if (!input.hasCredential) return { state: "disconnected", requiresReconnect: false };
-  if (input.expiredByTime) return { state: "expired", requiresReconnect: true };
-  if (input.probeHealthy === null) return { state: "error", requiresReconnect: false };
-  if (input.probeHealthy) return { state: "healthy", requiresReconnect: false };
-  const status = input.probeStatus ?? 0;
-  if (status === 401 || status === 403) return { state: "expired", requiresReconnect: true };
-  return { state: "degraded", requiresReconnect: false };
-}
-async function latestOutcome(db, orgId, provider) {
-  const rows = await db.select().from(connectorOutcomes).where(and(eq(connectorOutcomes.orgId, orgId), eq(connectorOutcomes.provider, provider))).orderBy(desc(connectorOutcomes.createdAt)).limit(1);
-  return rows[0];
-}
-async function canAgentUseCapability(db, orgId, agentId, providerName, capability) {
-  const provider = await getProviderByName(db, orgId, providerName);
-  if (!provider) return { allowed: false, requiresApproval: false };
-  const access = await getAgentAccess(db, orgId, agentId, provider.id);
-  if (!access) return { allowed: false, requiresApproval: false, provider };
-  const allowedCapabilities = Array.isArray(access.capabilities) ? access.capabilities : [];
-  const granted = (cap2) => allowedCapabilities.includes(cap2) || allowedCapabilities.includes(`${providerName}.${cap2}`);
-  if (!granted(capability)) {
-    return { allowed: false, requiresApproval: false, provider };
-  }
-  const cap = await getCapability(db, provider.id, capability);
-  if (cap && !cap.allowed) {
-    return { allowed: false, requiresApproval: false, provider };
-  }
-  const approvalRequiredFor = Array.isArray(cap?.approvalRequiredFor) ? cap.approvalRequiredFor : [];
-  const requiresApproval = approvalRequiredFor.includes(capability);
-  return { allowed: true, requiresApproval, provider };
-}
-var init_integrations = __esm({
-  "src/services/integrations.ts"() {
-    "use strict";
-    init_drizzle_orm();
-    init_crypto2();
-    init_src2();
-    init_audit();
-  }
-});
-
-// src/services/connector-actions.ts
-async function resolveAgent(db, orgId, agentId) {
-  const rows = await db.select({ id: agents.id, name: agents.name, status: agents.status }).from(agents).where(eq(agents.id, agentId)).limit(1);
-  const agent = rows[0];
-  if (!agent || agent.status === "archived") {
-    throw new ConnectorActionError("Agent not found or archived", "not_found");
-  }
-  const inOrg = await db.select({ id: agents.id }).from(agents).where(and(eq(agents.id, agentId), eq(agents.orgId, orgId))).limit(1);
-  if (!inOrg[0]) throw new ConnectorActionError("Agent not found in this organization", "not_found");
-  return agent;
-}
-async function githubFetch(db, ctx, capability, method, path2, body, actionName) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto10.randomUUID)();
-  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
-    db,
-    ctx.orgId,
-    ctx.agentId,
-    "github",
-    capability
-  );
-  const action = actionName ?? (path2.split("/").pop() ?? capability);
-  const baseOutcome = {
-    orgId: ctx.orgId,
-    agentId: ctx.agentId,
-    taskId: ctx.taskId ?? null,
-    provider: "github",
-    capability,
-    action,
-    correlationId,
-    requiresApproval
-  };
-  if (!provider) {
-    throw new ConnectorActionError("GitHub is not connected for this organization", "not_connected");
-  }
-  if (!allowed) {
-    await recordOutcome(db, {
-      ...baseOutcome,
-      providerId: provider.id,
-      status: "denied",
-      summary: `Denied: agent lacks capability ${capability} for GitHub`
-    });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.denied",
-      outcome: "denied",
-      resultRef: JSON.stringify({ provider: "github", capability, action })
-    });
-    throw new ConnectorActionError(
-      `Agent is not authorized for GitHub capability "${capability}". Grant it in Integrations \u2192 Agent access.`,
-      "capability_denied"
-    );
-  }
-  const credential = await getCredentials(db, provider.id);
-  const token = decryptCredentialSecret(credential);
-  if (!token) {
-    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
-    await recordOutcome(db, {
-      ...baseOutcome,
-      providerId: provider.id,
-      status: "failed",
-      error: "GitHub connection has no usable token \u2014 reconnect required",
-      summary: "Failed: no usable GitHub token"
-    });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.failed",
-      outcome: "failure",
-      resultRef: JSON.stringify({ provider: "github", capability, action, error: "no_token" })
-    });
-    throw new ConnectorActionError("GitHub connection has no usable token \u2014 reconnect required", "not_connected");
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  let response;
-  try {
-    response = await fetchImpl(`${GITHUB_API}${path2}`, {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: "application/vnd.github+json",
-        "x-github-api-version": "2022-11-28",
-        ...body ? { "content-type": "application/json" } : {}
-      },
-      body: body ? JSON.stringify(body) : void 0,
-      signal: controller.signal
-    });
-  } catch (error51) {
-    clearTimeout(timer);
-    const message = error51 instanceof Error ? error51.message : "Network error";
-    await updateProviderStatus(db, provider.id, "degraded", message);
-    await recordOutcome(db, {
-      ...baseOutcome,
-      providerId: provider.id,
-      status: "failed",
-      error: message,
-      summary: `Failed: GitHub request error (${action})`
-    });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.failed",
-      outcome: "failure",
-      resultRef: JSON.stringify({ provider: "github", capability, action, error: message.slice(0, 200) })
-    });
-    throw new ConnectorActionError(`GitHub request failed: ${message}`, "provider_error");
-  }
-  clearTimeout(timer);
-  if (!response.ok) {
-    let detail = "";
-    try {
-      const payload = await response.json();
-      detail = payload.message ?? "";
-    } catch {
-    }
-    const message = `${response.status} ${detail}`.trim();
-    if (response.status === 401 || response.status === 403) {
-      await updateProviderStatus(db, provider.id, "expired", message);
-    } else if (response.status === 429) {
-      await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
-    } else {
-      await updateProviderStatus(db, provider.id, "degraded", message);
-    }
-    await recordOutcome(db, {
-      ...baseOutcome,
-      providerId: provider.id,
-      status: "failed",
-      error: message,
-      summary: `Failed: GitHub rejected ${action} (${response.status})`
-    });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.failed",
-      outcome: "failure",
-      resultRef: JSON.stringify({ provider: "github", capability, action, status: response.status })
-    });
-    throw new ConnectorActionError(
-      response.status === 429 ? "GitHub rate limit reached \u2014 retry later" : `GitHub rejected the request: ${message}`,
-      response.status === 429 ? "rate_limited" : "provider_error"
-    );
-  }
-  const data = await response.json();
-  await updateProviderStatus(db, provider.id, "connected");
-  await recordOutcome(db, {
-    ...baseOutcome,
-    providerId: provider.id,
-    status: "success",
-    summary: `GitHub ${action} completed`,
-    result: data
-  });
-  await appendAudit(db, {
-    orgId: ctx.orgId,
-    actorType: "agent",
-    actorId: ctx.agentId,
-    action: `connector.action.${action}`,
-    outcome: "success",
-    resultRef: JSON.stringify({ provider: "github", capability, correlationId })
-  });
-  return { data, providerId: provider.id, requiresApproval };
-}
-async function githubListRepositories(db, ctx, params) {
-  const { data } = await githubFetch(db, ctx, GITHUB_CAPABILITIES.readRepositories, "GET", "/user/repos", void 0, "list_repositories");
-  return { capability: GITHUB_CAPABILITIES.readRepositories, action: "list_repositories", providerResourceId: null, providerUrl: null, status: "success", result: data };
-}
-async function githubListIssues(db, ctx, params) {
-  const state = params.state ?? "open";
-  const { data } = await githubFetch(
-    db,
-    ctx,
-    GITHUB_CAPABILITIES.readIssues,
-    "GET",
-    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues?state=${state}&per_page=30`,
-    void 0,
-    "list_issues"
-  );
-  return { capability: GITHUB_CAPABILITIES.readIssues, action: "list_issues", providerResourceId: null, providerUrl: null, status: "success", result: data };
-}
-async function githubCreateIssue(db, ctx, params) {
-  if (!params.owner || !params.repo || !params.title?.trim()) {
-    throw new ConnectorActionError("owner, repo and title are required", "invalid_params");
-  }
-  const { data } = await githubFetch(
-    db,
-    ctx,
-    GITHUB_CAPABILITIES.createIssues,
-    "POST",
-    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues`,
-    { title: params.title, body: params.body ?? "", labels: params.labels ?? [] },
-    "create_issue"
-  );
-  return {
-    capability: GITHUB_CAPABILITIES.createIssues,
-    action: "create_issue",
-    providerResourceId: String(data.number),
-    providerUrl: data.html_url,
-    status: "success",
-    result: { number: data.number, url: data.html_url, title: params.title }
-  };
-}
-async function githubCommentOnIssue(db, ctx, params) {
-  if (!params.owner || !params.repo || !params.issueNumber || !params.body?.trim()) {
-    throw new ConnectorActionError("owner, repo, issueNumber and body are required", "invalid_params");
-  }
-  const { data } = await githubFetch(
-    db,
-    ctx,
-    GITHUB_CAPABILITIES.commentOnIssues,
-    "POST",
-    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/issues/${params.issueNumber}/comments`,
-    { body: params.body },
-    "comment_on_issue"
-  );
-  return {
-    capability: GITHUB_CAPABILITIES.commentOnIssues,
-    action: "comment_on_issue",
-    providerResourceId: String(data.id),
-    providerUrl: data.html_url,
-    status: "success",
-    result: { commentId: data.id, url: data.html_url }
-  };
-}
-async function githubReadFile(db, ctx, params) {
-  const { owner, repo, path: path2 } = params;
-  if (!owner || !repo || !path2?.trim()) {
-    throw new ConnectorActionError("owner, repo and path are required", "invalid_params");
-  }
-  if (path2.startsWith("/") || path2.includes("\\") || path2.split("/").includes("..")) {
-    throw new ConnectorActionError("Invalid file path \u2014 traversal is not allowed", "invalid_params");
-  }
-  const ref = params.ref?.trim() ? `?ref=${encodeURIComponent(params.ref.trim())}` : "";
-  const { data } = await githubFetch(
-    db,
-    ctx,
-    GITHUB_CAPABILITIES.readFiles,
-    "GET",
-    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path2)}${ref}`,
-    void 0,
-    "read_file"
-  );
-  return {
-    capability: GITHUB_CAPABILITIES.readFiles,
-    action: "read_file",
-    providerResourceId: data.sha,
-    providerUrl: data.html_url,
-    status: "success",
-    // Return metadata always; content only when the API returned it (text files).
-    result: {
-      name: data.name,
-      path: data.path,
-      sha: data.sha,
-      size: data.size,
-      type: data.type,
-      downloadUrl: data.download_url,
-      content: data.content ?? null
-    }
-  };
-}
-async function githubCreatePullRequest(db, ctx, params) {
-  if (!params.owner || !params.repo || !params.title?.trim() || !params.head || !params.base) {
-    throw new ConnectorActionError("owner, repo, title, head and base are required", "invalid_params");
-  }
-  const { data } = await githubFetch(
-    db,
-    ctx,
-    GITHUB_CAPABILITIES.createPullRequests,
-    "POST",
-    `/repos/${encodeURIComponent(params.owner)}/${encodeURIComponent(params.repo)}/pulls`,
-    { title: params.title, head: params.head, base: params.base, body: params.body ?? "" },
-    "create_pull_request"
-  );
-  return {
-    capability: GITHUB_CAPABILITIES.createPullRequests,
-    action: "create_pull_request",
-    providerResourceId: String(data.number),
-    providerUrl: data.html_url,
-    status: "success",
-    result: { number: data.number, url: data.html_url, title: params.title }
-  };
-}
-async function dispatchGithubAction(db, ctx, action, params) {
-  await resolveAgent(db, ctx.orgId, ctx.agentId);
-  switch (action) {
-    case "list_repositories":
-      return githubListRepositories(db, ctx, { visibility: params.visibility ?? "all" });
-    case "list_issues":
-      return githubListIssues(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        state: params.state ?? "open"
-      });
-    case "read_file":
-      return githubReadFile(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        path: String(params.path ?? ""),
-        ref: params.ref ? String(params.ref) : void 0
-      });
-    case "create_issue":
-      return githubCreateIssue(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        title: String(params.title ?? ""),
-        body: params.body ? String(params.body) : void 0,
-        labels: Array.isArray(params.labels) ? params.labels.map(String) : void 0
-      });
-    case "comment_on_issue":
-      return githubCommentOnIssue(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        issueNumber: Number(params.issueNumber),
-        body: String(params.body ?? "")
-      });
-    case "create_pull_request":
-      return githubCreatePullRequest(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        title: String(params.title ?? ""),
-        head: String(params.head ?? ""),
-        base: String(params.base ?? ""),
-        body: params.body ? String(params.body) : void 0
-      });
-    default:
-      throw new ConnectorActionError(`Unknown GitHub action: ${String(action)}`, "invalid_params");
-  }
-}
-var import_node_crypto10, GITHUB_CAPABILITIES, ConnectorActionError, fetchImpl, GITHUB_API, REQUEST_TIMEOUT_MS;
-var init_connector_actions = __esm({
-  "src/services/connector-actions.ts"() {
-    "use strict";
-    import_node_crypto10 = require("node:crypto");
-    init_drizzle_orm();
-    init_src2();
-    init_audit();
-    init_integrations();
-    GITHUB_CAPABILITIES = {
-      readRepositories: "read_repositories",
-      readIssues: "read_issues",
-      readPullRequests: "read_pull_requests",
-      readFiles: "read_files",
-      createIssues: "create_issues",
-      commentOnIssues: "comment_on_issues",
-      createPullRequests: "create_pull_requests"
-    };
-    ConnectorActionError = class extends Error {
-      constructor(message, code) {
-        super(message);
-        this.code = code;
-        this.name = "ConnectorActionError";
-      }
-      code;
-    };
-    fetchImpl = fetch;
-    GITHUB_API = "https://api.github.com";
-    REQUEST_TIMEOUT_MS = 2e4;
-  }
-});
-
-// src/services/connector-gmail.ts
-function isEmailValid(email3) {
-  return typeof email3 === "string" && email3.length <= 320 && EMAIL_RE.test(email3);
-}
-function buildMimeMessage(params) {
-  const lines = [
-    `To: ${params.to.join(", ")}`,
-    params.cc?.length ? `Cc: ${params.cc.join(", ")}` : null,
-    `Subject: ${params.subject}`,
-    params.inReplyToMessageId ? `In-Reply-To: <${params.inReplyToMessageId}@mail.gmail.com>` : null,
-    `References: ${params.inReplyToMessageId ? `<${params.inReplyToMessageId}@mail.gmail.com>` : ""}`.trim(),
-    'Content-Type: text/plain; charset="UTF-8"',
-    "MIME-Version: 1.0",
-    "",
-    params.body
-  ].filter((l) => l !== null && l !== "");
-  return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
-}
-async function gmailFetch(db, ctx, capability, method, path2, json3) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto11.randomUUID)();
-  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
-    db,
-    ctx.orgId,
-    ctx.agentId,
-    "gmail",
-    capability
-  );
-  const action = path2.split("/").filter(Boolean).pop() ?? capability;
-  const baseOutcome = {
-    orgId: ctx.orgId,
-    agentId: ctx.agentId,
-    taskId: ctx.taskId ?? null,
-    provider: "gmail",
-    capability,
-    action,
-    correlationId,
-    requiresApproval
-  };
-  if (!provider) throw new ConnectorActionError("Gmail is not connected for this organization", "not_connected");
-  if (!allowed) {
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "denied", summary: `Denied: agent lacks capability ${capability} for Gmail` });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.denied",
-      outcome: "denied",
-      resultRef: JSON.stringify({ provider: "gmail", capability, action })
-    });
-    throw new ConnectorActionError(`Agent is not authorized for Gmail capability "${capability}".`, "capability_denied");
-  }
-  const credential = await getCredentials(db, provider.id);
-  const decrypted = decryptCredentialSecret(credential);
-  let token = null;
-  if (decrypted) {
-    try {
-      const parsed = JSON.parse(decrypted);
-      token = parsed.accessToken ?? null;
-    } catch {
-      token = decrypted;
-    }
-  }
-  if (!token) {
-    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: "no_token", summary: "Failed: no usable Gmail token" });
-    throw new ConnectorActionError("Gmail connection has no usable token \u2014 reconnect required", "not_connected");
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS2);
-  let response;
-  try {
-    response = await fetchImpl2(`${GMAIL_API}${path2}`, {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json"
-      },
-      body: json3 ? JSON.stringify(json3) : void 0,
-      signal: controller.signal
-    });
-  } catch (error51) {
-    clearTimeout(timer);
-    const message = error51 instanceof Error ? error51.message : "Network error";
-    await updateProviderStatus(db, provider.id, "degraded", message);
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Gmail request error (${action})` });
-    throw new ConnectorActionError(`Gmail request failed: ${message}`, "provider_error");
-  }
-  clearTimeout(timer);
-  if (!response.ok) {
-    const text2 = await response.text().catch(() => "");
-    const message = `${response.status} ${text2.slice(0, 200)}`.trim();
-    if (response.status === 401 || response.status === 403) await updateProviderStatus(db, provider.id, "expired", message);
-    else if (response.status === 429) await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
-    else await updateProviderStatus(db, provider.id, "degraded", message);
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Gmail rejected ${action} (${response.status})` });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.failed",
-      outcome: "failure",
-      resultRef: JSON.stringify({ provider: "gmail", capability, action, status: response.status })
-    });
-    throw new ConnectorActionError(response.status === 429 ? "Gmail rate limit reached \u2014 retry later" : `Gmail rejected the request: ${message}`, response.status === 429 ? "rate_limited" : "provider_error");
-  }
-  const data = await response.json().catch(() => ({}));
-  await updateProviderStatus(db, provider.id, "connected");
-  await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "success", summary: `Gmail ${action} completed`, result: data });
-  await appendAudit(db, {
-    orgId: ctx.orgId,
-    actorType: "agent",
-    actorId: ctx.agentId,
-    action: `connector.action.${action}`,
-    outcome: "success",
-    resultRef: JSON.stringify({ provider: "gmail", capability, correlationId })
-  });
-  return { data, providerId: provider.id, requiresApproval };
-}
-function validateEmailInput(params) {
-  if (!Array.isArray(params.to) || params.to.length === 0 || params.to.some((t) => !isEmailValid(t))) {
-    throw new ConnectorActionError("At least one valid recipient is required", "invalid_params");
-  }
-  if (params.cc && params.cc.some((c) => !isEmailValid(c))) {
-    throw new ConnectorActionError("Invalid cc recipient", "invalid_params");
-  }
-  if (!params.subject?.trim()) throw new ConnectorActionError("subject is required", "invalid_params");
-  if (!params.body?.trim()) throw new ConnectorActionError("body is required", "invalid_params");
-}
-async function gmailCreateDraft(db, ctx, params) {
-  validateEmailInput(params);
-  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.draftEmail, "POST", "/drafts", {
-    message: { raw: buildMimeMessage(params) }
-  });
-  const id = typeof data.id === "string" ? data.id : null;
-  return {
-    capability: GMAIL_CAPABILITIES.draftEmail,
-    action: "create_draft",
-    providerResourceId: id,
-    providerUrl: null,
-    status: "success",
-    result: { draftId: id, message: `Draft created (id: ${id ?? "unknown"}) \u2014 nothing was sent.` }
-  };
-}
-async function gmailSendDraft(db, ctx, params) {
-  if (!params.draftId?.trim()) throw new ConnectorActionError("draftId is required", "invalid_params");
-  const { allowed, requiresApproval, provider } = await canAgentUseCapability(
-    db,
-    ctx.orgId,
-    ctx.agentId,
-    "gmail",
-    GMAIL_CAPABILITIES.sendEmail
-  );
-  if (!provider) throw new ConnectorActionError("Gmail is not connected for this organization", "not_connected");
-  if (!allowed) {
-    await recordOutcome(db, {
-      orgId: ctx.orgId,
-      agentId: ctx.agentId,
-      taskId: ctx.taskId ?? null,
-      provider: "gmail",
-      providerId: provider.id,
-      capability: GMAIL_CAPABILITIES.sendEmail,
-      action: "send_draft",
-      status: "denied",
-      summary: "Denied: agent lacks gmail.email.send capability",
-      correlationId: ctx.correlationId ?? (0, import_node_crypto11.randomUUID)()
-    });
-    throw new ConnectorActionError("Agent is not authorized to send Gmail.", "capability_denied");
-  }
-  if (requiresApproval) {
-    const approval = await createApproval(db, {
-      orgId: ctx.orgId,
-      agentId: ctx.agentId,
-      action: "Gmail: send draft",
-      description: `AI employee wants to SEND a Gmail draft (${params.draftId}). Approval is required before anything is transmitted.`,
-      cost: 0,
-      riskLevel: "high",
-      status: "pending"
-    });
-    await recordOutcome(db, {
-      orgId: ctx.orgId,
-      agentId: ctx.agentId,
-      taskId: ctx.taskId ?? null,
-      provider: "gmail",
-      providerId: provider.id,
-      capability: GMAIL_CAPABILITIES.sendEmail,
-      action: "send_draft",
-      status: "pending_approval",
-      requiresApproval: true,
-      approvalId: approval.id,
-      summary: `Send queued for founder approval (${approval.id}). Nothing was sent.`,
-      correlationId: ctx.correlationId ?? (0, import_node_crypto11.randomUUID)()
-    });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.approval_required",
-      outcome: "success",
-      resultRef: JSON.stringify({ provider: "gmail", capability: GMAIL_CAPABILITIES.sendEmail, approvalId: approval.id })
-    });
-    return {
-      capability: GMAIL_CAPABILITIES.sendEmail,
-      action: "send_draft",
-      providerResourceId: null,
-      providerUrl: null,
-      status: "success",
-      result: { mode: "pending_approval", approvalId: approval.id, message: "Send requires founder approval. Nothing was sent." }
-    };
-  }
-  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.sendEmail, "POST", "/drafts/send", {
-    id: params.draftId
-  });
-  const msg = data.message;
-  const id = msg?.id ?? (typeof data.id === "string" ? data.id : null);
-  return {
-    capability: GMAIL_CAPABILITIES.sendEmail,
-    action: "send_draft",
-    providerResourceId: id,
-    providerUrl: null,
-    status: "success",
-    result: { messageId: id, message: `Draft sent (message id: ${id ?? "unknown"}).` }
-  };
-}
-async function gmailSearch(db, ctx, params) {
-  const max2 = Math.min(params.maxResults && params.maxResults > 0 ? params.maxResults : 10, 50);
-  const query = params.query?.trim() ? `?q=${encodeURIComponent(params.query.trim())}&maxResults=${max2}` : `?maxResults=${max2}`;
-  const { data } = await gmailFetch(db, ctx, GMAIL_CAPABILITIES.draftEmail, "GET", `/messages${query}`);
-  return {
-    capability: GMAIL_CAPABILITIES.draftEmail,
-    action: "search",
-    providerResourceId: null,
-    providerUrl: null,
-    status: "success",
-    result: data
-  };
-}
-async function dispatchGmailAction(db, ctx, action, params) {
-  switch (action) {
-    case "create_draft":
-      return gmailCreateDraft(db, ctx, {
-        to: Array.isArray(params.to) ? params.to.map(String) : [],
-        cc: Array.isArray(params.cc) ? params.cc.map(String) : void 0,
-        subject: String(params.subject ?? ""),
-        body: String(params.body ?? ""),
-        inReplyToMessageId: params.inReplyToMessageId ? String(params.inReplyToMessageId) : void 0
-      });
-    case "send_draft":
-      return gmailSendDraft(db, ctx, { draftId: String(params.draftId ?? "") });
-    case "search":
-      return gmailSearch(db, ctx, {
-        query: params.query ? String(params.query) : void 0,
-        maxResults: Number(params.maxResults ?? 10)
-      });
-    default:
-      throw new ConnectorActionError(`Unknown Gmail action: ${String(action)}`, "invalid_params");
-  }
-}
-var import_node_crypto11, GMAIL_CAPABILITIES, GMAIL_API, REQUEST_TIMEOUT_MS2, fetchImpl2, EMAIL_RE;
-var init_connector_gmail = __esm({
-  "src/services/connector-gmail.ts"() {
-    "use strict";
-    import_node_crypto11 = require("node:crypto");
-    init_audit();
-    init_integrations();
-    init_approvals();
-    init_connector_actions();
-    GMAIL_CAPABILITIES = {
-      draftEmail: "gmail.email.draft",
-      sendEmail: "gmail.email.send"
-    };
-    GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
-    REQUEST_TIMEOUT_MS2 = 2e4;
-    fetchImpl2 = fetch;
-    EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  }
-});
-
-// src/services/connector-linear.ts
-async function linearGraphql(db, ctx, capability, action, query, variables) {
-  const correlationId = ctx.correlationId ?? (0, import_node_crypto12.randomUUID)();
-  const { allowed, provider } = await canAgentUseCapability(db, ctx.orgId, ctx.agentId, "linear", capability);
-  const baseOutcome = {
-    orgId: ctx.orgId,
-    agentId: ctx.agentId,
-    taskId: ctx.taskId ?? null,
-    provider: "linear",
-    capability,
-    action,
-    correlationId,
-    requiresApproval: false
-  };
-  if (!provider) throw new ConnectorActionError("Linear is not connected for this organization", "not_connected");
-  if (!allowed) {
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "denied", summary: `Denied: agent lacks capability ${capability} for Linear` });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.denied",
-      outcome: "denied",
-      resultRef: JSON.stringify({ provider: "linear", capability, action })
-    });
-    throw new ConnectorActionError(`Agent is not authorized for Linear capability "${capability}".`, "capability_denied");
-  }
-  const credential = await getCredentials(db, provider.id);
-  const token = decryptCredentialSecret(credential);
-  if (!token) {
-    await updateProviderStatus(db, provider.id, "expired", "Missing credentials");
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: "no_token", summary: "Failed: no usable Linear token" });
-    throw new ConnectorActionError("Linear connection has no usable token \u2014 reconnect required", "not_connected");
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS3);
-  let response;
-  try {
-    response = await fetchImpl3(LINEAR_API, {
-      method: "POST",
-      headers: {
-        authorization: token.startsWith("lin_api_") ? token : `Bearer ${token}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: controller.signal
-    });
-  } catch (error51) {
-    clearTimeout(timer);
-    const message = error51 instanceof Error ? error51.message : "Network error";
-    await updateProviderStatus(db, provider.id, "degraded", message);
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Linear request error (${action})` });
-    throw new ConnectorActionError(`Linear request failed: ${message}`, "provider_error");
-  }
-  clearTimeout(timer);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.errors?.length) {
-    const message = body.errors?.[0]?.message ?? `${response.status}`;
-    if (response.status === 401 || response.status === 403) await updateProviderStatus(db, provider.id, "expired", message);
-    else if (response.status === 429) await updateProviderStatus(db, provider.id, "degraded", "Rate limited");
-    else await updateProviderStatus(db, provider.id, "degraded", message.slice(0, 300));
-    await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "failed", error: message.slice(0, 300), summary: `Failed: Linear rejected ${action} (${response.status})` });
-    await appendAudit(db, {
-      orgId: ctx.orgId,
-      actorType: "agent",
-      actorId: ctx.agentId,
-      action: "connector.action.failed",
-      outcome: "failure",
-      resultRef: JSON.stringify({ provider: "linear", capability, action, status: response.status })
-    });
-    throw new ConnectorActionError(response.status === 429 ? "Linear rate limit reached \u2014 retry later" : `Linear rejected the request: ${message}`, response.status === 429 ? "rate_limited" : "provider_error");
-  }
-  await updateProviderStatus(db, provider.id, "connected");
-  await recordOutcome(db, { ...baseOutcome, providerId: provider.id, status: "success", summary: `Linear ${action} completed`, result: body.data ?? {} });
-  await appendAudit(db, {
-    orgId: ctx.orgId,
-    actorType: "agent",
-    actorId: ctx.agentId,
-    action: `connector.action.${action}`,
-    outcome: "success",
-    resultRef: JSON.stringify({ provider: "linear", capability, correlationId })
-  });
-  return { data: body.data ?? {}, providerId: provider.id };
-}
-async function linearCreateIssue(db, ctx, params) {
-  if (!params.title?.trim()) throw new ConnectorActionError("title is required", "invalid_params");
-  if (!params.teamId && !params.teamName?.trim()) throw new ConnectorActionError("teamId or teamName is required", "invalid_params");
-  let teamId = params.teamId;
-  if (!teamId && params.teamName) {
-    const { data: data2 } = await linearGraphql(
-      db,
-      ctx,
-      LINEAR_CAPABILITIES.createIssues,
-      "create_issue",
-      `query { teams(first: 50) { nodes { id name } } }`,
-      {}
-    );
-    const teams3 = data2.teams?.nodes ?? [];
-    const match = teams3.find((t) => t.name.toLowerCase() === params.teamName.toLowerCase());
-    if (!match) throw new ConnectorActionError(`No Linear team named "${params.teamName}" on the connected account`, "not_found");
-    teamId = match.id;
-  }
-  const { data } = await linearGraphql(
-    db,
-    ctx,
-    LINEAR_CAPABILITIES.createIssues,
-    "create_issue",
-    `mutation($teamId: String!, $title: String!, $description: String, $priority: Int) {
-       issueCreate(input: { teamId: $teamId, title: $title, description: $description, priority: $priority }) {
-         success
-         issue { ${ISSUE_FRAGMENT} }
-       }
-     }`,
-    { teamId, title: params.title, description: params.description ?? void 0, priority: params.priority ?? void 0 }
-  );
-  const issue2 = data.issueCreate?.issue ?? data;
-  const url2 = typeof issue2.url === "string" ? issue2.url : null;
-  return {
-    capability: LINEAR_CAPABILITIES.createIssues,
-    action: "create_issue",
-    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
-    providerUrl: url2,
-    status: "success",
-    result: issue2
-  };
-}
-async function linearGetIssue(db, ctx, params) {
-  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
-  const { data } = await linearGraphql(
-    db,
-    ctx,
-    LINEAR_CAPABILITIES.readIssues,
-    "get_issue",
-    `query($id: String!) { issue(id: $id) { ${ISSUE_FRAGMENT} } }`,
-    { id: params.issueId }
-  );
-  const issue2 = data.issue;
-  if (!issue2) throw new ConnectorActionError("Linear issue not found", "not_found");
-  return {
-    capability: LINEAR_CAPABILITIES.readIssues,
-    action: "get_issue",
-    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
-    providerUrl: typeof issue2.url === "string" ? issue2.url : null,
-    status: "success",
-    result: issue2
-  };
-}
-async function linearUpdateIssue(db, ctx, params) {
-  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
-  const input = {};
-  if (params.title !== void 0) input.title = params.title;
-  if (params.description !== void 0) input.description = params.description;
-  if (params.priority !== void 0) input.priority = params.priority;
-  if (params.stateId !== void 0) input.stateId = params.stateId;
-  if (Object.keys(input).length === 0) throw new ConnectorActionError("At least one field to update is required", "invalid_params");
-  const { data } = await linearGraphql(
-    db,
-    ctx,
-    LINEAR_CAPABILITIES.updateIssues,
-    "update_issue",
-    `mutation($id: String!, $input: IssueUpdateInput!) {
-       issueUpdate(id: $id, input: $input) { success issue { ${ISSUE_FRAGMENT} } }
-     }`,
-    { id: params.issueId, input }
-  );
-  const issue2 = data.issueUpdate?.issue ?? {};
-  return {
-    capability: LINEAR_CAPABILITIES.updateIssues,
-    action: "update_issue",
-    providerResourceId: typeof issue2.id === "string" ? issue2.id : null,
-    providerUrl: typeof issue2.url === "string" ? issue2.url : null,
-    status: "success",
-    result: issue2
-  };
-}
-async function linearArchiveIssue(db, ctx, params) {
-  if (!params.issueId?.trim()) throw new ConnectorActionError("issueId is required", "invalid_params");
-  const { data } = await linearGraphql(
-    db,
-    ctx,
-    LINEAR_CAPABILITIES.deleteIssues,
-    "archive_issue",
-    `mutation($id: String!) { issueArchive(id: $id) { success } }`,
-    { id: params.issueId }
-  );
-  const success2 = data.issueArchive?.success ?? false;
-  if (!success2) throw new ConnectorActionError("Linear archive did not report success", "provider_error");
-  return {
-    capability: LINEAR_CAPABILITIES.deleteIssues,
-    action: "archive_issue",
-    providerResourceId: params.issueId,
-    providerUrl: null,
-    status: "success",
-    result: { archived: true, issueId: params.issueId }
-  };
-}
-async function linearListIssues(db, ctx, params) {
-  const limit = Math.min(params.limit && params.limit > 0 ? params.limit : 10, 50);
-  const where = params.teamId ? `filter: { team: { id: { eq: "${params.teamId}" } } }` : "";
-  const { data } = await linearGraphql(
-    db,
-    ctx,
-    LINEAR_CAPABILITIES.readIssues,
-    "list_issues",
-    `query($limit: Int!) { issues(first: $limit ${where}) { nodes { ${ISSUE_FRAGMENT} } } }`,
-    { limit }
-  );
-  return {
-    capability: LINEAR_CAPABILITIES.readIssues,
-    action: "list_issues",
-    providerResourceId: null,
-    providerUrl: null,
-    status: "success",
-    result: data
-  };
-}
-async function dispatchLinearAction(db, ctx, action, params) {
-  switch (action) {
-    case "create_issue":
-      return linearCreateIssue(db, ctx, {
-        teamId: params.teamId ? String(params.teamId) : void 0,
-        teamName: params.teamName ? String(params.teamName) : void 0,
-        title: String(params.title ?? ""),
-        description: params.description ? String(params.description) : void 0,
-        priority: params.priority !== void 0 ? Number(params.priority) : void 0
-      });
-    case "get_issue":
-      return linearGetIssue(db, ctx, { issueId: String(params.issueId ?? "") });
-    case "update_issue":
-      return linearUpdateIssue(db, ctx, {
-        issueId: String(params.issueId ?? ""),
-        title: params.title !== void 0 ? String(params.title) : void 0,
-        description: params.description !== void 0 ? String(params.description) : void 0,
-        priority: params.priority !== void 0 ? Number(params.priority) : void 0,
-        stateId: params.stateId !== void 0 ? String(params.stateId) : void 0
-      });
-    case "archive_issue":
-      return linearArchiveIssue(db, ctx, { issueId: String(params.issueId ?? "") });
-    case "list_issues":
-      return linearListIssues(db, ctx, {
-        teamId: params.teamId ? String(params.teamId) : void 0,
-        limit: params.limit !== void 0 ? Number(params.limit) : void 0
-      });
-    default:
-      throw new ConnectorActionError(`Unknown Linear action: ${String(action)}`, "invalid_params");
-  }
-}
-var import_node_crypto12, LINEAR_CAPABILITIES, LINEAR_API, REQUEST_TIMEOUT_MS3, fetchImpl3, ISSUE_FRAGMENT;
-var init_connector_linear = __esm({
-  "src/services/connector-linear.ts"() {
-    "use strict";
-    import_node_crypto12 = require("node:crypto");
-    init_audit();
-    init_integrations();
-    init_connector_actions();
-    LINEAR_CAPABILITIES = {
-      readIssues: "linear.issue.read",
-      createIssues: "linear.issue.create",
-      updateIssues: "linear.issue.update",
-      deleteIssues: "linear.issue.delete"
-    };
-    LINEAR_API = "https://api.linear.app/graphql";
-    REQUEST_TIMEOUT_MS3 = 2e4;
-    fetchImpl3 = fetch;
-    ISSUE_FRAGMENT = `
-  id
-  identifier
-  title
-  description
-  priority
-  state { name }
-  url
-  createdAt
-  updatedAt
-`;
-  }
-});
-
-// src/services/mcp.ts
-function hasCapability(granted, provider, required2) {
-  return granted.includes(required2) || granted.includes(`${provider}.${required2}`);
-}
-function getConnectorToolCatalog(provider) {
-  return CONNECTOR_TOOL_CATALOG[provider] ?? [];
-}
-async function listMcpServers(db, orgId) {
-  return db.select().from(mcpServers).where(eq(mcpServers.orgId, orgId)).orderBy(mcpServers.name);
-}
-async function getMcpServer(db, orgId, id) {
-  const rows = await db.select().from(mcpServers).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).limit(1);
-  return rows[0];
-}
-async function getMcpServerByProvider(db, orgId, provider) {
-  const rows = await db.select().from(mcpServers).where(and(eq(mcpServers.orgId, orgId), eq(mcpServers.provider, provider))).limit(1);
-  return rows[0];
-}
-async function registerMcpServer(db, data) {
-  const existing = await getMcpServerByProvider(db, data.orgId, data.provider);
-  if (existing) return existing;
-  const isConnector = MCP_PROVIDERS.includes(data.provider);
-  const rows = await db.insert(mcpServers).values({
-    orgId: data.orgId,
-    name: data.name,
-    description: data.description ?? null,
-    provider: data.provider,
-    transport: isConnector ? "connector" : "streamable_http",
-    status: isConnector ? "unconfigured" : "unconfigured",
-    riskLevel: data.riskLevel ?? "medium",
-    allowedAgents: data.allowedAgents ?? []
-  }).returning();
-  const server = rows[0];
-  if (!server) throw new Error("registerMcpServer returned no row");
-  if (isConnector) {
-    for (const tool of getConnectorToolCatalog(data.provider)) {
-      await db.insert(mcpTools).values({
-        orgId: data.orgId,
-        serverId: server.id,
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        riskLevel: tool.riskLevel,
-        requiredCapability: tool.requiredCapability,
-        requiresApproval: tool.requiresApproval,
-        supportsDryRun: tool.supportsDryRun,
-        idempotent: tool.idempotent
-      });
-    }
-  }
-  await appendAudit(db, {
-    orgId: data.orgId,
-    actorType: "user",
-    action: "mcp.server_registered",
-    outcome: "success",
-    resultRef: JSON.stringify({ provider: data.provider, toolCount: isConnector ? getConnectorToolCatalog(data.provider).length : 0 })
-  });
-  return server;
-}
-async function updateMcpServer(db, orgId, id, updates) {
-  const rows = await db.update(mcpServers).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).returning();
-  return rows[0];
-}
-async function deleteMcpServer(db, orgId, id) {
-  const rows = await db.delete(mcpServers).where(and(eq(mcpServers.id, id), eq(mcpServers.orgId, orgId))).returning({ id: mcpServers.id });
-  return rows.length > 0;
-}
-async function listMcpTools(db, serverId) {
-  return db.select().from(mcpTools).where(eq(mcpTools.serverId, serverId)).orderBy(mcpTools.name);
-}
-async function getMcpTool(db, orgId, id) {
-  const rows = await db.select().from(mcpTools).where(and(eq(mcpTools.id, id), eq(mcpTools.orgId, orgId))).limit(1);
-  return rows[0];
-}
-async function discoverMcpTools(db, orgId, agentId, agentCapabilities) {
-  const servers = await listMcpServers(db, orgId);
-  const enabledServers = servers.filter((s) => s.enabled);
-  if (enabledServers.length === 0) return [];
-  const serverIds = enabledServers.map((s) => s.id);
-  const tools = await db.select().from(mcpTools).where(and(eq(mcpTools.orgId, orgId), inArray(mcpTools.serverId, serverIds)));
-  const serverById = new Map(enabledServers.map((s) => [s.id, s]));
-  const out = [];
-  for (const tool of tools) {
-    const server = serverById.get(tool.serverId);
-    if (!server || !tool.enabled) continue;
-    const allowlist = server.allowedAgents ?? [];
-    if (allowlist.length > 0 && !allowlist.includes(agentId)) continue;
-    if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) continue;
-    out.push({ ...tool, serverName: server.name, provider: server.provider, serverStatus: server.status, requiresApproval: tool.requiresApproval });
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
-}
-async function checkMcpToolPermission(db, orgId, agentId, toolId, agentCapabilities) {
-  const tool = await getMcpTool(db, orgId, toolId);
-  if (!tool) return { allowed: false, requiresApproval: false, reason: "tool_not_found" };
-  const server = await getMcpServer(db, orgId, tool.serverId);
-  if (!server || !server.enabled) return { allowed: false, requiresApproval: false, reason: "server_disabled" };
-  if (!tool.enabled) return { allowed: false, requiresApproval: false, reason: "tool_disabled" };
-  const allowlist = server.allowedAgents ?? [];
-  if (allowlist.length > 0 && !allowlist.includes(agentId)) {
-    return { allowed: false, requiresApproval: false, reason: "agent_not_allowed" };
-  }
-  if (tool.requiredCapability && !hasCapability(agentCapabilities, server.provider, tool.requiredCapability)) {
-    return { allowed: false, requiresApproval: false, reason: "capability_denied" };
-  }
-  return { allowed: true, requiresApproval: tool.requiresApproval };
-}
-async function executeMcpTool(db, ctx, toolId, params, agentCapabilities) {
-  const tool = await getMcpTool(db, ctx.orgId, toolId);
-  if (!tool) {
-    return { status: "error", code: "tool_not_found", message: "MCP tool not found in this organization" };
-  }
-  const server = await getMcpServer(db, ctx.orgId, tool.serverId);
-  if (!server || !server.enabled || !tool.enabled) {
-    return { status: "error", code: "server_disabled", message: "MCP server or tool is disabled" };
-  }
-  const permission = await checkMcpToolPermission(db, ctx.orgId, ctx.agentId, toolId, agentCapabilities);
-  if (!permission.allowed) {
-    return { status: "error", code: permission.reason ?? "capability_denied", message: "Agent is not permitted to use this tool" };
-  }
-  if (permission.requiresApproval) {
-    return { status: "error", code: "approval_required", message: "This tool requires approval before execution" };
-  }
-  if (server.provider !== "custom" && tool.requiredCapability) {
-    const { allowed } = await canAgentUseCapability(db, ctx.orgId, ctx.agentId, server.provider, tool.requiredCapability);
-    if (!allowed) {
-      return { status: "error", code: "capability_denied", message: `Agent lacks capability ${tool.requiredCapability} on ${server.provider}` };
-    }
-  }
-  try {
-    switch (server.provider) {
-      case "github":
-        return await dispatchGithubTool(tool.name, db, ctx, params);
-      case "gmail":
-        return await dispatchGmailAction(db, ctx, mapGmailAction(tool.name), params);
-      case "linear":
-        return await dispatchLinearAction(db, ctx, mapLinearAction(tool.name), params);
-      default:
-        return {
-          status: "error",
-          code: "transport_unsupported",
-          message: `MCP server '${server.provider}' has no executable transport client; register a connector-backed server (github | gmail | linear) instead`
-        };
-    }
-  } catch (err) {
-    if (err instanceof ConnectorActionError) {
-      return { status: "error", code: err.code, message: err.message };
-    }
-    return { status: "error", code: "provider_error", message: err instanceof Error ? err.message : "Unknown MCP execution error" };
-  }
-}
-async function dispatchGithubTool(name2, db, ctx, params) {
-  switch (name2) {
-    case "list_repositories":
-      return githubListRepositories(db, ctx, { visibility: params.visibility === void 0 ? void 0 : String(params.visibility) });
-    case "list_issues":
-      return githubListIssues(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        state: params.state === void 0 ? void 0 : String(params.state)
-      });
-    case "read_file":
-      return githubReadFile(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        path: String(params.path ?? ""),
-        ref: params.branch === void 0 ? void 0 : String(params.branch)
-      });
-    case "create_issue":
-      return githubCreateIssue(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        title: String(params.title ?? ""),
-        body: params.body === void 0 ? void 0 : String(params.body),
-        labels: Array.isArray(params.labels) ? params.labels.map(String) : void 0
-      });
-    case "comment_on_issue":
-      return githubCommentOnIssue(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        issueNumber: Number(params.issueNumber ?? 0),
-        body: String(params.body ?? "")
-      });
-    case "create_pull_request":
-      return githubCreatePullRequest(db, ctx, {
-        owner: String(params.owner ?? ""),
-        repo: String(params.repo ?? ""),
-        title: String(params.title ?? ""),
-        head: String(params.head ?? ""),
-        base: String(params.base ?? ""),
-        body: params.body === void 0 ? void 0 : String(params.body)
-      });
-    default:
-      throw new ConnectorActionError(`Unknown GitHub MCP tool: ${name2}`, "invalid_params");
-  }
-}
-function mapGmailAction(name2) {
-  if (name2 === "send_draft") return "send_draft";
-  if (name2 === "create_draft") return "create_draft";
-  return "search";
-}
-function mapLinearAction(name2) {
-  switch (name2) {
-    case "create_issue":
-      return "create_issue";
-    case "get_issue":
-      return "get_issue";
-    case "update_issue":
-      return "update_issue";
-    case "archive_issue":
-      return "archive_issue";
-    default:
-      return "list_issues";
-  }
-}
-var MCP_PROVIDERS, CONNECTOR_TOOL_CATALOG;
-var init_mcp = __esm({
-  "src/services/mcp.ts"() {
-    "use strict";
-    init_drizzle_orm();
-    init_src2();
-    init_connector_actions();
-    init_connector_gmail();
-    init_connector_linear();
-    init_integrations();
-    init_audit();
-    MCP_PROVIDERS = ["github", "gmail", "linear"];
-    CONNECTOR_TOOL_CATALOG = {
-      github: [
-        {
-          name: "list_repositories",
-          description: "List repositories the connected GitHub account can see.",
-          riskLevel: "low",
-          requiredCapability: GITHUB_CAPABILITIES.readRepositories,
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { visibility: { type: "string", enum: ["all", "public", "private"] } },
-          provider: "github",
-          action: "list_repositories"
-        },
-        {
-          name: "list_issues",
-          description: "List issues in a repository.",
-          riskLevel: "low",
-          requiredCapability: GITHUB_CAPABILITIES.readIssues,
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, state: { type: "string", enum: ["open", "closed", "all"] } },
-          provider: "github",
-          action: "list_issues"
-        },
-        {
-          name: "read_file",
-          description: "Read a file from a repository branch.",
-          riskLevel: "low",
-          requiredCapability: GITHUB_CAPABILITIES.readFiles,
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, path: { type: "string" }, branch: { type: "string" } },
-          provider: "github",
-          action: "read_file"
-        },
-        {
-          name: "create_issue",
-          description: "Create an issue in a repository. External write \u2014 approval-gated by policy.",
-          riskLevel: "medium",
-          requiredCapability: GITHUB_CAPABILITIES.createIssues,
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, title: { type: "string" }, body: { type: "string" }, labels: { type: "array" } },
-          provider: "github",
-          action: "create_issue"
-        },
-        {
-          name: "comment_on_issue",
-          description: "Comment on an existing GitHub issue.",
-          riskLevel: "medium",
-          requiredCapability: GITHUB_CAPABILITIES.commentOnIssues,
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" }, body: { type: "string" } },
-          provider: "github",
-          action: "comment_on_issue"
-        },
-        {
-          name: "create_pull_request",
-          description: "Open a pull request between two branches.",
-          riskLevel: "high",
-          requiredCapability: GITHUB_CAPABILITIES.createPullRequests,
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { owner: { type: "string" }, repo: { type: "string" }, title: { type: "string" }, head: { type: "string" }, base: { type: "string" }, body: { type: "string" } },
-          provider: "github",
-          action: "create_pull_request"
-        }
-      ],
-      gmail: [
-        {
-          name: "search",
-          description: "Search the connected Gmail inbox.",
-          riskLevel: "low",
-          requiredCapability: "gmail.search",
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { query: { type: "string" }, maxResults: { type: "number" } },
-          provider: "gmail",
-          action: "search"
-        },
-        {
-          name: "create_draft",
-          description: "Create a Gmail draft. Nothing is sent.",
-          riskLevel: "medium",
-          requiredCapability: "gmail.create_draft",
-          requiresApproval: false,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { to: { type: "array" }, cc: { type: "array" }, subject: { type: "string" }, body: { type: "string" }, inReplyToMessageId: { type: "string" } },
-          provider: "gmail",
-          action: "create_draft"
-        },
-        {
-          name: "send_draft",
-          description: "Send a Gmail draft externally. High-risk \u2014 requires approval.",
-          riskLevel: "high",
-          requiredCapability: "gmail.send",
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { draftId: { type: "string" } },
-          provider: "gmail",
-          action: "send_draft"
-        }
-      ],
-      linear: [
-        {
-          name: "list_issues",
-          description: "List Linear issues for a team.",
-          riskLevel: "low",
-          requiredCapability: "linear.read",
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { teamId: { type: "string" }, limit: { type: "number" } },
-          provider: "linear",
-          action: "list_issues"
-        },
-        {
-          name: "get_issue",
-          description: "Get a single Linear issue.",
-          riskLevel: "low",
-          requiredCapability: "linear.read",
-          requiresApproval: false,
-          supportsDryRun: true,
-          idempotent: true,
-          inputSchema: { issueId: { type: "string" } },
-          provider: "linear",
-          action: "get_issue"
-        },
-        {
-          name: "create_issue",
-          description: "Create a Linear issue.",
-          riskLevel: "medium",
-          requiredCapability: "linear.create",
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { teamId: { type: "string" }, teamName: { type: "string" }, title: { type: "string" }, description: { type: "string" }, priority: { type: "number" } },
-          provider: "linear",
-          action: "create_issue"
-        },
-        {
-          name: "update_issue",
-          description: "Update a Linear issue.",
-          riskLevel: "medium",
-          requiredCapability: "linear.update",
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { issueId: { type: "string" }, title: { type: "string" }, description: { type: "string" }, priority: { type: "number" }, stateId: { type: "string" } },
-          provider: "linear",
-          action: "update_issue"
-        },
-        {
-          name: "archive_issue",
-          description: "Archive a Linear issue.",
-          riskLevel: "high",
-          requiredCapability: "linear.update",
-          requiresApproval: true,
-          supportsDryRun: false,
-          idempotent: false,
-          inputSchema: { issueId: { type: "string" } },
-          provider: "linear",
-          action: "archive_issue"
-        }
-      ]
-    };
-  }
-});
-
-// src/services/capability-registry.ts
-async function ensureBuiltInCapabilities(db, orgId) {
-  const existing = await db.select({ name: capabilityRegistry.name }).from(capabilityRegistry).where(eq(capabilityRegistry.orgId, orgId));
-  const have = new Set(existing.map((e) => e.name));
-  const missing = BUILTIN_CAPABILITIES.filter((c) => !have.has(c.name));
-  if (missing.length > 0) {
-    await db.insert(capabilityRegistry).values(missing.map((c) => ({ ...c, orgId })));
-  }
-  return missing.length;
-}
-async function listCapabilities2(db, orgId) {
-  return db.select().from(capabilityRegistry).where(eq(capabilityRegistry.orgId, orgId)).orderBy(capabilityRegistry.category, capabilityRegistry.name);
-}
-async function getCapabilityByName(db, orgId, name2) {
-  const rows = await db.select().from(capabilityRegistry).where(and(eq(capabilityRegistry.orgId, orgId), eq(capabilityRegistry.name, name2))).limit(1);
-  return rows[0];
-}
-async function registerCapability(db, orgId, data) {
-  const existing = await getCapabilityByName(db, orgId, data.name);
-  if (existing) return existing;
-  const rows = await db.insert(capabilityRegistry).values({ ...data, orgId }).returning();
-  const row = rows[0];
-  if (!row) throw new Error("registerCapability returned no row");
-  await appendAudit(db, {
-    orgId,
-    actorType: "agent",
-    actorId: data.ownerAgentId ?? void 0,
-    action: "capability.registered",
-    outcome: "success",
-    resultRef: JSON.stringify({ name: data.name, category: data.category })
-  });
-  return row;
-}
-function deriveCapabilitySlug(title) {
-  const cleaned = (title ?? "").toLowerCase().replace(/[^a-z0-9\s-]/g, " ");
-  const words = cleaned.split(/[\s-]+/).filter((w) => w.length > 1 && !SLUG_STOP_WORDS.has(w));
-  let slug = words.slice(0, 5).join("-");
-  if (slug.length < 4) {
-    slug = cleaned.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  }
-  if (!slug) slug = "engineering-capability";
-  return slug.slice(0, 64);
-}
-async function registerCapabilityForMergedPr(db, orgId, input) {
-  const base = deriveCapabilitySlug(input.task.title);
-  const prHash = input.pr.id.replace(/-/g, "").slice(0, 8);
-  const name2 = `${base}-${prHash}`;
-  const diff = input.diffSummary ?? {};
-  const tests = input.testsSummary ?? {};
-  const description = [
-    `Engineering capability: ${input.task.title}`,
-    input.task.description?.trim() ? input.task.description.trim().slice(0, 400) : void 0,
-    `Merged via PR "${input.pr.title}" (${input.pr.headBranch} \u2192 ${input.pr.baseBranch})${input.pr.providerPrNumber ? ` \xB7 #${input.pr.providerPrNumber}` : ""}${input.pr.providerPrUrl ? ` \xB7 ${input.pr.providerPrUrl}` : ""}.`,
-    diff.filesChanged ? `Files changed: ${diff.filesChanged}; +${diff.additions ?? 0}/-${diff.deletions ?? 0} lines.` : void 0,
-    diff.majorAreas && diff.majorAreas.length > 0 ? `Areas: ${diff.majorAreas.slice(0, 5).join(", ")}.` : void 0,
-    tests.total !== void 0 ? `Tests: ${tests.passed ?? 0}/${tests.total} passed${tests.failed ? ` (${tests.failed} failed)` : ""}.` : void 0,
-    "Reusable by future engineering work \u2014 search the capability registry before building."
-  ].filter(Boolean).join(" ");
-  const existing = await getCapabilityByName(db, orgId, name2);
-  if (existing) return existing;
-  return registerCapability(db, orgId, {
-    name: name2,
-    description,
-    category: "code",
-    provider: "internal",
-    location: input.pr.providerPrUrl ?? `pr:${input.pr.id}`,
-    ownerAgentId: input.task.assigneeId ?? null,
-    reusable: true,
-    status: "available",
-    source: "engineering"
-  });
-}
-async function searchCapabilities(db, orgId, query, category) {
-  const conditions = [eq(capabilityRegistry.orgId, orgId)];
-  const q = `%${query.trim()}%`;
-  const nameOrDesc = or(ilike(capabilityRegistry.name, q), ilike(capabilityRegistry.description, q));
-  if (nameOrDesc) conditions.push(nameOrDesc);
-  if (category) conditions.push(eq(capabilityRegistry.category, category));
-  return db.select().from(capabilityRegistry).where(and(...conditions)).orderBy(capabilityRegistry.name).limit(50);
-}
-function capabilityTokens(text2) {
-  const tokens = /* @__PURE__ */ new Set();
-  for (const raw of (text2 ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
-    if (raw.length >= 3 && !RESOLVE_STOP_WORDS.has(raw)) tokens.add(raw);
-  }
-  return tokens;
-}
-function scoreTokenOverlap(query, textTokens) {
-  if (query.size === 0 || textTokens.length === 0) return 0;
-  const hay = new Set(textTokens);
-  let matched = 0;
-  for (const t of query) if (hay.has(t)) matched += 1;
-  return matched / query.size;
-}
-async function resolveCapabilityRequest(db, orgId, request, opts = {}) {
-  const limit = opts.limit ?? 5;
-  const query = capabilityTokens(request);
-  const matches = [];
-  try {
-    const registry2 = await db.select().from(capabilityRegistry).where(and(eq(capabilityRegistry.orgId, orgId), eq(capabilityRegistry.status, "available"))).orderBy(desc(capabilityRegistry.updatedAt)).limit(200);
-    for (const c of registry2) {
-      const nameTokens = capabilityTokens(c.name.replace(/[-_.]/g, " "));
-      const descTokens = capabilityTokens(c.description ?? "");
-      const nameScore = scoreTokenOverlap(query, [...nameTokens]);
-      const descScore = scoreTokenOverlap(query, [...descTokens]);
-      const score = Math.max(nameScore, descScore * 0.75);
-      if (score > 0) {
-        const kind = c.category === "agent" ? "agent" : c.category === "workflow" ? "workflow" : c.category === "connector" || c.category === "tool" ? "tool" : c.category === "code" ? "code" : "service";
-        matches.push({ id: c.id, name: c.name, description: c.description, kind, category: c.category, location: c.location, status: c.status, score });
-      }
-    }
-  } catch {
-  }
-  try {
-    const orgAgents = await db.select({ id: agents.id, name: agents.name, role: agents.role, capabilities: agents.capabilities }).from(agents).where(and(eq(agents.orgId, orgId), eq(agents.status, "active"))).limit(200);
-    for (const a of orgAgents) {
-      const roleTokens = capabilityTokens(`${a.name} ${a.role}`);
-      const caps = Array.isArray(a.capabilities) ? a.capabilities.join(" ") : "";
-      const allTokens = capabilityTokens(caps);
-      for (const t of allTokens) roleTokens.add(t);
-      const score = scoreTokenOverlap(query, [...roleTokens]);
-      if (score >= 0.25) {
-        matches.push({
-          id: a.id,
-          name: a.name,
-          description: `${a.role} \u2014 AI employee already in the organization.`,
-          kind: "agent",
-          category: "agent",
-          location: null,
-          status: "active",
-          score
-        });
-      }
-    }
-  } catch {
-  }
-  try {
-    const recent = await db.select({ id: companyMemory.id, category: companyMemory.category, content: companyMemory.content }).from(companyMemory).where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.category, "workflow"))).orderBy(desc(companyMemory.createdAt)).limit(40);
-    for (const m of recent) {
-      const score = scoreTokenOverlap(query, [...capabilityTokens(m.content)]);
-      if (score >= 0.4) {
-        matches.push({
-          id: m.id,
-          name: m.content.slice(0, 80),
-          description: m.content.slice(0, 400),
-          kind: "knowledge",
-          category: "workflow",
-          location: null,
-          status: "available",
-          score
-        });
-      }
-    }
-  } catch {
-  }
-  const seen = /* @__PURE__ */ new Set();
-  const unique = matches.filter((m) => {
-    if (m.score < 0.3) return false;
-    const key = `${m.kind}:${m.name}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((a, b) => b.score - a.score).slice(0, limit);
-  const best = unique[0];
-  let decision = "build";
-  let reason = "No existing capability matches this request closely enough \u2014 a new capability is justified.";
-  if (best && best.score >= 0.55) {
-    decision = "reuse";
-    reason = `The company already has a strong match: \u201C${best.name}\u201D (${best.kind}, ${Math.round(best.score * 100)}% confidence). Reuse it before building anything new.`;
-  } else if (best && best.score >= 0.3) {
-    decision = "extend";
-    reason = `A partial match exists (\u201C${best.name}\u201D, ${Math.round(best.score * 100)}% confidence) \u2014 prefer extending the existing capability over building a parallel one.`;
-  }
-  const requestTruncated = request.trim().slice(0, 200);
-  try {
-    await appendAudit(db, {
-      orgId,
-      actorType: opts.actorId ? "user" : "agent",
-      actorId: opts.actorId,
-      action: "capability.resolve",
-      outcome: "success",
-      resultRef: JSON.stringify({ request: requestTruncated, decision, topMatch: best?.name ?? null })
-    });
-  } catch {
-  }
-  return { request: requestTruncated, decision, reason, matches: unique, matchedAt: (/* @__PURE__ */ new Date()).toISOString() };
-}
-var SLUG_STOP_WORDS, BUILTIN_CAPABILITIES, RESOLVE_STOP_WORDS;
-var init_capability_registry = __esm({
-  "src/services/capability-registry.ts"() {
-    "use strict";
-    init_drizzle_orm();
-    init_src2();
-    init_audit();
-    SLUG_STOP_WORDS = /* @__PURE__ */ new Set([
-      "a",
-      "an",
-      "the",
-      "and",
-      "or",
-      "for",
-      "with",
-      "from",
-      "into",
-      "onto",
-      "our",
-      "your",
-      "their",
-      "add",
-      "adding",
-      "support",
-      "supports",
-      "to",
-      "of",
-      "on",
-      "at",
-      "in",
-      "by",
-      "new",
-      "update",
-      "updated",
-      "updating",
-      "fix",
-      "fixes",
-      "fixed",
-      "bug",
-      "change",
-      "changes",
-      "changed",
-      "implement",
-      "implementing",
-      "create",
-      "created",
-      "creating",
-      "build",
-      "building",
-      "make",
-      "making",
-      "feature",
-      "component",
-      "file",
-      "files",
-      "improve",
-      "improving",
-      "make",
-      "work",
-      "working",
-      "be",
-      "is",
-      "are"
-    ]);
-    BUILTIN_CAPABILITIES = [
-      { name: "github.read_repositories", description: "List GitHub repositories the account can access.", category: "connector", provider: "github", capability: "read_repositories", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
-      { name: "github.read_issues", description: "Read GitHub issues.", category: "connector", provider: "github", capability: "read_issues", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
-      { name: "github.create_issues", description: "Create GitHub issues (approval-gated).", category: "connector", provider: "github", capability: "create_issues", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
-      { name: "github.create_pull_requests", description: "Open GitHub pull requests (approval-gated).", category: "connector", provider: "github", capability: "create_pull_requests", location: "connector-actions", reusable: true, status: "available", source: "builtin" },
-      { name: "gmail.search", description: "Search connected Gmail.", category: "connector", provider: "gmail", capability: "gmail.search", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
-      { name: "gmail.create_draft", description: "Create Gmail drafts (never sends).", category: "connector", provider: "gmail", capability: "gmail.create_draft", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
-      { name: "gmail.send", description: "Send Gmail drafts (approval-gated, high risk).", category: "connector", provider: "gmail", capability: "gmail.send", location: "connector-gmail", reusable: true, status: "available", source: "builtin" },
-      { name: "linear.manage_issues", description: "Read/create/update Linear issues (writes approval-gated).", category: "connector", provider: "linear", capability: "linear.create", location: "connector-linear", reusable: true, status: "available", source: "builtin" },
-      { name: "agent.execution", description: "AI employees execute tasks through the task executor.", category: "agent", provider: "internal", location: "task-executor", reusable: true, status: "available", source: "builtin" },
-      { name: "agent.delegation", description: "Executive Agent delegates work across AI employees and squads.", category: "agent", provider: "internal", location: "delegation-orchestrator", reusable: true, status: "available", source: "builtin" },
-      { name: "memory.semantic", description: "Semantic company memory retrieval for agent context.", category: "service", provider: "internal", location: "memory", reusable: true, status: "available", source: "builtin" },
-      { name: "memory.knowledge_graph", description: "Knowledge graph entities, relations and decision history.", category: "service", provider: "internal", location: "knowledge-graph", reusable: true, status: "available", source: "builtin" },
-      { name: "simulation.what_if", description: "Live-baseline what-if simulation of the organization.", category: "service", provider: "internal", location: "simulation", reusable: true, status: "available", source: "builtin" },
-      { name: "anomaly.detection", description: "Scheduled anomaly detection over goals, tasks and spend.", category: "service", provider: "internal", location: "anomaly-detector", reusable: true, status: "available", source: "builtin" },
-      { name: "engineering.workspace", description: "Repository import, sandbox runs, PRs and engineering tasks.", category: "code", provider: "internal", location: "engineering", reusable: true, status: "available", source: "builtin" }
-    ];
-    RESOLVE_STOP_WORDS = /* @__PURE__ */ new Set([
-      "the",
-      "and",
-      "for",
-      "with",
-      "our",
-      "your",
-      "their",
-      "that",
-      "this",
-      "can",
-      "could",
-      "would",
-      "should",
-      "have",
-      "has",
-      "had",
-      "are",
-      "was",
-      "were",
-      "been",
-      "being",
-      "will",
-      "shall",
-      "what",
-      "which",
-      "who",
-      "how",
-      "where",
-      "when",
-      "why",
-      "from",
-      "into",
-      "onto",
-      "about",
-      "them",
-      "they",
-      "we",
-      "you",
-      "us",
-      "do",
-      "does",
-      "did",
-      "not",
-      "no",
-      "yes",
-      "if",
-      "then",
-      "else",
-      "also",
-      "just",
-      "like",
-      "get",
-      "got",
-      "make",
-      "need",
-      "wants",
-      "want",
-      "help",
-      "helping",
-      "please",
-      "some",
-      "more"
-    ]);
-  }
-});
-
-// src/services/agent-context.ts
-var agent_context_exports = {};
-__export(agent_context_exports, {
-  buildAgentContext: () => buildAgentContext,
-  buildContextPrompt: () => buildContextPrompt
-});
-async function buildAgentContext(db, orgId, agentId, taskId, opts = {}) {
-  const agentMemoryEntries = await db.select().from(companyMemory).where(and(
-    eq(companyMemory.orgId, orgId),
-    eq(companyMemory.agentId, agentId),
-    eq(companyMemory.source, "agent_memory")
-  )).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(10);
-  const [
-    agent,
-    orgGoals,
-    agentTasks,
-    recentActivity,
-    pendingApprovals,
-    memoryEntries,
-    knowledgeResult,
-    constitutionEntries
-  ] = await Promise.all([
-    // 1. Get agent details with authority
-    db.select().from(agents).where(eq(agents.id, agentId)).limit(1),
-    // 2. Get active goals (most important first)
-    db.select().from(goals).where(eq(goals.orgId, orgId)).orderBy(desc(goals.priority), desc(goals.createdAt)).limit(5),
-    // 3. Get this agent's recent tasks
-    db.select().from(tasks).where(eq(tasks.agentId, agentId)).orderBy(desc(tasks.createdAt)).limit(10),
-    // 4. Get recent activity for this agent
-    db.select({
-      summary: activityEvents.summary,
-      type: activityEvents.type,
-      occurredAt: activityEvents.occurredAt
-    }).from(activityEvents).where(eq(activityEvents.agentId, agentId)).orderBy(desc(activityEvents.occurredAt)).limit(5),
-    // 5. Count pending approvals
-    db.select({ count: sql`count(*)::int` }).from(approvals).where(and(eq(approvals.orgId, orgId), eq(approvals.status, "pending"))),
-    // 6. Get relevant memory — semantic when a task/query is available,
-    //    otherwise high-importance, recent. Always org-scoped and bounded.
-    retrieveSemanticForContext(db, orgId, { query: opts.query, maxEntries: 15 }, opts.config),
-    // 7. Company knowledge graph + decision memory — only when there is a
-    //    query to match (never a full-graph dump). Bounded and org-scoped.
-    opts.query?.trim() ? retrieveKnowledgeContext(db, orgId, opts.query, 6) : Promise.resolve(null),
-    // 8. Get constitution entries (company rules/values)
-    db.select().from(companyMemory).where(and(eq(companyMemory.orgId, orgId), eq(companyMemory.category, "workflow"))).orderBy(desc(companyMemory.importance)).limit(5)
-  ]);
-  const agentData = agent[0];
-  const authority = agentData?.authority ?? {};
-  const agentCapabilities = Array.isArray(agentData?.capabilities) ? agentData.capabilities : [];
-  let mcpTools2 = [];
-  let capabilities = [];
-  if (agentData) {
-    try {
-      const discovered = await discoverMcpTools(db, orgId, agentId, agentCapabilities);
-      mcpTools2 = discovered.slice(0, 12).map((t) => ({
-        name: t.name,
-        serverName: t.serverName,
-        provider: t.provider,
-        requiresApproval: t.requiresApproval,
-        riskLevel: t.riskLevel
-      }));
-    } catch {
-      mcpTools2 = [];
-    }
-    try {
-      const registry2 = await listCapabilities2(db, orgId);
-      capabilities = registry2.filter((c) => c.status === "available").slice(0, 10).map((c) => ({ name: c.name, category: c.category, status: c.status }));
-    } catch {
-      capabilities = [];
-    }
-  }
-  let teamInfo = null;
-  if (agentData?.teamId) {
-    try {
-      const { teams: teams3, departments: depts } = await Promise.resolve().then(() => (init_src2(), src_exports));
-      const [teamRow] = await db.select({
-        name: teams3.name,
-        department: depts.name
-      }).from(teams3).leftJoin(depts, eq(depts.id, teams3.departmentId)).where(eq(teams3.id, agentData.teamId)).limit(1);
-      if (teamRow) teamInfo = { name: teamRow.name, department: teamRow.department ?? void 0 };
-    } catch {
-      teamInfo = null;
-    }
-  }
-  return {
-    constitution: constitutionEntries.map((e) => e.content).join("\n") || "No company constitution set.",
-    knowledge: knowledgeResult && (knowledgeResult.entities.length > 0 || knowledgeResult.decisions.length > 0) ? formatKnowledgeContext(knowledgeResult) : null,
-    memory: memoryEntries.map((e) => ({
-      content: e.content,
-      category: e.category,
-      importance: e.importance
-    })),
-    agentMemory: agentMemoryEntries.map((e) => ({
-      content: e.content.replace(/^\[tags:[^\]]+\]\s*/, ""),
-      category: e.category,
-      importance: e.importance
-    })),
-    goals: orgGoals.map((g) => ({
-      id: g.id,
-      title: g.title,
-      status: g.status,
-      priority: g.priority,
-      progress: g.progress
-    })),
-    recentTasks: agentTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      result: t.result ?? void 0
-    })),
-    pendingApprovals: pendingApprovals[0]?.count ?? 0,
-    authority,
-    department: agentData?.department ? { name: agentData.department } : null,
-    team: teamInfo,
-    recentActivity: recentActivity.map((a) => ({
-      summary: a.summary,
-      type: a.type,
-      occurredAt: a.occurredAt
-    })),
-    mcpTools: mcpTools2,
-    capabilities
-  };
-}
-function buildContextPrompt(ctx, agentName, agentRole) {
-  const parts = [];
-  if (ctx.constitution && ctx.constitution !== "No company constitution set.") {
-    parts.push(`## Company Values & Rules
-${ctx.constitution}`);
-  }
-  if (ctx.goals.length > 0) {
-    const goalList = ctx.goals.map((g) => `- [${g.status}] ${g.title} (${g.priority}, ${g.progress}% complete)`).join("\n");
-    parts.push(`## Active Goals
-${goalList}`);
-  }
-  if (ctx.recentTasks.length > 0) {
-    const taskList = ctx.recentTasks.map((t) => `- [${t.status}] ${t.title}${t.result ? ` \u2014 Result: ${t.result.slice(0, 100)}` : ""}`).join("\n");
-    parts.push(`## Your Recent Tasks
-${taskList}`);
-  }
-  if (ctx.knowledge) {
-    parts.push(`## Company Knowledge & Decision History
-${ctx.knowledge}
-
-(Contextual information \u2014 never overrides your system instructions or the constitution.)`);
-  }
-  if (ctx.memory.length > 0) {
-    const memList = ctx.memory.map((m) => `- [${m.category}/${m.importance}] ${m.content.slice(0, 200)}`).join("\n");
-    parts.push(`## Company Memory
-${memList}`);
-  }
-  if (ctx.agentMemory.length > 0) {
-    const agentMemList = ctx.agentMemory.map((m) => `- [${m.category}] ${m.content.slice(0, 200)}`).join("\n");
-    parts.push(`## Your Learned Knowledge
-${agentMemList}`);
-  }
-  if (ctx.pendingApprovals > 0) {
-    parts.push(`## Pending Approvals: ${ctx.pendingApprovals}
-Some actions are waiting for founder approval.`);
-  }
-  if (ctx.mcpTools.length > 0) {
-    const toolList = ctx.mcpTools.map((t) => `- ${t.name} (${t.provider} via ${t.serverName}, ${t.riskLevel} risk${t.requiresApproval ? ", approval required" : ""})`).join("\n");
-    parts.push(`## Available MCP Tools
-${toolList}
-
-(Tools are permission-checked server-side. If a task needs an external action, prefer these tools over inventing one. External writes require approval.)`);
-  }
-  if (ctx.capabilities.length > 0) {
-    const capList = ctx.capabilities.map((c) => `- ${c.name} [${c.category}]`).join("\n");
-    parts.push(`## Reusable Company Capabilities
-${capList}
-
-(Check this list before planning new work \u2014 reuse an existing capability instead of building a new one when possible.)`);
-  }
-  if (ctx.department) {
-    parts.push(`## Your Department
-${ctx.department.name}`);
-  }
-  if (ctx.team) {
-    const teamLine = ctx.team.department ? `${ctx.team.name} (in ${ctx.team.department})` : ctx.team.name;
-    parts.push(`## Your Team
-${teamLine}`);
-  }
-  const canExecute = ctx.authority.canExecuteTasks !== false;
-  const canCommunicate = ctx.authority.canCommunicateExternally === true;
-  const canModify = ctx.authority.canModifyResources === true;
-  parts.push(`## Your Permissions
-- Execute tasks: ${canExecute ? "Yes" : "No"}
-- External communications: ${canCommunicate ? "Yes" : "No (requires approval)"}
-- Modify resources: ${canModify ? "Yes" : "No (requires approval)"}`);
-  if (ctx.recentActivity.length > 0) {
-    const actList = ctx.recentActivity.map((a) => `- [${a.type}] ${a.summary}`).join("\n");
-    parts.push(`## Recent Activity
-${actList}`);
-  }
-  return parts.join("\n\n");
-}
-var init_agent_context = __esm({
-  "src/services/agent-context.ts"() {
-    "use strict";
-    init_drizzle_orm();
-    init_src2();
-    init_memory();
-    init_knowledge_graph();
-    init_mcp();
-    init_capability_registry();
-  }
-});
-
-// src/services/multi-agent.ts
-var multi_agent_exports = {};
-__export(multi_agent_exports, {
-  aggregateSubTaskResults: () => aggregateSubTaskResults,
-  delegateTask: () => delegateTask,
-  handoffTask: () => handoffTask,
-  submitFeedback: () => submitFeedback
-});
-async function delegateTask(db, request) {
-  const [delegatingAgent] = await db.select().from(agents).where(and(eq(agents.id, request.delegatingAgentId), eq(agents.orgId, request.orgId))).limit(1);
-  if (!delegatingAgent) {
-    return { subTaskId: "", status: "rejected", reason: "Delegating agent not found" };
-  }
-  if (delegatingAgent.status !== "active") {
-    return { subTaskId: "", status: "rejected", reason: "Delegating agent is not active" };
-  }
-  const auth = delegatingAgent.authority;
-  if (auth?.canCreateTasks === false) {
-    return { subTaskId: "", status: "rejected", reason: "Agent does not have permission to create tasks" };
-  }
-  if (request.targetAgentId === request.delegatingAgentId) {
-    return { subTaskId: "", status: "rejected", reason: "Agent cannot delegate to itself" };
-  }
-  const [targetAgent] = await db.select().from(agents).where(and(eq(agents.id, request.targetAgentId), eq(agents.orgId, request.orgId))).limit(1);
-  if (!targetAgent) {
-    return { subTaskId: "", status: "rejected", reason: "Target agent not found" };
-  }
-  if (targetAgent.status !== "active") {
-    return { subTaskId: "", status: "blocked", reason: "Target agent is not active" };
-  }
-  const description = [
-    request.description,
-    request.context ? `
-
-Context from ${delegatingAgent.name}:
-${request.context}` : "",
-    `
-
-Delegated by: ${delegatingAgent.name} (${delegatingAgent.role})`,
-    `
-Parent task: ${request.parentTaskId}`
-  ].join("");
-  const [subTask] = await db.insert(tasks).values({
-    orgId: request.orgId,
-    agentId: request.targetAgentId,
-    title: request.title,
-    description,
-    priority: request.priority,
-    status: "pending",
-    cost: 0,
-    dueDate: request.dueDate ?? null
-  }).returning();
-  if (!subTask) {
-    return { subTaskId: "", status: "rejected", reason: "Failed to create sub-task" };
-  }
-  await db.insert(activityEvents).values({
-    orgId: request.orgId,
-    agentId: request.delegatingAgentId,
-    taskId: subTask.id,
-    type: "delegated",
-    summary: `${delegatingAgent.name} delegated "${request.title}" to ${targetAgent.name}`,
-    reason: `Agent-to-agent delegation: ${delegatingAgent.role} \u2192 ${targetAgent.role}`,
-    cost: 0,
-    department: null
-  }).catch(() => {
-  });
-  broadcastToOrg(request.orgId, {
-    type: "task.started",
-    taskId: subTask.id,
-    agentId: request.targetAgentId,
-    agentName: targetAgent.name
-  });
-  await appendAudit(db, {
-    orgId: request.orgId,
-    actorType: "agent",
-    actorId: request.delegatingAgentId,
-    action: "agent.delegated",
-    tool: "multi_agent",
-    cost: 0,
-    outcome: "success"
-  }).catch(() => {
-  });
-  return { subTaskId: subTask.id, status: "created" };
-}
-async function handoffTask(db, handoff) {
-  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, handoff.taskId), eq(tasks.orgId, handoff.orgId))).limit(1);
-  if (!task) {
-    return { success: false, reason: "Task not found" };
-  }
-  if (task.agentId !== handoff.fromAgentId) {
-    return { success: false, reason: "Task is not assigned to the from agent" };
-  }
-  if (task.status === "completed" || task.status === "cancelled") {
-    return { success: false, reason: "Cannot hand off a completed or cancelled task" };
-  }
-  const [targetAgent] = await db.select({ id: agents.id, name: agents.name, status: agents.status }).from(agents).where(and(eq(agents.id, handoff.toAgentId), eq(agents.orgId, handoff.orgId))).limit(1);
-  if (!targetAgent) {
-    return { success: false, reason: "Target agent not found" };
-  }
-  if (targetAgent.status !== "active") {
-    return { success: false, reason: "Target agent is not active" };
-  }
-  const newDescription = [
-    task.description ?? "",
-    `
-
---- HANDOFF NOTES ---`,
-    `Reason: ${handoff.reason}`,
-    `From: ${handoff.fromAgentId}`,
-    handoff.transferNotes ? `Transfer notes: ${handoff.transferNotes}` : ""
-  ].join("\n");
-  await db.update(tasks).set({
-    agentId: handoff.toAgentId,
-    description: newDescription,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(tasks.id, handoff.taskId));
-  await db.update(agents).set({ currentTask: null, updatedAt: /* @__PURE__ */ new Date() }).where(eq(agents.id, handoff.fromAgentId));
-  const [fromAgent] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, handoff.fromAgentId)).limit(1);
-  await db.insert(activityEvents).values({
-    orgId: handoff.orgId,
-    agentId: handoff.toAgentId,
-    taskId: handoff.taskId,
-    type: "handed_off",
-    summary: `Task "${task.title}" handed off from ${fromAgent?.name ?? "unknown"} to ${targetAgent.name}`,
-    reason: handoff.reason,
-    cost: 0,
-    department: null
-  }).catch(() => {
-  });
-  await appendAudit(db, {
-    orgId: handoff.orgId,
-    actorType: "agent",
-    actorId: handoff.fromAgentId,
-    action: "agent.handoff",
-    tool: "multi_agent",
-    cost: 0,
-    outcome: "success"
-  }).catch(() => {
-  });
-  return { success: true };
-}
-async function submitFeedback(db, feedback) {
-  const [agent] = await db.select({ name: agents.name, role: agents.role }).from(agents).where(eq(agents.id, feedback.agentId)).limit(1);
-  const agentName = agent?.name ?? "Unknown Agent";
-  const agentRole = agent?.role ?? "unknown";
-  const content = [
-    `[${feedback.feedbackType.toUpperCase()}] ${agentName} (${agentRole}): ${feedback.summary}`,
-    feedback.details ? `Details: ${feedback.details}` : "",
-    feedback.suggestedAction ? `Suggested action: ${feedback.suggestedAction}` : "",
-    feedback.requiresFounderAttention ? "\u26A0\uFE0F Requires founder attention" : ""
-  ].filter(Boolean).join("\n");
-  await db.insert(companyMemory).values({
-    orgId: feedback.orgId,
-    category: feedback.feedbackType === "blocker" ? "lesson" : "context",
-    content,
-    source: agentName,
-    agentId: feedback.agentId,
-    taskId: feedback.taskId ?? null,
-    importance: feedback.requiresFounderAttention ? 9 : feedback.feedbackType === "blocker" ? 8 : 5
-  }).catch(() => {
-  });
-  await db.insert(activityEvents).values({
-    orgId: feedback.orgId,
-    agentId: feedback.agentId,
-    taskId: feedback.taskId ?? null,
-    type: feedback.feedbackType,
-    summary: `${agentName}: ${feedback.summary}`,
-    reason: feedback.details ?? feedback.suggestedAction ?? null,
-    cost: 0,
-    department: null
-  }).catch(() => {
-  });
-  let notificationId;
-  if (feedback.requiresFounderAttention) {
-    try {
-      const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
-      const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
-      const prefs = await getNotificationPrefs2(db, feedback.orgId);
-      if (shouldNotify2(prefs, "inApp", "agent")) {
-        createNotification2(
-          db,
-          feedback.orgId,
-          "agent",
-          `${feedback.feedbackType === "escalation" ? "\u{1F6A8} Escalation" : "\u26A0\uFE0F Blocker"}: ${agentName}`,
-          feedback.summary
-        );
-      }
-    } catch {
-    }
-  }
-  broadcastToOrg(feedback.orgId, {
-    type: "agent.notification",
-    agentName,
-    title: `${feedback.feedbackType}: ${feedback.summary}`,
-    message: feedback.details ?? "",
-    notificationType: feedback.feedbackType
-  });
-  await appendAudit(db, {
-    orgId: feedback.orgId,
-    actorType: "agent",
-    actorId: feedback.agentId,
-    action: `agent.feedback.${feedback.feedbackType}`,
-    tool: "multi_agent",
-    cost: 0,
-    outcome: "success"
-  }).catch(() => {
-  });
-  return { recorded: true, notificationId };
-}
-async function aggregateSubTaskResults(db, orgId, parentTaskId) {
-  const allTasks = await db.select({
-    id: tasks.id,
-    title: tasks.title,
-    status: tasks.status,
-    result: tasks.result,
-    agentId: tasks.agentId,
-    description: tasks.description
-  }).from(tasks).where(eq(tasks.orgId, orgId)).orderBy(desc(tasks.createdAt)).limit(50);
-  const subTasks = allTasks.filter(
-    (t) => t.description?.includes(`Parent task: ${parentTaskId}`) || t.description?.includes(`parent task: ${parentTaskId}`)
-  );
-  const agentIds = [...new Set(subTasks.map((t) => t.agentId).filter(Boolean))];
-  const agentMap = /* @__PURE__ */ new Map();
-  if (agentIds.length > 0) {
-    const agentRows = await db.select({ id: agents.id, name: agents.name }).from(agents);
-    for (const a of agentRows) {
-      agentMap.set(a.id, a.name);
-    }
-  }
-  return {
-    total: subTasks.length,
-    completed: subTasks.filter((t) => t.status === "completed").length,
-    inProgress: subTasks.filter((t) => t.status === "in_progress").length,
-    pending: subTasks.filter((t) => t.status === "pending").length,
-    failed: subTasks.filter((t) => t.status === "failed").length,
-    results: subTasks.map((t) => ({
-      taskId: t.id,
-      title: t.title,
-      status: t.status,
-      result: t.result ?? void 0,
-      agentName: agentMap.get(t.agentId ?? "") ?? "Unassigned"
-    }))
-  };
-}
-var init_multi_agent = __esm({
-  "src/services/multi-agent.ts"() {
-    "use strict";
-    init_drizzle_orm();
-    init_src2();
-    init_audit();
-    init_realtime();
   }
 });
 
@@ -102467,7 +105799,7 @@ __export(engineering_manager_exports, {
 });
 function fingerprintRequest(orgId, input) {
   const key = input.requestId?.trim() || `${input.objective.trim()}|${input.description?.trim() ?? ""}`;
-  return (0, import_node_crypto13.createHash)("sha256").update(`${orgId}:engineering:${key}`).digest("hex").slice(0, 24);
+  return (0, import_node_crypto14.createHash)("sha256").update(`${orgId}:engineering:${key}`).digest("hex").slice(0, 24);
 }
 function selectEngineeringTeam(agents4, objective) {
   const text2 = objective.toLowerCase();
@@ -102667,12 +105999,12 @@ async function recentPlans(db, orgId, limit = 10) {
     }
   });
 }
-var import_node_crypto13, ENGINEERING_ROLE_HINTS;
+var import_node_crypto14, ENGINEERING_ROLE_HINTS;
 var init_engineering_manager = __esm({
   "src/services/engineering-manager.ts"() {
     "use strict";
     init_drizzle_orm();
-    import_node_crypto13 = require("node:crypto");
+    import_node_crypto14 = require("node:crypto");
     init_src2();
     init_agents();
     init_capability_registry();
@@ -104446,7 +107778,7 @@ function rateLimitLoginRedis(app, redis) {
 
 // src/app.ts
 init_src();
-var import_node_crypto22 = require("node:crypto");
+var import_node_crypto24 = require("node:crypto");
 var import_fastify = __toESM(require_fastify(), 1);
 
 // src/plugins/idempotency.ts
@@ -104702,7 +108034,7 @@ async function calculateCompanyProgress(db, orgId) {
     attentionNeeded.push(`${understaffed.map((d) => d.departmentName).join(", ")} ha${understaffed.length === 1 ? "s" : "ve"} tasks but no active agents`);
   }
   if (blockedTasks > 0) {
-    attentionNeeded.push(`${blockedTasks} task${blockedTasks !== 1 ? "s" : ""} failed and need attention`);
+    attentionNeeded.push(`${blockedTasks} task${blockedTasks !== 1 ? "s" : ""} failed and ${blockedTasks !== 1 ? "need" : "needs"} attention`);
   }
   if (unassignedAgents.length > 0) {
     attentionNeeded.push(`${unassignedAgents.length} AI employee${unassignedAgents.length !== 1 ? "s" : ""} not assigned to any department`);
@@ -104734,305 +108066,17 @@ async function findByOrg(db, orgId, opts = {}) {
   if (opts.agentId) conditions.push(eq(activityEvents.agentId, opts.agentId));
   return db.select().from(activityEvents).where(and(...conditions)).orderBy(desc(activityEvents.occurredAt)).limit(opts.limit ?? 50).offset(opts.offset ?? 0);
 }
+async function createEvent(db, data) {
+  const rows = await db.insert(activityEvents).values(data).returning();
+  const row = rows[0];
+  if (!row) throw new Error("createEvent returned no row");
+  return row;
+}
 
 // src/routes/activity.ts
 init_agents();
 init_approvals();
-
-// src/services/credits.ts
-init_drizzle_orm();
-init_src2();
-init_audit();
-var PLAN_CREDITS = {
-  trial: 100,
-  founder: 1e3,
-  team: 4e3,
-  company: 12e3,
-  enterprise: 5e4
-};
-var OPERATION_COSTS = {
-  // Low-cost operations
-  "task.planned": 1,
-  "task.created": 1,
-  "research.quick": 1,
-  "analysis.quick": 1,
-  // Standard operations
-  "task.executed": 2,
-  "task.research": 2,
-  "task.write": 2,
-  "task.plan": 2,
-  "task.analyze": 2,
-  "task.communicate": 2,
-  "task.execute": 2,
-  "task.report": 2,
-  "task.manage": 2,
-  "research.standard": 2,
-  "analysis.standard": 2,
-  "writing.standard": 2,
-  "planning.standard": 2,
-  // High-cost operations
-  "research.deep": 5,
-  "analysis.deep": 5,
-  "writing.long": 5,
-  "code.generation": 5,
-  "code.review": 3,
-  // Communication (external = more expensive)
-  "communication.internal": 2,
-  "communication.external": 5,
-  // Default
-  "default": 2
-};
-async function getOrCreateBalance(db, orgId) {
-  const now = /* @__PURE__ */ new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const [sub] = await db.select().from(subscriptions).where(
-    and(
-      eq(subscriptions.orgId, orgId),
-      eq(subscriptions.status, "active")
-    )
-  ).limit(1);
-  let subId;
-  let subPlan;
-  let subIncludedCredits;
-  if (sub) {
-    subId = sub.id;
-    subPlan = sub.plan;
-    subIncludedCredits = sub.includedCredits;
-    if (sub.currentPeriodEnd < now) {
-      const includedCredits = PLAN_CREDITS[sub.plan] ?? PLAN_CREDITS.trial;
-      const [newSub] = await db.update(subscriptions).set({
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        includedCredits,
-        updatedAt: now
-      }).where(eq(subscriptions.id, sub.id)).returning();
-      if (newSub) {
-        subIncludedCredits = newSub.includedCredits;
-      }
-      const [existingBalance] = await db.select().from(creditBalances).where(
-        and(
-          eq(creditBalances.orgId, orgId),
-          gte(creditBalances.periodStart, periodStart)
-        )
-      ).limit(1);
-      if (!existingBalance) {
-        await db.insert(creditBalances).values({
-          orgId,
-          subscriptionId: subId,
-          includedCredits: subIncludedCredits,
-          purchasedCredits: 0,
-          usedCredits: 0,
-          periodStart,
-          periodEnd
-        });
-        await db.insert(creditTransactions).values({
-          orgId,
-          type: "rollover",
-          amount: subIncludedCredits,
-          description: `Monthly credit allocation for ${subPlan} plan`,
-          referenceId: subId,
-          referenceType: "subscription"
-        });
-      }
-    }
-  } else {
-    const [created] = await db.insert(subscriptions).values({
-      orgId,
-      plan: "trial",
-      billingCycle: "monthly",
-      status: "active",
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      includedCredits: PLAN_CREDITS.trial,
-      maxAgents: 3
-    }).returning();
-    subId = created.id;
-    subPlan = "trial";
-    subIncludedCredits = PLAN_CREDITS.trial ?? 100;
-    await db.insert(creditBalances).values({
-      orgId,
-      subscriptionId: subId,
-      includedCredits: subIncludedCredits,
-      purchasedCredits: 0,
-      usedCredits: 0,
-      periodStart,
-      periodEnd
-    });
-  }
-  let [balance] = await db.select().from(creditBalances).where(
-    and(
-      eq(creditBalances.orgId, orgId),
-      gte(creditBalances.periodStart, periodStart),
-      lte(creditBalances.periodEnd, periodEnd)
-    )
-  ).limit(1);
-  if (!balance) {
-    const [created] = await db.insert(creditBalances).values({
-      orgId,
-      subscriptionId: subId,
-      includedCredits: subIncludedCredits,
-      purchasedCredits: 0,
-      usedCredits: 0,
-      periodStart,
-      periodEnd
-    }).returning();
-    balance = created;
-  }
-  const total = balance.includedCredits + balance.purchasedCredits;
-  const remaining = total - balance.usedCredits;
-  const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1e3 * 60 * 60 * 24)));
-  return {
-    orgId,
-    included: balance.includedCredits,
-    purchased: balance.purchasedCredits,
-    used: balance.usedCredits,
-    remaining,
-    total,
-    utilizationPercent: total > 0 ? Math.round(balance.usedCredits / total * 100) : 0,
-    periodStart: balance.periodStart,
-    periodEnd: balance.periodEnd,
-    daysRemaining,
-    isLow: remaining > 0 && remaining / total < 0.2,
-    isCritical: remaining > 0 && remaining / total < 0.05
-  };
-}
-async function hasEnoughCredits(db, orgId, operationType = "default") {
-  const balance = await getOrCreateBalance(db, orgId);
-  const required2 = OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default;
-  return {
-    allowed: balance.remaining >= required2,
-    balance,
-    required: required2
-  };
-}
-async function consumeCredits(db, orgId, operationType, description, referenceId, referenceType) {
-  const balance = await getOrCreateBalance(db, orgId);
-  const cost = OPERATION_COSTS[operationType] ?? OPERATION_COSTS.default;
-  if (balance.remaining < cost) {
-    throw new CreditExhaustedError(orgId, balance.remaining, cost, operationType);
-  }
-  const total = balance.included + balance.purchased;
-  const result = await db.update(creditBalances).set({
-    usedCredits: balance.used + cost,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(
-    and(
-      eq(creditBalances.orgId, orgId),
-      gte(creditBalances.periodStart, balance.periodStart),
-      // Atomic guard: only update if we won't overspend
-      sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`
-    )
-  ).returning();
-  if (result.length === 0) {
-    throw new CreditExhaustedError(orgId, 0, cost, operationType);
-  }
-  await db.insert(creditTransactions).values({
-    orgId,
-    type: "usage",
-    amount: -cost,
-    description,
-    referenceId: referenceId ?? null,
-    referenceType: referenceType ?? null
-  });
-  await appendAudit(db, {
-    orgId,
-    actorType: "system",
-    action: "credits.consumed",
-    outcome: "success",
-    cost: cost ?? 0
-  });
-  const updatedBalance = await getOrCreateBalance(db, orgId);
-  try {
-    const { checkAndAlert: checkAndAlert2 } = await Promise.resolve().then(() => (init_credit_alerts(), credit_alerts_exports));
-    await checkAndAlert2(db, orgId, updatedBalance);
-  } catch {
-  }
-  return { balance: updatedBalance, consumed: cost };
-}
-async function addPurchasedCredits(db, orgId, amount, description = "Credit top-up") {
-  const balance = await getOrCreateBalance(db, orgId);
-  await db.update(creditBalances).set({
-    purchasedCredits: balance.purchased + amount,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(
-    and(
-      eq(creditBalances.orgId, orgId),
-      gte(creditBalances.periodStart, balance.periodStart)
-    )
-  );
-  await db.insert(creditTransactions).values({
-    orgId,
-    type: "purchase",
-    amount: amount ?? 0,
-    description
-  });
-  await appendAudit(db, {
-    orgId,
-    actorType: "system",
-    action: "credits.purchased",
-    outcome: "success",
-    cost: amount ?? 0
-  });
-  return getOrCreateBalance(db, orgId);
-}
-async function getTransactionHistory(db, orgId, limit = 50, offset = 0) {
-  return db.select().from(creditTransactions).where(eq(creditTransactions.orgId, orgId)).orderBy(desc(creditTransactions.createdAt)).limit(limit).offset(offset);
-}
-async function getUsageSummary(db, orgId) {
-  const balance = await getOrCreateBalance(db, orgId);
-  const transactions = await db.select().from(creditTransactions).where(
-    and(
-      eq(creditTransactions.orgId, orgId),
-      eq(creditTransactions.type, "usage"),
-      gte(creditTransactions.createdAt, balance.periodStart),
-      lte(creditTransactions.createdAt, balance.periodEnd)
-    )
-  ).orderBy(desc(creditTransactions.createdAt));
-  const byOperationMap = /* @__PURE__ */ new Map();
-  for (const tx of transactions) {
-    const key = tx.description?.split(":")[0] ?? "unknown";
-    const existing = byOperationMap.get(key) ?? { count: 0, totalCost: 0 };
-    existing.count += 1;
-    existing.totalCost += Math.abs(tx.amount);
-    byOperationMap.set(key, existing);
-  }
-  const byOperation = Array.from(byOperationMap.entries()).map(([type, data]) => ({
-    type,
-    ...data
-  }));
-  const dailyMap = /* @__PURE__ */ new Map();
-  for (const tx of transactions) {
-    const date6 = tx.createdAt.toISOString().split("T")[0] ?? "unknown";
-    dailyMap.set(date6, (dailyMap.get(date6) ?? 0) + Math.abs(tx.amount));
-  }
-  const dailyUsage = Array.from(dailyMap.entries()).map(([date6, cost]) => ({ date: date6, cost })).sort((a, b) => a.date.localeCompare(b.date));
-  return {
-    totalUsed: balance.used,
-    byOperation,
-    byAgent: [],
-    dailyUsage,
-    period: { start: balance.periodStart, end: balance.periodEnd }
-  };
-}
-var CreditExhaustedError = class extends Error {
-  constructor(orgId, remaining, required2, operationType) {
-    super(
-      `Work Credits exhausted: ${remaining} remaining, ${required2} required for "${operationType}". Upgrade your plan or purchase additional credits.`
-    );
-    this.orgId = orgId;
-    this.remaining = remaining;
-    this.required = required2;
-    this.operationType = operationType;
-    this.name = "CreditExhaustedError";
-  }
-  orgId;
-  remaining;
-  required;
-  operationType;
-};
-
-// src/routes/activity.ts
+init_credits();
 function registerActivityRoutes(app, deps) {
   const { db } = deps;
   app.get("/v1/activity/export", async (request, reply) => {
@@ -105131,76 +108175,7 @@ init_src();
 init_auth();
 init_audit();
 init_agents();
-
-// src/services/autonomy.ts
-var AUTONOMY_LEVELS = ["observe", "recommend", "draft", "execute_with_approval", "autonomous"];
-var LEVEL_RANK = {
-  observe: 0,
-  recommend: 1,
-  draft: 2,
-  execute_with_approval: 3,
-  autonomous: 4
-};
-function normalizeAutonomyLevel(value) {
-  return typeof value === "string" && AUTONOMY_LEVELS.includes(value) ? value : "execute_with_approval";
-}
-function enforceAutonomy(level, action) {
-  const rank = LEVEL_RANK[level];
-  switch (action) {
-    case "task_execute":
-      if (rank < 1) {
-        return { allowed: false, reason: "This agent is in observe mode and cannot execute tasks.", requiresApproval: false };
-      }
-      if (level === "recommend") {
-        return { allowed: true, reason: "This agent may execute internal tasks; results are recommendations.", requiresApproval: true };
-      }
-      return { allowed: true, reason: "Task execution permitted at this autonomy level.", requiresApproval: false };
-    case "connector_read":
-      return { allowed: true, reason: "Read-only observation of external systems is permitted at every level.", requiresApproval: false };
-    case "draft_external":
-      if (rank < 2) {
-        return { allowed: false, reason: "This agent cannot create external drafts below draft level.", requiresApproval: false };
-      }
-      return { allowed: true, reason: "Draft creation permitted \u2014 nothing is sent or published without approval.", requiresApproval: false };
-    case "connector_action":
-      if (rank < 3) {
-        return { allowed: false, reason: "This agent cannot act in external systems below execute-with-approval level.", requiresApproval: false };
-      }
-      if (level === "execute_with_approval") {
-        return { allowed: true, reason: "External action permitted with founder approval.", requiresApproval: true };
-      }
-      return { allowed: true, reason: "External action permitted at autonomous level.", requiresApproval: false };
-    case "external_communicate":
-      if (rank < 3) {
-        return { allowed: false, reason: "This agent cannot communicate externally below execute-with-approval level.", requiresApproval: false };
-      }
-      if (level === "execute_with_approval") {
-        return { allowed: true, reason: "External communication permitted with founder approval.", requiresApproval: true };
-      }
-      return { allowed: true, reason: "External communication permitted at autonomous level.", requiresApproval: false };
-    case "modify_resources":
-      if (rank < 4) {
-        return { allowed: false, reason: "This agent cannot modify organizational resources below autonomous level.", requiresApproval: true };
-      }
-      return { allowed: true, reason: "Resource modification permitted at autonomous level.", requiresApproval: false };
-  }
-}
-function autonomyLabel(level) {
-  switch (level) {
-    case "observe":
-      return "Observe \u2014 read and research only";
-    case "recommend":
-      return "Recommend \u2014 executes internally, results are advisory";
-    case "draft":
-      return "Draft \u2014 can draft external content, never sends";
-    case "execute_with_approval":
-      return "Execute with approval \u2014 consequential actions need the founder";
-    case "autonomous":
-      return "Autonomous \u2014 full execution within constitution and budget";
-  }
-}
-
-// src/routes/agents.ts
+init_autonomy();
 init_entitlements();
 init_departments();
 init_teams();
@@ -105581,6 +108556,7 @@ init_audit();
 init_realtime();
 init_approvals();
 init_notifications();
+init_attention();
 var decideBody = external_exports.object({
   status: external_exports.enum(["approved", "rejected", "modified"]),
   note: external_exports.string().trim().max(500).optional()
@@ -105592,6 +108568,37 @@ var createApprovalBody = external_exports.object({
   risk_level: external_exports.enum(["low", "medium", "high"]).default("low"),
   agent_id: external_exports.string().uuid().optional()
 });
+async function withGatedWork(db, orgId, rows) {
+  const taskIds = [
+    ...new Set(rows.map((row) => row.taskId).filter((id) => Boolean(id)))
+  ];
+  const gated = /* @__PURE__ */ new Map();
+  if (taskIds.length > 0) {
+    const found = await db.select({ id: tasks.id, title: tasks.title, status: tasks.status }).from(tasks).where(and(eq(tasks.orgId, orgId), inArray(tasks.id, taskIds)));
+    for (const task of found) gated.set(task.id, { title: task.title, status: task.status });
+  }
+  const agentIds = [...new Set(rows.map((row) => row.agentId).filter((id) => Boolean(id)))];
+  const agents4 = /* @__PURE__ */ new Map();
+  if (agentIds.length > 0) {
+    const found = await db.select({ id: agents.id, name: agents.name }).from(agents).where(and(eq(agents.orgId, orgId), inArray(agents.id, agentIds)));
+    for (const agent of found) agents4.set(agent.id, agent.name);
+  }
+  return rows.map((row) => {
+    const task = row.taskId ? gated.get(row.taskId) : void 0;
+    const toolId = row.toolId ?? null;
+    return {
+      ...row,
+      agentName: row.agentId ? agents4.get(row.agentId) ?? null : null,
+      gatedWork: row.taskId || toolId ? {
+        taskId: row.taskId ?? null,
+        taskTitle: task?.title ?? null,
+        taskStatus: task?.status ?? null,
+        toolId,
+        toolParams: row.toolParams ?? null
+      } : null
+    };
+  });
+}
 function registerApprovalRoutes(app, deps) {
   const { db } = deps;
   app.post("/v1/approvals", async (request, reply) => {
@@ -105628,6 +108635,7 @@ function registerApprovalRoutes(app, deps) {
       }
     } catch {
     }
+    notifyAttentionChanged(ctx.orgId, "approval.created");
     reply.code(201);
     return { data: approval };
   });
@@ -105641,7 +108649,10 @@ function registerApprovalRoutes(app, deps) {
     if (status) conditions.push(eq(approvals.status, status));
     const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(approvals).where(and(...conditions));
     const list = await findByOrg3(db, ctx.orgId, { status, limit, offset });
-    return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+    return {
+      data: await withGatedWork(db, ctx.orgId, list),
+      meta: { limit, offset, total: totalRow?.count ?? 0 }
+    };
   });
   app.get("/v1/approvals/:id", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
@@ -105650,7 +108661,8 @@ function registerApprovalRoutes(app, deps) {
       reply.code(404);
       return { error: { code: "not_found", message: "Approval not found" } };
     }
-    return { data: approval };
+    const [named] = await withGatedWork(db, ctx.orgId, [approval]);
+    return { data: named };
   });
   app.patch(
     "/v1/approvals/:id",
@@ -105658,6 +108670,20 @@ function registerApprovalRoutes(app, deps) {
       const ctx = await requireAuth(request, deps);
       const parsed = decideBody.safeParse(request.body);
       if (!parsed.success) throw validation(parsed.error.flatten());
+      const existing = await findById2(db, ctx.orgId, request.params.id);
+      if (!existing) {
+        reply.code(404);
+        return { error: { code: "not_found", message: "Approval not found" } };
+      }
+      if (parsed.data.status === "rejected" && existing.taskId && !parsed.data.note) {
+        reply.code(400);
+        return {
+          error: {
+            code: "reason_required",
+            message: "Give a reason for stopping this work: the AI employee is told why, and the task record keeps it."
+          }
+        };
+      }
       const decided = await decide(
         db,
         ctx.orgId,
@@ -105676,6 +108702,56 @@ function registerApprovalRoutes(app, deps) {
         action: `approval.${parsed.data.status}`,
         outcome: "success"
       });
+      let resumed = null;
+      if (decided.taskId) {
+        if (parsed.data.status === "rejected") {
+          const reason = `Rejected by founder: ${parsed.data.note}`;
+          await db.update(tasks).set({ status: "cancelled", result: reason.slice(0, 2e3), updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(tasks.id, decided.taskId), eq(tasks.orgId, ctx.orgId)));
+          await db.insert(activityEvents).values({
+            orgId: ctx.orgId,
+            agentId: decided.agentId,
+            taskId: decided.taskId,
+            type: "rejected",
+            summary: reason.slice(0, 500),
+            reason: parsed.data.note ?? null,
+            cost: 0,
+            department: null
+          });
+          broadcastToOrg(ctx.orgId, { type: "task.cancelled", taskId: decided.taskId, reason });
+          notifyAttentionChanged(ctx.orgId, "task.cancelled");
+          await appendAudit(db, {
+            orgId: ctx.orgId,
+            actorType: "user",
+            actorId: ctx.userId,
+            action: "approval.stopped_work",
+            outcome: "success",
+            // Structured references, not only a string: the audit row can be
+            // queried by approval or by task, so "what did this decision stop?"
+            // is answerable without parsing prose.
+            approvalId: decided.id,
+            taskId: decided.taskId,
+            resultRef: `approval:${decided.id} \u2192 task:${decided.taskId} (cancelled)`
+          });
+        } else {
+          try {
+            const { executeTask: executeTask3 } = await Promise.resolve().then(() => (init_task_executor(), task_executor_exports));
+            const outcome = await executeTask3(deps.config, db, ctx.orgId, decided.taskId);
+            resumed = { taskId: decided.taskId, status: outcome.status };
+            await appendAudit(db, {
+              orgId: ctx.orgId,
+              actorType: "user",
+              actorId: ctx.userId,
+              action: "approval.resumed_work",
+              outcome: "success",
+              approvalId: decided.id,
+              taskId: decided.taskId,
+              resultRef: `approval:${decided.id} \u2192 task:${decided.taskId} (${outcome.status})`
+            });
+          } catch (error51) {
+            request.log.error({ err: error51 }, "resuming approved work failed");
+          }
+        }
+      }
       if (parsed.data.status === "approved" && decided.action.startsWith("Merge PR:")) {
         try {
           const { updatePrStatus: updatePrStatus2 } = await Promise.resolve().then(() => (init_engineering(), engineering_exports));
@@ -105695,6 +108771,7 @@ function registerApprovalRoutes(app, deps) {
         }
       }
       broadcastToOrg(ctx.orgId, { type: "approval.decided", approvalId: request.params.id, status: parsed.data.status });
+      notifyAttentionChanged(ctx.orgId, "approval.decided");
       try {
         const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
         const prefs = await getNotificationPrefs2(db, ctx.orgId);
@@ -105710,7 +108787,7 @@ function registerApprovalRoutes(app, deps) {
         }
       } catch {
       }
-      return { data: decided };
+      return { data: decided, resumed };
     }
   );
 }
@@ -105718,7 +108795,7 @@ function registerApprovalRoutes(app, deps) {
 // src/routes/auth.ts
 init_src3();
 init_src();
-var import_node_crypto7 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_zod();
@@ -105855,13 +108932,13 @@ init_audit();
 
 // src/services/email-verification.ts
 init_drizzle_orm();
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto9 = require("node:crypto");
 init_src2();
 var VERIFICATION_TOKEN_TTL_HOURS = 24;
 var RESEND_WINDOW_MINUTES = 60;
 var RESEND_MAX_PER_WINDOW = 3;
 function sha256hex(value) {
-  return (0, import_node_crypto5.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto9.createHash)("sha256").update(value).digest("hex");
 }
 async function issueVerificationToken(db, userId, email3) {
   const [user] = await db.select({ emailVerifiedAt: users.emailVerifiedAt }).from(users).where(eq(users.id, userId)).limit(1);
@@ -105876,7 +108953,7 @@ async function issueVerificationToken(db, userId, email3) {
     const retryAfterMinutes = oldestAt ? Math.max(1, Math.ceil(RESEND_WINDOW_MINUTES - (Date.now() - oldestAt.getTime()) / 6e4)) : RESEND_WINDOW_MINUTES;
     return { ok: false, reason: "rate_limited", retryAfterMinutes };
   }
-  const plaintextToken = (0, import_node_crypto5.randomBytes)(32).toString("hex");
+  const plaintextToken = (0, import_node_crypto9.randomBytes)(32).toString("hex");
   const expiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 36e5);
   const rows = await db.insert(emailVerificationTokens).values({ userId, tokenHash: sha256hex(plaintextToken), expiresAt }).returning({ id: emailVerificationTokens.id });
   if (!rows[0]) return { ok: false, reason: "issue_failed" };
@@ -105906,14 +108983,14 @@ init_transport();
 
 // src/services/orgs.ts
 init_drizzle_orm();
-var import_node_crypto6 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 init_src2();
 function slugify2(name2) {
   const base = name2.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return base || "org";
 }
 async function createOrg(db, input) {
-  const slug = `${slugify2(input.name)}-${(0, import_node_crypto6.randomBytes)(2).toString("hex")}`;
+  const slug = `${slugify2(input.name)}-${(0, import_node_crypto10.randomBytes)(2).toString("hex")}`;
   const [row] = await db.insert(organizations).values({ name: input.name.trim(), slug, plan: input.plan ?? "free" }).returning();
   if (!row) throw new Error("createOrg returned no row");
   return row;
@@ -106162,7 +109239,7 @@ async function resetFailedLogins(redis, email3, db) {
 
 // src/routes/auth.ts
 function sha256hex2(value) {
-  return (0, import_node_crypto7.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto11.createHash)("sha256").update(value).digest("hex");
 }
 function registerAuthRoutes(app, deps) {
   const { db, logger } = deps;
@@ -106323,7 +109400,7 @@ function registerAuthRoutes(app, deps) {
         isNull(passwordResetTokens.usedAt)
       )
     );
-    const plaintextToken = (0, import_node_crypto7.randomBytes)(32).toString("hex");
+    const plaintextToken = (0, import_node_crypto11.randomBytes)(32).toString("hex");
     const tokenHash = sha256hex2(plaintextToken);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1e3);
     await db.insert(passwordResetTokens).values({
@@ -106430,6 +109507,25 @@ function registerAuthRoutes(app, deps) {
         role: current.membership.role
       }
     };
+  });
+  app.post("/v1/org/switch", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = external_exports.object({ org_id: external_exports.string().uuid() }).safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    const memberships2 = await findMembershipsByUser(db, ctx.userId);
+    const target = memberships2.find(
+      (m) => m.org.id === parsed.data.org_id && (m.membership.status ?? "active") === "active"
+    );
+    if (!target) throw forbidden("You are not an active member of that organization.");
+    await switchOrg(db, ctx.sessionId, target.org.id);
+    await appendAudit(db, {
+      orgId: target.org.id,
+      actorType: "user",
+      actorId: ctx.userId,
+      action: "org.switched",
+      outcome: "success"
+    });
+    return { data: { ...target.org, role: target.membership.role } };
   });
   app.patch("/v1/org", async (request) => {
     const ctx = await requireAuth(request, deps);
@@ -106605,7 +109701,7 @@ function registerAuthRoutes(app, deps) {
 init_src();
 
 // src/services/oauth-signin.ts
-var import_node_crypto8 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_src();
@@ -106617,7 +109713,7 @@ function isOAuthProvider(value) {
   return value === "github" || value === "google";
 }
 function sentinelPasswordFor(config2, userId) {
-  return (0, import_node_crypto8.createHmac)("sha256", config2.SESSION_SECRET).update(`orq8-oauth-sentinel:${userId}`).digest("base64");
+  return (0, import_node_crypto12.createHmac)("sha256", config2.SESSION_SECRET).update(`orq8-oauth-sentinel:${userId}`).digest("base64");
 }
 async function isOAuthSentinelHash(config2, userId, storedHash) {
   return verifyPassword(storedHash, sentinelPasswordFor(config2, userId));
@@ -106697,7 +109793,7 @@ var STATE_NAMESPACE = "auth-oauth-signin|";
 function signOAuthState(config2, state) {
   const payload = { ...state, exp: Date.now() + OAUTH_STATE_TTL_MS };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const sig = (0, import_node_crypto8.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
+  const sig = (0, import_node_crypto12.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
   return `${body}.${sig}`;
 }
 function verifyOAuthState(config2, state, provider) {
@@ -106705,10 +109801,10 @@ function verifyOAuthState(config2, state, provider) {
   try {
     const [body, sig] = state.split(".");
     if (!body || !sig) return null;
-    const expected = (0, import_node_crypto8.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
+    const expected = (0, import_node_crypto12.createHmac)("sha256", stateKey(config2)).update(STATE_NAMESPACE + body).digest("base64url");
     const a = Buffer.from(sig, "utf8");
     const b = Buffer.from(expected, "utf8");
-    if (a.length !== b.length || !(0, import_node_crypto8.timingSafeEqual)(a, b)) return null;
+    if (a.length !== b.length || !(0, import_node_crypto12.timingSafeEqual)(a, b)) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (payload.provider !== provider) return null;
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
@@ -106771,7 +109867,7 @@ async function oauthSignIn(db, config2, logger, input) {
     });
     return { outcome: "signed_in", token, expiresAt, isNew: false };
   }
-  const userId = (0, import_node_crypto8.randomUUID)();
+  const userId = (0, import_node_crypto12.randomUUID)();
   const passwordHash = await hashPassword(sentinelPasswordFor(config2, userId));
   const result = await db.transaction(async (tx) => {
     const user = await createUser(tx, {
@@ -106979,12 +110075,285 @@ function registerHealthRoutes(app, deps) {
   app.get("/readyz", async () => {
     try {
       await deps.pool.query("SELECT 1");
-      return { data: { status: "ready" } };
+      const activation = capabilityReadiness(deps.config);
+      return {
+        data: {
+          status: "ready",
+          activation: {
+            ready: activation.ready,
+            configurationRequired: activation.configurationRequired,
+            devOnly: activation.devOnly,
+            blocking: activation.blocking.length
+          }
+        }
+      };
     } catch (err) {
       deps.logger.error({ err }, "readyz: dependency unreachable");
       throw new AppError(503, "service.unavailable", "Dependencies not ready");
     }
   });
+}
+
+// src/routes/readiness.ts
+var import_node_crypto13 = require("node:crypto");
+init_zod();
+init_src();
+init_auth();
+
+// src/services/email-diagnostics.ts
+init_transport();
+var RESEND_KEYS = ["RESEND_API_KEY"];
+var SMTP_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
+function describeMailProvider(config2) {
+  const from = config2.EMAIL_FROM ?? "ORQ8 <founder@orq8.ai>";
+  const present = (key) => {
+    const value = config2[key];
+    if (typeof value === "string") return value.trim().length > 0;
+    return value !== void 0 && value !== null;
+  };
+  if (present("RESEND_API_KEY")) {
+    return {
+      provider: "resend",
+      delivers: true,
+      from,
+      configuredKeys: [...RESEND_KEYS, "EMAIL_FROM"],
+      missingKeys: [],
+      notes: [
+        "Resend accepts one HTTP call per message, so no SMTP server is involved.",
+        `EMAIL_FROM must be on a domain verified in Resend (currently: ${from}).`
+      ]
+    };
+  }
+  if (present("SMTP_HOST")) {
+    return {
+      provider: "smtp",
+      delivers: true,
+      from,
+      configuredKeys: [...SMTP_KEYS.filter(present), "EMAIL_FROM"],
+      missingKeys: SMTP_KEYS.filter((key) => !present(key)),
+      notes: [
+        `Sending through ${config2.SMTP_HOST}:${config2.SMTP_PORT}.`,
+        "Most providers require an app password rather than the account password."
+      ]
+    };
+  }
+  const printable = config2.NODE_ENV !== "production";
+  return {
+    provider: printable ? "dev-log" : "none",
+    delivers: false,
+    from,
+    configuredKeys: [],
+    missingKeys: [...RESEND_KEYS, ...SMTP_KEYS],
+    notes: printable ? [
+      "No provider is configured, so message bodies (links included) are written to the API log and nothing is delivered.",
+      "That is a development convenience. Set RESEND_API_KEY before real users sign up."
+    ] : [
+      "Production refuses to pretend: a send with no provider fails, so a new account cannot confirm its address.",
+      "Set RESEND_API_KEY (recommended) or the SMTP_* keys."
+    ]
+  };
+}
+function diagnoseMailFailure(provider, error51) {
+  const text2 = error51.toLowerCase();
+  if (provider === "none" || provider === "dev-log" || text2.includes("no mail transport")) {
+    return {
+      reason: "No mail provider is configured, so nothing can be delivered.",
+      fix: "Set RESEND_API_KEY (recommended), or SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS, then run this check again."
+    };
+  }
+  if (provider === "resend") {
+    if (/\b401\b|invalid.*(api )?key|unauthor|not authorized|missing.*key/.test(text2)) {
+      return {
+        reason: "Resend rejected the API key, so every send will fail.",
+        fix: "Create a new key under Resend \u2192 API Keys and update RESEND_API_KEY."
+      };
+    }
+    if (/\b403\b|domain|not verified|verify|from address/.test(text2)) {
+      return {
+        reason: "Resend refused the sending address.",
+        fix: "Verify the sending domain in Resend and point EMAIL_FROM at an address on it (or at onboarding@resend.dev while testing)."
+      };
+    }
+    if (/\b429\b|rate limit/.test(text2)) {
+      return {
+        reason: "The Resend account is rate-limited right now.",
+        fix: "Wait a minute and run the check again. If it repeats, review the plan limits in Resend."
+      };
+    }
+    if (/\b422\b/.test(text2)) {
+      return {
+        reason: "Resend rejected the message shape, which is almost always EMAIL_FROM.",
+        fix: 'Set EMAIL_FROM to "Company <address@verified-domain>".'
+      };
+    }
+  }
+  if (provider === "smtp") {
+    if (/econnrefused|enotfound|ehostunreach|etimedout|esocket|timeout|connect/.test(text2)) {
+      return {
+        reason: "The SMTP host could not be reached.",
+        fix: "Check SMTP_HOST and SMTP_PORT (587 for STARTTLS, 465 for implicit TLS) and that the deployment allows outbound SMTP."
+      };
+    }
+    if (/535|e auth|authentication|credentials|invalid login|username and password/.test(text2)) {
+      return {
+        reason: "The SMTP server rejected the credentials.",
+        fix: "Check SMTP_USER and SMTP_PASS. Most providers need an app password, not the account password."
+      };
+    }
+    if (/self signed|certificate|wrong version|ssl|tls/.test(text2)) {
+      return {
+        reason: "TLS negotiation with the SMTP server failed.",
+        fix: "Use SMTP_PORT 587 with STARTTLS, or 465 for implicit TLS."
+      };
+    }
+    if (/\b55[0-3]\b|recipient/.test(text2)) {
+      return {
+        reason: "The SMTP server rejected the recipient address.",
+        fix: "This is a delivery problem for that one address rather than a configuration problem \u2014 test again with your own address."
+      };
+    }
+  }
+  return {
+    reason: `The provider rejected the message: ${error51}`,
+    fix: "Act on the provider's own message above, then run this check again."
+  };
+}
+async function runMailDiagnosis(config2, logger, to) {
+  const description = describeMailProvider(config2);
+  const steps = [];
+  let failure = null;
+  const fail = (provider, message) => {
+    if (!failure) failure = { ...diagnoseMailFailure(provider, message), message };
+  };
+  if (description.delivers) {
+    steps.push({
+      id: "configuration",
+      label: "A provider is configured",
+      ok: true,
+      detail: description.provider === "resend" ? "RESEND_API_KEY is set, so messages go out over Resend." : `SMTP_HOST is set (${config2.SMTP_HOST}:${config2.SMTP_PORT}).`
+    });
+  } else {
+    const message = description.provider === "dev-log" ? "no mail transport configured (development log-only fallback)" : "no mail transport configured";
+    steps.push({
+      id: "configuration",
+      label: "A provider is configured",
+      ok: false,
+      detail: description.provider === "dev-log" ? "No provider is configured. In this environment messages are printed to the log instead of delivered." : "No provider is configured, and in production nothing is sent."
+    });
+    fail("none", message);
+  }
+  if (description.delivers) {
+    const check2 = await verifyMailProvider(config2);
+    steps.push({
+      id: "reachability",
+      label: "The provider accepts these credentials",
+      ok: check2.ok,
+      detail: check2.detail
+    });
+    if (!check2.ok) fail(check2.provider, check2.error ?? check2.detail);
+    if (check2.ok) {
+      const transport = createEmailTransport(config2, logger);
+      const result = await transport.send({
+        to,
+        subject: "ORQ8 mail delivery check",
+        text: "This is a delivery check from ORQ8.\n\nIt was requested from your settings page, and reaching your inbox proves that confirmations, invitations and briefings will reach the people you invite.\n",
+        html: "<p>This is a delivery check from <strong>ORQ8</strong>.</p><p>It was requested from your settings page. Reaching your inbox proves that confirmations, invitations and briefings will reach the people you invite.</p>"
+      });
+      const delivered = result.ok && result.delivered !== false;
+      steps.push({
+        id: "delivery",
+        label: "A real message was accepted for delivery",
+        ok: delivered,
+        detail: delivered ? `Accepted by the provider${result.messageId ? ` (id ${result.messageId})` : ""}. Check the inbox of ${to}.` : result.error ? `The provider refused the message: ${result.error}` : "The provider accepted nothing: the message was not delivered."
+      });
+      if (!delivered) fail(description.provider, result.error ?? "message not delivered");
+    } else {
+      steps.push({
+        id: "delivery",
+        label: "A real message was accepted for delivery",
+        ok: false,
+        detail: "Skipped: the provider rejected the credentials, so a send would only repeat the failure."
+      });
+    }
+  } else {
+    steps.push({
+      id: "reachability",
+      label: "The provider accepts these credentials",
+      ok: false,
+      detail: "Skipped: no provider is configured."
+    });
+    steps.push({
+      id: "delivery",
+      label: "A real message was accepted for delivery",
+      ok: false,
+      detail: "Skipped: a message would only be printed to the log."
+    });
+  }
+  return {
+    ok: steps.every((step) => step.ok),
+    delivered: steps.find((step) => step.id === "delivery")?.ok ?? false,
+    provider: description.provider,
+    from: description.from,
+    to,
+    steps,
+    failure,
+    description
+  };
+}
+
+// src/routes/readiness.ts
+function registerReadinessRoutes(app, deps) {
+  app.get("/v1/readiness", async (request) => {
+    if (!isInternalCall(deps, request.headers["x-internal-token"])) {
+      await requireAuth(request, deps);
+    }
+    const report = capabilityReadiness(deps.config);
+    return {
+      data: {
+        environment: deps.config.NODE_ENV,
+        ...report,
+        requiredInProduction: envRequiredInProduction(),
+        envSurfaceSize: envSurface().length
+      }
+    };
+  });
+  app.post("/v1/readiness/mail-check", async (request) => {
+    if (!isInternalCall(deps, request.headers["x-internal-token"])) {
+      throw forbidden("The mail check is a release-pipeline probe (x-internal-token).");
+    }
+    const parsed = mailCheckBody.safeParse(request.body ?? {});
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    const to = parsed.data.to ?? addressFromEmailFrom(deps.config.EMAIL_FROM);
+    if (!to) {
+      throw new AppError(
+        400,
+        "mail.no_probe_recipient",
+        'The mail check has no recipient: set EMAIL_FROM to an address that can receive mail, or POST {"to": "you@company.com"}.'
+      );
+    }
+    const diagnosis = await runMailDiagnosis(deps.config, deps.logger, to);
+    deps.logger.info(
+      { provider: diagnosis.provider, to, delivered: diagnosis.delivered },
+      "release gate: mail delivery check"
+    );
+    return { data: diagnosis };
+  });
+}
+var mailCheckBody = external_exports.object({
+  /** Where the probe message goes. Defaults to the address inside EMAIL_FROM. */
+  to: external_exports.string().email().optional()
+});
+function addressFromEmailFrom(from) {
+  const candidate = (from.match(/<([^>]+)>/)?.[1] ?? from).trim();
+  return candidate.includes("@") ? candidate : null;
+}
+function isInternalCall(deps, presented) {
+  const expected = deps.config.INTERNAL_TOKEN;
+  if (!expected) return false;
+  if (typeof presented !== "string") return false;
+  const a = Buffer.from(presented);
+  const b = Buffer.from(expected);
+  return a.length === b.length && (0, import_node_crypto13.timingSafeEqual)(a, b);
 }
 
 // src/routes/providers.ts
@@ -106995,7 +110364,7 @@ init_audit();
 // src/services/providers.ts
 init_drizzle_orm();
 init_src2();
-async function listProviders(db) {
+async function listProviders2(db) {
   return db.select().from(providers).orderBy(providers.name);
 }
 async function findProviderBySlug(db, slug) {
@@ -107084,7 +110453,7 @@ function registerProviderRoutes(app, deps) {
   app.get("/v1/providers", async (request) => {
     const ctx = await requireAuth(request, deps);
     const [catalog, activeIds] = await Promise.all([
-      listProviders(db),
+      listProviders2(db),
       listActiveKeyIdsByOrg(db, ctx.orgId)
     ]);
     return {
@@ -107306,6 +110675,8 @@ async function probeProvider(provider, apiKey, base, logger) {
 // src/routes/commands.ts
 init_zod();
 init_src();
+init_drizzle_orm();
+init_src2();
 init_auth();
 
 // src/services/executive-agent.ts
@@ -107313,426 +110684,15 @@ init_drizzle_orm();
 init_src2();
 init_llm();
 init_model_intelligence();
-
-// src/services/model-selector.ts
-init_drizzle_orm();
-init_src2();
-init_model_intelligence();
-var MIN_CALLS_FOR_ROUTING_SUCCESS = 8;
-var MIN_CALLS_FOR_ROUTING_FAILURE = 4;
-var SUCCESS_RATE_FLOOR = 0.9;
-var SUCCESS_RATE_CEILING_DEGRADED = 0.7;
-var ROUTING_WINDOW_DAYS = 14;
-async function getRoutingPerformance(db, orgId) {
-  const since = new Date(Date.now() - ROUTING_WINDOW_DAYS * 24 * 60 * 60 * 1e3);
-  const rows = await db.select({
-    model: llmPerformance.model,
-    calls: sql`count(*)::int`,
-    successes: sql`count(*) filter (where ${llmPerformance.success})::int`,
-    failures: sql`count(*) filter (where not ${llmPerformance.success})::int`,
-    avgDurationMs: sql`coalesce(avg(${llmPerformance.durationMs}), 0)::int`
-  }).from(llmPerformance).where(and(eq(llmPerformance.orgId, orgId), gte(llmPerformance.createdAt, since))).groupBy(llmPerformance.model);
-  const stats = /* @__PURE__ */ new Map();
-  for (const r of rows) {
-    stats.set(r.model, {
-      model: r.model,
-      calls: r.calls,
-      successes: r.successes,
-      failures: r.failures,
-      successRate: r.calls > 0 ? r.successes / r.calls : 0,
-      avgDurationMs: r.avgDurationMs
-    });
-  }
-  const totalCalls = [...stats.values()].reduce((acc, s) => acc + s.calls, 0);
-  return { stats, sufficientData: totalCalls >= MIN_CALLS_FOR_ROUTING_SUCCESS };
-}
-async function selectMeasuredModel(db, orgId, routing, calibration) {
-  const tiers = modelsByTier();
-  let minTier = routing.risk === "critical" || routing.complexity >= 4 ? 2 : routing.complexity >= 3 || routing.reasoning !== "low" ? 1 : 0;
-  const consequential = routing.risk === "critical" || routing.complexity >= 3;
-  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && minTier < calibration.minConsequentialTier) {
-    minTier = calibration.minConsequentialTier;
-  }
-  const candidates = [];
-  for (let tier = minTier; tier <= 3; tier++) {
-    for (const m of tiers[tier]) candidates.push(m.id);
-  }
-  const staticPick = candidates[0];
-  const perf = await getRoutingPerformance(db, orgId);
-  if (candidates.length <= 1) {
-    return { modelId: staticPick, source: "static" };
-  }
-  if (perf.stats.size === 0) {
-    return { modelId: staticPick, source: "static", reason: "insufficient measured history" };
-  }
-  const degraded = new Set(
-    candidates.filter((id) => {
-      const s = perf.stats.get(id);
-      return s !== void 0 && s.failures >= MIN_CALLS_FOR_ROUTING_FAILURE && s.successRate <= SUCCESS_RATE_CEILING_DEGRADED;
-    })
-  );
-  for (const id of candidates) {
-    if (degraded.has(id)) continue;
-    const s = perf.stats.get(id);
-    if (s !== void 0 && s.successes >= MIN_CALLS_FOR_ROUTING_SUCCESS && s.successRate >= SUCCESS_RATE_FLOOR) {
-      if (id === staticPick) {
-        return { modelId: id, source: "static", reason: void 0 };
-      }
-      return {
-        modelId: id,
-        source: "measured",
-        reason: `${id} has ${s.successes} measured successes at ${Math.round(s.successRate * 100)}% over ${ROUTING_WINDOW_DAYS}d \u2014 preferred over the static default`
-      };
-    }
-  }
-  const firstHealthy = candidates.find((id) => !degraded.has(id));
-  if (firstHealthy && firstHealthy !== staticPick) {
-    return {
-      modelId: firstHealthy,
-      source: "measured",
-      reason: `static default is measured-degraded in this org (${[...degraded].join(", ")})`
-    };
-  }
-  return { modelId: staticPick, source: "static", reason: degraded.size > 0 ? "degraded candidate not present in registry candidates" : void 0 };
-}
-
-// src/services/executive-agent.ts
+init_model_selector();
 init_audit();
 init_memory();
+init_credits();
 
 // src/services/quality-pipeline.ts
 init_drizzle_orm();
 init_src2();
-
-// src/services/task-executor.ts
-init_drizzle_orm();
-init_src2();
-init_llm();
-init_audit();
-init_realtime();
-init_model_intelligence();
-init_calibration_routing();
-var AGENT_PROMPTS = {
-  market_researcher: `You are a Market Researcher AI employee. Your job is to gather, analyze, and synthesize information about markets, competitors, trends, and opportunities. Provide structured, actionable intelligence with clear findings and recommendations. Be specific, cite patterns, and quantify where possible.`,
-  content_writer: `You are a Content Writer AI employee. Your job is to create high-quality written content including articles, reports, briefs, marketing copy, and documentation. Match the tone and style to the audience. Be clear, engaging, and purposeful.`,
-  communications_agent: `You are a Communications Agent AI employee. Your job is to draft professional communications including emails, notifications, status updates, and announcements. Be clear, concise, and appropriate for the audience.`,
-  software_engineer: `You are a Software Engineer AI employee. Your job is to analyze technical requirements, design solutions, write code, review implementations, and provide technical guidance. Be precise, consider edge cases, and follow best practices.`,
-  data_analyst: `You are a Data Analyst AI employee. Your job is to analyze data, identify patterns, create reports, and provide data-driven insights. Present findings clearly with supporting evidence and actionable recommendations.`,
-  operations_manager: `You are an Operations Manager AI employee. Your job is to optimize processes, coordinate workflows, manage resources, and ensure efficient execution. Focus on practical improvements and measurable outcomes.`,
-  financial_analyst: `You are a Financial Analyst AI employee. Your job is to analyze financial data, create projections, assess budgets, and provide financial guidance. Be precise with numbers and clear about assumptions.`,
-  executive_agent: `You are the Executive Agent. Your job is to coordinate across all AI employees, manage priorities, break down complex objectives into actionable plans, and ensure organizational goals are met. Think strategically and communicate clearly.`
-};
-var DEFAULT_AGENT_PROMPT = `You are an AI employee of ORQ8. Complete the assigned task to the best of your ability. Be thorough, accurate, and provide clear, actionable output.`;
-async function persistPreExecutionBlock(db, orgId, task, reason, agentName) {
-  await db.update(tasks).set({ status: "failed", result: reason.slice(0, 2e3), cost: 0, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
-  await db.insert(activityEvents).values({
-    orgId,
-    agentId: task.agentId,
-    taskId: task.id,
-    type: "failed",
-    summary: `Execution blocked: ${reason}`,
-    reason: "Pre-execution governance check (agent state, authority, or autonomy level)",
-    cost: 0,
-    department: null
-  });
-  broadcastToOrg(orgId, {
-    type: "task.failed",
-    taskId: task.id,
-    agentId: task.agentId ?? "",
-    agentName,
-    error: reason.slice(0, 200)
-  });
-  return { taskId: task.id, status: "failed", result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
-}
-async function executeTask(config2, db, orgId, taskId) {
-  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
-  if (!task) {
-    return { taskId, status: "failed", result: "Task not found", cost: 0, tokensUsed: 0, llmUsed: false };
-  }
-  if (task.agentId) {
-    const [agent] = await db.select({ status: agents.status, authority: agents.authority, autonomyLevel: agents.autonomyLevel, name: agents.name }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
-    if (agent && (agent.status === "paused" || agent.status === "archived")) {
-      const verb = agent.status === "archived" ? "archived" : "paused";
-      return persistPreExecutionBlock(
-        db,
-        orgId,
-        task,
-        `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
-        agent.name
-      );
-    }
-    if (agent?.authority && typeof agent.authority === "object") {
-      const auth = agent.authority;
-      if (auth.canExecuteTasks === false) {
-        return persistPreExecutionBlock(
-          db,
-          orgId,
-          task,
-          "Execution blocked: agent does not have permission to execute tasks.",
-          agent.name
-        );
-      }
-    }
-    if (agent) {
-      const level = normalizeAutonomyLevel(agent.autonomyLevel);
-      const decision = enforceAutonomy(level, "task_execute");
-      if (!decision.allowed) {
-        return persistPreExecutionBlock(
-          db,
-          orgId,
-          task,
-          `Execution blocked by autonomy level: ${decision.reason}`,
-          agent.name
-        );
-      }
-    }
-  }
-  await db.update(tasks).set({ status: "in_progress", updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, taskId));
-  if (task.agentId) {
-    await db.update(agents).set({ currentTask: task.title, updatedAt: /* @__PURE__ */ new Date() }).where(eq(agents.id, task.agentId));
-  }
-  await db.insert(activityEvents).values({
-    orgId,
-    agentId: task.agentId,
-    taskId: task.id,
-    type: "executing",
-    summary: `Executing: ${task.title}`,
-    reason: `Task assigned by Executive Agent`,
-    cost: 0,
-    department: null
-  });
-  let agentRole = "executive_agent";
-  let agentName = "Executive Agent";
-  if (task.agentId) {
-    const [agent] = await db.select().from(agents).where(eq(agents.id, task.agentId)).limit(1);
-    if (agent) {
-      agentRole = agent.role;
-      agentName = agent.name;
-    }
-  }
-  broadcastToOrg(orgId, { type: "task.started", taskId: task.id, agentId: task.agentId ?? "", agentName });
-  const { buildAgentContext: buildAgentContext2, buildContextPrompt: buildContextPrompt3 } = await Promise.resolve().then(() => (init_agent_context(), agent_context_exports));
-  const agentContext = task.agentId ? await buildAgentContext2(db, orgId, task.agentId, task.id, {
-    query: `${task.title} ${task.description ?? ""}`.slice(0, 500),
-    config: config2
-  }) : null;
-  const basePrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
-  const contextSection = agentContext ? buildContextPrompt3(agentContext, agentName, agentRole) : "";
-  const systemPrompt = contextSection ? `${basePrompt}
-
-${contextSection}` : basePrompt;
-  const taskPrompt = buildTaskPrompt(task.title, task.description ?? task.title, agentName, agentRole);
-  const startTime = Date.now();
-  let result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
-  let tokensUsed = 0;
-  let llmAttempted = false;
-  let lastLlmError;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 1e3 * attempt));
-      }
-      const routing = classifyTask({
-        title: task.title,
-        description: task.description,
-        agentRole,
-        priority: task.priority ?? null
-      });
-      const calibrationAdvice = await getCalibrationAdvice(db, orgId);
-      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
-      const llmResponse = await chat(config2, systemPrompt, taskPrompt, {
-        model: routedModel,
-        temperature: 0.7,
-        max_tokens: 2048,
-        retries: 0,
-        // We handle retries at this level
-        // Trace + persist inside chat() so the row records the ACTUALLY
-        // served model (incl. 404 fallback substitutions) and real provider
-        // usage — the previous manual trace always wrote model 'unknown'
-        // with estimated tokens, corrupting model stats and routing data.
-        _trace: {
-          orgId,
-          phase: "task_execution",
-          taskId: task.id,
-          agentId: task.agentId ?? void 0,
-          db
-        }
-      });
-      if (llmResponse) {
-        result = llmResponse;
-        llmAttempted = true;
-        tokensUsed = Math.ceil((systemPrompt.length + taskPrompt.length + llmResponse.length) / 4);
-        break;
-      }
-    } catch (err) {
-      lastLlmError = err instanceof Error ? err.message : String(err);
-    }
-  }
-  if (!llmAttempted) {
-    result = generateFallbackResult(task.title, task.description ?? task.title, agentName);
-    try {
-      const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
-      const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
-      const prefs = await getNotificationPrefs2(db, orgId);
-      if (shouldNotify2(prefs, "inApp", "agent")) {
-        createNotification2(
-          db,
-          orgId,
-          "agent",
-          "Agent Error",
-          `${agentName} could not reach the LLM after 2 attempts for task "${task.title}". Using fallback execution.`
-        );
-      }
-    } catch {
-    }
-  }
-  const durationMs = Date.now() - startTime;
-  const taskSucceeded = llmAttempted || result !== generateFallbackResult(task.title, task.description ?? task.title, agentName);
-  const cost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1e3)) : 0;
-  await db.update(tasks).set({
-    status: taskSucceeded ? "completed" : "failed",
-    cost,
-    result: result.slice(0, 2e3),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(tasks.id, taskId));
-  if (taskSucceeded) {
-    broadcastToOrg(orgId, { type: "task.completed", taskId: task.id, agentId: task.agentId ?? "", agentName, result: result.slice(0, 200) });
-  } else {
-    broadcastToOrg(orgId, { type: "task.failed", taskId: task.id, agentId: task.agentId ?? "", agentName, error: (lastLlmError ?? result).slice(0, 200) });
-  }
-  if (task.agentId) {
-    const [agent] = await db.select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed }).from(agents).where(eq(agents.id, task.agentId)).limit(1);
-    if (taskSucceeded) {
-      await db.update(agents).set({
-        tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
-        currentTask: null,
-        lastActiveAt: /* @__PURE__ */ new Date(),
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(agents.id, task.agentId));
-    } else {
-      await db.update(agents).set({
-        tasksFailed: (agent?.tasksFailed ?? 0) + 1,
-        currentTask: null,
-        lastActiveAt: /* @__PURE__ */ new Date(),
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(agents.id, task.agentId));
-    }
-  }
-  await db.insert(activityEvents).values({
-    orgId,
-    agentId: task.agentId,
-    taskId: task.id,
-    type: taskSucceeded ? "completed" : "failed",
-    summary: taskSucceeded ? `Completed: ${task.title}` : `Failed: ${task.title}`,
-    reason: taskSucceeded ? `Task executed by ${agentName} in ${(durationMs / 1e3).toFixed(1)}s` : `Task failed: ${result.slice(0, 200)}`,
-    cost,
-    department: null
-  });
-  await db.insert(companyMemory).values({
-    orgId,
-    category: taskSucceeded ? "context" : "lesson",
-    content: taskSucceeded ? `Task completed: "${task.title}" \u2014 Result: ${result.slice(0, 500)}` : `Task failed: "${task.title}" \u2014 Error: ${result.slice(0, 500)}`,
-    source: agentName,
-    agentId: task.agentId,
-    taskId: task.id,
-    importance: taskSucceeded ? 5 : 7
-  });
-  await appendAudit(db, {
-    orgId,
-    actorType: "agent",
-    actorId: task.agentId,
-    agentId: task.agentId,
-    taskId: task.id,
-    action: taskSucceeded ? "task.completed" : "task.failed",
-    tool: "llm",
-    cost,
-    outcome: taskSucceeded ? "success" : "failure"
-  });
-  if (task.agentId) {
-    try {
-      const { submitFeedback: submitFeedback2 } = await Promise.resolve().then(() => (init_multi_agent(), multi_agent_exports));
-      await submitFeedback2(db, {
-        orgId,
-        agentId: task.agentId,
-        taskId: task.id,
-        feedbackType: taskSucceeded ? "completion" : "blocker",
-        summary: taskSucceeded ? `Completed "${task.title}" in ${(durationMs / 1e3).toFixed(1)}s` : `Failed to complete "${task.title}": ${result.slice(0, 200)}`,
-        details: result.slice(0, 500),
-        requiresFounderAttention: !taskSucceeded
-      });
-    } catch {
-    }
-  }
-  try {
-    const { shouldNotify: shouldNotify2, getNotificationPrefs: getNotificationPrefs2 } = await Promise.resolve().then(() => (init_notification_preferences(), notification_preferences_exports));
-    const { createNotification: createNotification2 } = await Promise.resolve().then(() => (init_notifications(), notifications_exports));
-    const prefs = await getNotificationPrefs2(db, orgId);
-    if (shouldNotify2(prefs, "inApp", "task")) {
-      createNotification2(
-        db,
-        orgId,
-        "task",
-        "Task Completed",
-        `${agentName} completed "${task.title}" in ${(durationMs / 1e3).toFixed(1)}s (${cost} credits)`
-      );
-    }
-  } catch {
-  }
-  return {
-    taskId,
-    status: taskSucceeded ? "completed" : "failed",
-    result,
-    cost,
-    tokensUsed,
-    llmUsed: llmAttempted
-  };
-}
-async function getTaskStatus(db, orgId, taskId) {
-  const [task] = await db.select().from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId))).limit(1);
-  if (!task) return null;
-  let activitySummary;
-  if (!task.result) {
-    const [activity] = await db.select({ summary: activityEvents.summary }).from(activityEvents).where(eq(activityEvents.taskId, taskId)).orderBy(activityEvents.occurredAt).limit(1);
-    activitySummary = activity?.summary ?? void 0;
-  }
-  return {
-    id: task.id,
-    title: task.title,
-    status: task.status,
-    cost: task.cost,
-    agentId: task.agentId,
-    result: task.result ?? activitySummary
-  };
-}
-function buildTaskPrompt(title, description, agentName, agentRole) {
-  return `## Task Assignment
-
-You have been assigned a task by the Executive Agent.
-
-**Task:** ${title}
-**Description:** ${description}
-**Your Role:** ${agentName} (${agentRole.replace(/_/g, " ")})
-
-Complete this task now. Provide:
-1. A clear, structured output
-2. Key findings or deliverables
-3. Any recommendations or next steps
-4. Assumptions or limitations if applicable
-
-Be thorough but concise. Focus on actionable output.`;
-}
-function generateFallbackResult(title, description, agentName) {
-  return `## Task Complete: ${title}
-
-**Assigned to:** ${agentName}
-
-**Summary:**
-This task has been processed by the ${agentName}. The task involved: ${description}
-
-**Status:** Completed (structured output \u2014 LLM was unavailable for full execution)
-
-**Note:** For detailed AI-generated output, ensure the LLM gateway (LiteLLM) is configured and running. The task has been recorded in the system with all context preserved for future reference.`;
-}
+init_task_executor();
 
 // src/services/qa-evaluator.ts
 init_drizzle_orm();
@@ -108452,6 +111412,32 @@ async function executeWithQuality(config2, db, orgId, taskId, options) {
       startTime,
       revisionCount
     );
+  }
+  if (executionResult.status === "awaiting_approval" || executionResult.status === "deferred") {
+    return {
+      executionResult,
+      qaEvaluation: {
+        verdict: "blocked",
+        score: 0,
+        criteria: [],
+        // nothing was evaluated, and inventing criteria would be a verdict on air
+        warnings: [executionResult.result],
+        revisionInstructions: null,
+        failureCategory: null,
+        failureReason: null,
+        estimatedRevisionEffort: "trivial",
+        requiresFounderReview: executionResult.status === "awaiting_approval",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      failureAnalysis: null,
+      learningEvent: null,
+      agentReliability: null,
+      finalStatus: executionResult.status === "awaiting_approval" ? "awaiting_approval" : "deferred",
+      totalDurationMs: Date.now() - startTime,
+      revisionCount,
+      creditsUsed: executionResult.cost,
+      lessonsRetrieved
+    };
   }
   let qaEvaluation;
   if (options?.skipQA) {
@@ -109774,6 +112760,26 @@ function detectToolCalls(command, ctx) {
 }
 function fallbackAnalysis(command, ctx) {
   const lower = command.toLowerCase();
+  const completedAt = ctx.founderContext?.completedAt;
+  const onboardingIncomplete = !(completedAt instanceof Date || typeof completedAt === "string");
+  const discoveryMatch = command.match(/^\s*(?:hi|hello|hey)?\s*(?:i(?:'m| am| am currently)|we(?:'re| are)|my company|our company|the company)\s+(?:building|am building|'m building|currently building|working on|developing|starting|launching|planning|creating|running)?\s*(.*)$/i) ?? command.match(/^\s*(?:i have|we have|we run|my company runs)\s+an?\s+(.+)$/i) ?? command.match(/^\s*(?:i want to|we want to|i would like to|we would like to)\s+(build|create|start|launch)\s+(.+)$/i);
+  if (onboardingIncomplete && discoveryMatch) {
+    const rawDetail = (discoveryMatch[1] ?? discoveryMatch[2] ?? "").trim();
+    const hasSignal = rawDetail.length >= 8;
+    const observation = hasSignal ? `That gives me the product direction: ${rawDetail.length > 120 ? `${rawDetail.slice(0, 117)}...` : rawDetail}.` : "Tell me a little more about what it does and who it serves.";
+    const followUp = hasSignal ? "Are you still validating the idea, or do you already have something customers can use?" : "Are you describing an idea, or an existing company that is already operating?";
+    return {
+      intent: command,
+      category: "inquiry",
+      answerOnly: true,
+      requiresApproval: false,
+      riskLevel: "low",
+      estimatedCost: 0,
+      suggestedAgentRole: "executive_agent",
+      taskDecomposition: [],
+      response: `${observation} ${followUp} Continue onboarding when you are ready and I will use this as context to recommend your first structure.`
+    };
+  }
   const asksForState = /\b(what|which|how|why|where)\b|\bstatus\b|\bupdate me\b/.test(lower);
   const requestsNewWork = /\b(research|analyze|write|draft|build|create|make|prepare|design|plan|find|generate|produce)\b/.test(lower);
   const isPureQuestion = /\?\s*$/.test(command.trim()) && asksForState && !requestsNewWork;
@@ -109825,7 +112831,7 @@ function fallbackAnalysis(command, ctx) {
   else if (lower.includes("manage") || lower.includes("organize") || lower.includes("hire") || lower.includes("team")) category = "manage";
   else if (lower.includes("plan") || lower.includes("strategy") || lower.includes("roadmap")) category = "plan";
   else if (lower.includes("financ") || lower.includes("budget") || lower.includes("revenue") || lower.includes("cost")) category = "analyze";
-  const needsApproval = ["send", "publish", "deploy", "buy", "purchase", "delete", "remove", "hire", "fire", "email", "post"].some((w) => lower.includes(w));
+  const needsApproval2 = ["send", "publish", "deploy", "buy", "purchase", "delete", "remove", "hire", "fire", "email", "post"].some((w) => lower.includes(w));
   const agentRoleMap = {
     research: "market_researcher",
     write: "content_writer",
@@ -109839,7 +112845,7 @@ function fallbackAnalysis(command, ctx) {
   const suggestedRole = agentRoleMap[category] ?? "executive_agent";
   const matchingAgent = ctx.agents.find((a) => a.role === suggestedRole && a.status === "active");
   const agentName = matchingAgent?.name ?? "Executive Agent";
-  const taskDecomposition = buildTaskDecomposition(command, category, suggestedRole, needsApproval);
+  const taskDecomposition = buildTaskDecomposition(command, category, suggestedRole, needsApproval2);
   const estimatedCost = taskDecomposition.length * 2;
   const detectedTools = detectToolCalls(command, ctx);
   if (detectedTools && detectedTools.length > 0 && detectedTools[0]) {
@@ -109895,16 +112901,16 @@ function fallbackAnalysis(command, ctx) {
   return {
     intent: command,
     category,
-    requiresApproval: needsApproval,
-    approvalReason: needsApproval ? `This action involves ${category === "communicate" ? "external communications" : category === "execute" ? "production changes" : "significant actions"} that require your approval.` : void 0,
-    riskLevel: needsApproval ? "medium" : "low",
+    requiresApproval: needsApproval2,
+    approvalReason: needsApproval2 ? `This action involves ${category === "communicate" ? "external communications" : category === "execute" ? "production changes" : "significant actions"} that require your approval.` : void 0,
+    riskLevel: needsApproval2 ? "medium" : "low",
     estimatedCost,
     suggestedAgentRole: suggestedRole,
     taskDecomposition,
-    response: needsApproval ? `I've analyzed your command and broken it into ${taskCount} tasks across ${agentNames.join(", ")}. Once you approve, execution will begin.` : `I've analyzed your command and created ${taskCount} tasks. ${agentNames.length === 1 ? agentNames[0] + " will" : agentNames.join(" and ") + " will"} handle execution.`
+    response: needsApproval2 ? `I've analyzed your command and broken it into ${taskCount} tasks across ${agentNames.join(", ")}. Once you approve, execution will begin.` : `I've analyzed your command and created ${taskCount} tasks. ${agentNames.length === 1 ? agentNames[0] + " will" : agentNames.join(" and ") + " will"} handle execution.`
   };
 }
-function buildTaskDecomposition(command, category, primaryRole, needsApproval) {
+function buildTaskDecomposition(command, category, primaryRole, needsApproval2) {
   const truncatedCmd = command.length > 80 ? command.slice(0, 77) + "..." : command;
   switch (category) {
     case "research":
@@ -110323,9 +113329,10 @@ async function executeCommand(config2, db, orgId, userId, command, contextNote, 
   const completedCount = taskExecutionResults.filter((r) => r.status === "completed").length;
   const failedCount = taskExecutionResults.filter((r) => r.status === "failed").length;
   const deferredCount = taskExecutionResults.filter((r) => r.status === "deferred").length;
+  const awaitingCount = taskExecutionResults.filter((r) => r.status === "awaiting_approval").length;
   const totalCount = taskExecutionResults.length;
   let status;
-  if (intent.requiresApproval) {
+  if (intent.requiresApproval || awaitingCount > 0) {
     status = "awaiting_approval";
   } else if (totalCount > 0 && completedCount === totalCount) {
     status = "completed";
@@ -110354,6 +113361,11 @@ ${toolParts.join("\n")}`;
     const totalCost = taskExecutionResults.reduce((sum2, r) => sum2 + r.cost, 0);
     const parts = [];
     parts.push(`**Execution:** ${completedCount}/${totalCount} tasks completed.`);
+    if (awaitingCount > 0) {
+      parts.push(
+        `${awaitingCount} task${awaitingCount > 1 ? "s" : ""} stopped and is waiting on your decision \u2014 approve or reject it in Approvals.`
+      );
+    }
     if (failedCount > 0) {
       parts.push(`${failedCount} task${failedCount > 1 ? "s" : ""} failed.`);
     }
@@ -110481,6 +113493,7 @@ async function getRecentActivity(db, orgId, limit = 10) {
 }
 
 // src/routes/commands.ts
+init_task_executor();
 init_llm_tracer();
 var commandBody = external_exports.object({
   command: external_exports.string().trim().min(3).max(2e3),
@@ -110623,9 +113636,33 @@ function registerCommandRoutes(app, deps) {
       return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
     } catch (error51) {
       request.log.error({ err: error51 }, "task execution failed");
+      const reason = (error51 instanceof Error ? error51.message : "Unknown execution error").slice(0, 200);
+      await db.update(tasks).set({ status: "failed", result: `Execution failed: ${reason}`, updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(tasks.id, request.params.taskId), eq(tasks.orgId, ctx.orgId))).catch(() => void 0);
       reply.code(500);
-      return { error: { code: "execution.failed", message: "Task execution failed" } };
+      return { error: { code: "execution.failed", message: `Task execution failed: ${reason}` } };
     }
+  });
+  app.post("/v1/commands/tasks/:taskId/retry", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const outcome = await retryTask(config2, db, ctx.orgId, request.params.taskId);
+    if ("refused" in outcome) {
+      reply.code(outcome.status === "missing" ? 404 : 409);
+      return { error: { code: "retry.refused", message: outcome.refused }, data: { status: outcome.status } };
+    }
+    return { data: outcome.result };
+  });
+  app.post("/v1/commands/tasks/execute-pending", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const results = await executePendingTasks(config2, db, ctx.orgId);
+    return {
+      data: {
+        executed: results.length,
+        completed: results.filter((r) => r.status === "completed").length,
+        failed: results.filter((r) => r.status === "failed").length,
+        deferred: results.filter((r) => r.status === "deferred").length,
+        results
+      }
+    };
   });
   app.get("/v1/commands/history", async (request) => {
     const ctx = await requireAuth(request, deps);
@@ -110800,6 +113837,7 @@ init_src2();
 init_zod();
 init_src();
 init_auth();
+init_credits();
 init_credit_alerts();
 function registerCreditRoutes(app, deps) {
   const { db, logger } = deps;
@@ -110920,6 +113958,7 @@ init_src();
 init_auth();
 init_audit();
 init_billing();
+init_credits();
 var checkoutBody = external_exports.object({
   plan: external_exports.enum(["founder", "team", "company"]),
   billing_cycle: external_exports.enum(["monthly", "annual"]).default("monthly")
@@ -111197,7 +114236,7 @@ init_drizzle_orm();
 init_src2();
 var import_promises = require("node:fs/promises");
 var import_node_path = require("node:path");
-var import_node_crypto14 = require("node:crypto");
+var import_node_crypto15 = require("node:crypto");
 var LocalStorageBackend = class {
   baseDir;
   constructor(baseDir) {
@@ -111305,7 +114344,7 @@ function getStorageBackend(config2) {
 async function uploadFile(config2, db, orgId, opts) {
   const backend = getStorageBackend(config2);
   const ext = opts.name.split(".").pop() ?? "bin";
-  const key = `${orgId}/${(0, import_node_crypto14.randomUUID)()}.${ext}`;
+  const key = `${orgId}/${(0, import_node_crypto15.randomUUID)()}.${ext}`;
   await backend.upload(key, opts.body, opts.mimeType);
   const [record2] = await db.insert(files).values({
     orgId,
@@ -111615,7 +114654,7 @@ function registerAvatarRoutes(app, deps) {
 }
 
 // src/routes/admin.ts
-var import_node_crypto15 = require("node:crypto");
+var import_node_crypto16 = require("node:crypto");
 init_drizzle_orm();
 init_auth();
 init_audit();
@@ -111650,7 +114689,7 @@ async function requirePlatformAdmin(request, deps) {
 }
 function hashForAudit(value) {
   if (!value) return "";
-  return (0, import_node_crypto15.createHash)("sha256").update(value).digest("hex").slice(0, 16);
+  return (0, import_node_crypto16.createHash)("sha256").update(value).digest("hex").slice(0, 16);
 }
 function registerAdminRoutes(app, deps) {
   const { db } = deps;
@@ -111759,11 +114798,11 @@ function registerAdminRoutes(app, deps) {
       { name: "Auth", status: "operational", latencyMs: null },
       { name: "Agent Execution", status: "operational", latencyMs: null },
       {
-        // Multi-provider chain (docs/22): NVIDIA NIM → LiteLLM → Ollama → structured fallback
+        // Multi-provider chain (docs/22 §22.9): OpenRouter → NVIDIA NIM → LiteLLM → Ollama
         name: "AI Models",
-        status: llmChain.length > 0 ? llmChain[0]?.id === "nvidia" ? "operational" : "configured" : "not_configured",
+        status: llmChain.length > 0 ? llmChain[0]?.id === "openrouter" ? "operational" : "configured" : "not_configured",
         latencyMs: null,
-        detail: llmChain.length > 0 ? llmChain.map((p3) => p3.label).join(" \u2192 ") : "Set NVIDIA_API_KEY, LITELLM_BASE_URL, or OLLAMA_BASE_URL"
+        detail: llmChain.length > 0 ? llmChain.map((p3) => p3.label).join(" \u2192 ") : "Set OPENROUTER_API_KEY, NVIDIA_API_KEY, LITELLM_BASE_URL, or OLLAMA_BASE_URL"
       },
       { name: "Email (SMTP)", status: process.env.SMTP_HOST ? "operational" : "not_configured", latencyMs: null },
       { name: "Stripe Billing", status: process.env.STRIPE_SECRET_KEY ? "operational" : "not_configured", latencyMs: null },
@@ -112172,144 +115211,7 @@ init_audit();
 // src/services/goal-intelligence.ts
 init_drizzle_orm();
 init_src2();
-
-// src/services/anomaly-detector.ts
-init_drizzle_orm();
-init_src2();
-var STALL_DAYS = 3;
-var AT_RISK_HOURS = 72;
-var AT_RISK_PROGRESS = 60;
-var BLOCKED_DAYS = 2;
-var FAILURE_MIN = 3;
-var FAILURE_MULTIPLIER = 2;
-var SPEND_MIN = 50;
-var SPEND_MULTIPLIER = 2;
-function isStalledGoal(updatedAt, now, days = STALL_DAYS) {
-  return now.getTime() - updatedAt.getTime() > days * 24 * 60 * 60 * 1e3;
-}
-function isAtRiskGoal(dueDate, progress, now, hours = AT_RISK_HOURS, progressFloor = AT_RISK_PROGRESS) {
-  if (!dueDate) return false;
-  const remainingMs = dueDate.getTime() - now.getTime();
-  return remainingMs >= 0 && remainingMs <= hours * 60 * 60 * 1e3 && progress < progressFloor;
-}
-function isBlockedTask(updatedAt, now, days = BLOCKED_DAYS) {
-  return now.getTime() - updatedAt.getTime() > days * 24 * 60 * 60 * 1e3;
-}
-function isFailureSpike(current, previous) {
-  return current >= FAILURE_MIN && current >= previous * FAILURE_MULTIPLIER;
-}
-function isSpendSpike(current, previous) {
-  if (current < SPEND_MIN) return false;
-  if (previous === 0) return current >= SPEND_MIN * 2;
-  return current >= previous * SPEND_MULTIPLIER;
-}
-async function scanOrgAnomalies(db, orgId, now = /* @__PURE__ */ new Date()) {
-  const anomalies = [];
-  const activeGoals = await db.select({ id: goals.id, title: goals.title, status: goals.status, progress: goals.progress, dueDate: goals.dueDate, updatedAt: goals.updatedAt }).from(goals).where(and(eq(goals.orgId, orgId), eq(goals.status, "active"))).limit(100);
-  for (const goal of activeGoals) {
-    if (isStalledGoal(goal.updatedAt, now)) {
-      const stalledDays = Math.floor((now.getTime() - goal.updatedAt.getTime()) / (24 * 60 * 60 * 1e3));
-      anomalies.push({
-        severity: "warning",
-        category: "goal",
-        message: `Goal "${goal.title}" has had no progress for ${stalledDays}d \u2014 stalled.`,
-        refId: goal.id,
-        detectedAt: now.toISOString()
-      });
-    }
-    if (isAtRiskGoal(goal.dueDate, goal.progress, now)) {
-      const hoursLeft = Math.max(1, Math.ceil((goal.dueDate.getTime() - now.getTime()) / (60 * 60 * 1e3)));
-      anomalies.push({
-        severity: "critical",
-        category: "goal",
-        message: `Goal "${goal.title}" is due in ~${hoursLeft}h at ${goal.progress}% progress \u2014 at risk.`,
-        refId: goal.id,
-        detectedAt: now.toISOString()
-      });
-    }
-  }
-  const blockedTasks = await db.select({ id: tasks.id, title: tasks.title, status: tasks.status, updatedAt: tasks.updatedAt }).from(tasks).where(
-    and(
-      eq(tasks.orgId, orgId),
-      sql`${tasks.status} NOT IN ('completed', 'failed', 'cancelled')`
-    )
-  ).limit(200);
-  for (const task of blockedTasks) {
-    if (isBlockedTask(task.updatedAt, now)) {
-      const days = Math.floor((now.getTime() - task.updatedAt.getTime()) / (24 * 60 * 60 * 1e3));
-      anomalies.push({
-        severity: "warning",
-        category: "task",
-        message: `Task "${task.title}" has been ${task.status === "pending" ? "waiting" : "in progress"} ${days}d \u2014 blocked?`,
-        refId: task.id,
-        detectedAt: now.toISOString()
-      });
-    }
-  }
-  const windowStart = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1e3);
-  const prevStart = new Date(windowStart.getTime() - 3 * 24 * 60 * 60 * 1e3);
-  const [failedCurrent] = await db.select({ n: count() }).from(tasks).where(
-    and(
-      eq(tasks.orgId, orgId),
-      eq(tasks.status, "failed"),
-      gte(tasks.updatedAt, windowStart),
-      lt(tasks.updatedAt, now)
-    )
-  );
-  const [failedPrevious] = await db.select({ n: count() }).from(tasks).where(
-    and(
-      eq(tasks.orgId, orgId),
-      eq(tasks.status, "failed"),
-      gte(tasks.updatedAt, prevStart),
-      lt(tasks.updatedAt, windowStart)
-    )
-  );
-  const failedNow = failedCurrent?.n ?? 0;
-  const failedThen = failedPrevious?.n ?? 0;
-  if (isFailureSpike(failedNow, failedThen)) {
-    anomalies.push({
-      severity: "critical",
-      category: "failure",
-      message: `Task failure spike: ${failedNow} failures in the last 3 days (vs ${failedThen} previously).`,
-      refId: null,
-      detectedAt: now.toISOString()
-    });
-  }
-  const [usageCurrent] = await db.select({ total: sql`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` }).from(creditTransactions).where(
-    and(
-      eq(creditTransactions.orgId, orgId),
-      eq(creditTransactions.type, "usage"),
-      gte(creditTransactions.createdAt, windowStart),
-      lt(creditTransactions.createdAt, now)
-    )
-  );
-  const [usagePrevious] = await db.select({ total: sql`coalesce(abs(sum(${creditTransactions.amount})), 0)::int` }).from(creditTransactions).where(
-    and(
-      eq(creditTransactions.orgId, orgId),
-      eq(creditTransactions.type, "usage"),
-      gte(creditTransactions.createdAt, prevStart),
-      lt(creditTransactions.createdAt, windowStart)
-    )
-  );
-  const spentNow = usageCurrent?.total ?? 0;
-  const spentThen = usagePrevious?.total ?? 0;
-  if (isSpendSpike(spentNow, spentThen)) {
-    anomalies.push({
-      severity: "warning",
-      category: "spend",
-      message: `Credit spend spike: ${spentNow} credits used in the last 3 days (vs ${spentThen} previously).`,
-      refId: null,
-      detectedAt: now.toISOString()
-    });
-  }
-  anomalies.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
-  return { orgId, scannedAt: now.toISOString(), anomalies };
-}
-function severityRank(s) {
-  return s === "critical" ? 0 : s === "warning" ? 1 : 2;
-}
-
-// src/services/goal-intelligence.ts
+init_anomaly_detector();
 function classifyGoalHealth(opts) {
   const { progress, dueDate, updatedAt, now, taskCount, blockedCount, failedCount } = opts;
   if (taskCount === 0) return "no_activity";
@@ -112445,6 +115347,7 @@ async function getGoalDrillDown(db, orgId, goalId, now = /* @__PURE__ */ new Dat
 }
 
 // src/routes/goals.ts
+init_attention();
 init_src2();
 var createGoalBody = external_exports.object({
   title: external_exports.string().trim().min(1).max(200),
@@ -112681,6 +115584,17 @@ function registerGoalRoutes(app, deps) {
       return { error: { code: "not_found", message: "Task not found" } };
     }
     const updatedTask = result[0];
+    if (parsed.data.status !== void 0) {
+      await appendAudit(db, {
+        orgId: ctx.orgId,
+        actorType: "user",
+        actorId: ctx.userId,
+        action: "task.status_changed",
+        outcome: "success",
+        resultRef: `${updatedTask.id} \u2192 ${updatedTask.status}`
+      });
+      notifyAttentionChanged(ctx.orgId, "task.updated");
+    }
     if (updatedTask.goalId && parsed.data.status) {
       try {
         const [totalRow, completedRow] = await Promise.all([
@@ -112724,26 +115638,27 @@ init_auth();
 // src/services/onboarding.ts
 init_drizzle_orm();
 init_src2();
+var STEP_NUMBERS = {
+  organization: 0,
+  constitution: 1,
+  agents: 2,
+  complete: 3
+};
+function toOnboardingData(row) {
+  return {
+    step: row.step,
+    stepNumber: STEP_NUMBERS[row.step] ?? 0,
+    organization: row.organization ?? void 0,
+    constitution: row.constitution ?? void 0,
+    agentSelections: row.agentSelections ?? void 0,
+    completedAt: row.completedAt ?? void 0
+  };
+}
 async function getOrCreate(db, userId, orgId) {
   const existing = await db.select().from(onboardingStates).where(eq(onboardingStates.userId, userId)).limit(1);
-  const row = existing[0];
-  if (row) {
-    const stepMap = { organization: 0, constitution: 1, agents: 2, complete: 3 };
-    return {
-      step: row.step,
-      stepNumber: stepMap[row.step] ?? 0,
-      organization: row.organization ?? void 0,
-      constitution: row.constitution ?? void 0,
-      agentSelections: row.agentSelections ?? void 0,
-      completedAt: row.completedAt ?? void 0
-    };
-  }
-  await db.insert(onboardingStates).values({
-    userId,
-    orgId,
-    step: "organization"
-  });
-  return { step: "organization", stepNumber: 0 };
+  if (existing[0]) return toOnboardingData(existing[0]);
+  const inserted = await db.insert(onboardingStates).values({ userId, orgId, step: "organization" }).onConflictDoNothing().returning();
+  return inserted[0] ? toOnboardingData(inserted[0]) : { step: "organization", stepNumber: 0 };
 }
 async function update(db, userId, data) {
   const existing = await db.select({ id: onboardingStates.id }).from(onboardingStates).where(eq(onboardingStates.userId, userId)).limit(1);
@@ -113794,8 +116709,12 @@ var updateSettingsBody = external_exports.object({
     theme: external_exports.enum(["light", "dark", "system"]).optional()
   }).optional()
 });
+var mailTestBody = external_exports.object({
+  /** Where the test message goes. Defaults to the signed-in founder's address. */
+  to: external_exports.string().trim().email().max(320).optional()
+});
 function registerSettingsRoutes(app, deps) {
-  const { db } = deps;
+  const { db, config: config2 } = deps;
   app.get("/v1/settings/export", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
     if (ctx.role !== "owner" && ctx.role !== "admin") throw forbidden();
@@ -113866,12 +116785,327 @@ function registerSettingsRoutes(app, deps) {
     });
     return { data: { success: true } };
   });
+  app.get("/v1/settings/mail", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const description = describeMailProvider(config2);
+    return {
+      data: {
+        ...description,
+        environment: config2.NODE_ENV,
+        // Sending is a founder action, not something every member can trigger.
+        canSendTest: ctx.role === "owner" || ctx.role === "admin"
+      }
+    };
+  });
+  app.post("/v1/settings/mail/test", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    if (ctx.role !== "owner" && ctx.role !== "admin") throw forbidden();
+    const parsed = mailTestBody.safeParse(request.body ?? {});
+    if (!parsed.success) throw validation(parsed.error.flatten());
+    const to = parsed.data.to ?? ctx.email;
+    const diagnosis = await runMailDiagnosis(config2, deps.logger, to);
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: "user",
+      actorId: ctx.userId,
+      action: "mail.delivery_checked",
+      outcome: diagnosis.ok ? "success" : "failure",
+      resultRef: `mail:${diagnosis.provider} \u2192 ${to}`
+    });
+    void reply;
+    return { data: diagnosis };
+  });
 }
 
 // src/routes/members.ts
 init_drizzle_orm();
+init_zod();
 init_auth();
 init_src2();
+init_transport();
+init_transactional();
+
+// src/services/members.ts
+init_drizzle_orm();
+var import_node_crypto17 = require("node:crypto");
+init_src2();
+init_audit();
+init_sessions();
+var MEMBER_ROLES = ["owner", "admin", "member", "viewer"];
+var INVITATION_TTL_DAYS = 14;
+var MemberError = class extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.name = "MemberError";
+  }
+  status;
+  code;
+};
+function isMemberRole(value) {
+  return typeof value === "string" && MEMBER_ROLES.includes(value);
+}
+function hashToken(token) {
+  return (0, import_node_crypto17.createHash)("sha256").update(token).digest("hex");
+}
+async function membershipRole2(db, orgId, userId) {
+  const rows = await db.select({ role: memberships.role, status: memberships.status }).from(memberships).where(and(eq(memberships.orgId, orgId), eq(memberships.userId, userId))).limit(1);
+  const row = rows[0];
+  if (!row || row.status !== "active") return null;
+  return row.role;
+}
+function assertAdministrator(role) {
+  if (role !== "owner" && role !== "admin") {
+    throw new MemberError(403, "forbidden", "Only an owner or an admin can change the organization's members.");
+  }
+}
+function assertMayGrant(actorRole, targetRole) {
+  if (targetRole === "owner" && actorRole !== "owner") {
+    throw new MemberError(403, "forbidden", "Only an owner can grant the owner role.");
+  }
+}
+async function assertNotLastOwner(db, orgId, userId) {
+  const rows = await db.select({ owners: sql`count(*)::int` }).from(memberships).where(and(eq(memberships.orgId, orgId), eq(memberships.role, "owner"), eq(memberships.status, "active")));
+  const owners = rows[0]?.owners ?? 0;
+  const isOwner = await membershipRole2(db, orgId, userId);
+  if (isOwner === "owner" && owners <= 1) {
+    throw new MemberError(
+      409,
+      "last_owner",
+      "This is the organization's last owner. Promote another member to owner first."
+    );
+  }
+}
+async function inviteMember(db, input) {
+  assertAdministrator(input.actorRole);
+  assertMayGrant(input.actorRole, input.role);
+  const email3 = input.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email3)) {
+    throw new MemberError(400, "invalid_email", "That does not look like an email address.");
+  }
+  const existing = await db.select({ role: memberships.role }).from(memberships).innerJoin(users, eq(memberships.userId, users.id)).where(and(eq(memberships.orgId, input.orgId), sql`lower(${users.email}) = ${email3}`)).limit(1);
+  if (existing[0]) {
+    throw new MemberError(409, "already_member", `${email3} is already a member of this organization.`);
+  }
+  const pendingRows = await db.select({ id: invitations.id }).from(invitations).where(
+    and(
+      eq(invitations.orgId, input.orgId),
+      eq(invitations.status, "pending"),
+      sql`lower(${invitations.email}) = ${email3}`
+    )
+  ).limit(1);
+  if (pendingRows[0]) {
+    throw new MemberError(
+      409,
+      "pending_exists",
+      `${email3} already has a pending invitation. Revoke it to send a new one.`
+    );
+  }
+  const token = (0, import_node_crypto17.randomBytes)(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1e3);
+  const inserted = await db.insert(invitations).values({
+    orgId: input.orgId,
+    email: email3,
+    role: input.role,
+    tokenHash: hashToken(token),
+    invitedBy: input.actorId,
+    status: "pending",
+    expiresAt
+  }).returning({ id: invitations.id });
+  const invitationId = inserted[0]?.id;
+  if (!invitationId) throw new Error("inviteMember returned no row");
+  await appendAudit(db, {
+    orgId: input.orgId,
+    actorType: "user",
+    actorId: input.actorId,
+    action: "member.invited",
+    outcome: "success",
+    inputRef: invitationId
+  });
+  await createEvent(db, {
+    orgId: input.orgId,
+    type: "member.invited",
+    summary: `Invited ${email3} as ${input.role}`
+  });
+  return {
+    invitationId,
+    email: email3,
+    role: input.role,
+    expiresAt,
+    acceptUrl: `${input.appUrl.replace(/\/$/, "")}/invite/${token}`
+  };
+}
+async function renewInvitation(db, input) {
+  assertAdministrator(input.actorRole);
+  const rows = await db.select().from(invitations).where(and(eq(invitations.orgId, input.orgId), eq(invitations.id, input.invitationId))).limit(1);
+  const invitation = rows[0];
+  if (!invitation) throw new MemberError(404, "not_found", "No such invitation.");
+  if (invitation.status !== "pending") {
+    throw new MemberError(409, "not_pending", `That invitation is already ${invitation.status}. Invite them again instead.`);
+  }
+  if (!isMemberRole(invitation.role)) {
+    throw new MemberError(409, "bad_role", "That invitation carries a role this version does not recognise.");
+  }
+  const token = (0, import_node_crypto17.randomBytes)(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1e3);
+  await db.update(invitations).set({ tokenHash: hashToken(token), expiresAt }).where(eq(invitations.id, invitation.id));
+  await appendAudit(db, {
+    orgId: input.orgId,
+    actorType: "user",
+    actorId: input.actorId,
+    action: "invitation.renewed",
+    outcome: "success",
+    inputRef: invitation.id
+  });
+  return {
+    invitationId: invitation.id,
+    email: invitation.email,
+    role: invitation.role,
+    expiresAt,
+    acceptUrl: `${input.appUrl.replace(/\/$/, "")}/invite/${token}`
+  };
+}
+async function listInvitations(db, orgId) {
+  return db.select({
+    id: invitations.id,
+    email: invitations.email,
+    role: invitations.role,
+    status: invitations.status,
+    expiresAt: invitations.expiresAt,
+    acceptedAt: invitations.acceptedAt,
+    createdAt: invitations.createdAt,
+    invitedBy: invitations.invitedBy
+  }).from(invitations).where(eq(invitations.orgId, orgId)).orderBy(desc(invitations.createdAt)).limit(100);
+}
+async function revokeInvitation(db, input) {
+  assertAdministrator(input.actorRole);
+  const rows = await db.select({ id: invitations.id, status: invitations.status, email: invitations.email }).from(invitations).where(and(eq(invitations.orgId, input.orgId), eq(invitations.id, input.invitationId))).limit(1);
+  const invitation = rows[0];
+  if (!invitation) throw new MemberError(404, "not_found", "No such invitation.");
+  if (invitation.status !== "pending") {
+    throw new MemberError(409, "not_pending", `That invitation is already ${invitation.status}.`);
+  }
+  await db.update(invitations).set({ status: "revoked" }).where(eq(invitations.id, invitation.id));
+  await appendAudit(db, {
+    orgId: input.orgId,
+    actorType: "user",
+    actorId: input.actorId,
+    action: "invitation.revoked",
+    outcome: "success",
+    inputRef: invitation.id
+  });
+}
+async function acceptInvitation(db, input) {
+  const rows = await db.select().from(invitations).where(eq(invitations.tokenHash, hashToken(input.token))).limit(1);
+  const invitation = rows[0];
+  if (!invitation) throw new MemberError(404, "not_found", "That invitation link is not valid.");
+  if (invitation.status !== "pending") {
+    throw new MemberError(409, "not_pending", `That invitation is already ${invitation.status}.`);
+  }
+  if (invitation.expiresAt.getTime() < Date.now()) {
+    await db.update(invitations).set({ status: "expired" }).where(eq(invitations.id, invitation.id));
+    throw new MemberError(410, "expired", "That invitation has expired. Ask for a new one.");
+  }
+  if (invitation.email.toLowerCase() !== input.userEmail.trim().toLowerCase()) {
+    throw new MemberError(
+      403,
+      "email_mismatch",
+      `That invitation was sent to ${invitation.email}. Sign in with that address to accept it.`
+    );
+  }
+  if (!isMemberRole(invitation.role)) {
+    throw new MemberError(409, "bad_role", "That invitation carries a role this version does not recognise.");
+  }
+  const existing = await membershipRole2(db, invitation.orgId, input.userId);
+  if (existing) {
+    await db.update(invitations).set({ status: "accepted", acceptedAt: /* @__PURE__ */ new Date(), acceptedBy: input.userId }).where(eq(invitations.id, invitation.id));
+    return { orgId: invitation.orgId, role: existing };
+  }
+  await db.insert(memberships).values({
+    orgId: invitation.orgId,
+    userId: input.userId,
+    role: invitation.role,
+    status: "active"
+  });
+  await db.update(invitations).set({ status: "accepted", acceptedAt: /* @__PURE__ */ new Date(), acceptedBy: input.userId }).where(eq(invitations.id, invitation.id));
+  await appendAudit(db, {
+    orgId: invitation.orgId,
+    actorType: "user",
+    actorId: input.userId,
+    action: "invitation.accepted",
+    outcome: "success",
+    inputRef: invitation.id,
+    authorization: `role=${invitation.role}`
+  });
+  await createEvent(db, {
+    orgId: invitation.orgId,
+    type: "member.joined",
+    summary: `${invitation.email} joined as ${invitation.role}`
+  });
+  return { orgId: invitation.orgId, role: invitation.role };
+}
+async function updateMemberRole(db, input) {
+  assertAdministrator(input.actorRole);
+  if (input.userId === input.actorId) {
+    throw new MemberError(409, "self_change", "You cannot change your own role.");
+  }
+  const current = await membershipRole2(db, input.orgId, input.userId);
+  if (!current) throw new MemberError(404, "not_found", "That person is not a member of this organization.");
+  if (current === "owner" && input.actorRole !== "owner") {
+    throw new MemberError(403, "forbidden", "Only an owner can change another owner's role.");
+  }
+  assertMayGrant(input.actorRole, input.role);
+  if (input.role !== "owner") {
+    await assertNotLastOwner(db, input.orgId, input.userId);
+  }
+  await db.update(memberships).set({ role: input.role }).where(and(eq(memberships.orgId, input.orgId), eq(memberships.userId, input.userId)));
+  await appendAudit(db, {
+    orgId: input.orgId,
+    actorType: "user",
+    actorId: input.actorId,
+    action: "member.role_changed",
+    outcome: "success",
+    inputRef: input.userId,
+    authorization: `${current} -> ${input.role}`
+  });
+  await createEvent(db, {
+    orgId: input.orgId,
+    type: "member.role_changed",
+    summary: `Role changed: ${current} \u2192 ${input.role}`
+  });
+}
+async function removeMember(db, input) {
+  assertAdministrator(input.actorRole);
+  if (input.userId === input.actorId) {
+    throw new MemberError(409, "self_change", "You cannot remove yourself from the organization.");
+  }
+  const current = await membershipRole2(db, input.orgId, input.userId);
+  if (!current) throw new MemberError(404, "not_found", "That person is not a member of this organization.");
+  if (current === "owner" && input.actorRole !== "owner") {
+    throw new MemberError(403, "forbidden", "Only an owner can remove another owner.");
+  }
+  await assertNotLastOwner(db, input.orgId, input.userId);
+  await db.update(memberships).set({ status: "removed" }).where(and(eq(memberships.orgId, input.orgId), eq(memberships.userId, input.userId)));
+  const revokedSessions = await revokeOrgSessions(db, input.userId, input.orgId, input.redis ?? null);
+  await appendAudit(db, {
+    orgId: input.orgId,
+    actorType: "user",
+    actorId: input.actorId,
+    action: "member.removed",
+    outcome: "success",
+    inputRef: input.userId,
+    authorization: `was ${current}`
+  });
+  await createEvent(db, {
+    orgId: input.orgId,
+    type: "member.removed",
+    summary: "A member was removed from the organization"
+  });
+  return { revokedSessions };
+}
+
+// src/routes/members.ts
 function registerMemberRoutes(app, deps) {
   const { db } = deps;
   app.get("/v1/members", async (request) => {
@@ -113880,7 +117114,7 @@ function registerMemberRoutes(app, deps) {
     const limit = Math.min(Math.max(Number(params.limit) || 50, 1), 200);
     const offset = Math.max(Number(params.offset) || 0, 0);
     const search = params.search?.trim().toLowerCase() ?? "";
-    const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(memberships).where(eq(memberships.orgId, ctx.orgId));
+    const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(memberships).where(and(eq(memberships.orgId, ctx.orgId), eq(memberships.status, "active")));
     const memberList = await db.select({
       id: users.id,
       email: users.email,
@@ -113889,7 +117123,7 @@ function registerMemberRoutes(app, deps) {
       role: memberships.role,
       memberSince: memberships.createdAt,
       createdAt: users.createdAt
-    }).from(memberships).innerJoin(users, eq(memberships.userId, users.id)).where(eq(memberships.orgId, ctx.orgId)).orderBy(desc(memberships.createdAt)).limit(limit).offset(offset);
+    }).from(memberships).innerJoin(users, eq(memberships.userId, users.id)).where(and(eq(memberships.orgId, ctx.orgId), eq(memberships.status, "active"))).orderBy(desc(memberships.createdAt)).limit(limit).offset(offset);
     const filtered = search ? memberList.filter(
       (m) => m.name?.toLowerCase().includes(search) || m.email.toLowerCase().includes(search)
     ) : memberList;
@@ -113907,6 +117141,157 @@ function registerMemberRoutes(app, deps) {
       meta: { limit, offset, total: totalRow?.count ?? 0 }
     };
   });
+  const refused = (reply, error51) => {
+    if (error51 instanceof MemberError) {
+      return reply.status(error51.status).send({ error: error51.code, message: error51.message });
+    }
+    throw error51;
+  };
+  const deliverInvitation = async (input) => {
+    try {
+      const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, input.orgId)).limit(1);
+      const content = invitationEmail({
+        orgName: org?.name ?? "your company",
+        role: input.role,
+        acceptUrl: input.acceptUrl,
+        invitedBy: input.invitedByName,
+        expiresInDays: INVITATION_TTL_DAYS
+      });
+      const result = await createEmailTransport(deps.config, deps.logger).send({
+        to: input.email,
+        subject: content.subject,
+        text: content.text,
+        html: content.html
+      });
+      if (result.delivered) return { delivery: "sent" };
+      return { delivery: result.ok ? "unconfigured" : "failed" };
+    } catch (err) {
+      deps.logger.warn({ err }, "invitation email failed \u2014 the accept link is still returned to the inviter");
+      return { delivery: "failed" };
+    }
+  };
+  const inviterName = async (userId) => {
+    const [row] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+    return row?.name?.trim() || row?.email;
+  };
+  app.post("/v1/members/invitations", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = external_exports.object({ email: external_exports.string().min(3).max(200), role: external_exports.enum(["owner", "admin", "member", "viewer"]).default("member") }).safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "invalid_request", message: "Provide an email and a valid role." });
+    }
+    try {
+      const invitation = await inviteMember(db, {
+        orgId: ctx.orgId,
+        actorId: ctx.userId,
+        actorRole: ctx.role,
+        email: parsed.data.email,
+        role: parsed.data.role,
+        appUrl: deps.config.APP_URL ?? "http://localhost:3000"
+      });
+      const { delivery } = await deliverInvitation({
+        orgId: ctx.orgId,
+        email: invitation.email,
+        role: invitation.role,
+        acceptUrl: invitation.acceptUrl,
+        invitedByName: await inviterName(ctx.userId)
+      });
+      return reply.status(201).send({ data: { ...invitation, delivery } });
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
+  app.post("/v1/members/invitations/:id/renew", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    try {
+      const invitation = await renewInvitation(db, {
+        orgId: ctx.orgId,
+        actorId: ctx.userId,
+        actorRole: ctx.role,
+        invitationId: id,
+        appUrl: deps.config.APP_URL ?? "http://localhost:3000"
+      });
+      const { delivery } = await deliverInvitation({
+        orgId: ctx.orgId,
+        email: invitation.email,
+        role: invitation.role,
+        acceptUrl: invitation.acceptUrl,
+        invitedByName: await inviterName(ctx.userId)
+      });
+      return { data: { ...invitation, delivery } };
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
+  app.get("/v1/members/invitations", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const data = await listInvitations(db, ctx.orgId);
+    return { data };
+  });
+  app.post("/v1/members/invitations/:id/revoke", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    try {
+      await revokeInvitation(db, { orgId: ctx.orgId, actorId: ctx.userId, actorRole: ctx.role, invitationId: id });
+      return { data: { id, status: "revoked" } };
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
+  app.post("/v1/members/invitations/accept", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = external_exports.object({ token: external_exports.string().min(10).max(400) }).safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "invalid_request", message: "An invitation token is required." });
+    }
+    try {
+      const result = await acceptInvitation(db, {
+        token: parsed.data.token,
+        userId: ctx.userId,
+        userEmail: ctx.email
+      });
+      return { data: result };
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
+  app.patch("/v1/members/:userId", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { userId } = request.params;
+    const parsed = external_exports.object({ role: external_exports.string() }).safeParse(request.body);
+    if (!parsed.success || !isMemberRole(parsed.data.role)) {
+      return reply.status(400).send({ error: "invalid_request", message: "Provide one of: owner, admin, member, viewer." });
+    }
+    try {
+      await updateMemberRole(db, {
+        orgId: ctx.orgId,
+        actorId: ctx.userId,
+        actorRole: ctx.role,
+        userId,
+        role: parsed.data.role
+      });
+      return { data: { userId, role: parsed.data.role } };
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
+  app.delete("/v1/members/:userId", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { userId } = request.params;
+    try {
+      const { revokedSessions } = await removeMember(db, {
+        orgId: ctx.orgId,
+        actorId: ctx.userId,
+        actorRole: ctx.role,
+        userId,
+        redis: deps.redis
+      });
+      return { data: { userId, status: "removed", revokedSessions } };
+    } catch (error51) {
+      return refused(reply, error51);
+    }
+  });
   app.get("/v1/members/all", async (request) => {
     const ctx = await requireAuth(request, deps);
     const params = request.query;
@@ -113921,7 +117306,7 @@ function registerMemberRoutes(app, deps) {
       role: memberships.role,
       memberSince: memberships.createdAt,
       createdAt: users.createdAt
-    }).from(memberships).innerJoin(users, eq(memberships.userId, users.id)).where(eq(memberships.orgId, ctx.orgId)).orderBy(desc(memberships.createdAt));
+    }).from(memberships).innerJoin(users, eq(memberships.userId, users.id)).where(and(eq(memberships.orgId, ctx.orgId), eq(memberships.status, "active"))).orderBy(desc(memberships.createdAt));
     const agentMembers = await db.select({
       id: agents.id,
       name: agents.name,
@@ -113974,699 +117359,7 @@ function registerMemberRoutes(app, deps) {
 
 // src/routes/tools.ts
 init_auth();
-
-// src/services/tool-registry.ts
-init_audit();
-init_realtime();
-init_src2();
-var toolRegistry = /* @__PURE__ */ new Map();
-function registerTool(tool) {
-  toolRegistry.set(tool.id, tool);
-}
-function getTool(toolId) {
-  return toolRegistry.get(toolId);
-}
-function getAllTools() {
-  return Array.from(toolRegistry.values());
-}
-function getToolsForRole(role) {
-  return getAllTools().filter((tool) => {
-    if (tool.forbiddenRoles.includes(role)) return false;
-    if (tool.allowedRoles.length > 0 && !tool.allowedRoles.includes(role)) return false;
-    return true;
-  });
-}
-var toolHandlers = /* @__PURE__ */ new Map();
-function registerToolHandler(toolId, handler2) {
-  toolHandlers.set(toolId, handler2);
-}
-function registerBuiltinTools() {
-  registerTool({
-    id: "web_search",
-    name: "Web Search",
-    description: "Search the web for current information on any topic. Returns relevant results with titles, URLs, and content snippets.",
-    category: "research",
-    parameters: [
-      { name: "query", type: "string", description: "Search query", required: true },
-      { name: "depth", type: "string", description: "Search depth", required: false, defaultValue: "standard", enum: ["standard", "deep"] }
-    ],
-    outputDescription: "Search results with titles, URLs, and content snippets",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 15e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "analyze_competitor",
-    name: "Analyze Competitor",
-    description: "Research and analyze a specific competitor. Returns their positioning, strengths, weaknesses, and market strategy.",
-    category: "research",
-    parameters: [
-      { name: "competitor_name", type: "string", description: "Name of the competitor", required: true },
-      { name: "focus_areas", type: "array", description: "Specific areas to focus on", required: false }
-    ],
-    outputDescription: "Competitive analysis with positioning, strengths, weaknesses, and strategy",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 5e3,
-    timeoutMs: 3e4,
-    allowedRoles: ["market_researcher", "data_analyst", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "research_market",
-    name: "Research Market",
-    description: "Research a market or industry. Returns size, trends, growth, key players, and opportunities.",
-    category: "research",
-    parameters: [
-      { name: "market", type: "string", description: "Market or industry to research", required: true },
-      { name: "specific_questions", type: "array", description: "Specific questions to answer", required: false }
-    ],
-    outputDescription: "Market research report with size, trends, players, and opportunities",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 3,
-    estimatedDurationMs: 8e3,
-    timeoutMs: 45e3,
-    allowedRoles: ["market_researcher", "data_analyst", "financial_analyst", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "write_blog_post",
-    name: "Write Blog Post",
-    description: "Write a complete blog post on a given topic with title, sections, and call-to-action.",
-    category: "content",
-    parameters: [
-      { name: "topic", type: "string", description: "Blog post topic", required: true },
-      { name: "tone", type: "string", description: "Writing tone", required: false, defaultValue: "professional", enum: ["professional", "casual", "technical", "persuasive", "educational"] },
-      { name: "word_count", type: "number", description: "Target word count", required: false, defaultValue: 800 },
-      { name: "audience", type: "string", description: "Target audience", required: false }
-    ],
-    outputDescription: "Complete blog post with title, introduction, body sections, and conclusion",
-    riskLevel: "low",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 5e3,
-    timeoutMs: 3e4,
-    allowedRoles: ["content_writer", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "write_email",
-    name: "Write Email",
-    description: "Draft a professional email with subject line, body, and call-to-action.",
-    category: "content",
-    parameters: [
-      { name: "recipient", type: "string", description: "Who the email is for", required: true },
-      { name: "purpose", type: "string", description: "Purpose of the email", required: true },
-      { name: "tone", type: "string", description: "Email tone", required: false, defaultValue: "professional" },
-      { name: "key_points", type: "array", description: "Key points to include", required: false }
-    ],
-    outputDescription: "Complete email with subject line and body",
-    riskLevel: "medium",
-    requiresApproval: true,
-    approvalReason: "External communications require founder approval",
-    creditCost: 1,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 15e3,
-    allowedRoles: ["communications_agent", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "write_report",
-    name: "Write Report",
-    description: "Create a structured report with executive summary, findings, analysis, and recommendations.",
-    category: "content",
-    parameters: [
-      { name: "topic", type: "string", description: "Report topic", required: true },
-      { name: "findings", type: "array", description: "Key findings to include", required: true },
-      { name: "recommendations", type: "array", description: "Recommendations", required: false },
-      { name: "format", type: "string", description: "Report format", required: false, defaultValue: "standard", enum: ["standard", "executive", "detailed"] }
-    ],
-    outputDescription: "Structured report with executive summary, findings, and recommendations",
-    riskLevel: "low",
-    requiresApproval: false,
-    creditCost: 3,
-    estimatedDurationMs: 8e3,
-    timeoutMs: 45e3,
-    allowedRoles: ["data_analyst", "financial_analyst", "market_researcher", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "analyze_data",
-    name: "Analyze Data",
-    description: "Analyze structured or unstructured data to identify patterns, trends, and insights.",
-    category: "analysis",
-    parameters: [
-      { name: "data_description", type: "string", description: "Description of the data to analyze", required: true },
-      { name: "analysis_type", type: "string", description: "Type of analysis", required: false, defaultValue: "general", enum: ["general", "trend", "comparison", "forecast", "sentiment"] },
-      { name: "questions", type: "array", description: "Specific questions to answer", required: false }
-    ],
-    outputDescription: "Data analysis with patterns, trends, insights, and actionable recommendations",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 5e3,
-    timeoutMs: 3e4,
-    allowedRoles: ["data_analyst", "financial_analyst", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "financial_analysis",
-    name: "Financial Analysis",
-    description: "Analyze financial data, create projections, assess budgets, and provide financial guidance.",
-    category: "analysis",
-    parameters: [
-      { name: "analysis_type", type: "string", description: "Type of financial analysis", required: true, enum: ["budget", "revenue", "cost", "projection", "comparison"] },
-      { name: "data", type: "string", description: "Financial data or description", required: true },
-      { name: "period", type: "string", description: "Time period", required: false }
-    ],
-    outputDescription: "Financial analysis with projections and recommendations",
-    riskLevel: "low",
-    requiresApproval: false,
-    creditCost: 3,
-    estimatedDurationMs: 5e3,
-    timeoutMs: 3e4,
-    allowedRoles: ["financial_analyst", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "create_plan",
-    name: "Create Plan",
-    description: "Create a structured plan with phases, milestones, dependencies, and success criteria.",
-    category: "planning",
-    parameters: [
-      { name: "objective", type: "string", description: "What the plan should achieve", required: true },
-      { name: "timeframe", type: "string", description: "Timeframe for the plan", required: false },
-      { name: "constraints", type: "array", description: "Known constraints or limitations", required: false },
-      { name: "resources", type: "array", description: "Available resources", required: false }
-    ],
-    outputDescription: "Structured plan with phases, milestones, and success criteria",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 4e3,
-    timeoutMs: 2e4,
-    allowedRoles: ["executive_agent", "operations_manager"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "decompose_task",
-    name: "Decompose Task",
-    description: "Break a complex objective into specific, actionable sub-tasks with clear assignments.",
-    category: "planning",
-    parameters: [
-      { name: "objective", type: "string", description: "The objective to decompose", required: true },
-      { name: "available_roles", type: "array", description: "Available agent roles", required: false },
-      { name: "max_tasks", type: "number", description: "Maximum number of sub-tasks", required: false, defaultValue: 5 }
-    ],
-    outputDescription: "List of sub-tasks with titles, descriptions, and role assignments",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 15e3,
-    allowedRoles: ["executive_agent", "operations_manager"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "review_code",
-    name: "Review Code",
-    description: "Review code for quality, security, performance, and best practices. Returns findings and recommendations.",
-    category: "engineering",
-    parameters: [
-      { name: "code", type: "string", description: "Code to review", required: true },
-      { name: "language", type: "string", description: "Programming language", required: false },
-      { name: "focus", type: "array", description: "Specific areas to focus on", required: false }
-    ],
-    outputDescription: "Code review with findings, severity, and recommendations",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 3,
-    estimatedDurationMs: 8e3,
-    timeoutMs: 45e3,
-    allowedRoles: ["software_engineer", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "write_code",
-    name: "Write Code",
-    description: "Generate code for a specific task. Returns implementation with comments and usage examples.",
-    category: "engineering",
-    parameters: [
-      { name: "description", type: "string", description: "What the code should do", required: true },
-      { name: "language", type: "string", description: "Programming language", required: true },
-      { name: "context", type: "string", description: "Additional context (existing code, patterns)", required: false }
-    ],
-    outputDescription: "Code implementation with comments and examples",
-    riskLevel: "medium",
-    requiresApproval: false,
-    creditCost: 5,
-    estimatedDurationMs: 1e4,
-    timeoutMs: 6e4,
-    allowedRoles: ["software_engineer", "executive_agent"],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "store_memory",
-    name: "Store Company Memory",
-    description: "Store important information in company memory for future reference.",
-    category: "memory",
-    parameters: [
-      { name: "content", type: "string", description: "Information to store", required: true },
-      { name: "category", type: "string", description: "Memory category", required: true, enum: ["fact", "decision", "lesson", "preference", "workflow", "context"] },
-      { name: "importance", type: "number", description: "Importance level (1-10)", required: false, defaultValue: 5 }
-    ],
-    outputDescription: "Confirmation that memory was stored",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 0,
-    estimatedDurationMs: 1e3,
-    timeoutMs: 5e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: true,
-    maxRetries: 2
-  });
-  registerTool({
-    id: "search_memory",
-    name: "Search Company Memory",
-    description: "Search company memory for relevant information.",
-    category: "memory",
-    parameters: [
-      { name: "query", type: "string", description: "Search query", required: true },
-      { name: "category", type: "string", description: "Filter by category", required: false },
-      { name: "limit", type: "number", description: "Maximum results", required: false, defaultValue: 10 }
-    ],
-    outputDescription: "Relevant memory entries with content, category, and importance",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 0,
-    estimatedDurationMs: 500,
-    timeoutMs: 3e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "github_read_file",
-    name: "GitHub: Read Repository File",
-    description: "Read a file (content + metadata) from a repository branch.",
-    category: "engineering",
-    parameters: [
-      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
-      { name: "repo", type: "string", description: "Repository name", required: true },
-      { name: "path", type: "string", description: "File path inside the repo (no traversal allowed)", required: true },
-      { name: "ref", type: "string", description: "Branch or ref (default: default branch)", required: false }
-    ],
-    outputDescription: "File name, path, sha, size and content",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "gmail_create_draft",
-    name: "Gmail: Create Draft",
-    description: "Draft an email. Nothing is sent \u2014 the draft is stored in Gmail for founder review.",
-    category: "communication",
-    parameters: [
-      { name: "to", type: "array", description: "Recipient email addresses", required: true },
-      { name: "cc", type: "array", description: "CC recipients", required: false },
-      { name: "subject", type: "string", description: "Email subject", required: true },
-      { name: "body", type: "string", description: "Email body", required: true },
-      { name: "inReplyToMessageId", type: "string", description: "Message id to reply to", required: false }
-    ],
-    outputDescription: "Draft id + confirmation that nothing was sent",
-    riskLevel: "low",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "gmail_send_draft",
-    name: "Gmail: Send Draft",
-    description: "Send a previously created Gmail draft. Capability-gated; if the capability requires approval, a founder approval is requested and nothing is sent.",
-    category: "communication",
-    parameters: [
-      { name: "draftId", type: "string", description: "Gmail draft id to send", required: true }
-    ],
-    outputDescription: "Message id when sent, or pending-approval id",
-    riskLevel: "high",
-    requiresApproval: true,
-    approvalReason: "Sending external email requires founder approval.",
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "gmail_search",
-    name: "Gmail: Search Messages",
-    description: "Search the connected Gmail mailbox for messages matching a query.",
-    category: "communication",
-    parameters: [
-      { name: "query", type: "string", description: "Gmail search query (e.g. from:alice subject:invoice)", required: false },
-      { name: "maxResults", type: "number", description: "Max results (default 10, cap 50)", required: false }
-    ],
-    outputDescription: "Matching message list",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2500,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "linear_list_issues",
-    name: "Linear: List Issues",
-    description: "List issues from the connected Linear workspace.",
-    category: "engineering",
-    parameters: [
-      { name: "teamId", type: "string", description: "Linear team id filter", required: false },
-      { name: "limit", type: "number", description: "Max results (default 10, cap 50)", required: false }
-    ],
-    outputDescription: "List of Linear issues with id, identifier, title, state and url",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2500,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "linear_create_issue",
-    name: "Linear: Create Issue",
-    description: "Create an issue in a Linear team.",
-    category: "engineering",
-    parameters: [
-      { name: "teamId", type: "string", description: "Linear team id", required: false },
-      { name: "teamName", type: "string", description: "Linear team name (resolved to id)", required: false },
-      { name: "title", type: "string", description: "Issue title", required: true },
-      { name: "description", type: "string", description: "Issue description", required: false },
-      { name: "priority", type: "number", description: "Priority 0-4", required: false }
-    ],
-    outputDescription: "Created issue with identifier and url",
-    riskLevel: "medium",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "linear_get_issue",
-    name: "Linear: Get Issue",
-    description: "Fetch a single Linear issue by id or identifier.",
-    category: "engineering",
-    parameters: [
-      { name: "issueId", type: "string", description: "Linear issue id or identifier (e.g. ENG-12)", required: true }
-    ],
-    outputDescription: "Issue details with state and url",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "linear_update_issue",
-    name: "Linear: Update Issue",
-    description: "Update a Linear issue title, description, priority or state.",
-    category: "engineering",
-    parameters: [
-      { name: "issueId", type: "string", description: "Linear issue id", required: true },
-      { name: "title", type: "string", description: "New title", required: false },
-      { name: "description", type: "string", description: "New description", required: false },
-      { name: "priority", type: "number", description: "New priority 0-4", required: false },
-      { name: "stateId", type: "string", description: "Target workflow state id", required: false }
-    ],
-    outputDescription: "Updated issue",
-    riskLevel: "medium",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "linear_archive_issue",
-    name: "Linear: Archive Issue",
-    description: "Archive (soft-delete) a Linear issue.",
-    category: "engineering",
-    parameters: [
-      { name: "issueId", type: "string", description: "Linear issue id", required: true }
-    ],
-    outputDescription: "Archive confirmation",
-    riskLevel: "high",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "github_list_repositories",
-    name: "GitHub: List Repositories",
-    description: "List repositories the connected GitHub account can access.",
-    category: "engineering",
-    parameters: [
-      { name: "visibility", type: "string", description: "Filter by visibility", required: false, defaultValue: "all", enum: ["all", "public", "private"] }
-    ],
-    outputDescription: "List of repositories with owner, name, url and description",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "github_list_issues",
-    name: "GitHub: List Issues",
-    description: "List open issues in a repository.",
-    category: "engineering",
-    parameters: [
-      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
-      { name: "repo", type: "string", description: "Repository name", required: true },
-      { name: "state", type: "string", description: "Issue state filter", required: false, defaultValue: "open", enum: ["open", "closed", "all"] }
-    ],
-    outputDescription: "List of issues with number, title, state and url",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 1,
-    estimatedDurationMs: 2e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: true,
-    maxRetries: 1
-  });
-  registerTool({
-    id: "github_create_issue",
-    name: "GitHub: Create Issue",
-    description: "Create an issue in a repository on behalf of the organization.",
-    category: "engineering",
-    parameters: [
-      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
-      { name: "repo", type: "string", description: "Repository name", required: true },
-      { name: "title", type: "string", description: "Issue title", required: true },
-      { name: "body", type: "string", description: "Issue body", required: false },
-      { name: "labels", type: "array", description: "Labels to apply", required: false }
-    ],
-    outputDescription: "Created issue with number and url",
-    riskLevel: "medium",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "github_comment_on_issue",
-    name: "GitHub: Comment on Issue",
-    description: "Post a comment on an existing issue.",
-    category: "engineering",
-    parameters: [
-      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
-      { name: "repo", type: "string", description: "Repository name", required: true },
-      { name: "issueNumber", type: "number", description: "Issue number", required: true },
-      { name: "body", type: "string", description: "Comment body", required: true }
-    ],
-    outputDescription: "Created comment with id and url",
-    riskLevel: "medium",
-    requiresApproval: false,
-    creditCost: 2,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "github_create_pull_request",
-    name: "GitHub: Create Pull Request",
-    description: "Open a pull request in a repository.",
-    category: "engineering",
-    parameters: [
-      { name: "owner", type: "string", description: "Repository owner (org or user)", required: true },
-      { name: "repo", type: "string", description: "Repository name", required: true },
-      { name: "title", type: "string", description: "Pull request title", required: true },
-      { name: "head", type: "string", description: "Head branch", required: true },
-      { name: "base", type: "string", description: "Base branch", required: true },
-      { name: "body", type: "string", description: "Pull request body", required: false }
-    ],
-    outputDescription: "Created pull request with number and url",
-    riskLevel: "high",
-    requiresApproval: false,
-    creditCost: 3,
-    estimatedDurationMs: 3e3,
-    timeoutMs: 25e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "get_org_status",
-    name: "Get Organization Status",
-    description: "Get the current status of the organization including agents, tasks, goals, and credits.",
-    category: "system",
-    parameters: [],
-    outputDescription: "Organization status summary",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 0,
-    estimatedDurationMs: 500,
-    timeoutMs: 3e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: false,
-    retryable: false,
-    maxRetries: 0
-  });
-  registerTool({
-    id: "notify_founder",
-    name: "Notify Founder",
-    description: "Send a notification to the founder about important updates, results, or issues.",
-    category: "system",
-    parameters: [
-      { name: "title", type: "string", description: "Notification title", required: true },
-      { name: "message", type: "string", description: "Notification message", required: true },
-      { name: "type", type: "string", description: "Notification type", required: false, defaultValue: "info", enum: ["info", "success", "warning", "error"] }
-    ],
-    outputDescription: "Confirmation that notification was sent",
-    riskLevel: "safe",
-    requiresApproval: false,
-    creditCost: 0,
-    estimatedDurationMs: 500,
-    timeoutMs: 3e3,
-    allowedRoles: [],
-    forbiddenRoles: [],
-    hasSideEffects: true,
-    retryable: true,
-    maxRetries: 2
-  });
-}
-var IDEMPOTENCY_TTL_MS = 5 * 60 * 1e3;
-
-// src/routes/tools.ts
+init_tool_registry();
 function registerToolRoutes(app, deps) {
   app.get("/v1/tools", async (request) => {
     await requireAuth(request, deps);
@@ -114908,6 +117601,7 @@ init_auth();
 // src/services/agent-memory.ts
 init_drizzle_orm();
 init_src2();
+init_memory();
 async function storeAgentMemory(db, opts) {
   const importance = opts.importance ?? 5;
   const tags = opts.tags ?? [];
@@ -114943,6 +117637,7 @@ async function retrieveAgentMemory(db, opts) {
     );
   }
   const entries = await db.select().from(companyMemory).where(and(...conditions)).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(opts.limit ?? 10);
+  await stampMemoryUsage(db, entries.map((e) => String(e.id)));
   return entries.map((e) => {
     const tagMatch = e.content.match(/^\[tags:([^\]]+)\]\s*/);
     const tags = tagMatch ? tagMatch[1].split(",") : [];
@@ -114956,8 +117651,8 @@ async function retrieveAgentMemory(db, opts) {
       importance: e.importance,
       taskIds: e.taskId ? [e.taskId] : [],
       tags,
-      useCount: 0,
-      lastUsedAt: null,
+      useCount: e.useCount,
+      lastUsedAt: e.lastUsedAt,
       createdAt: e.createdAt,
       updatedAt: e.updatedAt
     };
@@ -116509,9 +119204,10 @@ init_auth();
 // src/services/company-health.ts
 init_drizzle_orm();
 init_src2();
+init_anomaly_detector();
 
 // src/services/simulation.ts
-var import_node_crypto16 = require("node:crypto");
+var import_node_crypto18 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_audit();
@@ -116803,7 +119499,7 @@ async function saveProposal(db, orgId, simId, input) {
   }
   const previous = sim.proposal ?? null;
   const proposal = {
-    proposalId: previous?.proposalId ?? (0, import_node_crypto16.randomUUID)(),
+    proposalId: previous?.proposalId ?? (0, import_node_crypto18.randomUUID)(),
     createdAt: previous?.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
     rationale: input.rationale,
     departments: input.departments,
@@ -117266,7 +119962,7 @@ init_audit();
 
 // src/services/executor.ts
 var import_node_child_process = require("node:child_process");
-var import_node_crypto17 = require("node:crypto");
+var import_node_crypto19 = require("node:crypto");
 var import_promises2 = require("node:fs/promises");
 var import_node_os = require("node:os");
 var import_node_path2 = __toESM(require("node:path"), 1);
@@ -117345,7 +120041,7 @@ function capBuffer(buffer, received, cap) {
   return { truncated: total + received > cap };
 }
 async function executeCommand2(input) {
-  const runId = input.runId ?? (0, import_node_crypto17.randomUUID)();
+  const runId = input.runId ?? (0, import_node_crypto19.randomUUID)();
   const commandError = validateCommand(input.command);
   if (commandError) throw new Error(commandError);
   const timeoutMs = Math.min(input.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
@@ -117969,7 +120665,7 @@ init_audit();
 init_integrations();
 
 // src/services/oauth.ts
-var import_node_crypto18 = require("node:crypto");
+var import_node_crypto20 = require("node:crypto");
 var GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 var GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 var GITHUB_API_URL = "https://api.github.com/user";
@@ -117979,17 +120675,17 @@ function stateKey2(config2) {
 }
 function signOAuthState2(config2, payload) {
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const sig = (0, import_node_crypto18.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
+  const sig = (0, import_node_crypto20.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
 function verifyOAuthState2(config2, state) {
   try {
     const [body, sig] = state.split(".");
     if (!body || !sig) return null;
-    const expected = (0, import_node_crypto18.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
+    const expected = (0, import_node_crypto20.createHmac)("sha256", stateKey2(config2)).update(body).digest("base64url");
     const a = Buffer.from(sig, "utf8");
     const b = Buffer.from(expected, "utf8");
-    if (a.length !== b.length || !(0, import_node_crypto18.timingSafeEqual)(a, b)) return null;
+    if (a.length !== b.length || !(0, import_node_crypto20.timingSafeEqual)(a, b)) return null;
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
     if (!payload.providerId || !payload.orgId) return null;
@@ -118243,7 +120939,7 @@ function registerIntegrationRoutes(app, deps) {
   const { db } = deps;
   app.get("/v1/integrations", async (request) => {
     const ctx = await requireAuth(request, deps);
-    const providers2 = await listProviders2(db, ctx.orgId);
+    const providers2 = await listProviders(db, ctx.orgId);
     return { data: providers2 };
   });
   app.get("/v1/integrations/:id", async (request, reply) => {
@@ -118597,7 +121293,7 @@ init_audit();
 init_integrations();
 
 // src/services/webhooks.ts
-var import_node_crypto19 = require("node:crypto");
+var import_node_crypto21 = require("node:crypto");
 init_drizzle_orm();
 init_src2();
 init_crypto2();
@@ -118605,15 +121301,15 @@ init_audit();
 init_notifications();
 function verifySignature(secret, rawBody, signatureHeader) {
   if (!secret || !signatureHeader) return false;
-  const expected = (0, import_node_crypto19.createHmac)("sha256", secret).update(rawBody, "utf8").digest("hex");
+  const expected = (0, import_node_crypto21.createHmac)("sha256", secret).update(rawBody, "utf8").digest("hex");
   const received = signatureHeader.replace(/^sha256=/, "").trim();
   if (!/^[0-9a-f]{64}$/i.test(received)) return false;
   const a = Buffer.from(expected, "hex");
   const b = Buffer.from(received, "hex");
-  return a.length === b.length && (0, import_node_crypto19.timingSafeEqual)(a, b);
+  return a.length === b.length && (0, import_node_crypto21.timingSafeEqual)(a, b);
 }
 function generateWebhookSecret() {
-  return (0, import_node_crypto19.randomBytes)(32).toString("hex");
+  return (0, import_node_crypto21.randomBytes)(32).toString("hex");
 }
 function pickPayload(body, fields) {
   const out = {};
@@ -118735,7 +121431,7 @@ function normalizeProviderEvent(provider, body) {
   return null;
 }
 function sha2562(value) {
-  return (0, import_node_crypto19.createHash)("sha256").update(value).digest("hex");
+  return (0, import_node_crypto21.createHash)("sha256").update(value).digest("hex");
 }
 async function readOrgSettings(db, orgId) {
   const rows = await db.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
@@ -119067,9 +121763,13 @@ async function orgIdsWithMemory(db, limit = 200) {
   return rows.map((r) => r.orgId);
 }
 
+// src/routes/events.ts
+init_anomaly_detector();
+
 // src/services/briefing.ts
 init_drizzle_orm();
 init_src2();
+init_anomaly_detector();
 init_transport();
 init_notifications();
 init_notification_preferences();
@@ -119536,6 +122236,7 @@ async function latestJobRuns(db, windowDays = 90) {
 }
 
 // src/services/ops-check.ts
+init_src2();
 init_esm();
 async function tableExists3(db, table) {
   const r = await db.query("select to_regclass($1) as t", [`public.${table}`]);
@@ -120652,6 +123353,7 @@ function registerSquadRoutes(app, deps) {
 init_zod();
 init_src();
 init_auth();
+init_anomaly_detector();
 var logBody = external_exports.object({
   eventName: external_exports.string().trim().min(1).max(100),
   properties: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
@@ -120946,7 +123648,7 @@ init_src();
 init_auth();
 
 // src/services/business-import.ts
-var import_node_crypto20 = require("node:crypto");
+var import_node_crypto22 = require("node:crypto");
 var import_promises3 = require("node:dns/promises");
 init_drizzle_orm();
 init_src2();
@@ -121464,7 +124166,7 @@ function generateImportProposal(facts, description) {
   };
 }
 function fingerprintFor(description, websiteUrl) {
-  return (0, import_node_crypto20.createHash)("sha256").update(`${websiteUrl ?? ""}|${description ?? ""}`).digest("hex");
+  return (0, import_node_crypto22.createHash)("sha256").update(`${websiteUrl ?? ""}|${description ?? ""}`).digest("hex");
 }
 function describeImport(imp) {
   return `${imp.websiteUrl ?? ""}${imp.websiteTitle ? ` (${imp.websiteTitle})` : ""}${imp.description ? ` \u2014 ${imp.description.slice(0, 80)}` : ""}`.trim();
@@ -121821,6 +124523,7 @@ init_connector_actions();
 init_connector_gmail();
 init_connector_linear();
 init_integrations();
+init_autonomy();
 init_drizzle_orm();
 init_src2();
 var actionBody = external_exports.discriminatedUnion("provider", [
@@ -122405,6 +125108,7 @@ function registerWorkforceROIRoutes(app, deps) {
 init_zod();
 init_auth();
 init_decision_memory();
+init_attention();
 var createDecisionBody = external_exports.object({
   title: external_exports.string().trim().min(1).max(500),
   decisionType: external_exports.enum(["strategic", "operational", "hiring", "resource_allocation", "technical", "partnership", "product", "marketing", "financial"]).optional(),
@@ -122484,7 +125188,26 @@ function registerDecisionRoutes(app, deps) {
       reply.code(404);
       return { error: { code: "not_found", message: "Decision not found" } };
     }
+    if (body.founderVerdict) notifyAttentionChanged(ctx.orgId, "decision.verdict");
     return decision;
+  });
+}
+
+// src/routes/attention.ts
+init_auth();
+init_attention();
+function registerAttentionRoutes(app, deps) {
+  const { db } = deps;
+  app.get("/v1/attention", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url2 = new URL(request.url, "http://localhost");
+    const requested = parseInt(url2.searchParams.get("limit") ?? "50", 10);
+    const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 50, 1), 200);
+    const result = await collectAttention(db, ctx.orgId, {
+      eaName: deps.config.EA_DISPLAY_NAME,
+      limits: { total: limit }
+    });
+    return { data: result };
   });
 }
 
@@ -122855,15 +125578,20 @@ function registerDeliberationRoutes(app, deps) {
   });
 }
 
+// src/app.ts
+init_tool_registry();
+
 // src/services/tool-handlers.ts
 init_drizzle_orm();
 init_src2();
+init_tool_registry();
 init_connector_actions();
 init_connector_gmail();
 
 // src/services/routed-chat.ts
 init_llm();
 init_model_intelligence();
+init_model_selector();
 init_calibration_routing();
 async function resolveRoutedModel(db, ctx, options) {
   const routing = classifyTask({
@@ -123543,14 +126271,14 @@ async function handleLinearConnectorAction(action, params, ctx, db) {
 }
 
 // src/plugins/csrf.ts
-var import_node_crypto21 = require("node:crypto");
+var import_node_crypto23 = require("node:crypto");
 var CSRF_COOKIE = "csrf_token";
 var CSRF_HEADER = "x-csrf-token";
 var CSRF_ISSUED_AT = "csrf_issued_at";
 var MAX_AGE = 60 * 60 * 24;
 var REFRESH_THRESHOLD = 0.5;
 function generateToken() {
-  return (0, import_node_crypto21.randomBytes)(32).toString("hex");
+  return (0, import_node_crypto23.randomBytes)(32).toString("hex");
 }
 function constantTimeEqual(a, b) {
   if (a.length !== b.length) return false;
@@ -123679,7 +126407,7 @@ async function buildApp(deps, opts = {}) {
     // pino Logger satisfies FastifyBaseLogger; cast bridges version skew between the
     // workspace pino and fastify's bundled pino (docs/39 — pino everywhere).
     loggerInstance: deps.logger,
-    genReqId: () => (0, import_node_crypto22.randomUUID)(),
+    genReqId: () => (0, import_node_crypto24.randomUUID)(),
     // Trust X-Forwarded-* from Vercel/nginx so request.ip is the real client IP
     // (docs/58). The API never sets cookies, so this has no auth implications.
     trustProxy: true,
@@ -123826,6 +126554,7 @@ async function buildApp(deps, opts = {}) {
     reply.code(500).send({ error: toErrorEnvelope(internal(), requestId) });
   });
   registerHealthRoutes(app, deps);
+  registerReadinessRoutes(app, deps);
   registerAuthRoutes(app, deps);
   registerOAuthRoutes(app, deps);
   registerAgentRoutes(app, deps);
@@ -123881,6 +126610,7 @@ async function buildApp(deps, opts = {}) {
   registerLineageRoutes(app, deps);
   registerRecommendationRoutes(app, deps);
   registerDeliberationRoutes(app, deps);
+  registerAttentionRoutes(app, deps);
   registerBuiltinTools();
   registerBuiltinToolHandlers();
   return app;
