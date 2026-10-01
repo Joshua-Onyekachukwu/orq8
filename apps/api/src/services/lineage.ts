@@ -10,7 +10,7 @@
  *   - "Show me the full strategic tree" (visual lineage)
  */
 
-import { eq, and, sql, count, inArray } from 'drizzle-orm';
+import { eq, and, sql, count, inArray, desc } from 'drizzle-orm';
 import {
   strategies, objectives, keyResults, initiatives, tasks, agents, goals as goalsTable, activityEvents,
   type Db,
@@ -320,6 +320,116 @@ export async function buildStrategicTree(db: Db, orgId: string): Promise<Lineage
   }
 
   return tree;
+}
+
+// ── Goal lineage ───────────────────────────────────────────────────────────
+
+export interface GoalLineageLink {
+  id: string;
+  title: string;
+}
+
+export interface GoalLineage {
+  goalId: string;
+  initiative: GoalLineageLink | null;
+  keyResult: GoalLineageLink | null;
+  objective: GoalLineageLink | null;
+  strategy: GoalLineageLink | null;
+}
+
+/**
+ * The strategy chain behind every goal, read from the work under it.
+ *
+ * `goals` has no strategy columns (schema.ts:421) — the only edge from a goal
+ * up into the strategy tree runs through its tasks' `initiativeId`. So a goal
+ * inherits the chain of its tasks: initiative → key result → objective →
+ * strategy. When a goal's tasks carry more than one chain, the most complete
+ * one wins (a chain that reaches the strategy says more about why the goal
+ * exists than a bare initiative does); ties go to the newest task, which is
+ * the plan the company is actually executing.
+ *
+ * A goal whose tasks have no initiative link is simply absent from the result
+ * — the caller renders that honestly rather than inventing a parent.
+ */
+export async function getGoalLineage(db: Db, orgId: string): Promise<GoalLineage[]> {
+  const rows = await db
+    .select({
+      goalId: tasks.goalId,
+      initiativeId: initiatives.id,
+      initiativeTitle: initiatives.title,
+      objectiveId: initiatives.objectiveId,
+      keyResultId: initiatives.keyResultId,
+      strategyId: initiatives.strategyId,
+    })
+    .from(tasks)
+    .innerJoin(initiatives, eq(tasks.initiativeId, initiatives.id))
+    .where(and(eq(tasks.orgId, orgId), sql`${tasks.goalId} IS NOT NULL`))
+    .orderBy(desc(tasks.createdAt));
+
+  if (rows.length === 0) return [];
+
+  // Resolve the referenced rows in three lookups instead of a join per task.
+  const strategyIds = new Set<string>();
+  const objectiveIds = new Set<string>();
+  const krIds = new Set<string>();
+  for (const row of rows) {
+    if (row.strategyId) strategyIds.add(row.strategyId);
+    if (row.objectiveId) objectiveIds.add(row.objectiveId);
+    if (row.keyResultId) krIds.add(row.keyResultId);
+  }
+
+  const krs = krIds.size
+    ? await db
+        .select({ id: keyResults.id, title: keyResults.title, objectiveId: keyResults.objectiveId })
+        .from(keyResults)
+        .where(inArray(keyResults.id, [...krIds]))
+    : [];
+  for (const kr of krs) if (kr.objectiveId) objectiveIds.add(kr.objectiveId);
+
+  const objectiveRows = objectiveIds.size
+    ? await db
+        .select({ id: objectives.id, title: objectives.title, strategyId: objectives.strategyId })
+        .from(objectives)
+        .where(inArray(objectives.id, [...objectiveIds]))
+    : [];
+  for (const obj of objectiveRows) if (obj.strategyId) strategyIds.add(obj.strategyId);
+
+  const strategyRows = strategyIds.size
+    ? await db
+        .select({ id: strategies.id, title: strategies.title })
+        .from(strategies)
+        .where(inArray(strategies.id, [...strategyIds]))
+    : [];
+
+  const krById = new Map(krs.map((kr) => [kr.id, kr]));
+  const objectiveById = new Map(objectiveRows.map((obj) => [obj.id, obj]));
+  const strategyById = new Map(strategyRows.map((s) => [s.id, s]));
+
+  const best = new Map<string, { links: number; lineage: GoalLineage }>();
+  for (const row of rows) {
+    const goalId = row.goalId;
+    if (!goalId) continue;
+
+    const kr = row.keyResultId ? krById.get(row.keyResultId) ?? null : null;
+    const objectiveId = row.objectiveId ?? kr?.objectiveId ?? null;
+    const objective = objectiveId ? objectiveById.get(objectiveId) ?? null : null;
+    const strategyId = row.strategyId ?? objective?.strategyId ?? null;
+    const strategy = strategyId ? strategyById.get(strategyId) ?? null : null;
+
+    const lineage: GoalLineage = {
+      goalId,
+      initiative: { id: row.initiativeId, title: row.initiativeTitle },
+      keyResult: kr ? { id: kr.id, title: kr.title } : null,
+      objective: objective ? { id: objective.id, title: objective.title } : null,
+      strategy: strategy ? { id: strategy.id, title: strategy.title } : null,
+    };
+
+    const links = 1 + (kr ? 1 : 0) + (objective ? 1 : 0) + (strategy ? 1 : 0);
+    const prev = best.get(goalId);
+    if (!prev || links > prev.links) best.set(goalId, { links, lineage });
+  }
+
+  return [...best.values()].map((entry) => entry.lineage);
 }
 
 // ── Calculate Lineage Score ────────────────────────────────────────────────

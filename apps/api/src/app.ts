@@ -18,6 +18,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { idempotencyPlugin } from './plugins/idempotency.js';
 import { rateLimitLogin, rateLimitRoute } from './plugins/rate-limit.js';
 import { registerActivityRoutes } from './routes/activity.js';
+import { registerAuditRoutes } from './routes/audit.js';
 import { registerAgentRoutes } from './routes/agents.js';
 import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -301,6 +302,7 @@ export async function buildApp(
   registerAgentRoutes(app, deps);
   registerApprovalRoutes(app, deps);
   registerActivityRoutes(app, deps);
+  registerAuditRoutes(app, deps);
   registerProviderRoutes(app, deps);
   registerGoalRoutes(app, deps);
   registerCommandRoutes(app, deps);

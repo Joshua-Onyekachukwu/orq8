@@ -82674,6 +82674,30 @@ async function appendAudit(db, input) {
     hash: hash3
   });
 }
+async function verifyChain(db, orgId) {
+  const rows = await db.select().from(auditEvents).where(eq(auditEvents.orgId, orgId)).orderBy(auditEvents.id);
+  let prevHash = genesisHash(orgId);
+  for (const row of rows) {
+    if (row.prevHash !== prevHash) {
+      return { valid: false, rows: rows.length, firstBrokenId: row.id };
+    }
+    const actor = `${row.actorType}:${row.actorId ?? ""}`;
+    const payload = buildPayload(row);
+    const expectedHash = computeAuditHash({
+      prevHash,
+      orgId: row.orgId,
+      actor,
+      action: row.action,
+      payload,
+      occurredAt: row.occurredAt
+    });
+    if (row.hash !== expectedHash) {
+      return { valid: false, rows: rows.length, firstBrokenId: row.id };
+    }
+    prevHash = row.hash;
+  }
+  return { valid: true, rows: rows.length };
+}
 var import_node_crypto4, GENESIS_SALT;
 var init_audit = __esm({
   "src/services/audit.ts"() {
@@ -108397,6 +108421,83 @@ function registerActivityRoutes(app, deps) {
   });
 }
 
+// src/routes/audit.ts
+init_drizzle_orm();
+init_auth();
+init_audit();
+init_src2();
+function registerAuditRoutes(app, deps) {
+  const { db } = deps;
+  app.get("/v1/audit", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const url2 = new URL(request.url, "http://localhost");
+    const limit = Math.min(Math.max(Number(url2.searchParams.get("limit")) || 100, 1), 500);
+    const offset = Math.max(Number(url2.searchParams.get("offset")) || 0, 0);
+    const domain2 = url2.searchParams.get("domain") ?? void 0;
+    const domainExpr = sql`split_part(${auditEvents.action}, '.', 1)`;
+    const conditions = [eq(auditEvents.orgId, ctx.orgId)];
+    if (domain2) conditions.push(sql`${domainExpr} = ${domain2}`);
+    const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(auditEvents).where(and(...conditions));
+    const rows = await db.select().from(auditEvents).where(and(...conditions)).orderBy(desc(auditEvents.id)).limit(limit).offset(offset);
+    const domainCounts = await db.select({ domain: sql`${domainExpr}`, count: sql`count(*)::int` }).from(auditEvents).where(eq(auditEvents.orgId, ctx.orgId)).groupBy(domainExpr).orderBy(desc(sql`count(*)`));
+    const agentIds = [...new Set(rows.map((r) => r.agentId).filter((id) => id !== null))];
+    const userIds = [
+      ...new Set(
+        rows.map((r) => r.actorType === "user" ? r.actorId : null).filter((id) => id !== null)
+      )
+    ];
+    const [agentRows, userRows] = await Promise.all([
+      agentIds.length ? db.select({ id: agents.id, name: agents.name, role: agents.role }).from(agents).where(inArray(agents.id, agentIds)) : Promise.resolve([]),
+      userIds.length ? db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, userIds)) : Promise.resolve([])
+    ]);
+    const agentById = new Map(agentRows.map((a) => [a.id, a]));
+    const userById = new Map(userRows.map((u) => [u.id, u]));
+    const list = rows.map((row) => {
+      const agent = row.agentId ? agentById.get(row.agentId) : void 0;
+      const user = row.actorType === "user" && row.actorId ? userById.get(row.actorId) : void 0;
+      const actorName = agent?.name ?? user?.name ?? user?.email ?? null;
+      const actorKind = row.actorType === "agent" ? "AI" : row.actorType === "user" ? "human" : "system";
+      return {
+        id: row.id,
+        actorType: row.actorType,
+        actorId: row.actorId,
+        actorName,
+        actorKind,
+        agentId: row.agentId,
+        agentRole: agent?.role ?? null,
+        action: row.action,
+        tool: row.tool,
+        inputRef: row.inputRef,
+        resultRef: row.resultRef,
+        authorization: row.authorization,
+        approvalId: row.approvalId,
+        policyRef: row.policyRef,
+        cost: row.cost,
+        outcome: row.outcome,
+        departmentId: row.departmentId,
+        taskId: row.taskId,
+        occurredAt: row.occurredAt,
+        prevHash: row.prevHash,
+        hash: row.hash
+      };
+    });
+    return {
+      data: list,
+      meta: {
+        limit,
+        offset,
+        total: totalRow?.count ?? 0,
+        domains: domainCounts,
+        hasMore: offset + list.length < (totalRow?.count ?? 0)
+      }
+    };
+  });
+  app.get("/v1/audit/verify", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    return { data: await verifyChain(db, ctx.orgId) };
+  });
+}
+
 // src/routes/agents.ts
 init_drizzle_orm();
 init_src2();
@@ -112275,6 +112376,54 @@ async function buildStrategicTree(db, orgId) {
   }
   return tree;
 }
+async function getGoalLineage(db, orgId) {
+  const rows = await db.select({
+    goalId: tasks.goalId,
+    initiativeId: initiatives.id,
+    initiativeTitle: initiatives.title,
+    objectiveId: initiatives.objectiveId,
+    keyResultId: initiatives.keyResultId,
+    strategyId: initiatives.strategyId
+  }).from(tasks).innerJoin(initiatives, eq(tasks.initiativeId, initiatives.id)).where(and(eq(tasks.orgId, orgId), sql`${tasks.goalId} IS NOT NULL`)).orderBy(desc(tasks.createdAt));
+  if (rows.length === 0) return [];
+  const strategyIds = /* @__PURE__ */ new Set();
+  const objectiveIds = /* @__PURE__ */ new Set();
+  const krIds = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    if (row.strategyId) strategyIds.add(row.strategyId);
+    if (row.objectiveId) objectiveIds.add(row.objectiveId);
+    if (row.keyResultId) krIds.add(row.keyResultId);
+  }
+  const krs = krIds.size ? await db.select({ id: keyResults.id, title: keyResults.title, objectiveId: keyResults.objectiveId }).from(keyResults).where(inArray(keyResults.id, [...krIds])) : [];
+  for (const kr of krs) if (kr.objectiveId) objectiveIds.add(kr.objectiveId);
+  const objectiveRows = objectiveIds.size ? await db.select({ id: objectives.id, title: objectives.title, strategyId: objectives.strategyId }).from(objectives).where(inArray(objectives.id, [...objectiveIds])) : [];
+  for (const obj of objectiveRows) if (obj.strategyId) strategyIds.add(obj.strategyId);
+  const strategyRows = strategyIds.size ? await db.select({ id: strategies.id, title: strategies.title }).from(strategies).where(inArray(strategies.id, [...strategyIds])) : [];
+  const krById = new Map(krs.map((kr) => [kr.id, kr]));
+  const objectiveById = new Map(objectiveRows.map((obj) => [obj.id, obj]));
+  const strategyById = new Map(strategyRows.map((s) => [s.id, s]));
+  const best = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const goalId = row.goalId;
+    if (!goalId) continue;
+    const kr = row.keyResultId ? krById.get(row.keyResultId) ?? null : null;
+    const objectiveId = row.objectiveId ?? kr?.objectiveId ?? null;
+    const objective = objectiveId ? objectiveById.get(objectiveId) ?? null : null;
+    const strategyId = row.strategyId ?? objective?.strategyId ?? null;
+    const strategy = strategyId ? strategyById.get(strategyId) ?? null : null;
+    const lineage = {
+      goalId,
+      initiative: { id: row.initiativeId, title: row.initiativeTitle },
+      keyResult: kr ? { id: kr.id, title: kr.title } : null,
+      objective: objective ? { id: objective.id, title: objective.title } : null,
+      strategy: strategy ? { id: strategy.id, title: strategy.title } : null
+    };
+    const links = 1 + (kr ? 1 : 0) + (objective ? 1 : 0) + (strategy ? 1 : 0);
+    const prev = best.get(goalId);
+    if (!prev || links > prev.links) best.set(goalId, { links, lineage });
+  }
+  return [...best.values()].map((entry) => entry.lineage);
+}
 async function calculateLineageScore(db, orgId) {
   const [activeTasks] = await db.select({ count: sql`count(*)::int` }).from(tasks).where(and(eq(tasks.orgId, orgId), sql`${tasks.status} IN ('pending', 'in_progress')`));
   const [withInitiative] = await db.select({ count: sql`count(*)::int` }).from(tasks).where(and(
@@ -115640,6 +115789,11 @@ function registerGoalRoutes(app, deps) {
     const [totalRow] = await db.select({ count: sql`count(*)::int` }).from(goals).where(and(...conditions));
     const list = await db.select().from(goals).where(and(...conditions)).orderBy(goals.createdAt).limit(limit).offset(offset);
     return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+  });
+  app.get("/v1/goals/lineage", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const data = await getGoalLineage(db, ctx.orgId);
+    return { data };
   });
   app.get("/v1/goals/:id", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
@@ -126830,6 +126984,7 @@ async function buildApp(deps, opts = {}) {
   registerAgentRoutes(app, deps);
   registerApprovalRoutes(app, deps);
   registerActivityRoutes(app, deps);
+  registerAuditRoutes(app, deps);
   registerProviderRoutes(app, deps);
   registerGoalRoutes(app, deps);
   registerCommandRoutes(app, deps);

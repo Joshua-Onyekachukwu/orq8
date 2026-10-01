@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { getGoalDrillDown } from '../services/goal-intelligence.js';
+import { getGoalLineage } from '../services/lineage.js';
 import { notifyAttentionChanged } from '../services/attention.js';
 import type { AppDeps } from '../types.js';
 import { goals, tasks, teams, agents, type Db } from '@orq8/db';
@@ -101,6 +102,17 @@ export function registerGoalRoutes(app: FastifyInstance, deps: AppDeps): void {
       .limit(limit)
       .offset(offset);
     return { data: list, meta: { limit, offset, total: totalRow?.count ?? 0 } };
+  });
+
+  /**
+   * The strategy chain behind every goal (initiative → key result → objective
+   * → strategy), derived from the tasks under each goal. Declared before the
+   * `:id` lookup so the literal path never reaches a uuid comparison.
+   */
+  app.get('/v1/goals/lineage', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const data = await getGoalLineage(db, ctx.orgId);
+    return { data };
   });
 
   /** Get a single goal. */
