@@ -43,7 +43,7 @@ const EMAIL = envArg.EMAIL ?? env.DEMO_EMAIL ?? env.E2E_EMAIL ?? "founder@orq8.t
 const PASSWORD = envArg.PASSWORD ?? env.DEMO_PASSWORD ?? env.E2E_PASSWORD ?? "ReviewPass123!";
 
 const ROUTES = [
-  "/app", "/app/health", "/app/jobs", "/app/approvals", "/app/report",
+  "/app", "/app/tasks", "/app/finance", "/app/health", "/app/jobs", "/app/approvals", "/app/report",
   "/app/performance", "/app/engineering", "/app/mcp", "/app/simulation",
   "/app/squads", "/app/roi", "/app/agents", "/app/departments", "/app/teams",
   "/app/strategy", "/app/goals", "/app/org", "/app/business-import",
