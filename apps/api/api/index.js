@@ -82210,12 +82210,12 @@ async function attachTeamNames(db, rows) {
     const { teams: teams3, departments: departments2 } = await Promise.resolve().then(() => (init_src2(), src_exports));
     let nameById = /* @__PURE__ */ new Map();
     if (teamIds.length > 0) {
-      const teamRows = await db.select({ id: teams3.id, name: teams3.name }).from(teams3).where(sql`${teams3.id} = ANY(${teamIds})`);
+      const teamRows = await db.select({ id: teams3.id, name: teams3.name }).from(teams3).where(inArray(teams3.id, teamIds));
       nameById = new Map(teamRows.map((t) => [t.id, t.name]));
     }
     let deptNameById = /* @__PURE__ */ new Map();
     if (deptIds.length > 0) {
-      const deptRows = await db.select({ id: departments2.id, name: departments2.name }).from(departments2).where(sql`${departments2.id} = ANY(${deptIds})`);
+      const deptRows = await db.select({ id: departments2.id, name: departments2.name }).from(departments2).where(inArray(departments2.id, deptIds));
       deptNameById = new Map(deptRows.map((d) => [d.id, d.name]));
     }
     return rows.map((r) => ({
@@ -84903,7 +84903,8 @@ async function findByOrg4(db, orgId) {
       status: departments.status,
       createdAt: departments.createdAt,
       updatedAt: departments.updatedAt,
-      agentCount: sql`coalesce(count(${agents.id}), 0)::int`
+      agentCount: sql`coalesce(count(${agents.id}), 0)::int`,
+      activeCount: sql`coalesce(count(${agents.id}) filter (where ${agents.status} = 'active'), 0)::int`
     }).from(departments).leftJoin(agents, eq(agents.departmentId, departments.id)).where(eq(departments.orgId, orgId)).groupBy(departments.id).orderBy(desc(departments.createdAt));
     return rows;
   } catch {
@@ -91274,13 +91275,26 @@ __export(task_executor_exports, {
 });
 async function persistPreExecutionBlock(db, orgId, task, reason, agentName, governanceReason = "Pre-execution governance check (agent state, authority, or autonomy level)") {
   await db.update(tasks).set({ status: "failed", result: reason.slice(0, 2e3), cost: 0, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tasks.id, task.id));
+  if (task.agentId) {
+    const [blocked] = await db.select({ tasksFailed: agents.tasksFailed }).from(agents).where(and(eq(agents.id, task.agentId), eq(agents.orgId, orgId))).limit(1);
+    await db.update(agents).set({
+      tasksFailed: (blocked?.tasksFailed ?? 0) + 1,
+      currentTask: null,
+      lastActiveAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(eq(agents.id, task.agentId), eq(agents.orgId, orgId)));
+  }
   await db.insert(activityEvents).values({
     orgId,
     agentId: task.agentId,
     taskId: task.id,
     type: "failed",
-    summary: `Execution blocked: ${reason}`,
-    reason: governanceReason,
+    // Same vocabulary as the ordinary failure path below (`Failed: <title>` +
+    // why in `reason`). The old summary was `Execution blocked: ${reason}` and
+    // the reason itself already began "Execution blocked by autonomy level: …",
+    // so the founder's activity feed stuttered the phrase twice in one row.
+    summary: `Failed: ${task.title}`,
+    reason: reason.trim() || governanceReason,
     cost: 0,
     department: null
   });
@@ -116077,11 +116091,17 @@ function registerDepartmentRoutes(app, deps) {
     const q = (url2.searchParams.get("q") ?? "").trim().toLowerCase();
     const depts = await findByOrg4(db, ctx.orgId);
     let unassignedCount = 0;
+    let unassignedActiveCount = 0;
     try {
-      const [result2] = await db.select({ count: sql`count(*)::int` }).from(agents).where(and(eq(agents.orgId, ctx.orgId), sql`${agents.departmentId} IS NULL`));
+      const [result2] = await db.select({
+        count: sql`count(*)::int`,
+        activeCount: sql`coalesce(count(*) filter (where ${agents.status} = 'active'), 0)::int`
+      }).from(agents).where(and(eq(agents.orgId, ctx.orgId), sql`${agents.departmentId} IS NULL`));
       unassignedCount = result2?.count ?? 0;
+      unassignedActiveCount = result2?.activeCount ?? 0;
     } catch {
       unassignedCount = 0;
+      unassignedActiveCount = 0;
     }
     const result = depts.map((d) => ({
       id: d.id,
@@ -116091,6 +116111,7 @@ function registerDepartmentRoutes(app, deps) {
       budget: d.budget,
       status: d.status,
       agentCount: d.agentCount,
+      activeCount: d.activeCount,
       createdAt: d.createdAt
     }));
     if (unassignedCount > 0) {
@@ -116102,6 +116123,7 @@ function registerDepartmentRoutes(app, deps) {
         budget: null,
         status: "active",
         agentCount: unassignedCount,
+        activeCount: unassignedActiveCount,
         createdAt: null
       });
     }
