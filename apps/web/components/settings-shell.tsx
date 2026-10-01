@@ -31,9 +31,8 @@ export function SettingsShell({
   const pathname = usePathname();
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
 
-  return (
-    <div id="main" className="min-h-screen bg-canvas">
-      <header className="border-b border-hairline bg-white">
+  return (      <div className="min-h-screen">
+      <header className="border-b border-hairline">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <Link
             href="/"
@@ -71,8 +70,8 @@ export function SettingsShell({
                     aria-current={active ? "page" : undefined}
                     className={`inline-block rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                       active
-                        ? "border-ink-surface ink text-white"
-                        : "border-hairline bg-white text-brand-ink hover:border-brand-deep"
+                        ? "border-hairline-strong bg-elevated text-ink"
+                        : "border-hairline text-muted transition-colors hover:bg-elevated hover:text-ink"
                     }`}
                   >
                     {tab.label}

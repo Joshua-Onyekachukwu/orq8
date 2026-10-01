@@ -36,7 +36,7 @@ interface MailDiagnosis {
 }
 
 const fieldClass =
-  "h-11 w-full rounded-lg border border-hairline bg-white px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-brand-deep";
+  "h-11 w-full rounded-lg border border-hairline bg-canvas px-3.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-hairline-strong";
 
 const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 
@@ -263,7 +263,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <SettingsShell title="Account settings" description="Your profile, company details, and how ORQ8 addresses you.">
-        <div className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+        <div className="max-w-3xl console-card p-6 sm:p-8">
           <div className="animate-pulse space-y-6">
             <div className="h-8 w-32 rounded bg-hairline" />
             <div className="h-4 w-64 rounded bg-hairline" />
@@ -310,7 +310,7 @@ export default function SettingsPage() {
           e.preventDefault();
           handleSave();
         }}
-        className="max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8"
+        className="max-w-3xl console-card p-6 sm:p-8"
       >
         {/* Profile photo */}
         <h2 className="text-lg font-semibold text-ink">Profile</h2>
@@ -319,8 +319,8 @@ export default function SettingsPage() {
         </p>
 
         <div className="mt-6 flex items-center gap-4">
-          <span className="relative h-16 w-16 overflow-hidden rounded-full border border-hairline">
-            <span className="flex h-full w-full items-center justify-center ink text-lg font-bold text-brand-ink">
+          <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand-deep">
+            <span className="text-lg font-bold" style={{ color: "var(--console-tile-text, #ffffff)" }}>
               {(user?.name ?? user?.email ?? "U").charAt(0).toUpperCase()}
             </span>
           </span>
@@ -473,7 +473,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-md bg-warm px-5 py-2.5 text-sm font-semibold text-on-warm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? (
                 <>
@@ -488,7 +488,7 @@ export default function SettingsPage() {
       </form>
 
       {/* Data & portability */}
-      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+      <div className="console-card mt-6 max-w-3xl p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <Download className="h-5 w-5 text-muted" />
           <h2 className="text-lg font-semibold text-ink">Your company data</h2>
@@ -509,7 +509,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Mail delivery — self-diagnosing */}
-      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+      <div className="console-card mt-6 max-w-3xl p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <Mail className="h-5 w-5 text-muted" />
           <h2 className="text-lg font-semibold text-ink">Mail delivery</h2>
@@ -530,7 +530,7 @@ export default function SettingsPage() {
               </span>
               <span
                 className={`rounded-full px-2.5 py-1 font-mono text-3xs font-semibold uppercase tracking-wide ${
-                  mail.delivers ? "bg-brand-deep/10 text-brand-ink" : "bg-error-soft text-error-ink"
+                  mail.delivers ? "text-mark-active" : "text-error-ink"
                 }`}
               >
                 {mail.delivers ? "Delivering" : "Not delivering"}
@@ -617,7 +617,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Notification Preferences */}
-      <div className="mt-6 max-w-3xl rounded-xl border border-hairline bg-white p-6 sm:p-8">
+      <div className="console-card mt-6 max-w-3xl p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-muted" />
           <h2 className="text-lg font-semibold text-ink">Notification Preferences</h2>
@@ -642,11 +642,11 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-brand-deep" : "bg-disabled-surface"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-mark-active" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
               >
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${notifPrefs[key] ? "left-[22px]" : "left-0.5"}`} />
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface-white shadow transition-transform ${notifPrefs[key] ? "left-[22px]" : "left-0.5"}`} />
               </button>
             </div>
           ))}
@@ -663,7 +663,7 @@ export default function SettingsPage() {
               {typeof window !== "undefined" && "Notification" in window ? (
                 <>
                   <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
-                    Notification.permission === "granted" ? "bg-ink-accent/10 text-brand-ink" :
+                    Notification.permission === "granted" ? "text-mark-active" :
                     Notification.permission === "denied" ? "bg-error-soft text-error-ink" :
                     "bg-warm-soft text-warm-ink"
                   }`}>
@@ -729,11 +729,11 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setNotifPrefs((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-brand-deep" : "bg-disabled-surface"}`}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-mark-active" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs.soundEnabled}
               >
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${notifPrefs.soundEnabled ? "left-[22px]" : "left-0.5"}`} />
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface-white shadow transition-transform ${notifPrefs.soundEnabled ? "left-[22px]" : "left-0.5"}`} />
               </button>
             </div>
           </div>
@@ -757,7 +757,7 @@ export default function SettingsPage() {
               setNotifSaving(false);
             }}
             disabled={notifSaving}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md bg-warm px-5 py-2.5 text-sm font-semibold text-on-warm transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {notifSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : notifSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
             {notifSaved ? "Saved" : "Save preferences"}
