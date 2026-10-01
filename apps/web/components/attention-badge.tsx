@@ -34,10 +34,13 @@ export function AttentionBadge() {
       <Inbox className="h-5 w-5 text-ink-muted" />
       {total > 0 && (
         <span
-          /* The warm fill is pale, so its label is ink: white on #F1C095 is
-             1.65:1. The error fill is dark enough to carry white. */
+          /* Label the fill with its designed on-color, not ink: the console
+             scope re-points --orq-ink per theme (white in light), which turned
+             the warm badge's label white-on-orange (3.4:1 in light). on-warm is
+             near-black in both themes; on-error is dark-on-red in dark and
+             white-on-red in light, both past 4.5:1. */
           className={`absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-2xs font-bold ${
-            critical > 0 ? "bg-error-fill text-white" : "bg-warm text-ink-surface"
+            critical > 0 ? "bg-error-fill text-on-error" : "bg-warm text-on-warm"
           }`}
         >
           {total > 99 ? "99+" : total}
