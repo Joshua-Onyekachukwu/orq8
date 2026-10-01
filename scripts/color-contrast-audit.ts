@@ -210,6 +210,13 @@ const CONSOLE_PAIRS: Array<{ use: string; fg: string; bg: string; min: number }>
   { use: "chart warm on a card", fg: "--orq-chart-4", bg: "--orq-surface-white", min: AA_UI },
   // Info has no Tailwind utility yet, so it is named by its primitive.
   { use: "info mark on a card", fg: "--console-info", bg: "--console-surface", min: AA_UI },
+  // `.text-muted` resolves through the shadcn alias --muted-foreground rather
+  // than through --orq-text-secondary. The alias is declared at :root with its
+  // refs substituted there, so inheriting it into the console silently carried
+  // the marketing-light teal #356267 into BOTH themes — 2.85:1 on the dark
+  // console, on the muted label used on every page. The console re-points it;
+  // this pair is the regression guard.
+  { use: "muted utility text on the page", fg: "--muted-foreground", bg: "--orq-surface-page", min: AA_TEXT },
 ];
 
 /**
@@ -237,7 +244,11 @@ function auditConsole(): number {
       const fg = resolve(tokens[pair.fg] ?? "", tokens);
       const bg = resolve(tokens[pair.bg] ?? "", tokens);
       if (!fg || !bg) {
-        columns.push(`${theme} unmeasurable`);
+        // Unmeasurable is not a pass: a token that moved out of the maps is
+        // exactly how this palette went unchecked, so it counts as a failure
+        // and names the pair that stopped resolving.
+        failed += 1;
+        columns.push(`${theme} FAIL unmeasurable (${pair.fg} / ${pair.bg})`);
         continue;
       }
       const ratio = contrast(fg, bg);

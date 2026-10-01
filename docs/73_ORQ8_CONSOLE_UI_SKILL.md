@@ -160,3 +160,13 @@ from every operational page (the dock) within one interaction. Verify at 1440,
   missed, and every page load silently discarded the founder's light-mode choice
   — it looked perfectly wired. `node scripts/scan-rsc-boundary.mjs` now flags
   constants as well as functions.
+- **A `:root`-declared alias keeps the `:root` value, wherever it is used.**
+  `--muted-foreground: var(--orq-text-secondary)` was declared at `:root`; the
+  `var()` is substituted at the declaring element, so inheriting it into
+  `.console` carried the marketing-light teal `#356267` into both console
+  themes. `.text-muted` was therefore **2.85:1 on the dark console** — on the
+  secondary text of every page — while the token audit saw nothing, because the
+  utility resolves through an alias the console never re-pointed. `.console`
+  now re-points it, and `color-contrast-audit.ts` measures that exact pair and
+  treats an unmeasurable pair as a failure. When you add a console primitive,
+  re-point the alias too — or the alias wins.

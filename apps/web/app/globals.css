@@ -1024,6 +1024,12 @@ body {
   --orq-text-primary: var(--console-body);
   --orq-text-secondary: var(--console-muted);
   --orq-text-tertiary: var(--console-muted);
+  /* The shadcn alias `.text-muted` actually resolves through. It is declared
+     at :root with its var() substituted THERE, so inheriting it into the
+     console carried the marketing-light teal #356267 into both console
+     themes — 2.85:1 on the dark console, on the every-page muted labels. The
+     console has to re-point it like every other token. */
+  --muted-foreground: var(--console-muted);
   --orq-text-inverse: var(--console-bg);
   --orq-text-brand: var(--console-body);
   --orq-text-error: var(--console-red);
