@@ -93,6 +93,28 @@ try {
   await page.waitForLoadState("networkidle", { timeout: 60_000 }).catch(() => {});
   ok("login redirected into /app", /\/app(\b|$)/.test(new URL(page.url()).pathname), page.url());
 
+  // The two workspaces are dynamic routes. Discover one real department and one
+  // real employee through the app's own API, so the sweep covers the pages a
+  // new route cannot name statically.
+  try {
+    const deptId = await page.evaluate(async () => {
+      const r = await fetch("/api/departments?limit=5");
+      if (!r.ok) return null;
+      const j = await r.json();
+      return (j.data ?? []).find((d) => d && d.id)?.id ?? null;
+    });
+    if (deptId) ROUTES.push(`/app/departments/${deptId}`);
+    const agentId = await page.evaluate(async () => {
+      const r = await fetch("/api/agents?limit=5");
+      if (!r.ok) return null;
+      const j = await r.json();
+      return (j.data ?? []).find((a) => a && a.id)?.id ?? null;
+    });
+    if (agentId) ROUTES.push(`/app/agents/${agentId}`);
+  } catch {
+    // A discovery failure must not fail the sweep — the static routes still run.
+  }
+
   console.log(`=== route sweep (${ROUTES.length} routes) ===`);
   const perRouteIssues = {};
   for (const route of ROUTES) {

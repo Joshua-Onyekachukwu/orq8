@@ -524,7 +524,11 @@ export default function DepartmentsPage() {
                     <GitBranch className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="text-sm font-semibold text-ink">{dept.name}</h2>
+                    <h2 className="text-sm font-semibold text-ink">
+                      <a href={`/app/departments/${dept.id}`} className="transition-colors hover:text-brand-ink hover:underline">
+                        {dept.name}
+                      </a>
+                    </h2>
                     <div className="flex items-center gap-2 mt-0.5">
                       {(() => {
                         const wf = workforce.find((w) => w.departmentId === dept.id);
@@ -585,7 +589,13 @@ export default function DepartmentsPage() {
                 <p className="mt-3 text-xs text-muted leading-relaxed">{dept.description}</p>
               )}
 
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <a
+                  href={`/app/departments/${dept.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink transition-colors hover:text-brand"
+                >
+                  <GitBranch className="h-3 w-3" /> Open workspace
+                </a>
                 <button
                   type="button"
                   onClick={() => { setShowTemplateModal(true); setTemplateDeptId(dept.id); }}
