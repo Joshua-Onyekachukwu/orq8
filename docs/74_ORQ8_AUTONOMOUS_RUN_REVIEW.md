@@ -92,6 +92,25 @@ attention and traces are not empty.
    fabricated chart.
 10. **Theme toggle** — flip light/dark in the account menu and re-walk the same
    screens. The sidebar follows the theme now; it used to be permanently black.
+11. **Notifications** (`/app/notifications`) — the mock's inbox: unread-count
+   strip up top, rows with trigger chips and relative time, and a **Mark read**
+   that actually works (it needed the missing `PATCH` proxy route).
+12. **Briefings** (`/app/briefings`) — the card shell: stats row, sections,
+   status footer.
+13. **Memory & Files** (`/app/memory`, `/app/files`) — the two-pane list +
+   detail, and the folder-by-department grid with folder chips.
+14. **Integrations** (`/app/integrations`) — the mock's connection cards (state
+   dot, connection + health, scopes, last use), the append-only connector
+   activity table, and the event-rule ledger. OAuth connect/reconnect,
+   server-side health probes and rule CRUD all kept; the page dropped its
+   white-card utilities for console primitives.
+15. **Constitution** (`/app/constitution`) — numbered articles §1–§8 with the
+   mock's Active chips, the "binds Atlas too" banner, and the single warm
+   amend CTA. Still fully editable; every save writes an audit event.
+16. **Settings** (`/settings`) — the settings area now renders **inside the
+   console** (it sat outside it, so dark mode stopped at its edge): cards,
+   warm CTAs, lime switches, quiet tab pills. Profile, export, mail
+   self-diagnosis and notification prefs all functional.
 
 ---
 
@@ -241,11 +260,14 @@ Not done, in the order I would do them next:
    spot-checked rather than all walked by eye.
 5. **`docs/68` requirement matrix** — the changelog entries for this run are
    written; a full matrix re-walk is not.
-6. **Most legacy screens still use the old light utilities** (the departments
+6. **Some legacy screens still use the old light utilities** (the departments
    *list* page is the clearest example). They now render *correctly* inside the
    console — defect 14 re-pointed the aliases they lean on — but they are not
    yet rewritten in the console's own classes, and their washes/accents resolve
-   to neutral surfaces rather than the mock's compositions.
+   to neutral surfaces rather than the mock's compositions. The heaviest
+   mock screens — dashboard, approvals, goals, audit, budgets, memory, files,
+   briefings, notifications, integrations, constitution, settings — **are**
+   rewritten.
 
 ---
 
