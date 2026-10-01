@@ -117,16 +117,34 @@ export function useExecutiveAgent() {
   return ctx;
 }
 
-/** Hook for pages to register their context on mount/unmount. */
+/**
+ * Hook for pages to register their context on mount/unmount.
+ *
+ * Pages pass a fresh object literal, so the effect is keyed on the flattened
+ * *content* of the context rather than its identity. The previous version called
+ * `setPageContext` during render (its guard, `ctx.route !== null`, is true for
+ * every real page), which meant: render → set provider state → re-render → set
+ * provider state again, forever. Any page that registered context locked its own
+ * main thread; nothing had called this hook yet, so the loop was never seen.
+ */
 export function usePageContext(ctx: PageContext | null) {
   const { setPageContext } = useExecutiveAgent();
-  // Register on mount, clear on unmount.
-  // Using a ref pattern via effect so stale closures don't accumulate.
-  useState(() => {
+  const route = ctx?.route ?? null;
+  const pageName = ctx?.pageName ?? null;
+  const entityType = ctx?.entity?.type ?? null;
+  const entityId = ctx?.entity?.id ?? null;
+  const entityName = ctx?.entity?.name ?? null;
+  const entityStatus = ctx?.entity?.status ?? null;
+  const extra = ctx?.extra ?? null;
+  const extraKey = extra ? JSON.stringify(extra) : null;
+
+  useEffect(() => {
+    // `ctx` is read at effect time; the dependency list is its content, which is
+    // what actually changes between renders.
     setPageContext(ctx);
-  });
-  // Update when context changes.
-  if (ctx && (ctx.route !== null || ctx.entity !== undefined)) {
-    setPageContext(ctx);
-  }
+    return () => setPageContext(null);
+    // The dependency list is the flattened content of `ctx`; the object identity
+    // is intentionally excluded because callers build it inline on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route, pageName, entityType, entityId, entityName, entityStatus, extraKey, setPageContext]);
 }
