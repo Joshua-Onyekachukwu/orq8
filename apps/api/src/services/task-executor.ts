@@ -117,13 +117,40 @@ async function persistPreExecutionBlock(
     .set({ status: 'failed', result: reason.slice(0, 2000), cost: 0, updatedAt: new Date() })
     .where(eq(tasks.id, task.id));
 
+  // The employee's failure counter belongs to the same contract as the task row.
+  // The ordinary failure path increments it (step 7 below); a governance block
+  // is still a failure the founder sees, and skipping the counter made a blocked
+  // employee read "Tasks failed 0" beside a failed task — a number the founder
+  // has no way to reconcile, on the screens that judge an employee's reliability.
+  if (task.agentId) {
+    const [blocked] = await db
+      .select({ tasksFailed: agents.tasksFailed })
+      .from(agents)
+      .where(and(eq(agents.id, task.agentId), eq(agents.orgId, orgId)))
+      .limit(1);
+
+    await db
+      .update(agents)
+      .set({
+        tasksFailed: (blocked?.tasksFailed ?? 0) + 1,
+        currentTask: null,
+        lastActiveAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(agents.id, task.agentId), eq(agents.orgId, orgId)));
+  }
+
   await db.insert(activityEvents).values({
     orgId,
     agentId: task.agentId,
     taskId: task.id,
     type: 'failed',
-    summary: `Execution blocked: ${reason}`,
-    reason: governanceReason,
+    // Same vocabulary as the ordinary failure path below (`Failed: <title>` +
+    // why in `reason`). The old summary was `Execution blocked: ${reason}` and
+    // the reason itself already began "Execution blocked by autonomy level: …",
+    // so the founder's activity feed stuttered the phrase twice in one row.
+    summary: `Failed: ${task.title}`,
+    reason: reason.trim() || governanceReason,
     cost: 0,
     department: null,
   });

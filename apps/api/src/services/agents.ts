@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { agents, type Db } from '@orq8/db';
 
 type AnyRecord = Record<string, any>;
@@ -71,7 +71,19 @@ async function getColumns(db: Db) {
   return coreColumns;
 }
 
-/** Attach team display names to agent rows (batch lookup, pre-migration safe). */
+/**
+ * Attach team + department display names to agent rows (batch lookup,
+ * pre-migration safe).
+ *
+ * The lookups use inArray, not a raw "= ANY(array)" interpolation. A JS array
+ * parameter is typed text[] by the driver while both columns are uuid, and
+ * Postgres has no implicit uuid = text[] operator — so the lookup threw and the
+ * catch below turned every employee's department and team into a silent `null`.
+ * The departments page kept showing correct counts because it counts in SQL,
+ * so the failure surfaced only as team-wide "Unassigned" labels on the screens
+ * that name a person's department. inArray binds each id against the column's own
+ * type, which is the comparison Postgres can actually perform.
+ */
 async function attachTeamNames(db: Db, rows: AnyRecord[]): Promise<AnyRecord[]> {
   const teamIds = Array.from(new Set(rows.map((r) => r.teamId).filter(Boolean))) as string[];
   const deptIds = Array.from(new Set(rows.map((r) => (r as Record<string, unknown>).departmentId).filter(Boolean))) as string[];
@@ -83,7 +95,7 @@ async function attachTeamNames(db: Db, rows: AnyRecord[]): Promise<AnyRecord[]> 
       const teamRows = await db
         .select({ id: teams.id, name: teams.name })
         .from(teams)
-        .where(sql`${teams.id} = ANY(${teamIds})`);
+        .where(inArray(teams.id, teamIds));
       nameById = new Map(teamRows.map((t) => [t.id, t.name]));
     }
     // Resolve the CURRENT department name from the FK (the legacy `department`
@@ -94,7 +106,7 @@ async function attachTeamNames(db: Db, rows: AnyRecord[]): Promise<AnyRecord[]> 
       const deptRows = await db
         .select({ id: departments.id, name: departments.name })
         .from(departments)
-        .where(sql`${departments.id} = ANY(${deptIds})`);
+        .where(inArray(departments.id, deptIds));
       deptNameById = new Map(deptRows.map((d) => [d.id, d.name]));
     }
     return rows.map((r) => ({
