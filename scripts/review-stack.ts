@@ -342,6 +342,16 @@ async function main(): Promise<void> {
   if (reg.status !== 201) throw new Error(`register failed: ${reg.status} ${JSON.stringify(reg.body).slice(0, 200)}`);
   const orgId: string = reg.body.data.org.id;
   await pg.pool.query("update users set email_verified_at = now() where email = $1", [FOUNDER_EMAIL]);
+  // Mark the seeded company as already set up. The dashboard derives the
+  // founder's stage from this row, and a demo company with live employees,
+  // goals and work greeted as "Welcome to ORQ8 — tell me what you are
+  // building" would be the demo lying about its own state.
+  await pg.pool.query(
+    `insert into onboarding_states (user_id, org_id, step, completed_at, organization)
+     select id, $2, 'complete', now(), '{"name": "Northwind Labs"}'::jsonb from users where email = $1
+     on conflict (user_id) do update set step = 'complete', completed_at = now(), updated_at = now()`,
+    [FOUNDER_EMAIL, orgId],
+  );
   const login = await api("/v1/auth/login", { method: "POST", body: { email: FOUNDER_EMAIL, password: FOUNDER_PASSWORD } });
   const token: string = login.body?.data?.token ?? "";
   if (!token) throw new Error("login failed for the seeded founder");

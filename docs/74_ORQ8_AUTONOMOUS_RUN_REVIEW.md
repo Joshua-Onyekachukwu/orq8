@@ -50,20 +50,29 @@ attention and traces are not empty.
 
 ## 2. What to look at first
 
-1. **Dashboard** (`/app`) — the health score, "What's happening now", the org
-   chart. This screen crashed on load two days ago; it now renders.
-2. **My Attention** (`/app/attention`) — the merged queue, ordered by severity.
+1. **Dashboard** (`/app`) — rebuilt to the approved mock: the greeting, the
+   four-state strip, the banner that morphs with company state, **the live
+   organization** (each department with its lead, its people and their real
+   work), and the **live-activity terminal**. This screen crashed on load two
+   days ago; it now renders — and it no longer duplicates the performance,
+   quality, goals and activity pages, it links to them.
+2. **Approvals** (`/app/approvals`) — the gate queue: silence is never
+   consent, each card names its trigger, **what it blocks** (the task, linked)
+   and **what approving does**, the exact tool call is one click away, and the
+   decision is the console's ghost pair (Reject / Approve). "Decided" is the
+   table with your own notes.
+3. **My Attention** (`/app/attention`) — the merged queue, ordered by severity.
    There is a real pending approval and a real failed task in it.
-3. **Tasks** (`/app/tasks`) — the board: Backlog / In progress / Done plus the
+4. **Tasks** (`/app/tasks`) — the board: Backlog / In progress / Done plus the
    sticky detail column. Run the pending task; watch it move.
-4. **An employee** — open **Iris** from `/app/agents` and use the new workspace
+5. **An employee** — open **Iris** from `/app/agents` and use the new workspace
    (section 3 below). This is the biggest new surface of the run.
-5. **Departments** (`/app/departments`) — four cards, real counts, real
+6. **Departments** (`/app/departments`) — four cards, real counts, real
    utilization. It printed `NaN%` before this run. Click a department's name to
    open the new **workspace** (section 3b below).
-6. **Finance** (`/app/finance`) — the honest empty state: $0.00 and why, not a
+7. **Finance** (`/app/finance`) — the honest empty state: $0.00 and why, not a
    fabricated chart.
-7. **Theme toggle** — flip light/dark in the account menu and re-walk the same
+8. **Theme toggle** — flip light/dark in the account menu and re-walk the same
    screens. The sidebar follows the theme now; it used to be permanently black.
 
 ---

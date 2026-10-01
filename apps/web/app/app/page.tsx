@@ -1,26 +1,11 @@
 import Link from "next/link";
+import { AlertTriangle, ArrowUpRight, Bot, Zap } from "lucide-react";
 
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  Bot,
-  ClipboardCheck,
-  Command,
-  Zap,
-} from "lucide-react";
-import { CommandBar } from "../../components/command-bar";
-import { ReliabilityWidget } from "../../components/dashboard/ReliabilityWidget";
-import { ModelPerformanceWidget } from "../../components/dashboard/ModelPerformanceWidget";
-import { DepartmentActivityWidget } from "../../components/dashboard/DepartmentActivityWidget";
-
-import { ContrastSelfCheck } from "../../components/contrast-self-check";
-import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
-import { HealthScore } from "../../components/dashboard/HealthScore";
-import { GoalExecutionPanel } from "../../components/dashboard/GoalExecutionPanel";
-import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
 import { EAOpenButton } from "../../components/dashboard/ea-open-button";
+import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
+import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import type { FounderStage } from "../../components/executive-agent-context";
-import { fetchWithAuth, formatCost, formatDate, formatTimeAgo } from "../../lib/api";
+import { fetchWithAuth } from "../../lib/api";
 import { EA_NAME } from "../../lib/ea";
 import { computeScore } from "../../lib/health-score";
 
@@ -31,10 +16,14 @@ interface Agent {
   name: string;
   role: string;
   department: string | null;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  teamName?: string | null;
   status: string;
-  weeklyCost: number;
-  tasksCompleted: number;
   currentTask: string | null;
+  tasksCompleted: number;
+  tasksFailed?: number;
+  lastActiveAt?: string | null;
 }
 
 interface Approval {
@@ -45,8 +34,6 @@ interface Approval {
   cost: number;
   riskLevel: string;
   status: string;
-  decisionNote: string | null;
-  decidedAt: string | null;
   createdAt: string;
 }
 
@@ -82,33 +69,31 @@ interface DashboardData {
   recent_activity: ActivityEvent[];
 }
 
+interface DepartmentRow {
+  id: string;
+  name: string;
+  description: string | null;
+  head: string | null;
+  budget: number | null;
+  status: string;
+  agentCount: number;
+  activeCount: number;
+}
+
 interface DepartmentProgress {
   departmentId: string;
   departmentName: string;
-  taskCount: number;
-  completedTaskCount: number;
-  activeTaskCount: number;
-  blockedTaskCount: number;
-  recentOutputs: number;
-  agentCount: number;
-  activeAgentCount: number;
   progressPct: number;
   status: string;
+  blockedTaskCount: number;
+  activeTaskCount: number;
 }
 
 interface CompanyProgressData {
   overallPct: number;
   maturityStage: string;
   departments: DepartmentProgress[];
-  totalGoals: number;
-  activeGoals: number;
-  completedGoals: number;
-  totalTasks: number;
-  completedTasks: number;
-  activeTasks: number;
   blockedTasks: number;
-  recentOutputs: number;
-  attentionNeeded: string[];
 }
 
 interface OrgInfo {
@@ -124,14 +109,7 @@ interface OrgInfo {
 interface CompanyBuilderState {
   step: string;
   completedAt: string | null;
-  analysis: {
-    companyName?: string;
-    description?: string;
-    stage?: string;
-    industry?: string;
-    sourceType?: string;
-    priorities?: string[];
-  } | null;
+  analysis: { companyName?: string } | null;
   plan: unknown;
   activation: unknown;
 }
@@ -141,9 +119,7 @@ interface PriorityAction {
   title: string;
   description: string;
   priority: "critical" | "high" | "medium" | "low";
-  urgency: number;
   suggestedAction: string;
-  evidence: string[];
 }
 
 interface DecisionRow {
@@ -160,23 +136,23 @@ interface DecisionRow {
 interface GoalRow {
   id: string;
   title: string;
-  description: string | null;
   status: string;
   progress: number;
   priority: string;
   dueDate: string | null;
 }
 
-// Freshness matters for an oversight dashboard: the attention queue, the
-// onboarding stage and the goal/decision lists must reflect the latest
-// backend state (revalidate: false → cache: "no-store").
+// Freshness matters on the company HQ: approvals, health and activity must
+// reflect the latest backend state, never a cached body.
 const FRESH = { revalidate: false } as const;
 
 const fetchDashboardData = () => fetchWithAuth<DashboardData>("/v1/dashboard", FRESH);
-const fetchAgents = () => fetchWithAuth<Agent[]>("/v1/agents");
+const fetchAgents = () => fetchWithAuth<Agent[]>("/v1/agents", FRESH);
 const fetchApprovals = () => fetchWithAuth<Approval[]>("/v1/approvals?status=pending", FRESH);
-const fetchCompanyProgress = () => fetchWithAuth<CompanyProgressData>("/v1/company-progress");
-const fetchOrgInfo = () => fetchWithAuth<OrgInfo>("/v1/auth/me");
+const fetchDepartments = () => fetchWithAuth<DepartmentRow[]>("/v1/departments?all=true", FRESH);
+const fetchActivity = () => fetchWithAuth<ActivityEvent[]>("/v1/activity?limit=14", FRESH);
+const fetchCompanyProgress = () => fetchWithAuth<CompanyProgressData>("/v1/company-progress", FRESH);
+const fetchOrgInfo = () => fetchWithAuth<OrgInfo>("/v1/auth/me", FRESH);
 const fetchBuilderState = () =>
   fetchWithAuth<CompanyBuilderState>("/v1/company-builder/state", FRESH);
 const fetchPriorities = () =>
@@ -184,72 +160,130 @@ const fetchPriorities = () =>
     () => null,
   );
 const fetchDecisions = () =>
-  fetchWithAuth<{ decisions: DecisionRow[]; total: number }>("/v1/decisions?limit=5", FRESH).catch(
+  fetchWithAuth<{ decisions: DecisionRow[]; total: number }>("/v1/decisions?limit=4", FRESH).catch(
     () => null,
   );
 const fetchActiveGoals = () =>
-  fetchWithAuth<GoalRow[]>("/v1/goals?status=active&limit=5", FRESH).catch(() => null);
+  fetchWithAuth<GoalRow[]>("/v1/goals?status=active&limit=4", FRESH).catch(() => null);
 
-/*
- * Phase 2 (docs/71): the dashboard follows the approved mock composition —
- * a slim 4-stat strip (approvals live in the banner, not as a stat card),
- * the slim approvals banner that anchors to the EA dock's gate rows, then
- * "What's happening now" and the section set. Every value stays
- * server-derived from the same real endpoints as before; only composition
- * and hierarchy change.
- */
+type DotState = "" | "working" | "waiting" | "blocked";
+
+/** A thin state meter — same vocabulary as the console's state dots. */
+function Meter({ pct, tone = "ok" }: { pct: number; tone?: "ok" | "warn" | "danger" }) {
+  const width = Math.min(Math.max(pct, 0), 100);
+  const color =
+    tone === "danger"
+      ? "var(--orq-error)"
+      : tone === "warn"
+        ? "var(--orq-warm)"
+        : "var(--orq-mark-active)";
+  return (
+    <div className="h-[3px] w-full overflow-hidden rounded-full bg-hairline" aria-hidden="true">
+      <div className="h-full rounded-full" style={{ width: `${width}%`, background: color }} />
+    </div>
+  );
+}
+
 function StatCard({
   label,
   value,
+  suffix,
   subtext,
   meter,
+  tone,
   href,
 }: {
   label: string;
   value: string | number;
+  suffix?: string;
   subtext: string;
   meter?: number;
+  tone?: "ok" | "warn" | "danger";
   href: string;
 }) {
   return (
     <Link
       href={href}
-      className="group rounded-xl border border-hairline bg-white p-4 transition-all hover:border-hairline-strong hover:shadow-sm"
+      className="console-card block p-4 transition-colors hover:bg-surface-secondary"
     >
-      <span className="text-xs font-medium text-muted">{label}</span>
-      <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-ink">
+      <span className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </span>
+      <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-ink">
         {value}
-        {meter !== undefined && (
-          <span className="ml-1 align-middle text-xs font-medium text-muted">/ {meter}</span>
-        )}
+        {suffix && <span className="ml-1 text-xs font-medium text-muted">{suffix}</span>}
       </p>
-      <div className="mt-2 flex items-center gap-1">
-        <span className="text-xs text-muted">{subtext}</span>
-      </div>
+      {meter !== undefined && (
+        <div className="mt-2">
+          <Meter pct={meter} tone={tone} />
+        </div>
+      )}
+      <p className="mt-1.5 truncate text-xs text-muted">{subtext}</p>
     </Link>
   );
 }
 
-function decisionBadge(status: string): string {
-  if (status === "validated") return "bg-brand-deep/10 text-brand-ink";
-  if (status === "reversed") return "bg-error-soft text-error-ink";
-  if (status === "active") return "bg-warm/10 text-warm-ink";
-  if (status === "pending") return "bg-warm-soft text-warm-ink";
-  return "bg-canvas text-muted";
+/** Activity → the terminal's type tag and its colour (docs/73: colour = state). */
+function activityTag(type: string): { tag: string; color: string } {
+  const t = type.toLowerCase();
+  if (t.includes("fail") || t.includes("block") || t.includes("denied")) {
+    return { tag: "FAILED", color: "var(--orq-error)" };
+  }
+  if (t.includes("approv") || t.includes("gate") || t.includes("waiting")) {
+    return { tag: "GATE", color: "var(--orq-warm)" };
+  }
+  if (t.includes("complet") || t.includes("done") || t.includes("success")) {
+    return { tag: "DONE", color: "var(--orq-mark-active)" };
+  }
+  if (t.includes("tool")) return { tag: "TOOL", color: "var(--orq-text-secondary)" };
+  if (t.includes("created") || t.includes("hired")) return { tag: "NEW", color: "var(--orq-text-secondary)" };
+  if (t.includes("execut") || t.includes("run")) return { tag: "RUN", color: "var(--orq-text-secondary)" };
+  if (t.includes("analyz")) return { tag: "ANALYZE", color: "var(--orq-text-secondary)" };
+  if (t.includes("draft")) return { tag: "DRAFT", color: "var(--orq-text-secondary)" };
+  if (t.includes("review")) return { tag: "REVIEW", color: "var(--orq-text-secondary)" };
+  if (t.includes("paused")) return { tag: "PAUSED", color: "var(--orq-text-secondary)" };
+  // Unknown types: the first word, uppercased — never a word cut in half
+  // (a mid-word slice read as "EXECUTI" in the terminal).
+  const firstWord = t.split(/[^a-z]+/).filter(Boolean)[0] ?? "event";
+  return { tag: firstWord.toUpperCase().slice(0, 9), color: "var(--orq-text-secondary)" };
 }
 
-function recommendationBadge(priority: string): string {
-  if (priority === "critical") return "bg-error-soft text-error-ink";
-  if (priority === "high") return "bg-warm/10 text-warm-ink";
-  if (priority === "medium") return "bg-warm-soft text-warm-ink";
-  return "bg-canvas text-muted";
+function formatClock(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--:--";
+  return d.toLocaleTimeString(undefined, {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
+function formatMoney(dollars: number): string {
+  return `$${dollars.toFixed(2)}`;
+}
+
+/**
+ * Company HQ (docs/71 §F, marketing/headquarters-mock-v2.html).
+ *
+ * The approved mock's composition: greeting → four-state strip → the banner
+ * that morphs with company state → the live organization (departments as
+ * columns with their people and work) → the live-activity terminal. The
+ * deeper oversight surfaces that used to live here have their own pages
+ * (performance, quality, activity, goals, decisions) and are linked, not
+ * duplicated.
+ *
+ * Every value is read from a real endpoint. Nothing on this page is invented,
+ * and a department/employee with nothing to say says nothing rather than
+ * showing a placeholder.
+ */
 export default async function AppPage() {
   const [
     dashboard,
     agents,
     approvals,
+    departments,
+    activity,
     companyProgress,
     orgInfo,
     builderState,
@@ -260,6 +294,8 @@ export default async function AppPage() {
     fetchDashboardData(),
     fetchAgents(),
     fetchApprovals(),
+    fetchDepartments(),
+    fetchActivity(),
     fetchCompanyProgress(),
     fetchOrgInfo(),
     fetchBuilderState(),
@@ -270,12 +306,10 @@ export default async function AppPage() {
 
   const agentList = agents ?? [];
   const approvalList = approvals ?? [];
+  const departmentList = (departments ?? []).filter((d) => d.status === "active");
+  const events = activity ?? dashboard?.recent_activity ?? [];
 
-  // First-login detection: server-derived from persisted onboarding state,
-  // never inferred from frontend state.
-  //   A new        → onboarding not started (default row, nothing collected)
-  //   B in progress → a step or a stored analysis/plan exists, not completed
-  //   C active      → completedAt or activation exists
+  // First-login detection: server-derived from persisted onboarding state.
   const founderStage: FounderStage = !builderState
     ? "new"
     : builderState.completedAt || builderState.activation
@@ -293,13 +327,10 @@ export default async function AppPage() {
   const completedTasks = dashboard?.completed_tasks ?? 0;
   const weeklySpend = dashboard?.weekly_spend ?? 0;
   const credits = dashboard?.credits ?? null;
-  const recentActivity = dashboard?.recent_activity ?? [];
   const totalGoals = dashboard?.total_goals ?? 0;
   const activeGoalsCount = dashboard?.active_goals ?? 0;
   const blockedTasks = companyProgress?.blockedTasks ?? 0;
 
-  // Company health for the stat strip — the same composite the HealthScore
-  // widget computes, reused so the number means the same thing everywhere.
   const health = computeScore({
     activeAgents,
     totalAgents: agentList.length,
@@ -312,12 +343,15 @@ export default async function AppPage() {
     totalGoals,
   });
 
-  // Executive Agent setup strip. The stage comes from persisted onboarding
-  // state (founderStage, derived above from /v1/company-builder/state) and
-  // every fact below is read from a real endpoint, never invented.
   const firstName = orgInfo?.user.name?.trim().split(/\s+/)[0] ?? null;
   const hour = new Date().getHours();
   const dayGreeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const todayLine = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
   const remainingSteps: string[] = (() => {
     if (founderStage !== "in_progress") return [];
     switch (builderState?.step) {
@@ -331,6 +365,7 @@ export default async function AppPage() {
         return ["your company profile", "your company constitution", "your first AI employees"];
     }
   })();
+
   const liveFacts: string[] = [
     agentList.length > 0 ? `${activeAgents} of ${agentList.length} AI employees active` : null,
     pendingApprovals > 0
@@ -343,12 +378,6 @@ export default async function AppPage() {
   ].filter((fact): fact is string => !!fact);
   const liveSummary = liveFacts.length > 0 ? liveFacts.join("; ") : null;
 
-  const eaTitle =
-    founderStage === "active"
-      ? `${dayGreeting}${firstName ? `, ${firstName}` : ""}. Here is where your company stands.`
-      : founderStage === "in_progress"
-        ? `You are partway through setting up ${orgName}.`
-        : `Welcome to ORQ8${firstName ? `, ${firstName}` : ""}. I am ${EA_NAME}, your Executive Agent.`;
   const eaBody =
     founderStage === "active"
       ? liveSummary
@@ -356,194 +385,187 @@ export default async function AppPage() {
         : "There is no activity yet. Ask me to plan the first work for your company."
       : founderStage === "in_progress"
         ? "I kept what you have already given me, so we can pick up where you left off. Nothing is activated until you approve it."
-        : "I am here to help you turn your direction into an operating company. What are you building, and what would you like to accomplish with it?";
-
-  const primaryActionClass =
-    "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-ink-surface/90";
-  const secondaryActionClass =
-    "inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-canvas";
+        : `Welcome to ORQ8${firstName ? `, ${firstName}` : ""}. I am ${EA_NAME}, your Executive Agent. Tell me what you are building and what you want it to accomplish.`;
 
   const goalList = activeGoalsRes ?? [];
   const decisionList = decisionsRes?.decisions ?? [];
   const priorityList = priorities ?? [];
-  const workingAgents = agentList.filter((a) => a.status === "active" && a.currentTask);
 
-  const attentionItems: Array<{ icon: React.ElementType; text: string; href: string; color: string }> = [];
-  if (approvalList.length > 0) {
-    // Show the actual decisions waiting, not just a count.
-    for (const a of approvalList.slice(0, 3)) {
-      attentionItems.push({ icon: ClipboardCheck, text: a.action, href: "/app/approvals", color: "text-warm-ink" });
+  // ── The live organization ───────────────────────────────────────────────
+  // Status is derived from the employee's own rows, never invented: an
+  // archived employee is retired, a paused one is paused, a pending approval
+  // addressed to them means they need you, their newest event deciding
+  // "blocked" (so one old failure cannot label someone blocked forever), a
+  // current task means working, otherwise idle.
+  const pendingApprovalAgentIds = new Set(
+    approvalList.map((a) => a.agentId).filter((id): id is string => !!id),
+  );
+  const newestEventByAgent = new Map<string, ActivityEvent>();
+  for (const event of events) {
+    if (event.agentId && !newestEventByAgent.has(event.agentId)) {
+      newestEventByAgent.set(event.agentId, event);
     }
-    if (approvalList.length > 3) {
-      attentionItems.push({ icon: ClipboardCheck, text: `${approvalList.length - 3} more approval${approvalList.length - 3 !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-warm-ink" });
-    }
-  } else if (pendingApprovals > 0) {
-    attentionItems.push({ icon: ClipboardCheck, text: `${pendingApprovals} approval${pendingApprovals !== 1 ? "s" : ""} waiting for your decision`, href: "/app/approvals", color: "text-warm-ink" });
   }
-  if (credits?.isCritical) attentionItems.push({ icon: Zap, text: "Work credits critically low. AI employees may pause.", href: "/app/budgets", color: "text-error-ink" });
-  if (credits?.isLow && !credits?.isCritical) attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining`, href: "/app/budgets", color: "text-warm-ink" });
-  const recentFailed = recentActivity.filter((e) => e.type.toLowerCase().includes("failed"));
-  if (recentFailed.length > 0) attentionItems.push({ icon: AlertTriangle, text: `${recentFailed.length} task${recentFailed.length !== 1 ? "s" : ""} failed recently`, href: "/app/goals", color: "text-error-ink" });
-  if (blockedTasks > 0) attentionItems.push({ icon: AlertTriangle, text: `${blockedTasks} blocked task${blockedTasks !== 1 ? "s" : ""} ${blockedTasks !== 1 ? "need" : "needs"} attention`, href: "/app/goals", color: "text-warm-ink" });
-  if (activeAgents === 0 && agentList.length > 0) attentionItems.push({ icon: Bot, text: "All AI employees are paused", href: "/app/agents", color: "text-muted" });
-  if (agentList.length === 0) attentionItems.push({ icon: Bot, text: "No AI employees yet. Hire your first AI employee to get started", href: "/app/agents", color: "text-brand-ink" });
+  const blockedAgentIds = new Set<string>();
+  for (const [agentId, event] of newestEventByAgent) {
+    const tag = activityTag(event.type).tag;
+    if (tag === "FAILED") blockedAgentIds.add(agentId);
+  }
+
+  function memberState(agent: Agent): { label: string; detail: string; state: DotState } {
+    if (agent.status === "archived") return { label: "Retired", detail: "Retired", state: "" };
+    if (agent.status !== "active") return { label: "Paused", detail: "Paused by you", state: "" };
+    if (pendingApprovalAgentIds.has(agent.id)) {
+      return { label: "Needs you", detail: "Waiting on approval", state: "waiting" };
+    }
+    if (blockedAgentIds.has(agent.id)) {
+      const newest = newestEventByAgent.get(agent.id);
+      // The event summary already names the failure ("Failed: Publish the
+      // launch post"); repeating the tag reads as a stutter, so the tag is
+      // stripped and the state dot carries it.
+      const reason = newest
+        ? newest.summary.replace(/^(failed|blocked|execution blocked):\s*/i, "")
+        : null;
+      return { label: "Blocked", detail: reason ?? "Blocked", state: "blocked" };
+    }
+    if (agent.currentTask) {
+      return { label: "Working", detail: agent.currentTask, state: "working" };
+    }
+    return { label: "Idle", detail: "Idle", state: "" };
+  }
+
+  const membersByDepartment = new Map<string, Agent[]>();
+  const unassigned: Agent[] = [];
+  for (const agent of agentList) {
+    if (agent.departmentId) {
+      const list = membersByDepartment.get(agent.departmentId) ?? [];
+      list.push(agent);
+      membersByDepartment.set(agent.departmentId, list);
+    } else {
+      unassigned.push(agent);
+    }
+  }
+
+  const progressByDepartment = new Map<string, DepartmentProgress>(
+    (companyProgress?.departments ?? []).map((d) => [d.departmentId, d]),
+  );
+
+  function departmentState(members: Agent[]): {
+    label: string;
+    state: DotState;
+    tone: "ok" | "warn" | "danger";
+  } {
+    const states = members.map((m) => memberState(m).label);
+    if (states.includes("Needs you")) return { label: "Needs you", state: "waiting", tone: "warn" };
+    if (states.includes("Blocked")) return { label: "Blocked", state: "blocked", tone: "danger" };
+    const working = states.filter((s) => s === "Working").length;
+    if (working > 0) {
+      return { label: `${working} working`, state: "working", tone: "ok" };
+    }
+    if (members.length === 0) return { label: "Empty", state: "", tone: "ok" };
+    return { label: "Idle", state: "", tone: "ok" };
+  }
+
+  const agentNameById = new Map(agentList.map((a) => [a.id, a.name]));
+
+  // The banner morphs with company state (docs/71 §F): approvals first, then
+  // blockers, then "all caught up".
+  const banner =
+    approvalList.length > 0
+      ? {
+          state: "waiting" as DotState,
+          title: `${approvalList.length} approval${approvalList.length !== 1 ? "s" : ""} holding work`,
+          body:
+            approvalList
+              .slice(0, 2)
+              .map(
+                (a) =>
+                  `${a.agentId ? (agentNameById.get(a.agentId) ?? "An employee") : "System"} — ${a.action}`,
+              )
+              .join(" · ") + (approvalList.length > 2 ? ` · +${approvalList.length - 2} more` : ""),
+          href: "/app/approvals",
+          cta: "Review",
+        }
+      : blockedTasks > 0
+        ? {
+            state: "blocked" as DotState,
+            title: `${blockedTasks} task${blockedTasks !== 1 ? "s" : ""} blocked`,
+            body: "Work that cannot continue without a decision or a fix.",
+            href: "/app/attention",
+            cta: "Open attention",
+          }
+        : {
+            state: "" as DotState,
+            title: "All caught up",
+            body: "Nothing is waiting on you. The company is working from its goals.",
+            href: "/app/tasks",
+            cta: "View work",
+          };
+
+  const attentionItems: Array<{ icon: React.ElementType; text: string; href: string }> = [];
+  if (credits?.isCritical) {
+    attentionItems.push({ icon: Zap, text: "Work credits critically low — employees may pause.", href: "/app/budgets" });
+  } else if (credits?.isLow) {
+    attentionItems.push({ icon: Zap, text: `Only ${credits.remaining} credits remaining.`, href: "/app/budgets" });
+  }
+  if (blockedTasks > 0) {
+    attentionItems.push({ icon: AlertTriangle, text: `${blockedTasks} blocked task${blockedTasks !== 1 ? "s" : ""}.`, href: "/app/goals" });
+  }
+  if (agentList.length === 0) {
+    attentionItems.push({ icon: Bot, text: "No AI employees yet — hire your first one.", href: "/app/agents" });
+  }
+  if (activeAgents === 0 && agentList.length > 0) {
+    attentionItems.push({ icon: Bot, text: "All AI employees are paused.", href: "/app/agents" });
+  }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* Report the persisted stage + page context to the EA panel so its
-          greeting, empty state and suggestions match reality. */}
+    <div className="space-y-4">
       <EAStageRegistrar stage={founderStage} route="/app" pageName="Dashboard" />
 
-      {/* Phase 2: slim header → 4-stat strip → slim approvals banner.
-          Each fact appears once; the banner anchors to the approvals queue
-          (the canonical gate list the EA dock also surfaces). */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-ink">
-            {dayGreeting}
-            {firstName ? `, ${firstName}` : ""}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted">
-            {liveSummary ?? `Nothing needs you right now — ${EA_NAME} is watching the company.`}
-          </p>
-        </div>
-        {founderStage === "active" ? (
-          <EAOpenButton
-            className={secondaryActionClass}
-            prompt="What should we do next, and why?"
-          >
-            Give direction
-          </EAOpenButton>
-        ) : (
-          <Link href="/onboarding" className={primaryActionClass}>
-            Continue setup
-          </Link>
-        )}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Active goals"
-          value={activeGoalsCount}
-          subtext={
-            activeGoalsCount > 0
-              ? "In progress"
-              : totalGoals > 0
-                ? "None active"
-                : "None yet"
-          }
-          href="/app/goals"
-        />
-        <StatCard
-          label="Employees active"
-          value={activeAgents}
-          meter={agentList.length}
-          subtext={
-            agentList.length > 0
-              ? `${agentList.length} on the roster`
-              : "Hire your first employee"
-          }
-          href="/app/agents"
-        />
-        <StatCard
-          label="Work credits"
-          value={credits ? credits.remaining : 0}
-          subtext={
-            credits
-              ? `${credits.utilizationPercent}% used this week`
-              : "Usage not available"
-          }
-          href="/app/budgets"
-        />
-        <StatCard
-          label="Company health"
-          value={health.score}
-          meter={100}
-          subtext={`${health.label.toLowerCase()} · ${
-            pendingApprovals > 0
-              ? `${pendingApprovals} gate${pendingApprovals !== 1 ? "s" : ""} waiting`
-              : "no gates waiting"
-          }`}
-          href="/app/attention"
-        />
-      </div>
-
-      {approvalList.length > 0 && (
-        <div className="rounded-xl border border-hairline-strong bg-white p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="state-dot" data-state="waiting" aria-hidden="true" />
-            <p className="text-sm font-semibold text-ink">
-              {approvalList.length} approval{approvalList.length !== 1 ? "s" : ""} holding work
+      {/* ── Greeting ─────────────────────────────────────────────────────── */}
+      <header className="console-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">
+              {dayGreeting}
+              {firstName ? `, ${firstName}` : ""}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted">
+              {todayLine} · {orgName}
+              {activeOrg?.org.plan ? ` · ${activeOrg.org.plan} plan` : ""}
             </p>
-            <p className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block">
-              {approvalList
-                .slice(0, 2)
-                .map((a) => a.action)
-                .join(" · ")}
-              {approvalList.length > 2 ? ` · +${approvalList.length - 2} more` : ""}
-            </p>
-            <Link
-              href="/app/approvals"
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-hairline-strong px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-secondary"
-            >
-              Review
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
+            <p className="mt-2 max-w-2xl text-sm text-ink">{eaBody}</p>
+            {founderStage === "in_progress" && remainingSteps.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {remainingSteps.map((step) => (
+                  <li key={step} className="flex items-center gap-2 text-xs text-muted">
+                    <span className="h-1 w-1 rounded-full bg-warm" aria-hidden="true" />
+                    {step}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Executive Agent setup strip: identity plus the next real step.
-          Compact by design, the oversight sections below stay the focus. */}
-      <section
-        aria-label={`${EA_NAME}, your Executive Agent`}
-        className="rounded-xl border border-hairline bg-white p-5 sm:p-6"
-      >
-        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-          <div className="flex gap-4">
-            <span
-              aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warm/10 font-mono text-sm font-semibold text-warm-ink"
-            >
-              {EA_NAME.slice(0, 1)}
-            </span>
-            <div className="space-y-1.5">
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-warm-ink">
-                {EA_NAME} · Executive Agent
-              </p>
-              <p className="text-sm font-semibold text-ink">{eaTitle}</p>
-              <p className="max-w-2xl text-sm text-muted">{eaBody}</p>
-              {founderStage === "in_progress" && remainingSteps.length > 0 && (
-                <div className="pt-1">
-                  <p className="text-xs font-semibold text-ink">Still to finish:</p>
-                  <ul className="mt-1 space-y-1">
-                    {remainingSteps.map((step) => (
-                      <li key={step} className="flex items-center gap-2 text-xs text-muted">
-                        <span className="h-1 w-1 rounded-full bg-warm" aria-hidden="true" />
-                        {step}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap gap-2 md:justify-end">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {founderStage === "active" ? (
               <EAOpenButton
-                className={primaryActionClass}
+                className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                 prompt="What should we do next, and why?"
               >
-                Ask {EA_NAME}
+                ＋ Give direction
               </EAOpenButton>
             ) : (
               <>
-                <Link href="/onboarding" className={primaryActionClass}>
-                  Continue onboarding
+                <Link
+                  href="/onboarding"
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold"
+                  style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+                >
+                  Continue setup
+                  <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
                 <EAOpenButton
-                  className={secondaryActionClass}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                   prompt="Here is what I am building: "
                 >
                   Tell {EA_NAME} about it
@@ -552,415 +574,471 @@ export default async function AppPage() {
             )}
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* C. Needs your attention */}
-      <div className="rounded-xl border border-warm/20 bg-warm/5 p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-warm/15">
-            <AlertTriangle className="h-3.5 w-3.5 text-warm-ink" />
-          </span>
-          <h2 className="text-sm font-semibold text-ink">Needs your attention</h2>
-          <Link
-            href="/app/attention"
-            className="ml-auto flex items-center gap-1 text-xs font-medium text-brand-ink hover:underline"
-          >
-            Open the attention queue
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        {attentionItems.length > 0 ? (
-          <ul className="space-y-2">
-            {attentionItems.map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <li key={i}>
-                  <Link href={item.href} className="group flex items-center gap-3 rounded-lg bg-white p-3 transition-colors hover:border-hairline border border-transparent">
-                    <Icon className={`h-4 w-4 shrink-0 ${item.color}`} />
-                    <span className="flex-1 text-sm text-ink group-hover:text-ink">{item.text}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-muted group-hover:text-muted" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">
-            Nothing is waiting on you right now. {EA_NAME} surfaces approvals, blockers, and
-            budget risks here as soon as they appear.
-          </p>
-        )}
+      {/* ── The four-state strip ─────────────────────────────────────────── */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Active goals"
+          value={activeGoalsCount}
+          subtext={
+            activeGoalsCount > 0 ? "In progress" : totalGoals > 0 ? "None active" : "None yet"
+          }
+          href="/app/goals"
+        />
+        <StatCard
+          label="Employees active"
+          value={`${activeAgents} / ${agentList.length}`}
+          meter={agentList.length > 0 ? (activeAgents / agentList.length) * 100 : 0}
+          subtext={agentList.length > 0 ? `${agentList.length} on the roster` : "Hire your first employee"}
+          href="/app/agents"
+        />
+        <StatCard
+          label="Credits this week"
+          value={weeklySpend > 0 ? formatMoney(weeklySpend) : (credits?.remaining ?? 0)}
+          suffix={weeklySpend > 0 ? "spent" : "left"}
+          meter={credits?.utilizationPercent ?? 0}
+          tone={credits?.isCritical ? "danger" : credits?.isLow ? "warn" : "ok"}
+          subtext={
+            credits
+              ? `${credits.remaining} of ${credits.total} credits left`
+              : "Usage not available"
+          }
+          href="/app/budgets"
+        />
+        <StatCard
+          label="Company health"
+          value={health.score}
+          suffix="/ 100"
+          meter={health.score}
+          tone={health.score >= 70 ? "ok" : health.score >= 40 ? "warn" : "danger"}
+          subtext={`${health.label.toLowerCase()} · ${
+            pendingApprovals > 0
+              ? `${pendingApprovals} gate${pendingApprovals !== 1 ? "s" : ""} waiting`
+              : "no gates waiting"
+          }`}
+          href="/app/health"
+        />
       </div>
 
-      {/* D. What's happening now — live activity, mock title (docs/71 item 11) */}
-      <section className="rounded-xl border border-hairline bg-white p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-ink">What's happening now</h2>
-          <Link href="/app/agents" className="text-xs font-medium text-brand-ink hover:underline">
-            View AI employees
-          </Link>
+      {/* ── The morphing banner ──────────────────────────────────────────── */}
+      <div className="console-card flex flex-wrap items-center gap-3 p-4">
+        <span className="state-dot" data-state={banner.state} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ink">{banner.title}</p>
+          <p className="mt-0.5 truncate text-xs text-muted">{banner.body}</p>
         </div>
-        {workingAgents.length > 0 ? (
-          <div className="space-y-2">
-            {workingAgents.map((agent) => (
+        {attentionItems.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {attentionItems.slice(0, 2).map((item) => (
               <Link
-                key={agent.id}
-                href={`/app/agents/${agent.id}`}
-                className="group flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 transition-colors hover:border-brand-deep/40"
+                key={item.text}
+                href={item.href}
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted transition-colors hover:text-ink"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-deep text-xs font-bold text-white">
-                  {agent.name.charAt(0)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">
-                    {agent.name}
-                    {agent.department ? (
-                      <span className="ml-2 text-2xs font-normal text-muted">{agent.department}</span>
-                    ) : null}
-                  </p>
-                  <p className="truncate text-xs text-muted">{agent.currentTask}</p>
-                </div>
-                <span className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-0.5 font-mono text-2xs uppercase text-ink-muted">
-                  <span className="state-dot" data-state="working" aria-hidden="true" />
-                  Working
-                </span>
+                <item.icon className="h-3 w-3" />
+                {item.text}
               </Link>
             ))}
           </div>
-        ) : (
-          <div className="rounded-lg bg-canvas px-4 py-5 text-center">
-            <p className="text-sm text-ink">
-              {agentList.length === 0
-                ? "No AI employees yet. I can recommend an initial team based on your company setup."
-                : "No AI employees are working right now."}
+        )}
+        <Link
+          href={banner.href}
+          className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold"
+          style={
+            approvalList.length > 0
+              ? { backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }
+              : { border: "1px solid var(--orq-border-strong)", color: "var(--orq-text-primary)" }
+          }
+        >
+          {banner.cta}
+        </Link>
+      </div>
+
+      {/* ── What's happening now — the live organization ─────────────────── */}
+      <section className="console-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            What&apos;s happening now
+          </h2>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/app/departments"
+              className="text-xs text-muted transition-colors hover:text-ink"
+            >
+              All departments →
+            </Link>
+            <span
+              title="Every task is routed to a suitable model automatically; nothing here needs a choice."
+              className="rounded-full border border-hairline px-2.5 py-1 font-mono text-2xs uppercase tracking-wide text-muted"
+            >
+              Auto Model
+            </span>
+          </div>
+        </div>
+
+        {departmentList.length === 0 && agentList.length === 0 ? (
+          <div className="mt-3 rounded-md border border-dashed border-hairline px-4 py-6">
+            <p className="text-sm text-ink">No departments and no employees yet.</p>
+            <p className="mt-1 text-xs text-muted">
+              Finish setup, or ask {EA_NAME} to propose a structure for the company.
             </p>
             <EAOpenButton
-              prompt={
-                agentList.length === 0
-                  ? "Recommend an initial team for my company"
-                  : "What should we work on next?"
-              }
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
+              prompt="Propose a structure for my company"
             >
               Ask {EA_NAME}
             </EAOpenButton>
           </div>
+        ) : (
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {departmentList.map((department) => {
+              const members = membersByDepartment.get(department.id) ?? [];
+              const state = departmentState(members);
+              const progress = progressByDepartment.get(department.id);
+              const lead = department.head
+                ? members.find(
+                    (m) => m.name.toLowerCase() === department.head!.toLowerCase(),
+                  )
+                : undefined;
+              const others = members.filter((m) => m.id !== lead?.id);
+              return (
+                <div key={department.id} className="rounded-md border border-hairline bg-canvas p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Link
+                      href={`/app/departments/${department.id}`}
+                      className="text-sm font-semibold text-ink transition-colors hover:text-brand-ink"
+                    >
+                      {department.name}
+                    </Link>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted">
+                      <span className="state-dot" data-state={state.state} />
+                      {state.label}
+                    </span>
+                  </div>
+
+                  {progress && (
+                    <div className="mt-2.5">
+                      <Meter pct={progress.progressPct} tone={state.tone} />
+                      <p className="mt-1 font-mono text-2xs text-muted">
+                        {progress.progressPct}% of tasks completed
+                        {progress.activeTaskCount > 0 ? ` · ${progress.activeTaskCount} active` : ""}
+                        {progress.blockedTaskCount > 0 ? ` · ${progress.blockedTaskCount} blocked` : ""}
+                      </p>
+                    </div>
+                  )}
+
+                  {members.length === 0 ? (
+                    <div className="mt-3 rounded-md border border-dashed border-hairline px-3 py-3">
+                      <p className="text-xs text-ink">No employees in this department yet.</p>
+                      <p className="mt-0.5 text-2xs text-muted">
+                        Ask {EA_NAME} to brief it, or hire into it from the department page.
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="mt-2.5 space-y-1.5">
+                      {lead && (
+                        <li>
+                          <Link
+                            href={`/app/agents/${lead.id}`}
+                            className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-elevated text-2xs font-semibold text-ink"
+                            >
+                              {lead.name.charAt(0).toUpperCase()}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs text-ink">
+                                {lead.name}
+                                <span className="ml-1.5 text-2xs text-muted">Lead</span>
+                              </span>
+                              <span className="block truncate text-2xs text-muted">
+                                {memberState(lead).detail}
+                              </span>
+                            </span>
+                            <span className="state-dot" data-state={memberState(lead).state} />
+                          </Link>
+                        </li>
+                      )}
+                      {others.map((member) => {
+                        const memberInfo = memberState(member);
+                        return (
+                          <li key={member.id}>
+                            <Link
+                              href={`/app/agents/${member.id}`}
+                              className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-elevated text-2xs font-semibold text-ink"
+                              >
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-xs text-ink">{member.name}</span>
+                                <span className="block truncate text-2xs text-muted">
+                                  {memberInfo.detail}
+                                </span>
+                              </span>
+                              <span className="state-dot" data-state={memberInfo.state} />
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+
+            {unassigned.length > 0 && (
+              <div className="rounded-md border border-dashed border-hairline bg-canvas p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-ink">Unassigned</span>
+                  <span className="font-mono text-2xs uppercase tracking-wide text-muted">
+                    {unassigned.length} employee{unassigned.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <ul className="mt-2.5 space-y-1.5">
+                  {unassigned.map((member) => (
+                    <li key={member.id}>
+                      <Link
+                        href={`/app/agents/${member.id}`}
+                        className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-xs text-ink">
+                          {member.name}
+                        </span>
+                        <span className="truncate text-2xs text-muted">
+                          {memberState(member).label}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         )}
       </section>
 
-      {/* E + F. Goals and recent decisions */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-hairline bg-white p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-ink">Goals</h2>
-            <Link href="/app/goals" className="text-xs font-medium text-brand-ink hover:underline">
-              View all
+      {/* ── Live activity ────────────────────────────────────────────────── */}
+      <section className="console-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            Live activity
+          </h2>
+          <Link href="/app/audit" className="text-xs text-muted transition-colors hover:text-ink">
+            Full audit trail →
+          </Link>
+        </div>
+        {events.length === 0 ? (
+          <p className="mt-3 text-xs text-muted">
+            No activity yet. Every task an employee runs leaves an event here.
+          </p>
+        ) : (
+          <div className="mt-2.5 space-y-1 overflow-hidden font-mono text-2xs leading-relaxed">
+            {events.slice(0, 12).map((event) => {
+              const tag = activityTag(event.type);
+              const who = event.agentId ? agentNameById.get(event.agentId) : null;
+              return (
+                <div key={event.id} className="flex items-baseline gap-2">
+                  <span className="shrink-0 text-muted">[{formatClock(event.occurredAt)}]</span>
+                  <span className="w-14 shrink-0 font-semibold" style={{ color: tag.color }}>
+                    {tag.tag}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-muted">
+                    {who ? `${who}: ` : ""}
+                    {who && event.summary.startsWith(`${who}: `)
+                      ? event.summary.slice(who.length + 2)
+                      : event.summary}
+                  </span>
+                  {event.cost > 0 && (
+                    <span className="shrink-0 tabular-nums text-muted">
+                      {formatMoney(event.cost / 100)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Goals and recent decisions ───────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="console-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Goals
+            </h2>
+            <Link href="/app/goals" className="text-xs text-muted transition-colors hover:text-ink">
+              View all →
             </Link>
           </div>
-          {activeGoalsRes === null ? null : goalList.length > 0 ? (
-            <div className="space-y-3">
-              {goalList.map((goal) => (
-                <Link
-                  key={goal.id}
-                  href={`/app/goals/${goal.id}`}
-                  className="group block rounded-lg border border-hairline p-4 transition-colors hover:border-brand-deep/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm font-medium text-ink group-hover:text-brand-ink">
-                      {goal.title}
-                    </p>
-                    <span className="shrink-0 font-mono text-2xs text-muted">{goal.progress}%</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-hairline">
-                    <div
-                      className="h-full rounded-full bg-brand-deep"
-                      style={{ width: `${Math.min(Math.max(goal.progress, 0), 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-2xs text-muted">
-                    <span
-                      className={
-                        goal.priority === "urgent" || goal.priority === "high"
-                          ? "font-medium text-warm-ink"
-                          : undefined
-                      }
-                    >
-                      {goal.priority} priority
-                    </span>
-                    {goal.dueDate && <span>Due {formatDate(goal.dueDate)}</span>}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg bg-canvas px-4 py-5 text-center">
-              <p className="text-sm text-ink">
-                No active goals yet. Tell {EA_NAME} what you want the company to accomplish and
-                it can help you define your first goal.
+          {goalList.length === 0 ? (
+            <div className="mt-3 rounded-md border border-dashed border-hairline px-4 py-5">
+              <p className="text-sm text-ink">No active goals yet.</p>
+              <p className="mt-1 text-xs text-muted">
+                Tell {EA_NAME} what you want the company to accomplish and it can define the first
+                goal with you.
               </p>
               <EAOpenButton
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                 prompt="Help me define my first goal"
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink"
               >
                 Ask {EA_NAME}
               </EAOpenButton>
             </div>
+          ) : (
+            <ul className="mt-2.5 space-y-3">
+              {goalList.map((goal) => (
+                <li key={goal.id}>
+                  <Link href={`/app/goals/${goal.id}`} className="group block">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm text-ink transition-colors group-hover:text-brand-ink">
+                        {goal.title}
+                      </p>
+                      <span className="shrink-0 font-mono text-2xs tabular-nums text-muted">
+                        {goal.progress}%
+                      </span>
+                    </div>
+                    <div className="mt-1.5">
+                      <Meter pct={goal.progress} />
+                    </div>
+                    <p className="mt-1 font-mono text-2xs text-muted">
+                      {goal.priority} priority
+                      {goal.dueDate ? ` · due ${new Date(goal.dueDate).toLocaleDateString()}` : ""}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
-        <section className="rounded-xl border border-hairline bg-white p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-ink">Recent decisions</h2>
-            <Link
-              href="/app/decisions"
-              className="text-xs font-medium text-brand-ink hover:underline"
-            >
-              View all
+        <section className="console-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Recent decisions
+            </h2>
+            <Link href="/app/decisions" className="text-xs text-muted transition-colors hover:text-ink">
+              View all →
             </Link>
           </div>
-          {decisionsRes === null ? null : decisionList.length > 0 ? (
-            <div className="space-y-3">
+          {decisionList.length === 0 ? (
+            <p className="mt-3 text-xs text-muted">
+              No decisions recorded yet. Consequential calls are filed here with their expected
+              outcome so the company can learn from them.
+            </p>
+          ) : (
+            <ul className="mt-2.5 space-y-2.5">
               {decisionList.map((decision) => (
-                <div key={decision.id} className="rounded-lg border border-hairline p-4">
+                <li key={decision.id} className="border-b border-hairline pb-2.5 last:border-0 last:pb-0">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium text-ink">{decision.title}</p>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-2xs uppercase ${decisionBadge(decision.status)}`}
+                    <Link
+                      href={`/app/decisions/${decision.id}`}
+                      className="text-sm text-ink transition-colors hover:text-brand-ink"
                     >
+                      {decision.title}
+                    </Link>
+                    <span className="shrink-0 font-mono text-2xs uppercase tracking-wide text-muted">
                       {decision.status}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted">
-                    {decision.decisionType ? decision.decisionType.replace(/_/g, " ") : "decision"}
-                    {decision.decisionMakerName ? ` · ${decision.decisionMakerName}` : ""} ·{" "}
-                    {formatTimeAgo(decision.createdAt)}
+                  <p className="mt-0.5 font-mono text-2xs text-muted">
+                    {decision.decisionType.replace(/_/g, " ")}
+                    {decision.decisionMakerName ? ` · ${decision.decisionMakerName}` : ""}
                   </p>
-                  {decision.expectedOutcome && (
-                    <p className="mt-2 line-clamp-2 text-xs text-muted">
-                      Expected: {decision.expectedOutcome}
-                    </p>
-                  )}
-                </div>
+                </li>
               ))}
-            </div>
-          ) : (
-            <div className="rounded-lg bg-canvas px-4 py-5 text-center">
-              <p className="text-sm text-ink">
-                No decisions recorded yet. When you or your teams make a consequential call,
-                {EA_NAME} files it here with the expected outcome so the company can learn from
-                it.
-              </p>
-            </div>
+            </ul>
           )}
         </section>
       </div>
 
-      {/* G. Executive recommendations */}
+      {/* ── From the Executive Agent ─────────────────────────────────────── */}
       {priorities !== null && (
-        <section className="rounded-xl border border-hairline bg-white p-5">
-          <div className="mb-1">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
+        <section className="console-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
               From {EA_NAME}
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-ink">Executive recommendations</h2>
+            </h2>
+            <span className="font-mono text-2xs uppercase tracking-wide text-muted">
+              {priorityList.length > 0
+                ? `${priorityList.length} recommendation${priorityList.length === 1 ? "" : "s"}`
+                : "nothing needs action"}
+            </span>
           </div>
           {priorityList.length > 0 ? (
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
               {priorityList.map((item, i) => (
-                <div key={i} className="rounded-lg border border-hairline p-4">
+                <li key={i} className="rounded-md border border-hairline bg-canvas p-3.5">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-2xs uppercase ${recommendationBadge(item.priority)}`}
+                      className="font-mono text-2xs uppercase tracking-wide"
+                      style={{
+                        color:
+                          item.priority === "critical"
+                            ? "var(--orq-error)"
+                            : item.priority === "high" || item.priority === "medium"
+                              ? "var(--orq-warm)"
+                              : "var(--orq-text-secondary)",
+                      }}
                     >
                       {item.priority}
                     </span>
-                    <span className="font-mono text-2xs uppercase text-muted">{item.type}</span>
+                    <span className="font-mono text-2xs uppercase tracking-wide text-muted">
+                      {item.type}
+                    </span>
                   </div>
                   <p className="mt-2 text-sm font-medium text-ink">{item.title}</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs text-ink">Suggested: {item.suggestedAction}</p>
                     <EAOpenButton
+                      className="shrink-0 rounded-md border border-hairline px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                       prompt={`What should we do about "${item.title}"?`}
-                      className="shrink-0 self-start rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-brand-deep hover:text-brand-ink sm:self-auto"
                     >
-                      Discuss with {EA_NAME}
+                      Discuss
                     </EAOpenButton>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
-            <p className="mt-3 text-sm text-muted">
-              No recommendations right now. {EA_NAME} reviews goals, work, approvals, and
-              blockers continuously, and surfaces what deserves your attention here.
+            <p className="mt-3 text-xs text-muted">
+              No recommendations right now. {EA_NAME} reviews goals, work, approvals and blockers
+              continuously and surfaces what deserves your attention here.
             </p>
           )}
         </section>
       )}
 
-      {/* Daily Brief — what happened recently */}
-      {recentActivity.length > 0 && (
-        <div className="rounded-xl border border-hairline bg-white p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
-              What happened recently
-            </p>
-          </div>
-          <div className="space-y-2">
-            {recentActivity.slice(0, 5).map((event) => (
-              <div key={event.id} className="flex items-start gap-3 rounded-lg bg-canvas/50 px-3 py-2">
-                <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
-                  event.type.includes('completed') ? 'bg-brand' :
-                  event.type.includes('failed') ? 'bg-error' :
-                  event.type.includes('created') ? 'bg-brand-soft' :
-                  'bg-disabled-surface'
-                }`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-ink leading-snug">{event.summary}</p>
-                  <p className="mt-0.5 text-2xs text-muted">
-                    {new Date(event.occurredAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                    {event.department ? ` · ${event.department}` : ''}
-                  </p>
-                </div>
-              </div>
+      {attentionItems.length > 0 && (
+        <section className="console-card p-4">
+          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            Also worth knowing
+          </h2>
+          <ul className="mt-2 space-y-1.5">
+            {attentionItems.map((item) => (
+              <li key={item.text}>
+                <Link
+                  href={item.href}
+                  className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-xs text-muted transition-colors hover:bg-surface-secondary hover:text-ink"
+                >
+                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1">{item.text}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                </Link>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
 
-      {/* Company Progress — real progress from goals, tasks, activity */}
-      {companyProgress && companyProgress.totalTasks > 0 && (
-        <div className="rounded-xl border border-hairline bg-white p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
-                Company Progress
-              </p>
-              <h2 className="mt-1 text-lg font-semibold text-ink">
-                {companyProgress.maturityStage}
-              </h2>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-ink">{companyProgress.overallPct}%</p>
-              <p className="text-xs text-muted">Overall progress</p>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-3 rounded-full bg-hairline overflow-hidden mb-4">
-            <div
-              className="h-full rounded-full bg-brand-deep transition-all duration-500"
-              style={{ width: `${companyProgress.overallPct}%` }}
-            />
-          </div>
-
-          {/* Department breakdown */}
-          {companyProgress.departments.length > 0 && (
-            <div className="space-y-2">
-              {companyProgress.departments.map((dept) => (
-                <div key={dept.departmentId} className="flex items-center gap-3">
-                  <span className="w-32 truncate text-xs font-medium text-ink">
-                    {dept.departmentName}
-                  </span>
-                  <div className="flex-1 h-2 rounded-full bg-hairline overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        dept.progressPct >= 70 ? 'bg-brand' :
-                        dept.progressPct >= 40 ? 'bg-warm' :
-                        dept.progressPct > 0 ? 'bg-warm' : 'bg-disabled-surface'
-                      }`}
-                      style={{ width: `${Math.max(dept.progressPct, 2)}%` }}
-                    />
-                  </div>
-                  <span className="w-10 text-right font-mono text-xs text-muted">
-                    {dept.progressPct}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Summary stats */}
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
-            <span>{companyProgress.completedTasks} / {companyProgress.totalTasks} tasks completed</span>
-            <span>·</span>
-            <span>{companyProgress.activeTasks} active</span>
-            {companyProgress.blockedTasks > 0 && (
-              <>
-                <span>·</span>
-                <span className="text-error-ink">{companyProgress.blockedTasks} blocked</span>
-              </>
-            )}
-            <span>·</span>
-            <span>{companyProgress.recentOutputs} outputs this week</span>
-          </div>
-
-          {/* Attention needed */}
-          {companyProgress.attentionNeeded.length > 0 && (
-            <div className="mt-3 rounded-lg bg-warm-soft border border-warm px-3 py-2">
-              <p className="text-xs font-medium text-warm-ink">Attention needed:</p>
-              <ul className="mt-1 space-y-0.5">
-                {companyProgress.attentionNeeded.map((item, i) => (
-                  <li key={i} className="text-xs text-warm-ink">• {item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Company Health + Goal Execution — side by side */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <HealthScore
-          activeAgents={activeAgents}
-          totalAgents={agentList.length}
-          completedTasks={completedTasks}
-          totalTasks={totalTasks}
-          creditsRemaining={credits?.remaining ?? 0}
-          creditsTotal={credits?.total ?? 100}
-          pendingApprovals={pendingApprovals}
-          activeGoals={activeGoalsCount}
-          totalGoals={totalGoals}
-        />
-        <GoalExecutionPanel
-          totalGoals={totalGoals}
-          activeGoals={activeGoalsCount}
-          completedTasks={completedTasks}
-          totalTasks={totalTasks}
-        />
-      </div>
-
-      {/* Agent Reliability */}
-      <ReliabilityWidget />
-
-      {/* Live department activity — real events, SSE primary + 60s poll fallback */}
-      <DepartmentActivityWidget />
-
-      {/* Model performance — measured signals from the §20/§7 pipeline */}
-      <ModelPerformanceWidget />
-
-      {/* Two-column layout: command bar + Activity Feed */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Command bar — left side */}
-        <div className="lg:col-span-3">
-          <div className="rounded-xl border border-hairline bg-white p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Command className="h-4 w-4 text-muted" />
-              <p className="text-xs font-semibold text-muted">Send a command</p>
-            </div>
-            <CommandBar />
-          </div>
-        </div>
-
-        {/* Activity Feed — right side */}
-        <div className="lg:col-span-2">
-          <ActivityFeed initialActivity={recentActivity} />
-        </div>
-      </div>
-
-
-      {/* Dev-only contrast diagnostic — renders nothing in production */}
       <ContrastSelfCheck />
     </div>
   );
