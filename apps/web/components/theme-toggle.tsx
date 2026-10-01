@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { resolveConsoleTheme } from "../lib/console-theme";
+import { CONSOLE_THEME_COOKIE, resolveConsoleTheme } from "../lib/console-theme";
 import type { ConsoleTheme } from "../lib/console-theme";
-
-export const CONSOLE_THEME_COOKIE = "orq8_console_theme";
 
 function readTheme(): ConsoleTheme {
   const attr = document

@@ -6,8 +6,7 @@ import { TopBar } from "../../components/top-bar";
 import { API_URL, SESSION_COOKIE } from "../../lib/api";
 import { IdentifyUser } from "../../components/identify-user";
 import { ExecutiveAgentShell } from "../../components/executive-agent-shell";
-import { resolveConsoleTheme } from "../../lib/console-theme";
-import { CONSOLE_THEME_COOKIE } from "../../components/theme-toggle";
+import { CONSOLE_THEME_COOKIE, resolveConsoleTheme } from "../../lib/console-theme";
 type MeData = {
   user: {
     id: string;

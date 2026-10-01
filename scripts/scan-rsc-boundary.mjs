@@ -1,5 +1,8 @@
 /**
- * Scanner: find client-module functions imported into server components.
+ * Scanner: find client-module values imported into server components.
+ *
+ * Covers functions (which throw when called from the server) and constants
+ * (which are client references, not their value). Components are exempt.
  *
  * The dashboard crashed in production with "Attempted to call computeScore()
  * from the server but computeScore is on the client" because a server page
@@ -41,9 +44,23 @@ function riskyExports(f) {
   let m;
   while ((m = re.exec(src))) {
     const name = m[1];
-    // Components are PascalCase; plain helpers are camelCase. Also treat
-    // compute*/get*/format*/build*/parse* as helpers even if capitalised oddly.
-    if (/^[a-z]/.test(name) || /^(compute|get|format|build|parse|resolve|make|derive)[A-Z]/.test(name)) {
+    // Components are PascalCase and may legitimately cross the boundary (a
+    // server page renders `<SomeClientThing />`). Everything that is NOT a
+    // component must not: a function becomes a client reference that throws
+    // when called, and a plain value becomes a client reference that silently
+    // is not the value. So flag camelCase helpers, the helper-prefixed names,
+    // and SCREAMING_SNAKE constants.
+    //
+    // The constant case is not hypothetical: `app/app/layout.tsx` imported the
+    // theme cookie NAME from `components/theme-toggle.tsx` ("use client"), so
+    // on the server the name was a reference object rather than a string, the
+    // cookie lookup always missed, and every page load threw away the
+    // founder's light-mode choice while looking perfectly wired.
+    if (
+      /^[a-z]/.test(name) ||
+      /^(compute|get|format|build|parse|resolve|make|derive)[A-Z]/.test(name) ||
+      /^[A-Z][A-Z0-9_]*$/.test(name)
+    ) {
       names.add(name);
     }
   }
@@ -80,8 +97,8 @@ for (const file of files) {
 }
 
 if (report.length === 0) {
-  console.log("OK — no client-module functions imported into server components.");
+  console.log("OK — no client-module values imported into server components.");
 } else {
-  console.log(`FOUND ${report.length} server→client function import(s):`);
+  console.log(`FOUND ${report.length} server→client value import(s):`);
   for (const line of report) console.log(`  ${line}`);
 }
