@@ -100,7 +100,7 @@ function priorityBadge(priority: string) {
   switch (priority) {
     case "urgent": return "bg-error-soft text-error-ink";
     case "high": return "bg-warm-soft text-warm-ink";
-    case "normal": return "bg-brand-soft text-brand-deep";
+    case "normal": return "bg-brand-soft text-ink";
     default: return "bg-hairline text-ink-muted";
   }
 }
@@ -108,7 +108,7 @@ function priorityBadge(priority: string) {
 function statusBadge(status: string) {
   switch (status) {
     case "completed": return "bg-ink-accent/10 text-brand-ink";
-    case "active": return "bg-brand-soft text-brand-deep";
+    case "active": return "bg-brand-soft text-ink";
     case "paused": return "bg-warm-soft text-warm-ink";
     case "cancelled": return "bg-hairline text-muted";
     default: return "bg-hairline text-ink-muted";
@@ -206,7 +206,7 @@ function getGoalHealth(
     return { label: "On Track", icon: TrendingUp, color: "text-brand-ink", bg: "bg-ink-accent/10", description: "Making good progress toward completion." };
   }
 
-  return { label: "In Progress", icon: Clock, color: "text-brand-deep", bg: "bg-brand-soft", description: "Work is underway." };
+  return { label: "In Progress", icon: Clock, color: "text-ink", bg: "bg-brand-soft", description: "Work is underway." };
 }
 
 /* ── Tab type ── */
@@ -580,7 +580,7 @@ export default function GoalDetailPage() {
                     <div className="mt-2 space-y-2">
                       {intelligence.tasks.filter(t => t.blocked || t.overdue).length === 0 && (
                         <div className="flex items-center gap-2 rounded-lg border border-brand-soft bg-brand-soft/50 px-3 py-2.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-brand-deep" aria-hidden="true" />
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-ink" aria-hidden="true" />
                           <p className="text-xs text-brand-ink">No blocked or overdue tasks detected.</p>
                         </div>
                       )}

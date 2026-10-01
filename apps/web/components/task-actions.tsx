@@ -215,10 +215,11 @@ export function TaskActions({ taskId, currentStatus, goalId, agents }: TaskActio
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg ink px-4 py-2 text-xs font-semibold text-white hover:bg-brand-deep hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-                    Create Task
+                    Create task
                   </button>
                 </div>
               </form>

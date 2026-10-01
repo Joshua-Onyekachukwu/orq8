@@ -75,9 +75,10 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
       <>
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-full ink px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+          style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
         >
-          <Plus className="h-3.5 w-3.5" /> New Goal
+          <Plus className="h-3.5 w-3.5" /> New goal
         </button>
         {open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60">
@@ -187,10 +188,11 @@ export function GoalActions({ goalId, currentStatus }: GoalActionsProps) {
                   <button
                     type="submit"
                     disabled={loading || !form.title.trim()}
-                    className="flex items-center gap-1.5 rounded-lg ink px-4 py-2 text-xs font-semibold text-white hover:bg-brand-deep hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
                   >
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-                    Create Goal
+                    Create goal
                   </button>
                 </div>
               </form>

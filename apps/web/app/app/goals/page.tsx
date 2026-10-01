@@ -1,20 +1,29 @@
-
 import Link from "next/link";
-import {
-  Target,
-  Plus,
-  ArrowUpRight,
-  ListChecks,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+
 import { fetchWithAuth } from "../../../lib/api";
 import { GoalActions } from "../../../components/goal-actions";
 import { TaskActions } from "../../../components/task-actions";
 import { PageShell } from "../../../components/page-shell";
 
-export const metadata = { title: "Goals & Tasks" };
+export const metadata = { title: "Goals" };
+
+/**
+ * Goals (docs/71 §H, marketing/headquarters-mock-v2.html `screen-goals`).
+ *
+ * The mock's composition: one expandable row per commitment — status chip,
+ * title, progress meter, "N steps · due date" — and, expanded, the lineage
+ * chain the goal hangs off plus its plan steps as chips carrying the real task
+ * status and the employee who owns them.
+ *
+ * Nothing on this page is invented: lineage comes from `GET /v1/goals/lineage`
+ * (derived from the goal's tasks → initiative → key result → objective →
+ * strategy, because `goals` has no strategy columns), the steps are the real
+ * tasks, and a step the founder is holding up says "Paused" because an open
+ * gate names it in `gatedWork`. A row with no lineage says so.
+ */
+
+/* ── Types ────────────────────────────────────────────────────────────── */
 
 interface Goal {
   id: string;
@@ -30,14 +39,10 @@ interface Goal {
 interface Task {
   id: string;
   title: string;
-  description: string | null;
   status: string;
-  priority: string;
   goalId: string | null;
   agentId: string | null;
   cost: number;
-  dueDate: string | null;
-  result: string | null;
   createdAt: string;
 }
 
@@ -47,313 +52,395 @@ interface Agent {
   role: string;
 }
 
-const fetchGoals = async () => (await fetchWithAuth<Goal[]>("/v1/goals")) ?? [];
-const fetchTasks = async () => (await fetchWithAuth<Task[]>("/v1/tasks?order=desc")) ?? [];
-
-function priorityBadge(priority: string) {
-  switch (priority) {
-    case "urgent": return "bg-error-soft text-error-ink";
-    case "high": return "bg-warm-soft text-warm-ink";
-    case "normal": return "bg-brand-soft text-brand-deep";
-    default: return "bg-hairline text-ink-muted";
-  }
+interface GatedWork {
+  taskId: string | null;
 }
 
-function statusIcon(status: string) {
-  switch (status) {
-    case "completed": return <CheckCircle2 className="h-4 w-4 text-brand-ink" />;
-    case "in_progress": return <Clock className="h-4 w-4 text-warm-ink" />;
-    case "failed": return <AlertCircle className="h-4 w-4 text-error-ink" />;
-    default: return <Clock className="h-4 w-4 text-muted" />;
-  }
+interface Approval {
+  id: string;
+  status: string;
+  gatedWork?: GatedWork | null;
 }
 
-const fetchAgents = async () => (await fetchWithAuth<Agent[]>("/v1/agents")) ?? [];
-
-function formatDueDate(dateStr: string | null): string | null {
-  if (!dateStr) return null;
-  try {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = d.getTime() - now.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days < 0) return `${Math.abs(days)}d overdue`;
-    if (days === 0) return "Due today";
-    if (days === 1) return "Due tomorrow";
-    return `${days}d left`;
-  } catch {
-    return null;
-  }
+interface LineageLink {
+  id: string;
+  title: string;
 }
 
-function dueDateBadge(dateStr: string | null) {
-  if (!dateStr) return null;
-  try {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = d.getTime() - now.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days < 0) return "bg-error-soft text-error-ink";
-    if (days <= 2) return "bg-warm-soft text-warm-ink";
-    return "bg-hairline text-ink-muted";
-  } catch {
-    return "bg-hairline text-ink-muted";
-  }
+interface GoalLineage {
+  goalId: string;
+  initiative: LineageLink | null;
+  keyResult: LineageLink | null;
+  objective: LineageLink | null;
+  strategy: LineageLink | null;
 }
 
-export default async function GoalsPage() {
-  const [goals, tasks, agents] = await Promise.all([fetchGoals(), fetchTasks(), fetchAgents()]);
-  const agentMap = new Map(agents.map((a) => [a.id, a]));
+/* ── Reads ────────────────────────────────────────────────────────────── */
+
+const fetchGoals = async () =>
+  (await fetchWithAuth<Goal[]>("/v1/goals?limit=200", { revalidate: false })) ?? [];
+const fetchTasks = async () =>
+  (await fetchWithAuth<Task[]>("/v1/tasks?order=desc&limit=200", { revalidate: false })) ?? [];
+const fetchAgents = async () =>
+  (await fetchWithAuth<Agent[]>("/v1/agents", { revalidate: false })) ?? [];
+const fetchLineage = async () =>
+  (await fetchWithAuth<GoalLineage[]>("/v1/goals/lineage", { revalidate: false })) ?? [];
+const fetchOpenGates = async () =>
+  (await fetchWithAuth<Approval[]>("/v1/approvals?status=pending&limit=200", { revalidate: false })) ??
+  [];
+
+/* ── Derivations ──────────────────────────────────────────────────────── */
+
+const DAY_MS = 86_400_000;
+
+function dueLabel(dueDate: string | null): string | null {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return null;
+  const date = due.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const days = Math.ceil((due.getTime() - Date.now()) / DAY_MS);
+  if (days < -1) return `due ${date} · ${Math.abs(days)}d late`;
+  if (days === -1) return `due ${date} · 1d late`;
+  if (days === 0) return "due today";
+  return `due ${date}`;
+}
+
+type Dot = "" | "working" | "waiting" | "blocked";
+type Tone = "ok" | "warn" | "danger" | "muted";
+
+/** The row's status chip, from the goal's own state and the work under it. */
+function goalState(
+  goal: Goal,
+  steps: Task[],
+  gatedSteps: Set<string>,
+): { label: string; dot: Dot; tone: Tone } {
+  const done = steps.filter((t) => t.status === "completed").length;
+  const working = steps.filter((t) => t.status === "in_progress").length;
+  const failed = steps.filter((t) => t.status === "failed").length;
+  const paused = steps.filter((t) => gatedSteps.has(t.id)).length;
+  const overdue =
+    goal.dueDate !== null &&
+    !Number.isNaN(new Date(goal.dueDate).getTime()) &&
+    new Date(goal.dueDate).getTime() < Date.now() &&
+    goal.progress < 100;
+
+  if (goal.status === "completed") return { label: "Achieved", dot: "working", tone: "ok" };
+  if (goal.status === "cancelled") return { label: "Cancelled", dot: "", tone: "muted" };
+  if (goal.status === "paused") return { label: "Paused", dot: "", tone: "muted" };
+  if (paused > 0) return { label: "Needs you", dot: "waiting", tone: "warn" };
+  if (failed > 0 && done === 0) return { label: "At risk", dot: "blocked", tone: "danger" };
+  if (overdue) return { label: "Overdue", dot: "waiting", tone: "warn" };
+  if (working > 0) return { label: "On track", dot: "working", tone: "ok" };
+  if (done > 0) return { label: "In progress", dot: "", tone: "ok" };
+  if (steps.length === 0) return { label: "Planned", dot: "", tone: "muted" };
+  return { label: "Planned", dot: "", tone: "muted" };
+}
+
+const METER_COLOR: Record<Tone, string> = {
+  ok: "var(--orq-mark-active)",
+  warn: "var(--orq-warm)",
+  danger: "var(--orq-error)",
+  muted: "var(--orq-border-strong)",
+};
+
+/** A step's chip, in the mock's grammar: only real states get a dot + label. */
+function stepState(task: Task, gatedSteps: Set<string>): { label: string; dot: Dot; tone: Tone } | null {
+  if (gatedSteps.has(task.id)) return { label: "Paused", dot: "waiting", tone: "warn" };
+  if (task.status === "in_progress") return { label: "Working", dot: "working", tone: "ok" };
+  if (task.status === "completed") return { label: "Done", dot: "", tone: "muted" };
+  if (task.status === "failed") return { label: "Failed", dot: "blocked", tone: "danger" };
+  if (task.status === "cancelled") return { label: "Cancelled", dot: "", tone: "muted" };
+  return null;
+}
+
+/** Live work first, then failures, then what is queued, then what is finished. */
+const STEP_RANK: Record<string, number> = {
+  in_progress: 0,
+  failed: 1,
+  pending: 2,
+  completed: 3,
+  cancelled: 4,
+};
+
+function sortSteps(steps: Task[]): Task[] {
+  return [...steps].sort((a, b) => {
+    const rank = (STEP_RANK[a.status] ?? 9) - (STEP_RANK[b.status] ?? 9);
+    if (rank !== 0) return rank;
+    return +new Date(b.createdAt) - +new Date(a.createdAt);
+  });
+}
+
+/* ── Pieces ───────────────────────────────────────────────────────────── */
+
+function Chip({
+  label,
+  dot = "",
+  tone = "muted",
+  size = "sm",
+}: {
+  label: string;
+  dot?: Dot;
+  tone?: Tone;
+  size?: "sm" | "xs";
+}) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline font-mono uppercase tracking-wide ${
+        size === "xs" ? "px-2 py-0.5 text-3xs" : "px-2.5 py-1 text-2xs"
+      } ${tone === "muted" ? "text-muted" : "text-ink"}`}
+    >
+      {dot ? <span className="state-dot" data-state={dot} aria-hidden="true" /> : null}
+      {label}
+    </span>
+  );
+}
+
+/** One line of the lineage chain. The last chip is where this goal sits. */
+function Crumb({ label, here = false }: { label: string; here?: boolean }) {
+  return (
+    <Link
+      href="/app/strategy"
+      className={`rounded-full border px-2.5 py-1 text-2xs transition-colors ${
+        here
+          ? "border-hairline-strong bg-elevated text-ink"
+          : "border-hairline text-muted hover:text-ink"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function LineageChain({ goal, lineage }: { goal: Goal; lineage: GoalLineage | undefined }) {
+  const links = [
+    lineage?.strategy ? `Strategy: ${lineage.strategy.title}` : null,
+    lineage?.objective ? `Objective: ${lineage.objective.title}` : null,
+    lineage?.keyResult ? `Key result: ${lineage.keyResult.title}` : null,
+    lineage?.initiative ? `Initiative: ${lineage.initiative.title}` : null,
+  ].filter((label): label is string => label !== null);
+
+  if (links.length === 0) {
+    return (
+      <p className="text-xs text-muted">
+        No strategy link yet — none of this goal&apos;s steps sit under an initiative.{" "}
+        <Link href="/app/strategy" className="text-ink transition-colors hover:text-brand-ink">
+          Open Strategy
+        </Link>
+      </p>
+    );
+  }
 
   return (
-    <PageShell pageName="Goals & Tasks" backHref="/app">
-    <div className="mx-auto max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Goals & Tasks</h1>
-          <p className="mt-1 text-sm text-muted">
-            Set outcomes, track progress, and watch your AI workforce execute.
+    <div className="flex flex-wrap items-center gap-1.5">
+      {links.map((label, index) => (
+        <span key={label} className="flex items-center gap-1.5">
+          {index > 0 ? (
+            <span aria-hidden="true" className="text-3xs text-muted">
+              →
+            </span>
+          ) : null}
+          <Crumb label={label} />
+        </span>
+      ))}
+      <span aria-hidden="true" className="text-3xs text-muted">
+        →
+      </span>
+      <Crumb label={`Goal: ${goal.title}`} here />
+    </div>
+  );
+}
+
+function GoalRow({
+  goal,
+  steps,
+  agentName,
+  lineage,
+  gatedSteps,
+}: {
+  goal: Goal;
+  steps: Task[];
+  agentName: (agentId: string | null) => string | null;
+  lineage: GoalLineage | undefined;
+  gatedSteps: Set<string>;
+}) {
+  const state = goalState(goal, steps, gatedSteps);
+  const ordered = sortSteps(steps);
+  const due = dueLabel(goal.dueDate);
+  const done = steps.filter((t) => t.status === "completed").length;
+  const spent = steps.reduce((sum, t) => sum + (t.cost ?? 0), 0);
+  const progress = Math.max(0, Math.min(100, goal.progress));
+
+  return (
+    <details
+      className="console-card group overflow-hidden transition-colors open:border-hairline-strong"
+      open={state.label === "Needs you"}
+    >
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+        <Chip label={state.label} dot={state.dot} tone={state.tone} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{goal.title}</span>
+        <span
+          className="hidden h-1.5 w-36 shrink-0 overflow-hidden rounded-full bg-hairline sm:block"
+          aria-hidden="true"
+        >
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${progress}%`, backgroundColor: METER_COLOR[state.tone] }}
+          />
+        </span>
+        <span className="shrink-0 font-mono text-2xs text-muted">
+          {steps.length === 1 ? "1 step" : `${steps.length} steps`}
+          {due ? ` · ${due}` : ""}
+        </span>
+        <span
+          aria-hidden="true"
+          className="shrink-0 text-2xs text-muted transition-transform group-open:rotate-180"
+        >
+          ▾
+        </span>
+      </summary>
+
+      <div className="border-t border-hairline px-4 py-4">
+        <LineageChain goal={goal} lineage={lineage} />
+
+        <p className="mt-4 font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+          Plan steps
+        </p>
+
+        {ordered.length === 0 ? (
+          <p className="mt-2 text-xs text-muted">
+            Atlas has not broken this goal into steps yet. Ask it to plan the work from the{" "}
+            <Link href="/app/tasks" className="text-ink transition-colors hover:text-brand-ink">
+              task board
+            </Link>
+            .
           </p>
-        </div>
-        <GoalActions />
-      </div>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {ordered.map((step) => {
+              const stepChip = stepState(step, gatedSteps);
+              const owner = agentName(step.agentId);
+              return (
+                <Link
+                  key={step.id}
+                  href={`/app/tasks/${step.id}`}
+                  className="inline-flex max-w-full items-center gap-2 rounded-md border border-hairline bg-canvas px-2.5 py-1.5 text-xs text-ink transition-colors hover:border-hairline-strong hover:bg-elevated"
+                >
+                  {stepChip ? (
+                    <Chip label={stepChip.label} dot={stepChip.dot} tone={stepChip.tone} size="xs" />
+                  ) : null}
+                  <span className="min-w-0 truncate">{step.title}</span>
+                  {owner ? <span className="shrink-0 text-muted">· {owner}</span> : null}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
-      {/* Goals grid */}
-      <section className="mt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Target aria-hidden="true" className="h-4 w-4 text-brand-ink" />
-          <h2 className="text-sm font-semibold text-ink">Company Goals</h2>
-          <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
-            {goals.length}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-2xs text-muted">
+          <span>
+            {done}/{steps.length} done · {progress}% complete
           </span>
+          {spent > 0 ? <span>${(spent / 100).toFixed(2)} spent</span> : null}
+          <Link
+            href={`/app/goals/${goal.id}`}
+            className="ml-auto inline-flex items-center gap-1 font-sans text-xs text-ink transition-colors hover:text-brand-ink"
+          >
+            Open goal
+            <ArrowUpRight aria-hidden="true" className="h-3 w-3" />
+          </Link>
         </div>
+      </div>
+    </details>
+  );
+}
 
-        {goals.length === 0 ? (
-          <div className="rounded-xl border border-hairline bg-white p-10 text-center">
-            <Target aria-hidden="true" className="mx-auto h-8 w-8 text-muted/40" />
-            <p className="mt-3 text-sm font-medium text-ink">No goals yet</p>
-            <p className="mt-1 text-xs text-muted">
-              Create your first goal to set the direction for your AI organization.
+/* ── Page ─────────────────────────────────────────────────────────────── */
+
+export default async function GoalsPage() {
+  const [goals, tasks, agents, lineage, openGates] = await Promise.all([
+    fetchGoals(),
+    fetchTasks(),
+    fetchAgents(),
+    fetchLineage(),
+    fetchOpenGates(),
+  ]);
+
+  const goalList = goals;
+  const taskList = tasks;
+  const nameById = new Map(agents.map((a) => [a.id, a.name]));
+  const lineageByGoal = new Map(lineage.map((row) => [row.goalId, row]));
+  const gatedSteps = new Set(
+    openGates
+      .map((approval) => approval.gatedWork?.taskId ?? null)
+      .filter((taskId): taskId is string => taskId !== null),
+  );
+  const stepsByGoal = new Map<string, Task[]>();
+  for (const task of taskList) {
+    if (!task.goalId) continue;
+    const list = stepsByGoal.get(task.goalId);
+    if (list) list.push(task);
+    else stepsByGoal.set(task.goalId, [task]);
+  }
+
+  const active = goalList.filter((g) => g.status === "active").length;
+  const unplanned = taskList.filter((t) => !t.goalId).length;
+
+  return (
+    <PageShell pageName="Goals" backHref="/app">
+      <div className="space-y-4">
+        <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
+          <div>
+            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Commitments · {active} active
             </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Goals</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Each goal is a commitment with a plan. Expand one to see its steps and lineage.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TaskActions agents={agents} />
             <GoalActions />
           </div>
+        </header>
+
+        {goalList.length === 0 ? (
+          <div className="console-card p-8">
+            <p className="text-sm font-medium text-ink">No goals yet</p>
+            <p className="mt-1 max-w-xl text-xs text-muted">
+              A goal is a commitment — what the company is trying to make true, and by when. Atlas
+              breaks it into steps, assigns them to your AI employees, and reports progress here.
+            </p>
+            <div className="mt-3">
+              <GoalActions />
+            </div>
+          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {goals.map((goal) => (
-              <div
+          <div className="space-y-2.5">
+            {goalList.map((goal) => (
+              <GoalRow
                 key={goal.id}
-                className="rounded-xl border border-hairline bg-white p-5"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/app/goals/${goal.id}`} className="group">
-                        <h3 className="truncate text-sm font-semibold text-ink group-hover:text-brand-ink transition-colors">
-                          {goal.title}
-                        </h3>
-                      </Link>
-                      <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${priorityBadge(goal.priority)}`}
-                      >
-                        {goal.priority}
-                      </span>
-                    </div>
-                    {goal.description && (
-                      <p className="mt-1 text-xs text-muted line-clamp-2">
-                        {goal.description}
-                      </p>
-                    )}
-                    {goal.dueDate && (
-                      <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-3xs font-semibold ${dueDateBadge(goal.dueDate)}`}>
-                        {formatDueDate(goal.dueDate)}
-                      </span>
-                    )}
-                  </div>
-                  <GoalActions goalId={goal.id} currentStatus={goal.status} />
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-3xs text-muted mb-1">
-                    <span className="uppercase font-semibold tracking-wide">Progress</span>
-                    <span className="font-mono tabular-nums">{goal.progress}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-brand-deep transition-all"
-                      style={{ width: `${goal.progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Goal → Task flow visualization */}
-                {(() => {
-                  const goalTasks = tasks.filter((t) => t.goalId === goal.id);
-                  if (goalTasks.length === 0) return null;
-                  const completed = goalTasks.filter((t) => t.status === "completed").length;
-                  const inProgress = goalTasks.filter((t) => t.status === "in_progress").length;
-                  const failed = goalTasks.filter((t) => t.status === "failed").length;
-                  const totalCost = goalTasks.reduce((sum, t) => sum + t.cost, 0);
-                  const assignedAgents = new Set(goalTasks.filter((t) => t.agentId !== null).map((t) => agentMap.get(t.agentId!)?.name).filter(Boolean));
-
-                  // Flow pipeline: Goal set → Tasks created → Agents working → Done → Achieved
-                  const flowSteps = [
-                    { label: "Goal set", done: true },
-                    { label: `${goalTasks.length} tasks`, done: true },
-                    { label: "Working", done: inProgress > 0, active: inProgress > 0 },
-                    { label: `${completed}/${goalTasks.length} done`, done: completed === goalTasks.length },
-                    { label: "Achieved", done: goal.status === "completed" || goal.progress === 100 },
-                  ];
-
-                  return (
-                    <div className="mt-4 border-t border-hairline pt-3">
-                      {/* Flow pipeline */}
-                      <div className="flex items-center gap-1 mb-3">
-                        {flowSteps.map((step, i) => (
-                          <div key={i} className="flex items-center gap-1">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                              step.done ? "bg-brand-deep/10 text-brand-ink" :
-                              step.active ? "bg-warm/10 text-warm-ink" :
-                              "bg-hairline text-muted"
-                            }`}>
-                              {step.done && !step.active ? "✓" : step.active ? "●" : "○"} {step.label}
-                            </span>
-                            {i < flowSteps.length - 1 && <span className="text-muted text-[8px]">→</span>}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Task list with agent + cost */}
-                      <ul className="space-y-1.5">
-                        {goalTasks.slice(0, 3).map((task) => (
-                          <li key={task.id} className="flex items-center gap-2 text-xs">
-                            {statusIcon(task.status)}
-                            <Link href={`/app/tasks/${task.id}`} className="truncate text-ink hover:text-brand-ink">
-                              {task.title}
-                            </Link>
-                            {task.agentId && agentMap.get(task.agentId) && (
-                              <span className="shrink-0 rounded-full bg-brand-deep/10 px-1.5 py-0.5 text-2xs font-medium text-brand-ink">
-                                {agentMap.get(task.agentId)!.name}
-                              </span>
-                            )}
-                            {task.cost > 0 && (
-                              <span className="shrink-0 font-mono text-2xs text-muted">${(task.cost / 100).toFixed(2)}</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-
-                      {/* Summary */}
-                      <div className="mt-2 flex items-center gap-3 text-3xs text-muted">
-                        {assignedAgents.size > 0 && <span>{assignedAgents.size} agent{assignedAgents.size !== 1 ? "s" : ""} assigned</span>}
-                        {totalCost > 0 && <span className="font-mono">${(totalCost / 100).toFixed(2)} total cost</span>}
-                        {failed > 0 && <span className="text-error-ink">{failed} failed</span>}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
+                goal={goal}
+                steps={stepsByGoal.get(goal.id) ?? []}
+                lineage={lineageByGoal.get(goal.id)}
+                gatedSteps={gatedSteps}
+                agentName={(agentId) => (agentId ? nameById.get(agentId) ?? null : null)}
+              />
             ))}
           </div>
         )}
-      </section>
 
-      {/* Unlinked Tasks */}
-      <section className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ListChecks aria-hidden="true" className="h-4 w-4 text-muted" />
-            <h2 className="text-sm font-semibold text-ink">Standalone Tasks</h2>
-            <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs text-muted">
-              {tasks.filter((t) => !t.goalId).length}
-            </span>
-          </div>
-          <TaskActions agents={agents} />
-        </div>
-
-        {tasks.filter((t) => !t.goalId).length === 0 ? (
-          <div className="rounded-xl border border-hairline bg-white p-8 text-center">
-            <ListChecks aria-hidden="true" className="mx-auto h-6 w-6 text-muted/40" />
-            <p className="mt-2 text-sm text-muted">
-              All tasks are linked to goals, or no tasks exist yet.
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-hairline bg-white overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-canvas text-left">
-                  {['Task', 'Agent', 'Priority', 'Due', 'Status', 'Created'].map((h) => (
-                  <th
-                    key={h}
-                    className="whitespace-nowrap px-5 py-2.5 font-mono text-3xs font-semibold uppercase tracking-[0.14em] text-muted"
-                  >
-                    {h}
-                  </th>
-                ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-hairline">
-            {tasks
-              .filter((t) => !t.goalId)
-              .slice(0, 10)
-              .map((task) => (
-                <tr key={task.id}>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      {statusIcon(task.status)}
-                      <div>
-                        <Link href={`/app/tasks/${task.id}`} className="hover:text-brand-ink">
-                          <p className="text-sm font-medium text-ink">{task.title}</p>
-                          {task.description && (
-                            <p className="text-xs text-muted truncate max-w-[300px]">
-                              {task.description}
-                            </p>
-                          )}
-                        </Link>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    {task.agentId && agentMap.get(task.agentId) ? (
-                      <span className="rounded-full bg-ink-surface/5 px-2 py-0.5 text-3xs font-medium text-ink">
-                        {agentMap.get(task.agentId)!.name}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${priorityBadge(task.priority)}`}>
-                      {task.priority}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3">
-                    {task.dueDate ? (
-                      <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold ${dueDateBadge(task.dueDate)}`}>
-                        {formatDueDate(task.dueDate)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3">
-                    <span className="rounded-full bg-muted/10 px-2 py-0.5 font-mono text-3xs uppercase">
-                      {task.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted">
-                    {new Date(task.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+        {unplanned > 0 ? (
+          <p className="text-xs text-muted">
+            {unplanned === 1 ? "1 task is" : `${unplanned} tasks are`} not attached to a goal. They
+            run from the{" "}
+            <Link href="/app/tasks" className="text-ink transition-colors hover:text-brand-ink">
+              task board
+            </Link>
+            .
+          </p>
+        ) : null}
+      </div>
     </PageShell>
   );
 }
