@@ -217,6 +217,19 @@ const CONSOLE_PAIRS: Array<{ use: string; fg: string; bg: string; min: number }>
   // console, on the muted label used on every page. The console re-points it;
   // this pair is the regression guard.
   { use: "muted utility text on the page", fg: "--muted-foreground", bg: "--orq-surface-page", min: AA_TEXT },
+  // Same defect family, one layer out: <body> carries `.text-foreground`, whose
+  // value was substituted at :root (near-black), so every element inside the
+  // console without its own text colour inherited black on #0B0F14. The console
+  // sets `color` itself and re-points the alias; this is the guard.
+  { use: "inherited body colour in the console", fg: "--foreground", bg: "--orq-surface-page", min: AA_TEXT },
+  // `bg-muted` and `bg-brand-soft` are the two washes the pre-console pages
+  // still lean on. They have to be surfaces body text can sit on in both
+  // themes — not the marketing #F7F9F9 / #C2F2F2 blocks they used to be.
+  { use: "body text on a muted chip", fg: "--orq-text-primary", bg: "--muted", min: AA_TEXT },
+  { use: "body text on a brand-soft chip", fg: "--orq-text-primary", bg: "--orq-brand-soft", min: AA_TEXT },
+  // `bg-brand-deep text-white` tiles (avatars, icon squares). The primitive
+  // pair keeps the tile dark in both themes so the literal white label holds.
+  { use: "tile label on a brand tile", fg: "--console-tile-text", bg: "--console-tile", min: AA_TEXT },
 ];
 
 /**

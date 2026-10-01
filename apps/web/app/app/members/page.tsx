@@ -68,7 +68,7 @@ interface IssuedLink {
 
 const roleStyles: Record<string, string> = {
   owner: "bg-ink-accent/20 text-ink",
-  admin: "bg-brand-soft text-brand-deep",
+  admin: "bg-brand-soft text-ink",
   member: "bg-canvas text-muted",
   agent: "bg-ink-accent/10 text-brand-ink",
 };
@@ -385,12 +385,12 @@ export default function MembersPage() {
 
       {notice && (
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-hairline bg-brand-soft px-4 py-3">
-          <Check className="h-4 w-4 shrink-0 text-brand-deep" />
-          <p className="text-sm text-brand-deep">{notice}</p>
+          <Check className="h-4 w-4 shrink-0 text-ink" />
+          <p className="text-sm text-ink">{notice}</p>
           <button
             type="button"
             onClick={() => setNotice(null)}
-            className="ml-auto text-xs text-brand-deep hover:text-brand-deep"
+            className="ml-auto text-xs text-ink hover:text-ink"
           >
             Dismiss
           </button>
@@ -490,7 +490,7 @@ export default function MembersPage() {
                       onClick={() => copyLink(issued.acceptUrl)}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas"
                     >
-                      {copied ? <Check className="h-3.5 w-3.5 text-brand-deep" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                      {copied ? <Check className="h-3.5 w-3.5 text-ink" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
                       {copied ? "Copied" : "Copy link"}
                     </button>
                   </div>
@@ -546,7 +546,7 @@ export default function MembersPage() {
                     <td className="whitespace-nowrap px-5 py-3.5">
                       <span
                         className={`rounded-full px-2.5 py-1 font-mono text-3xs font-semibold uppercase tracking-wide ${
-                          invite.status === "pending" ? "bg-brand-soft text-brand-deep" : "bg-canvas text-muted"
+                          invite.status === "pending" ? "bg-brand-soft text-ink" : "bg-canvas text-muted"
                         }`}
                       >
                         {invite.status}
@@ -678,7 +678,7 @@ export default function MembersPage() {
                           className={`rounded-full px-2.5 py-1 font-mono text-3xs font-semibold uppercase tracking-wide ${
                             m.type === "agent"
                               ? "bg-ink-accent/10 text-brand-ink"
-                              : "bg-brand-soft text-brand-deep"
+                              : "bg-brand-soft text-ink"
                           }`}
                         >
                           {m.type}

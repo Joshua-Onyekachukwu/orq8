@@ -111,8 +111,8 @@ function riskBadge(risk: string) {
 function stateBadge(state: string) {
   switch (state) {
     case "draft": return { label: "Draft", cls: "bg-muted/10 text-muted" };
-    case "proposed": return { label: "Proposed", cls: "bg-brand-soft text-brand-deep" };
-    case "reviewed": return { label: "Reviewed", cls: "bg-brand-soft text-brand-deep" };
+    case "proposed": return { label: "Proposed", cls: "bg-brand-soft text-ink" };
+    case "reviewed": return { label: "Reviewed", cls: "bg-brand-soft text-ink" };
     case "applied": return { label: "Applied", cls: "bg-brand-soft text-brand-ink" };
     default: return { label: state, cls: "bg-muted/10 text-muted" };
   }
@@ -334,7 +334,7 @@ export default function SimulationPage() {
 
         {applyMessage && (
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-brand-soft bg-brand-soft px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-deep" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-ink" />
             <p className="text-sm text-brand-ink">{applyMessage}</p>
           </div>
         )}

@@ -47,7 +47,7 @@ function priorityBadge(priority: string) {
   switch (priority) {
     case "urgent": return "bg-error-soft text-error-ink";
     case "high": return "bg-warm-soft text-warm-ink";
-    case "normal": return "bg-brand-soft text-brand-deep";
+    case "normal": return "bg-brand-soft text-ink";
     default: return "bg-hairline text-ink-muted";
   }
 }
@@ -57,7 +57,7 @@ function statusConfig(status: string) {
     case "completed":
       return { label: "Completed", cls: "bg-ink-accent/10 text-brand-ink", icon: CheckCircle2 };
     case "in_progress":
-      return { label: "In progress", cls: "bg-brand-soft text-brand-deep", icon: Clock };
+      return { label: "In progress", cls: "bg-brand-soft text-ink", icon: Clock };
     case "failed":
       return { label: "Failed", cls: "bg-error-soft text-error-ink", icon: AlertCircle };
     case "cancelled":

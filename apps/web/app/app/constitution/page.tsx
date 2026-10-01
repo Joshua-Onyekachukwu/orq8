@@ -272,7 +272,7 @@ export default function ConstitutionPage() {
       {/* Company Values */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-ink">
             <ScrollText className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Core Values</h3>
@@ -370,7 +370,7 @@ export default function ConstitutionPage() {
       {/* Budget Policy */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-ink">
             <Briefcase className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Budget Policy</h3>
@@ -421,7 +421,7 @@ export default function ConstitutionPage() {
       {/* Communication Policy */}
       <section className="mt-4 rounded-xl border border-hairline bg-white p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-ink">
             <ScrollText className="h-4 w-4" />
           </span>
           <h3 className="text-sm font-semibold text-ink">Communication Policy</h3>

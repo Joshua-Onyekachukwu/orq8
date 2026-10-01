@@ -117,7 +117,7 @@ interface Briefing {
 
 const VERDICT_STYLES: Record<string, string> = {
   outperforming: "bg-brand-soft text-brand-ink",
-  on_track: "bg-brand-soft text-brand-deep",
+  on_track: "bg-brand-soft text-ink",
   underperforming: "bg-error-soft text-error-ink",
   insufficient_data: "bg-surface-secondary text-ink-muted",
 };

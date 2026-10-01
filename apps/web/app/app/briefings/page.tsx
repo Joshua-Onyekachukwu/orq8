@@ -47,8 +47,8 @@ const KINDS = [
 
 const KIND_STYLES: Record<string, string> = {
   daily: "bg-brand-deep/10 text-brand-ink",
-  weekly: "bg-brand-soft text-brand-deep",
-  monthly: "bg-brand-soft text-brand-deep",
+  weekly: "bg-brand-soft text-ink",
+  monthly: "bg-brand-soft text-ink",
 };
 
 function periodLabel(row: BriefingRow): string {

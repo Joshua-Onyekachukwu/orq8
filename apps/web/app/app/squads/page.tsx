@@ -72,7 +72,7 @@ interface OrgAgent {
 function statusBadge(status: string) {
   switch (status) {
     case "completed": return { label: "Completed", cls: "bg-brand-soft text-brand-ink" };
-    case "in_progress": return { label: "In progress", cls: "bg-brand-soft text-brand-deep" };
+    case "in_progress": return { label: "In progress", cls: "bg-brand-soft text-ink" };
     case "failed": return { label: "Failed", cls: "bg-error-soft text-error-ink" };
     default: return { label: "Pending", cls: "bg-muted/10 text-muted" };
   }
@@ -81,7 +81,7 @@ function statusBadge(status: string) {
 function squadStateBadge(status: string) {
   switch (status) {
     case "active": return { label: "Active", cls: "bg-brand-soft text-brand-ink" };
-    case "completed": return { label: "Completed", cls: "bg-brand-soft text-brand-deep" };
+    case "completed": return { label: "Completed", cls: "bg-brand-soft text-ink" };
     default: return { label: "Archived", cls: "bg-muted/10 text-muted" };
   }
 }

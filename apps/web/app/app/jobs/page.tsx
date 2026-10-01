@@ -128,7 +128,7 @@ function detailSummary(detail: Record<string, unknown>): string {
 function statusMeta(status: JobRun["status"] | "never") {
   switch (status) {
     case "success":
-      return { icon: CheckCircle2, cls: "text-brand-deep", bg: "bg-brand-soft border-brand-soft", label: "Healthy" };
+      return { icon: CheckCircle2, cls: "text-ink", bg: "bg-brand-soft border-brand-soft", label: "Healthy" };
     case "error":
       return { icon: XCircle, cls: "text-error-ink", bg: "bg-error-soft border-border-error", label: "Failed" };
     case "partial":

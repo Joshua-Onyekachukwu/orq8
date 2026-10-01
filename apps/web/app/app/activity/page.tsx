@@ -38,7 +38,7 @@ function eventTypeBadge(type: string) {
   if (lower.includes("deploy") || lower.includes("approve"))
     return "bg-ink-accent/10 text-brand-ink";
   if (lower.includes("reject")) return "bg-error-soft text-error-ink";
-  return "bg-brand-soft text-brand-deep";
+  return "bg-brand-soft text-ink";
 }
 
 export default function ActivityPage() {

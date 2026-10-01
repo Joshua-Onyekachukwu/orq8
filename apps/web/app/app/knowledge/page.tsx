@@ -74,15 +74,15 @@ const OUTCOME_STYLES: Record<string, string> = {
 
 function entityColor(type: string): string {
   switch (type) {
-    case "customer": return "bg-brand-soft border-brand-soft text-brand-deep";
-    case "product": return "bg-brand-soft border-brand-soft text-brand-deep";
-    case "project": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "customer": return "bg-brand-soft border-brand-soft text-ink";
+    case "product": return "bg-brand-soft border-brand-soft text-ink";
+    case "project": return "bg-brand-soft border-brand-soft text-ink";
     case "goal": return "bg-brand-soft border-brand-soft text-brand-ink";
-    case "department": return "bg-brand-soft border-brand-soft text-brand-deep";
-    case "agent": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "department": return "bg-brand-soft border-brand-soft text-ink";
+    case "agent": return "bg-brand-soft border-brand-soft text-ink";
     case "decision": return "bg-warm-soft border-warm text-warm-ink";
-    case "initiative": return "bg-brand-soft border-brand-soft text-brand-deep";
-    case "integration": return "bg-brand-soft border-brand-soft text-brand-deep";
+    case "initiative": return "bg-brand-soft border-brand-soft text-ink";
+    case "integration": return "bg-brand-soft border-brand-soft text-ink";
     default: return "bg-muted/10 border-hairline text-muted";
   }
 }

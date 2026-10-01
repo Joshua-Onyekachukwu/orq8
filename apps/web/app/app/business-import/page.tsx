@@ -49,8 +49,8 @@ interface BusinessImport {
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   analysis: { label: "Analyzed", cls: "bg-warm-soft text-warm-ink" },
-  pending_approval: { label: "Awaiting your approval", cls: "bg-brand-soft text-brand-deep" },
-  approved: { label: "Approved", cls: "bg-brand-soft text-brand-deep" },
+  pending_approval: { label: "Awaiting your approval", cls: "bg-brand-soft text-ink" },
+  approved: { label: "Approved", cls: "bg-brand-soft text-ink" },
   applied: { label: "Applied", cls: "bg-brand-soft text-brand-ink" },
   rejected: { label: "Rejected", cls: "bg-error-soft text-text-error" },
   failed: { label: "Failed", cls: "bg-error-soft text-text-error" },
@@ -231,7 +231,7 @@ function BusinessImportDashboard() {
                     <span className="text-sm text-foreground">{fact.value}</span>
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                        fact.sourceType === "website" ? "bg-brand-soft text-brand-deep" : "bg-surface-secondary text-ink-muted"
+                        fact.sourceType === "website" ? "bg-brand-soft text-ink" : "bg-surface-secondary text-ink-muted"
                       }`}
                     >
                       {fact.sourceType === "website" ? "from website" : "founder description"}
@@ -254,29 +254,29 @@ function BusinessImportDashboard() {
           {/* Proposal */}
           {current.proposal ? (
             <div className="mt-5 rounded-lg border border-brand-soft bg-brand-soft/50 p-4">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-brand-deep">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
                 <Sparkles className="h-4 w-4" /> Proposed organization
               </h3>
-              <p className="mt-1 text-sm text-brand-deep">
+              <p className="mt-1 text-sm text-ink">
                 Recommended model: <span className="font-semibold">{current.proposal.recommendedPlaybookName}</span>
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-brand-deep/80">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-ink/80">
                 {current.proposal.reasons.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
               </ul>
               <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
                 <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-brand-deep">Departments</p>
-                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.departments.length || "—"}</p>
+                  <p className="font-semibold text-ink">Departments</p>
+                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.departments.length || "—"}</p>
                 </div>
                 <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-brand-deep">AI employees</p>
-                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.agents.length || "—"}</p>
+                  <p className="font-semibold text-ink">AI employees</p>
+                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.agents.length || "—"}</p>
                 </div>
                 <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-brand-deep">Initial goals</p>
-                  <p className="mt-1 text-brand-deep/70">{current.proposal.willCreate.goals.length || "—"}</p>
+                  <p className="font-semibold text-ink">Initial goals</p>
+                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.goals.length || "—"}</p>
                 </div>
               </div>
             </div>

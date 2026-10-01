@@ -70,7 +70,7 @@ function factorIcon(key: string) {
 
 function reasonBadge(kind: HealthReasonKind) {
   switch (kind) {
-    case "positive": return { icon: CheckCircle2, cls: "text-brand-deep", bg: "bg-brand-soft border-brand-soft" };
+    case "positive": return { icon: CheckCircle2, cls: "text-ink", bg: "bg-brand-soft border-brand-soft" };
     case "warning": return { icon: AlertTriangle, cls: "text-warm-ink", bg: "bg-warm-soft border-warm" };
     case "critical": return { icon: AlertTriangle, cls: "text-error-ink", bg: "bg-error-soft border-border-error" };
     default: return { icon: Sparkles, cls: "text-muted", bg: "bg-muted/5 border-hairline" };

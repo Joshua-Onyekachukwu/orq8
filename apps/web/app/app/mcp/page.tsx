@@ -74,7 +74,7 @@ function statusBadge(status: string) {
 function riskBadge(risk: string) {
   switch (risk) {
     case "low": return { label: "Low", cls: "bg-brand-soft text-brand-ink" };
-    case "medium": return { label: "Medium", cls: "bg-brand-soft text-brand-deep" };
+    case "medium": return { label: "Medium", cls: "bg-brand-soft text-ink" };
     case "high": return { label: "High", cls: "bg-warm-soft text-warm-ink" };
     default: return { label: "Critical", cls: "bg-error-soft text-error-ink" };
   }
@@ -292,7 +292,7 @@ function McpPage() {
               return (
                 <div key={server.id} className="rounded-xl border bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-ink">
                       <Layers className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -393,7 +393,7 @@ function McpPage() {
                             <Lock className="h-3 w-3" /> Approval
                           </span>
                         ) : (
-                          <span className="text-xs text-brand-deep">Auto</span>
+                          <span className="text-xs text-ink">Auto</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

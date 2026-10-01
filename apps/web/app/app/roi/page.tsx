@@ -303,7 +303,7 @@ export default function ROIPage() {
                       <div className="text-xs text-muted mt-1">Tasks Completed</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-brand-deep font-mono">{formatCurrency(roi.totalEstimatedCostSaved)}</div>
+                      <div className="text-2xl font-bold text-ink font-mono">{formatCurrency(roi.totalEstimatedCostSaved)}</div>
                       <div className="text-xs text-muted mt-1">Cost Saved</div>
                     </div>
                   </div>

@@ -136,7 +136,7 @@ function statusBadge(status: string) {
       return { label: status, cls: "bg-surface-secondary text-ink-muted" };
     case "implemented":
     case "running":
-      return { label: status, cls: "bg-brand-soft text-brand-deep" };
+      return { label: status, cls: "bg-brand-soft text-ink" };
     default:
       return { label: status, cls: "bg-warm-soft text-warm-ink" };
   }
@@ -145,7 +145,7 @@ function statusBadge(status: string) {
 function riskBadge(risk: string) {
   switch (risk) {
     case "low": return { label: "Low", cls: "bg-brand-soft text-brand-ink" };
-    case "medium": return { label: "Medium", cls: "bg-brand-soft text-brand-deep" };
+    case "medium": return { label: "Medium", cls: "bg-brand-soft text-ink" };
     case "high": return { label: "High", cls: "bg-warm-soft text-warm-ink" };
     default: return { label: "Critical", cls: "bg-error-soft text-error-ink" };
   }
@@ -316,14 +316,14 @@ function EngineeringDashboard() {
     : capabilities;
 
   const statCards = [
-    { label: "Engineering AI employees", value: engineeringAgents.length, icon: Bot, cls: "text-brand-deep bg-brand-soft" },
+    { label: "Engineering AI employees", value: engineeringAgents.length, icon: Bot, cls: "text-ink bg-brand-soft" },
     { label: "Engineering tasks in progress", value: inProgress, icon: Activity, cls: "text-warm-ink bg-warm-soft" },
-    { label: "Tasks completed", value: completed, icon: CheckCircle2, cls: "text-brand-deep bg-brand-soft" },
+    { label: "Tasks completed", value: completed, icon: CheckCircle2, cls: "text-ink bg-brand-soft" },
     { label: "Tasks failed", value: failed, icon: XCircle, cls: "text-error-ink bg-error-soft" },
     { label: "Repositories", value: repos.length, icon: GitBranch, cls: "text-ink-muted bg-surface-secondary" },
-    { label: "Sandbox runs", value: runs.length, icon: TerminalSquare, cls: "text-brand-deep bg-brand-soft" },
-    { label: "Reusable capabilities", value: capabilities.length, icon: Package, cls: "text-brand-deep bg-brand-soft" },
-    { label: "MCP servers connected", value: mcpConnected, icon: Server, cls: "text-brand-deep bg-brand-soft" },
+    { label: "Sandbox runs", value: runs.length, icon: TerminalSquare, cls: "text-ink bg-brand-soft" },
+    { label: "Reusable capabilities", value: capabilities.length, icon: Package, cls: "text-ink bg-brand-soft" },
+    { label: "MCP servers connected", value: mcpConnected, icon: Server, cls: "text-ink bg-brand-soft" },
   ];
 
   return (
@@ -377,7 +377,7 @@ function EngineeringDashboard() {
             {engineeringAgents.map((agent) => (
               <div key={agent.id} className="rounded-xl border bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-ink">
                     <Bot className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
@@ -437,7 +437,7 @@ function EngineeringDashboard() {
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted font-mono">{task.branch}</td>
-                        <td className="px-4 py-3">{task.prId ? <GitPullRequest className="h-4 w-4 text-brand-deep" /> : <span className="text-muted">—</span>}</td>
+                        <td className="px-4 py-3">{task.prId ? <GitPullRequest className="h-4 w-4 text-ink" /> : <span className="text-muted">—</span>}</td>
                         <td className="px-4 py-3 text-xs text-muted">{fmtDate(task.createdAt)}</td>
                       </tr>
                     );
@@ -539,7 +539,7 @@ function EngineeringDashboard() {
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{cap.category}</span>
-                    {cap.status === "available" && <ShieldCheck className="h-3.5 w-3.5 text-brand-deep" />}
+                    {cap.status === "available" && <ShieldCheck className="h-3.5 w-3.5 text-ink" />}
                   </div>
                 </div>
               ))}
@@ -568,7 +568,7 @@ function EngineeringDashboard() {
                 return (
                   <div key={server.id} className="rounded-xl border bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-ink">
                         <Layers className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -637,7 +637,7 @@ function EngineeringDashboard() {
                         Review
                       </button>
                       {pr.providerPrUrl && (
-                        <a href={pr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-deep hover:underline">Open ↗</a>
+                        <a href={pr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-ink hover:underline">Open ↗</a>
                       )}
                     </div>
                   </div>
@@ -692,7 +692,7 @@ function EngineeringDashboard() {
               {emResult.team.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {emResult.team.map((m) => (
-                    <span key={m.agentId} className="rounded-md bg-brand-soft px-2 py-0.5 text-[11px] text-brand-deep">
+                    <span key={m.agentId} className="rounded-md bg-brand-soft px-2 py-0.5 text-[11px] text-ink">
                       {m.name} — {m.role}
                     </span>
                   ))}
@@ -733,7 +733,7 @@ function EngineeringDashboard() {
                   <p className="mt-0.5 text-xs text-muted">Linked task: {reviewPr.task.title}</p>
                 )}
                 {reviewPr.providerPrUrl && (
-                  <a href={reviewPr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-deep hover:underline">Open on provider ↗</a>
+                  <a href={reviewPr.providerPrUrl} target="_blank" rel="noreferrer" className="text-xs text-ink hover:underline">Open on provider ↗</a>
                 )}
               </div>
 

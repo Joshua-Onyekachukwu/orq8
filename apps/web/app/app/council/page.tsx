@@ -288,7 +288,7 @@ function SessionCard({
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/5 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <Scale className="h-4 w-4 shrink-0 text-brand-deep" />
+        <Scale className="h-4 w-4 shrink-0 text-ink" />
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-ink truncate">{session.title}</h4>
           <div className="flex items-center gap-2 mt-0.5 text-2xs text-muted">
@@ -400,7 +400,7 @@ function SessionDetail({ id, onClose }: { id: string; onClose: () => void }) {
         <div className="flex items-start justify-between gap-3 border-b border-hairline px-5 py-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Scale className="h-4 w-4 text-brand-deep" />
+              <Scale className="h-4 w-4 text-ink" />
               <h3 className="text-sm font-semibold text-ink truncate">{meta?.title ?? "Council session"}</h3>
             </div>
             {meta && (

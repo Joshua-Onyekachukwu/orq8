@@ -48,9 +48,9 @@ export function ReviewPanel({
   if (submitted) {
     return (
       <div className="rounded-xl border border-brand-soft bg-brand-soft p-5 text-center">
-        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-brand-deep" />
+        <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-ink" />
         <p className="text-sm font-semibold text-brand-ink">Review submitted</p>
-        <p className="mt-1 text-xs text-brand-deep">
+        <p className="mt-1 text-xs text-ink">
           {decision === "approve" && "Work approved and marked complete."}
           {decision === "reject" && "Work rejected. Agent will be notified."}
           {decision === "revision" && "Revision requested. Agent will revise and resubmit."}

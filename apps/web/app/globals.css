@@ -992,6 +992,11 @@ body {
 .console {
   color-scheme: dark;
   background-color: var(--console-bg, var(--orq-ink));
+  /* `<body>` carries `.text-foreground`, whose value is substituted at :root
+     (the light palette), so every element inside the console that did not set
+     its own text colour inherited near-black — invisible on #0B0F14. The scope
+     sets its own colour instead of hoping every call site remembers `text-ink`. */
+  color: var(--console-body);
 
   /* Console-local chrome values (toggle-independent defaults = dark) */
   --console-bg: #0b0f14;
@@ -1011,6 +1016,12 @@ body {
      shared "on-warm" value cannot serve both — measured, it put 3.43:1 on a
      destructive button. */
   --console-on-red: #231206;
+  /* The tile colour behind a white label (`bg-brand-deep text-white` in the
+     pre-console components: avatars, icon squares, step counters). Stays dark
+     in BOTH themes so the white label keeps its contrast — the light console's
+     line-strong #C9D2DC would have put white on pale grey. */
+  --console-tile: #2a3646;
+  --console-tile-text: #ffffff;
 
   /* Surfaces — the mock's raised ladder */
   --orq-ink: var(--console-bg);
@@ -1052,6 +1063,16 @@ body {
   --orq-warm-deep: var(--console-orange);
   --orq-warm-soft: rgba(233, 151, 79, 0.12);
   --orq-on-warm: var(--console-on-orange);
+
+  /* Brand surfaces. The marketing '#356267 on white' text color read 2.85:1 on
+     the console canvas, and #C2F2F2 painted near-white blocks over it — the two
+     most common leftover utilities on the pre-console pages (`text-brand-deep`
+     in 30 files, `bg-brand-soft` across 97 call sites). Brand weight belongs to
+     the raised-neutral ladder here: tiles keep their white labels, washes become
+     the hover surface, and emphasis text is body. */
+  --orq-brand: var(--console-line-strong);
+  --orq-brand-deep: var(--console-tile);
+  --orq-brand-soft: var(--console-hover);
 
   /* Marks and live indicators */
   --orq-mark-active: var(--console-lime);
@@ -1104,6 +1125,43 @@ body {
   --orq-on-ink-muted: var(--console-muted);
   --orq-ink-accent: var(--console-lime);
 
+  /* The shadcn alias layer (`globals.css` :root, mapped in `@theme inline`) has
+     the same substitution problem as --muted-foreground below: each alias was
+     computed against the light palette, so `bg-muted` painted #F7F9F9 blocks
+     and `border-border` drew pale lines inside the dark console. Re-pointing
+     them here is what makes `.console` self-contained — the ink band does the
+     same thing for its own scope. */
+  --background: var(--console-bg);
+  --foreground: var(--console-body);
+  --card: var(--console-surface);
+  --card-foreground: var(--console-body);
+  --popover: var(--console-surface);
+  --popover-foreground: var(--console-body);
+  --primary: var(--console-line-strong);
+  --primary-foreground: var(--console-body);
+  --secondary: var(--console-hover);
+  --secondary-foreground: var(--console-body);
+  --muted: var(--console-hover);
+  --accent: var(--console-hover);
+  --accent-foreground: var(--console-body);
+  --destructive: var(--console-red);
+  --border: var(--console-line);
+  --input: var(--console-line-strong);
+  --ring: var(--console-lime);
+  --chart-1: var(--console-lime);
+  --chart-2: var(--console-info);
+  --chart-3: var(--console-muted);
+  --chart-4: var(--console-orange);
+  --chart-5: var(--console-red);
+  --sidebar: var(--console-bg);
+  --sidebar-foreground: var(--console-body);
+  --sidebar-primary: var(--console-line-strong);
+  --sidebar-primary-foreground: var(--console-body);
+  --sidebar-accent: var(--console-hover);
+  --sidebar-accent-foreground: var(--console-body);
+  --sidebar-border: var(--console-line);
+  --sidebar-ring: var(--console-lime);
+
   /* Error soft */
   --orq-error: var(--console-red);
   --orq-error-fill: var(--console-red);
@@ -1147,6 +1205,8 @@ body {
      2.98:1, so the primary button's own label failed AA in light mode only. */
   --console-on-orange: #231206;
   --console-on-red: #ffffff;
+  --console-tile: #2a3340;
+  --console-tile-text: #ffffff;
 
   --orq-ink: #ffffff;
   --orq-overlay: rgba(14, 21, 32, 0.35);

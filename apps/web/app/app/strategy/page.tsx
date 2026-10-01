@@ -83,7 +83,7 @@ interface Initiative {
 function priorityColor(p: string) {
   if (p === "critical") return "bg-error-soft text-error-ink";
   if (p === "high") return "bg-warm-soft text-warm-ink";
-  if (p === "normal") return "bg-brand-soft text-brand-deep";
+  if (p === "normal") return "bg-brand-soft text-ink";
   return "bg-hairline text-muted";
 }
 
@@ -572,7 +572,7 @@ export default function StrategyPage() {
             </div>
             <div className="w-px h-4 bg-hairline" />
             <div className="flex items-center gap-1.5">
-              <LinkIcon className="h-3.5 w-3.5 text-brand-deep" />
+              <LinkIcon className="h-3.5 w-3.5 text-ink" />
               <span className="font-medium text-ink">{initiatives.length}</span> initiatives
             </div>
           </div>

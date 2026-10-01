@@ -56,7 +56,7 @@ const typeConfig: {
   },
   agent: {
     icon: Users,
-    color: "text-brand-deep",
+    color: "text-ink",
     bg: "bg-brand-soft",
     label: "Agent",
   },

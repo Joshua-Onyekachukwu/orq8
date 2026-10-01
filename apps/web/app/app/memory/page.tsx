@@ -36,11 +36,11 @@ interface MemoryStats {
 
 function categoryColor(cat: string) {
   switch (cat) {
-    case "fact": return "bg-brand-soft text-brand-deep";
-    case "decision": return "bg-brand-soft text-brand-deep";
+    case "fact": return "bg-brand-soft text-ink";
+    case "decision": return "bg-brand-soft text-ink";
     case "lesson": return "bg-warm-soft text-warm-ink";
     case "preference": return "bg-ink-accent/10 text-brand-ink";
-    case "workflow": return "bg-brand-soft text-brand-deep";
+    case "workflow": return "bg-brand-soft text-ink";
     case "context": return "bg-hairline text-ink-muted";
     default: return "bg-hairline text-ink-muted";
   }

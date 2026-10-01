@@ -180,8 +180,8 @@ export default function FilesPage() {
 
       {uploadProgress && (
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-brand-soft bg-brand-soft px-4 py-3">
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-brand-deep" />
-          <p className="text-sm text-brand-deep">{uploadProgress}</p>
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ink" />
+          <p className="text-sm text-ink">{uploadProgress}</p>
         </div>
       )}
 

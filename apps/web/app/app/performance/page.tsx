@@ -70,7 +70,7 @@ interface PerformanceHistoryWindow {
 function recommendationBadge(rec: ReliabilityProfile["recommendation"]) {
   switch (rec) {
     case "KEEP": return { label: "Keep", cls: "bg-brand-soft text-brand-ink" };
-    case "MONITOR": return { label: "Monitor", cls: "bg-brand-soft text-brand-deep" };
+    case "MONITOR": return { label: "Monitor", cls: "bg-brand-soft text-ink" };
     case "IMPROVE": return { label: "Improve", cls: "bg-warm-soft text-warm-ink" };
     case "RETRAIN / ADJUST": return { label: "Retrain / Adjust", cls: "bg-warm-soft text-warm-ink" };
     default: return { label: "Replace / Escalate", cls: "bg-error-soft text-error-ink" };
@@ -79,7 +79,7 @@ function recommendationBadge(rec: ReliabilityProfile["recommendation"]) {
 
 function trendBadge(trend: ReliabilityProfile["trend"]) {
   switch (trend) {
-    case "improving": return { icon: TrendingUp, cls: "text-brand-deep", label: "Improving" };
+    case "improving": return { icon: TrendingUp, cls: "text-ink", label: "Improving" };
     case "declining": return { icon: TrendingDown, cls: "text-error-ink", label: "Declining" };
     default: return { icon: Minus, cls: "text-muted", label: "Stable" };
   }
@@ -88,7 +88,7 @@ function trendBadge(trend: ReliabilityProfile["trend"]) {
 function autonomyBadge(level: ReliabilityProfile["autonomyLevel"]) {
   switch (level) {
     case "trusted": return { label: "Trusted", cls: "bg-brand-soft text-brand-ink" };
-    case "watch": return { label: "Watch", cls: "bg-brand-soft text-brand-deep" };
+    case "watch": return { label: "Watch", cls: "bg-brand-soft text-ink" };
     case "restricted": return { label: "Restricted", cls: "bg-warm-soft text-warm-ink" };
     default: return { label: "Paused", cls: "bg-error-soft text-error-ink" };
   }

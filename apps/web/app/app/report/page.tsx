@@ -184,7 +184,7 @@ export default function ReportPage() {
               </p>
             </div>
             <div className="rounded-xl border border-hairline bg-white p-4">
-              <Users className="h-5 w-5 text-brand-deep" />
+              <Users className="h-5 w-5 text-ink" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
                 Active agents
               </p>

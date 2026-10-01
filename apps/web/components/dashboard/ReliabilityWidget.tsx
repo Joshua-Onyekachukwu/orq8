@@ -24,7 +24,7 @@ interface ReliabilityProfile {
 function AutonomyIcon({ level }: { level: string }) {
   switch (level) {
     case "trusted":
-      return <ShieldCheck className="h-4 w-4 text-brand-deep" />;
+      return <ShieldCheck className="h-4 w-4 text-ink" />;
     case "watch":
       return <Shield className="h-4 w-4 text-warm-ink" />;
     case "restricted":
@@ -39,7 +39,7 @@ function AutonomyIcon({ level }: { level: string }) {
 function TrendIcon({ trend }: { trend: string }) {
   switch (trend) {
     case "improving":
-      return <TrendingUp className="h-3 w-3 text-brand-deep" />;
+      return <TrendingUp className="h-3 w-3 text-ink" />;
     case "declining":
       return <TrendingDown className="h-3 w-3 text-error-ink" />;
     default:

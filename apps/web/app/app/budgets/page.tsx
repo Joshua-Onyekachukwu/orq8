@@ -123,7 +123,7 @@ export default function BudgetsPage() {
         </div>
 
         <div className="rounded-xl border border-hairline bg-white p-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-ink">
             <BarChart3 className="h-4 w-4" />
           </span>
           <p className="mt-3 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">

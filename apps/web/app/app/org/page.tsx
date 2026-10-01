@@ -203,8 +203,8 @@ export default function OrgPage() {
           <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
             {[
               { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-ink-accent/10 text-brand-ink" },
-              { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-brand-soft text-brand-deep" },
-              { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-brand-soft text-brand-deep" },
+              { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-brand-soft text-ink" },
+              { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-brand-soft text-ink" },
               { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-warm-soft text-warm-ink" },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl border border-hairline bg-white p-4">
@@ -426,7 +426,7 @@ export default function OrgPage() {
               <div className="space-y-2">
                 {data.goals.filter((g) => g.status === "active").map((goal) => (
                   <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2.5">
-                    <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-deep" />
+                    <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-ink" />
                     <span className="flex-1 text-sm text-ink">{goal.title}</span>
                     <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
                       goal.priority === "urgent" ? "bg-error-soft text-error-ink" :

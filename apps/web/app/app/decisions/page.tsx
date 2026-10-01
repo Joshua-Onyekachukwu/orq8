@@ -83,13 +83,13 @@ interface DecisionSummary {
 
 function typeColor(t: string) {
   const map: Record<string, string> = {
-    strategic: "bg-brand-soft text-brand-deep",
-    operational: "bg-brand-soft text-brand-deep",
+    strategic: "bg-brand-soft text-ink",
+    operational: "bg-brand-soft text-ink",
     hiring: "bg-warm-soft text-warm-ink",
     resource_allocation: "bg-warm-soft text-warm-ink",
-    technical: "bg-brand-soft text-brand-deep",
+    technical: "bg-brand-soft text-ink",
     partnership: "bg-brand-soft text-brand-ink",
-    product: "bg-brand-soft text-brand-deep",
+    product: "bg-brand-soft text-ink",
     marketing: "bg-error-soft text-text-error",
     financial: "bg-brand-soft text-brand-ink",
   };
