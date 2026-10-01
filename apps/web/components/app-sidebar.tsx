@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Activity,
   BadgeCheck,
+  Banknote,
   Boxes,
   Brain,
   Building2,
@@ -28,6 +29,7 @@ import {
   Landmark,
   Layers,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Network,
   Newspaper,
@@ -111,6 +113,7 @@ const navAreas: NavArea[] = [
   {
     title: "Work",
     items: [
+      { label: "Tasks", href: "/app/tasks", icon: ListChecks },
       { label: "My Attention", href: "/app/attention", icon: Inbox },
       { label: "Scheduled Work", href: "/app/jobs", icon: CalendarClock },
       { label: "Engineering", href: "/app/engineering", icon: Code2 },
@@ -150,6 +153,7 @@ const navAreas: NavArea[] = [
     items: [
       { label: "Approvals", href: "/app/approvals", icon: ShieldCheck },
       { label: "Budgets", href: "/app/budgets", icon: Wallet },
+      { label: "Finance", href: "/app/finance", icon: Banknote },
       { label: "Usage & Credits", href: "/app/usage", icon: Gauge },
       { label: "Audit Trail", href: "/app/audit", icon: Shield },
       { label: "Constitution", href: "/app/constitution", icon: Landmark },
@@ -278,11 +282,11 @@ export function AppSidebar({
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-all duration-200 ${
             active
               ? "bg-warm/15 text-warm-ink border border-warm/20"
-              : "text-white/50 hover:bg-white/[0.04] hover:text-white/80 border border-transparent"
+              : "text-muted hover:bg-canvas hover:text-ink border border-transparent"
           }`}
         >
           <Icon
-            className={`h-4 w-4 shrink-0 ${active ? "text-warm-ink" : "text-white/30"}`}
+            className={`h-4 w-4 shrink-0 ${active ? "text-warm-ink" : "text-muted"}`}
           />
           <span className="flex-1 truncate">{item.label}</span>
         </Link>
@@ -291,15 +295,15 @@ export function AppSidebar({
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col ink">
+    <div className="flex h-full flex-col bg-elevated text-ink">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-white/[0.06] px-5">
-        <Link href="/app" className="flex items-center gap-2.5 text-white">
+      <div className="flex h-16 items-center justify-between border-b border-hairline px-5">
+        <Link href="/app" className="flex items-center gap-2.5 text-ink">
           <LogoMark className="h-8 w-auto" wordmarkColor="currentColor" dotColor="var(--orq-brand-deep)" ariaLabel={`${orgName} home`} />
         </Link>
         <button
           onClick={() => setMobileOpen(false)}
-          className="rounded-lg p-1.5 text-white/40 hover:text-white hover:bg-white/5 lg:hidden"
+          className="rounded-lg p-1.5 text-muted hover:text-ink hover:bg-canvas lg:hidden"
           aria-label="Close navigation menu"
         >
           <X className="h-5 w-5" />
@@ -308,9 +312,9 @@ export function AppSidebar({
 
       {/* Plan badge */}
       <div className="px-5 pt-4 pb-2">
-        <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
+        <div className="flex items-center gap-2 rounded-lg bg-canvas border border-hairline px-3 py-2">
           <div className="h-2 w-2 rounded-full bg-warm" />
-          <span className="text-overline font-medium text-white/60 uppercase tracking-wider">{plan} plan</span>
+          <span className="text-overline font-medium text-muted uppercase tracking-wider">{plan} plan</span>
         </div>
       </div>
 
@@ -326,21 +330,21 @@ export function AppSidebar({
             <div key={area.title} className="mb-1">
               <button
                 onClick={() => toggleArea(area.title)}
-                className="flex w-full items-center justify-between rounded-lg px-2 py-2 transition-colors hover:bg-white/[0.03]"
-                aria-expanded={isOpen}
+              className="flex w-full items-center justify-between rounded-lg px-2 py-2 transition-colors hover:bg-canvas"
+              aria-expanded={isOpen}
+            >
+              <span
+                className={`text-3xs font-semibold uppercase tracking-[0.15em] ${
+                  areaActive ? "text-warm-ink" : "text-muted"
+                }`}
               >
-                <span
-                  className={`text-3xs font-semibold uppercase tracking-[0.15em] ${
-                    areaActive ? "text-warm-ink" : "text-white/40"
-                  }`}
-                >
-                  {area.title}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-mono text-3xs text-white/25">{itemCount}</span>
-                  <ChevronDown
-                    className={`h-3 w-3 text-white/25 transition-transform ${isOpen ? "" : "-rotate-90"}`}
-                  />
+                {area.title}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono text-3xs text-muted/60">{itemCount}</span>
+                <ChevronDown
+                  className={`h-3 w-3 text-muted/60 transition-transform ${isOpen ? "" : "-rotate-90"}`}
+                />
                 </span>
               </button>
 
@@ -355,18 +359,18 @@ export function AppSidebar({
                       <div key={group.title} className="mt-1">
                         <button
                           onClick={() => toggleSubgroup(group.title)}
-                          className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
+                          className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 transition-colors hover:bg-canvas"
                           aria-expanded={groupOpen}
                         >
                           <span
                             className={`text-2sm font-medium ${
-                              groupActive ? "text-white/75" : "text-white/40"
+                              groupActive ? "text-ink" : "text-muted"
                             }`}
                           >
                             {group.title}
                           </span>
                           <ChevronDown
-                            className={`h-3 w-3 text-white/25 transition-transform ${groupOpen ? "" : "-rotate-90"}`}
+                            className={`h-3 w-3 text-muted/60 transition-transform ${groupOpen ? "" : "-rotate-90"}`}
                           />
                         </button>
                         {groupOpen && (
@@ -383,16 +387,16 @@ export function AppSidebar({
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-white/[0.06] p-3">
+      <div className="border-t border-hairline p-3">
         <Link
           href="/settings"
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings")
               ? "bg-warm/15 text-warm-ink"
-              : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+              : "text-muted hover:bg-canvas hover:text-ink"
           }`}
         >
-          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-warm-ink" : "text-white/30"}`} />
+          <Settings className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings") ? "text-warm-ink" : "text-muted"}`} />
           Settings
         </Link>
         <Link
@@ -400,10 +404,10 @@ export function AppSidebar({
           className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-2sm font-medium transition-colors ${
             pathname.startsWith("/settings/providers")
               ? "bg-warm/15 text-warm-ink"
-              : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+              : "text-muted hover:bg-canvas hover:text-ink"
           }`}
         >
-          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-warm-ink" : "text-white/30"}`} />
+          <KeyRound className={`h-4 w-4 shrink-0 ${pathname.startsWith("/settings/providers") ? "text-warm-ink" : "text-muted"}`} />
           Provider Keys
         </Link>
 
@@ -411,7 +415,7 @@ export function AppSidebar({
         <div className="relative mt-2" ref={userMenuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white/80"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-2sm text-muted transition-colors hover:bg-canvas hover:text-ink"
             aria-expanded={userMenuOpen}
             aria-haspopup="menu"
             aria-label="User account menu"
@@ -430,32 +434,32 @@ export function AppSidebar({
               )}
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-medium text-white/70 truncate">{userName}</p>
-              <p className="text-3xs text-white/30 truncate">{orgName}</p>
+              <p className="text-xs font-medium text-ink truncate">{userName}</p>
+              <p className="text-3xs text-muted truncate">{orgName}</p>
             </div>
-            <ChevronDown className={`h-3 w-3 shrink-0 text-white/30 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3 w-3 shrink-0 text-muted transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 bg-ink-surface/95 backdrop-blur-xl py-2 shadow-2xl">
-              <div className="border-b border-white/[0.06] px-4 py-3">
-                <p className="text-xs font-medium text-white/80 truncate">{userName}</p>
-                <p className="text-3xs text-white/40 truncate">{orgName}</p>
+            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-hairline bg-elevated py-2 shadow-2xl">
+              <div className="border-b border-hairline px-4 py-3">
+                <p className="text-xs font-medium text-ink truncate">{userName}</p>
+                <p className="text-3xs text-muted truncate">{orgName}</p>
               </div>
               <div className="py-1">
                 <Link
                   href="/app/profile"
-                  className="flex items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                  className="flex items-center gap-2 px-4 py-2 text-2sm text-muted hover:bg-canvas hover:text-ink"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  <User className="h-4 w-4 text-white/40" /> Profile
+                  <User className="h-4 w-4 text-muted" /> Profile
                 </Link>
                 <Link
                   href="/settings"
-                  className="flex items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                  className="flex items-center gap-2 px-4 py-2 text-2sm text-muted hover:bg-canvas hover:text-ink"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  <Settings className="h-4 w-4 text-white/40" /> Settings
+                  <Settings className="h-4 w-4 text-muted" /> Settings
                 </Link>
                 {platformRole === "admin" && (
                   <Link
@@ -467,13 +471,13 @@ export function AppSidebar({
                   </Link>
                 )}
               </div>
-              <div className="border-t border-white/[0.06] pt-1">
+              <div className="border-t border-hairline pt-1">
                 <form action="/api/auth/logout" method="post">
                   <button
                     type="submit"
-                    className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-2sm text-muted hover:bg-canvas hover:text-ink"
                   >
-                    <LogOut className="h-4 w-4 text-white/40" /> Sign out
+                    <LogOut className="h-4 w-4 text-muted" /> Sign out
                   </button>
                 </form>
               </div>
@@ -487,7 +491,7 @@ export function AppSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-white/[0.06]">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-hairline">
         {sidebarContent}
       </div>
 
