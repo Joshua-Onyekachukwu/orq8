@@ -84341,10 +84341,60 @@ async function getUsageSummary(db, orgId) {
     dailyMap.set(date6, (dailyMap.get(date6) ?? 0) + Math.abs(tx.amount));
   }
   const dailyUsage = Array.from(dailyMap.entries()).map(([date6, cost]) => ({ date: date6, cost })).sort((a, b) => a.date.localeCompare(b.date));
+  const goalTaskIds = /* @__PURE__ */ new Set();
+  for (const tx of transactions) {
+    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
+    if (taskId) goalTaskIds.add(taskId);
+  }
+  const goalTasks = goalTaskIds.size ? await db.select({ id: tasks.id, goalId: tasks.goalId, title: tasks.title }).from(tasks).where(sql`${tasks.id} IN ${[...goalTaskIds]}`) : [];
+  const goalIdByTask = new Map(goalTasks.filter((t) => t.goalId).map((t) => [t.id, t]));
+  const goalById = /* @__PURE__ */ new Map();
+  for (const task of goalTasks) {
+    if (task.goalId && !goalById.has(task.goalId)) {
+      goalById.set(task.goalId, { id: task.goalId, title: task.title });
+    }
+  }
+  const byGoalMap = /* @__PURE__ */ new Map();
+  for (const tx of transactions) {
+    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
+    const task = taskId ? goalIdByTask.get(taskId) : void 0;
+    const goalId = task?.goalId;
+    if (!goalId) continue;
+    const entry = byGoalMap.get(goalId) ?? {
+      title: goalById.get(goalId)?.title ?? "Untitled goal",
+      count: 0,
+      totalCost: 0,
+      taskCount: 0
+    };
+    entry.count += 1;
+    entry.totalCost += Math.abs(tx.amount);
+    if (taskId) entry.taskCount += 1;
+    byGoalMap.set(goalId, entry);
+  }
+  const byGoal = Array.from(byGoalMap.entries()).map(([goalId, data]) => ({ goalId, ...data })).sort((a, b) => b.totalCost - a.totalCost);
+  const byAgentMap = /* @__PURE__ */ new Map();
+  for (const tx of transactions) {
+    const agentId = tx.referenceType === "agent" ? tx.referenceId : null;
+    if (!agentId) continue;
+    byAgentMap.set(agentId, {
+      agentName: byAgentMap.get(agentId)?.agentName ?? "",
+      totalCost: (byAgentMap.get(agentId)?.totalCost ?? 0) + Math.abs(tx.amount)
+    });
+  }
+  const agentIds = [...byAgentMap.keys()];
+  if (agentIds.length > 0) {
+    const named = await db.select({ id: agents.id, name: agents.name }).from(agents).where(sql`${agents.id} IN ${agentIds}`);
+    for (const row of named) {
+      const entry = byAgentMap.get(row.id);
+      if (entry) entry.agentName = row.name;
+    }
+  }
+  const byAgent = Array.from(byAgentMap.entries()).map(([agentId, data]) => ({ agentId, ...data })).sort((a, b) => b.totalCost - a.totalCost);
   return {
     totalUsed: balance.used,
     byOperation,
-    byAgent: [],
+    byGoal,
+    byAgent,
     dailyUsage,
     period: { start: balance.periodStart, end: balance.periodEnd }
   };

@@ -1,8 +1,10 @@
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import {
+  agents,
   creditBalances,
   creditTransactions,
   subscriptions,
+  tasks,
   type Db,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
@@ -93,6 +95,9 @@ export interface CreditTransactionRecord {
 export interface CreditUsageSummary {
   totalUsed: number;
   byOperation: Array<{ type: string; count: number; totalCost: number }>;
+  /** Spend per goal, derived from the `task:<id>` usage lines' goals. */
+  byGoal: Array<{ goalId: string; title: string; count: number; totalCost: number; taskCount: number }>;
+  /** Spend attributed to an agent through `reference_type: 'agent'` usage lines. */
   byAgent: Array<{ agentId: string; agentName: string; totalCost: number }>;
   dailyUsage: Array<{ date: string; cost: number }>;
   period: { start: Date; end: Date };
@@ -524,10 +529,81 @@ export async function getUsageSummary(
     .map(([date, cost]) => ({ date, cost }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  // Spend per goal for this period, from the tasks that consumed it: a credit
+  // transaction carries no goal, but its usage line names the task that ran
+  // (`description: "task:<id>"`), and the task knows its goal.
+  const goalTaskIds = new Set<string>();
+  for (const tx of transactions) {
+    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
+    if (taskId) goalTaskIds.add(taskId);
+  }
+  const goalTasks = goalTaskIds.size
+    ? await db
+        .select({ id: tasks.id, goalId: tasks.goalId, title: tasks.title })
+        .from(tasks)
+        .where(sql`${tasks.id} IN ${[...goalTaskIds]}`)
+    : [];
+  const goalIdByTask = new Map(goalTasks.filter((t) => t.goalId).map((t) => [t.id, t]));
+  const goalById = new Map<string, { id: string; title: string }>();
+  for (const task of goalTasks) {
+    if (task.goalId && !goalById.has(task.goalId)) {
+      goalById.set(task.goalId, { id: task.goalId, title: task.title });
+    }
+  }
+
+  const byGoalMap = new Map<string, { title: string; count: number; totalCost: number; taskCount: number }>();
+  for (const tx of transactions) {
+    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
+    const task = taskId ? goalIdByTask.get(taskId) : undefined;
+    const goalId = task?.goalId;
+    if (!goalId) continue;
+    const entry = byGoalMap.get(goalId) ?? {
+      title: goalById.get(goalId)?.title ?? 'Untitled goal',
+      count: 0,
+      totalCost: 0,
+      taskCount: 0,
+    };
+    entry.count += 1;
+    entry.totalCost += Math.abs(tx.amount);
+    if (taskId) entry.taskCount += 1;
+    byGoalMap.set(goalId, entry);
+  }
+  const byGoal = Array.from(byGoalMap.entries())
+    .map(([goalId, data]) => ({ goalId, ...data }))
+    .sort((a, b) => b.totalCost - a.totalCost);
+
+  // Spend per employee for this period. Most usage lines do not name an agent,
+  // so fall back to the org's agents' own period spend (agents.cost is their
+  // lifetime total); both are real records, and the page shows which is which.
+  const byAgentMap = new Map<string, { agentName: string; totalCost: number }>();
+  for (const tx of transactions) {
+    const agentId = tx.referenceType === 'agent' ? tx.referenceId : null;
+    if (!agentId) continue;
+    byAgentMap.set(agentId, {
+      agentName: byAgentMap.get(agentId)?.agentName ?? '',
+      totalCost: (byAgentMap.get(agentId)?.totalCost ?? 0) + Math.abs(tx.amount),
+    });
+  }
+  const agentIds = [...byAgentMap.keys()];
+  if (agentIds.length > 0) {
+    const named = await db
+      .select({ id: agents.id, name: agents.name })
+      .from(agents)
+      .where(sql`${agents.id} IN ${agentIds}`);
+    for (const row of named) {
+      const entry = byAgentMap.get(row.id);
+      if (entry) entry.agentName = row.name;
+    }
+  }
+  const byAgent = Array.from(byAgentMap.entries())
+    .map(([agentId, data]) => ({ agentId, ...data }))
+    .sort((a, b) => b.totalCost - a.totalCost);
+
   return {
     totalUsed: balance.used,
     byOperation,
-    byAgent: [],
+    byGoal,
+    byAgent,
     dailyUsage,
     period: { start: balance.periodStart, end: balance.periodEnd },
   };
