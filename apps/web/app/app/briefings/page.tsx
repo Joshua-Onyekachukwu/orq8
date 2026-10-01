@@ -1,18 +1,20 @@
 "use client";
 
 /**
- * Briefing History (founder-facing) — browse every generated briefing by kind
- * (daily/weekly/monthly) with full section rendering.
+ * Briefings (docs/71 §L, marketing/headquarters-mock-v2.html
+ * `screen-briefings`).
  *
- * Wired to the real GET /v1/briefings read API (paginated, org-scoped, includes
- * content). Every section rendered comes from the persisted briefing content
- * written by the scheduled briefing job — nothing is re-generated, invented, or
- * placeholder-filled; a failed/empty briefing says so.
+ * The mock's composition: one card per briefing — period in the header, the
+ * **big stats row** (completed / failed / credits…), the notable sections,
+ * and a status line at the foot. Everything rendered comes from the persisted
+ * briefing content written by the scheduled job — nothing re-generated or
+ * invented; a quiet period says so, a failed briefing points at the job
+ * history that has the error.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
-import { Newspaper, RefreshCw, ChevronRight, CalendarDays, Loader2 } from "lucide-react";
+import { RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 
 interface BriefingSection {
   heading: string;
@@ -45,15 +47,26 @@ const KINDS = [
   { key: "monthly", label: "Monthly" },
 ] as const;
 
-const KIND_STYLES: Record<string, string> = {
-  daily: "bg-brand-deep/10 text-brand-ink",
-  weekly: "bg-brand-soft text-ink",
-  monthly: "bg-brand-soft text-ink",
-};
+/** Which stats get the mock's big-number treatment, in order. */
+const HEADLINE_STATS = ["completed", "failed", "creditsUsed", "tasksCreated"];
+
+function statLabel(key: string): string {
+  const map: Record<string, string> = {
+    completed: "Completed",
+    failed: "Failed",
+    tasksCreated: "Tasks created",
+    creditsUsed: "Credits used",
+    approvals: "Approvals",
+    gates: "Gates",
+    spend: "Spend",
+    founderTimeSaved: "Founder time saved",
+  };
+  return map[key] ?? key.replace(/([A-Z])/g, " $1").toLowerCase();
+}
 
 function periodLabel(row: BriefingRow): string {
   const fmt = (iso: string, withYear = false) =>
-    new Date(iso).toLocaleDateString(undefined, {
+    new Date(iso).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       ...(withYear ? { year: "numeric" } : {}),
@@ -69,77 +82,87 @@ function statusLabel(row: BriefingRow): string {
   return "generated";
 }
 
-function BriefingCard({ row, expanded, onToggle }: { row: BriefingRow; expanded: boolean; onToggle: () => void }) {
+function BriefingCard({ row }: { row: BriefingRow }) {
+  const [expanded, setExpanded] = useState(false);
   const sections = row.content?.sections ?? [];
+  const statsEntries = Object.entries(row.content?.stats ?? {}).filter(
+    ([, v]) => typeof v === "number",
+  );
+  const headline = statsEntries.filter(([k]) => HEADLINE_STATS.includes(k));
+  const rest = statsEntries.filter(([k]) => !HEADLINE_STATS.includes(k));
+  const failed = row.status === "failed";
+
   return (
-    <article className="rounded-xl border border-hairline bg-white p-5">
-      <button type="button" onClick={onToggle} className="flex w-full items-start justify-between gap-3 text-left" aria-expanded={expanded}>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase tracking-wide ${KIND_STYLES[row.kind] ?? "bg-muted/10 text-muted"}`}>
-              {row.kind}
-            </span>
-            <span className="inline-flex items-center gap-1 text-sm font-semibold text-ink">
-              <CalendarDays className="h-3.5 w-3.5 text-muted" />
-              {periodLabel(row)}
-            </span>
-            <span className="text-2xs text-muted">· {statusLabel(row)}</span>
-          </div>
-          {!expanded && sections.length > 0 && (
-            <p className="mt-1 truncate text-xs text-muted">
-              {sections[0]!.heading}: {sections[0]!.items.slice(0, 2).join(" · ")}
-            </p>
-          )}
-          {!expanded && row.content?.quiet && (
-            <p className="mt-1 text-xs text-muted italic">Quiet period — no significant activity.</p>
-          )}
-        </div>
-        <ChevronRight className={`mt-1 h-4 w-4 shrink-0 text-muted transition-transform ${expanded ? "rotate-90" : ""}`} />
-      </button>
+    <details className="console-card group overflow-hidden">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <span className="rounded-full border border-hairline px-2.5 py-1 font-mono text-3xs uppercase tracking-wide text-muted">
+          {row.kind}
+        </span>
+        <span className="text-sm font-semibold text-ink">Weekly briefing · {periodLabel(row)}</span>
+        <span className="font-mono text-2xs text-muted">{statusLabel(row)}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`ml-auto h-3.5 w-3.5 shrink-0 text-muted transition-transform group-open:rotate-180`}
+        />
+      </summary>
 
-      {expanded && (
-        <div className="mt-4 space-y-4 border-t border-hairline pt-4">
-          {row.status === "failed" ? (
-            <p className="text-xs text-error-ink">This briefing failed to generate — the job run history (/app/jobs) has the error detail.</p>
-          ) : row.content?.quiet ? (
-            <p className="text-xs text-muted italic">
-              No significant activity in this period. Stats are still real counts for the period.
-            </p>
-          ) : sections.length === 0 ? (
-            <p className="text-xs text-muted italic">No sections recorded in this briefing.</p>
-          ) : (
-            sections.map((s, i) => (
-              <div key={i}>
-                <h4 className="font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">{s.heading}</h4>
-                <ul className="mt-1.5 space-y-1">
-                  {s.items.map((item, j) => (
-                    <li key={j} className="flex items-start gap-2 text-xs leading-relaxed text-ink">
-                      <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-brand-deep" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+      <div className="border-t border-hairline px-5 py-4">
+        {failed ? (
+          <p className="text-xs text-error-ink">
+            This briefing failed to generate — the job run history (/app/jobs) has the error detail.
+          </p>
+        ) : row.content?.quiet ? (
+          <p className="text-xs text-muted">
+            Quiet period — no significant activity. The stats below are still the real counts for
+            the period.
+          </p>
+        ) : sections.length === 0 && statsEntries.length === 0 ? (
+          <p className="text-xs text-muted">No sections recorded in this briefing.</p>
+        ) : null}
+
+        {headline.length > 0 && (
+          <div className="flex flex-wrap gap-x-8 gap-y-3">
+            {headline.map(([key, value]) => (
+              <div key={key} className="min-w-[64px] flex-1">
+                <p className="font-mono text-lg font-semibold tabular-nums text-ink">{value}</p>
+                <p className="font-mono text-3xs uppercase tracking-wide text-muted">
+                  {statLabel(key)}
+                </p>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+        )}
 
-          {row.content?.stats && Object.keys(row.content.stats).length > 0 && (
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline sm:grid-cols-4">
-              {Object.entries(row.content.stats)
-                .filter(([, v]) => typeof v === "number")
-                .map(([k, v]) => (
-                  <div key={k} className="bg-white px-3 py-2">
-                    <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">
-                      {k.replace(/([A-Z])/g, " $1").toLowerCase()}
-                    </dt>
-                    <dd className="mt-0.5 font-mono text-xs font-medium tabular-nums text-ink">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-          )}
-        </div>
-      )}
-    </article>
+        {sections.map((section, i) => (
+          <div key={i} className={i === 0 && headline.length > 0 ? "mt-4" : "mt-4 first:mt-0"}>
+            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              {section.heading}
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {section.items.map((item, j) => (
+                <li key={j} className="flex items-start gap-2 text-xs leading-relaxed text-ink">
+                  <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-mark-active" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        {rest.length > 0 && (
+          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+            {rest.map(([key, value]) => (
+              <div key={key}>
+                <dt className="font-mono text-3xs uppercase tracking-wide text-muted">
+                  {statLabel(key)}
+                </dt>
+                <dd className="font-mono text-xs tabular-nums text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -148,10 +171,8 @@ export default function BriefingsPage() {
   const [kind, setKind] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [total, setTotal] = useState(0);
-  const firstLoad = useRef(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,7 +189,6 @@ export default function BriefingsPage() {
       setError(err instanceof Error ? err.message : "Failed to load briefings");
     } finally {
       setLoading(false);
-      firstLoad.current = false;
     }
   }, [kind, limit]);
 
@@ -178,88 +198,85 @@ export default function BriefingsPage() {
 
   return (
     <PageErrorBoundary pageName="Briefings" backHref="/app">
-      <div className="mx-auto max-w-4xl">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+      <div className="space-y-4">
+        <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
           <div>
-            <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
-              Executive briefings · generated on schedule from real activity
+            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Executive briefings
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              Briefing History
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              Every daily, weekly and monthly executive briefing your organization has produced — full sections, real
-              numbers, exactly as delivered.
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Briefings</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Weekly and monthly reports, written by Atlas from real activity, acknowledged by you.
             </p>
           </div>
           <button
             type="button"
             onClick={load}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated disabled:opacity-40"
           >
-            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
           </button>
         </header>
 
         {/* Kind filter */}
-        <div className="mt-6 flex flex-wrap items-center gap-2" role="tablist" aria-label="Filter briefings by kind">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter briefings by kind">
           {KINDS.map((k) => (
             <button
               key={k.key}
               type="button"
-              role="tab"
-              aria-selected={kind === k.key}
+              aria-pressed={kind === k.key}
               onClick={() => setKind(k.key)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                kind === k.key ? "ink text-white" : "border border-hairline bg-white text-ink hover:bg-canvas"
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                kind === k.key
+                  ? "border-hairline-strong bg-elevated text-ink"
+                  : "border-hairline text-muted hover:border-hairline-strong hover:text-ink"
               }`}
             >
               {k.label}
             </button>
           ))}
           {!loading && (
-            <span className="ml-auto text-xs text-muted" aria-live="polite">
+            <span className="ml-auto self-center font-mono text-2xs text-muted" aria-live="polite">
               {total} briefing{total !== 1 ? "s" : ""}
             </span>
           )}
         </div>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">{error}</div>
-        )}
-
-        {loading && (
-          <div className="mt-6 flex items-center justify-center gap-2 py-10 text-sm text-muted">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading briefings…
+          <div className="rounded-lg border border-hairline bg-error-soft/40 px-3.5 py-2.5 text-sm text-error-ink">
+            {error}
           </div>
         )}
 
-        {!loading && !error && rows.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed border-hairline bg-white p-10 text-center">
-            <Newspaper className="mx-auto h-10 w-10 text-muted/30" />
-            <p className="mt-4 text-sm font-medium text-ink">No briefings yet</p>
-            <p className="mt-1 text-sm text-muted max-w-md mx-auto">
-              Briefings are generated on schedule (daily, weekly, monthly) from your organization&apos;s real activity.
-              Once the first one lands, it appears here in full.
+        {loading ? (
+          <div className="console-card flex items-center gap-3 p-6">
+            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-muted" />
+            <p className="text-sm text-muted">Loading briefings…</p>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="console-card p-10 text-center">
+            <p className="text-sm font-medium text-ink">No briefings yet</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-muted">
+              Briefings are generated on schedule — daily, weekly, monthly — from your
+              organization&apos;s real activity. Once the first one lands, it appears here in full.
             </p>
           </div>
-        ) : null}
-
-        {!loading && rows.length > 0 && (
-          <div className="mt-6 space-y-3">
+        ) : (
+          <div className="space-y-3">
             {rows.map((row) => (
-              <BriefingCard key={row.id} row={row} expanded={expandedId === row.id} onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)} />
+              <BriefingCard key={row.id} row={row} />
             ))}
           </div>
         )}
 
         {!loading && rows.length < total && (
-          <div className="mt-6 text-center">
+          <div className="text-center">
             <button
               type="button"
               onClick={() => setLimit((l) => l + 12)}
-              className="rounded-full border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas"
+              className="rounded-full border border-hairline px-4 py-2 text-xs text-muted transition-colors hover:border-hairline-strong hover:text-ink"
             >
               Show more ({total - rows.length} remaining)
             </button>
