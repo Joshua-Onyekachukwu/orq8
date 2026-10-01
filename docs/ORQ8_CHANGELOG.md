@@ -1,5 +1,12 @@
 # ORQ8 Changelog
 
+## 2026-10-01 — Departments joins the console, a founder guide, and light mode walked page by page
+
+- **Departments is the mock's department board (`/app/departments`).** Card per department: tile initial, lead line, a state chip computed from live member states (working count / needs-you / blocked / idle), description, then the mock's member rows — avatar, name, role · state, Cr/wk — from real `/api/agents` rows grouped by each employee's *current* department (FK wins over the legacy text column). Capacity / teams / utilization come from workforce. The dashed "**Ask Atlas to hire into X**" row hands off to the Employees hire modal with the department preselected (sessionStorage handoff); "Hire from template", the stage-filtered catalog, create / edit / archive / delete, search and paging all survive, console-styled. The mock's new-department tile ends the grid.
+- **Founder return guide** ([FOUNDER-GUIDE.md](../FOUNDER-GUIDE.md)) — boot, login, a five-minute click-through of what changed, health checks, and the honest open list. The changelog's final test total is corrected to **1,165** (was 1,140).
+- **Light mode walked page by page.** New `scripts/theme-walk.mjs` visits all 37 routes in **both** themes and fails on white blocks (dark), black text, white-on-light ink, and dark-canvas bleed (light): **74/74 route-theme pairs clean**. It caught one real defect: the top-bar attention badge labelled its warm fill `text-ink-surface`, which the console light block re-points to white — white on orange at 3.4:1. The badge now uses the designed `text-on-warm` / `text-on-error` pairs (5.4:1 in light, correct in dark).
+- **Verified:** typecheck clean; web build green; route sweep 37/37 (1440 + 375); both content audits clean; contrast audit pass; the badge fix verified live in light mode.
+
 ## 2026-10-01 — The last mock screens: budgets, memory, files, briefings, notifications, integrations, constitution, settings
 
 - **Budgets is the mock's two ledgers (`/app/budgets`).** The reservation policy stated where the meters are, the company meter, then by-goal (spend derived from real `task:<id>` usage lines) and by-employee rows with used/cap figures. Along the way defect 15 fell out: the usage summary's `byAgent` was never populated and the page read a `daily` field the API never returned — the 7-day chart had never once rendered. Both fixed in `credits.ts`.

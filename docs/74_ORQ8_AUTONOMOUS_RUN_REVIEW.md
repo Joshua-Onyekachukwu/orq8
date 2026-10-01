@@ -111,6 +111,20 @@ attention and traces are not empty.
    console** (it sat outside it, so dark mode stopped at its edge): cards,
    warm CTAs, lime switches, quiet tab pills. Profile, export, mail
    self-diagnosis and notification prefs all functional.
+17. **Departments list** (`/app/departments`) — the last heavy legacy screen,
+   rewritten to the mock's `screen-departments`: department cards with tile
+   initials, state chips computed from live member states, per-employee
+   member rows (name, role · state, Cr/wk) from `/api/agents`, capacity /
+   teams / utilization from workforce, the dashed "Ask Atlas to hire into X"
+   row (hands off to the Employees hire modal preselected), and the mock's
+   new-department tile. Catalog with stage filters, template hire, create /
+   edit / archive / delete, search + paging — all kept, all console-styled.
+18. **Light-mode page-by-page walk** — every console route measured in both
+   themes with the new `scripts/theme-walk.mjs` (**74/74 route-theme pairs
+   clean**). One real defect found and fixed: the top-bar attention badge
+   labelled its warm fill with `text-ink-surface`, which the console light
+   block re-points to white — white on orange at 3.4:1. It now uses the
+   designed `text-on-warm` / `text-on-error` pairs (5.4:1 in light).
 
 ---
 
