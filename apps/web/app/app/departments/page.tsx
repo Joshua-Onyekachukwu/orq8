@@ -3,18 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
-  GitBranch,
-  Users,
   AlertCircle,
+  Archive,
+  Building2,
+  Loader2,
+  Plus,
   RefreshCw,
   Search,
   Settings,
-  X,
-  Loader2,
-  Building2,
-  Plus,
-  Archive,
   Trash2,
+  X,
 } from "lucide-react";
 
 interface Department {
@@ -26,6 +24,41 @@ interface Department {
   status: string;
   agentCount: number;
   activeCount: number;
+}
+
+/** One row of `/api/agents` — only what the member list renders. */
+interface AgentRow {
+  id: string;
+  name: string;
+  role: string;
+  department: string | null;
+  departmentName?: string | null;
+  status: string;
+  currentTask?: string | null;
+  weeklyCost: number;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  department: string | null;
+  agentCount: number;
+  activeCount: number;
+  lead: string | null;
+}
+
+interface WorkforceCoverage {
+  departmentId: string;
+  departmentName: string;
+  agentCount: number;
+  activeAgentCount: number;
+  totalCapacityHours: number;
+  totalWorkloadHours: number;
+  utilizationPct: number;
+  coverageStatus: string;
+  coveragePct: number;
+  teamCount: number;
+  capabilityGap: string[];
 }
 
 interface DeptTemplate {
@@ -69,31 +102,61 @@ const STAGE_FILTERS: Array<{ value: number; label: string }> = [
   { value: 5, label: "Stage 5 · Enterprise" },
 ];
 
-interface WorkforceCoverage {
-  departmentId: string;
-  departmentName: string;
-  agentCount: number;
-  activeAgentCount: number;
-  totalCapacityHours: number;
-  totalWorkloadHours: number;
-  utilizationPct: number;
-  coverageStatus: string;
-  coveragePct: number;
-  teamCount: number;
-  capabilityGap: string[];
+function roleLabel(role: string | null | undefined): string {
+  const r = (role ?? "").replace(/_/g, " ").trim();
+  if (!r) return "Employee";
+  return r.charAt(0).toUpperCase() + r.slice(1);
 }
 
-interface Team {
-  id: string;
-  name: string;
-  department: string | null;
-  agentCount: number;
-  activeCount: number;
-  lead: string | null;
+/** Human label for an employee's state: a busy employee is working. */
+function memberStatusText(a: AgentRow): string {
+  switch (a.status) {
+    case "paused":
+      return "Paused";
+    case "offline":
+    case "archived":
+      return "Offline";
+    case "blocked":
+      return "Blocked";
+    case "waiting":
+      return "Needs you";
+    default:
+      return a.currentTask ? "Working" : "Idle";
+  }
+}
+
+function memberStatusDot(a: AgentRow): string | undefined {
+  switch (a.status) {
+    case "blocked":
+      return "blocked";
+    case "waiting":
+      return "waiting";
+    default:
+      return a.currentTask && a.status !== "paused" && a.status !== "offline" && a.status !== "archived" ? "working" : undefined;
+  }
+}
+
+/** The department chip: the strongest signal across its members. */
+function deptChip(dept: Department, members: AgentRow[]): { state?: string; label: string } {
+  if (dept.status === "archived") return { label: "Archived" };
+  if (dept.status === "paused") return { label: "Paused" };
+  if (members.length === 0) return { label: "Empty" };
+  const working = members.filter((m) => memberStatusDot(m) === "working").length;
+  if (working > 0) return { state: "working", label: `${working} working` };
+  const waiting = members.filter((m) => m.status === "waiting").length;
+  if (waiting > 0) return { state: "waiting", label: "Needs you" };
+  const blocked = members.filter((m) => m.status === "blocked").length;
+  if (blocked > 0) return { state: "blocked", label: `${blocked} blocked` };
+  return { label: "Idle" };
+}
+
+function fmtCr(cents: number | null | undefined): string {
+  return `${Math.round(cents ?? 0).toLocaleString()} Cr/wk`;
 }
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [agents, setAgents] = useState<AgentRow[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [workforce, setWorkforce] = useState<WorkforceCoverage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +236,7 @@ export default function DepartmentsPage() {
       const name = deptTemplates.find((t) => t.id === templateId)?.name ?? "Department";
       setJustActivated(name);
       setShowDeptCatalog(false);
-      await fetchDepartments();
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     } finally {
@@ -218,7 +281,7 @@ export default function DepartmentsPage() {
       setSelectedTemplate(null);
       setHireName("");
       setTemplateDeptId(null);
-      fetchDepartments();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to hire from template");
     } finally {
@@ -226,7 +289,7 @@ export default function DepartmentsPage() {
     }
   };
 
-  const fetchDepartments = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -235,10 +298,11 @@ export default function DepartmentsPage() {
       const deptQs = debouncedSearch.trim()
         ? `limit=200&q=${encodeURIComponent(debouncedSearch.trim())}`
         : `limit=${DEPT_PAGE_SIZE}&offset=${offset}`;
-      const [res, teamsRes, workforceRes] = await Promise.all([
+      const [res, teamsRes, workforceRes, agentsRes] = await Promise.all([
         fetch(`/api/departments?${deptQs}`),
         fetch("/api/teams?limit=1000"),
         fetch("/api/workforce"),
+        fetch("/api/agents?limit=200"),
       ]);
       if (!res.ok) throw new Error("Failed to fetch departments");
       const json = await res.json();
@@ -252,6 +316,10 @@ export default function DepartmentsPage() {
         const wfJson = await workforceRes.json();
         setWorkforce(wfJson.data?.departments ?? []);
       }
+      if (agentsRes.ok) {
+        const agentsJson = await agentsRes.json();
+        setAgents(agentsJson.data ?? []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load departments");
     } finally {
@@ -259,7 +327,7 @@ export default function DepartmentsPage() {
     }
   }, [debouncedSearch, offset]);
 
-  useEffect(() => { fetchDepartments(); }, [fetchDepartments]);
+  useEffect(() => { load(); }, [load]);
 
   // Debounce search input so typing doesn't fire a request per keystroke.
   useEffect(() => {
@@ -275,6 +343,17 @@ export default function DepartmentsPage() {
       fetchTemplates(templateDeptId);
     }
   }, [showTemplateModal, templateDeptId]);
+
+  // The mock's "Ask Atlas to hire into X" row hands off to the Employees page:
+  // its hire modal opens with the department preselected.
+  const askAtlasToHire = (dept: Department) => {
+    try {
+      sessionStorage.setItem("orq8-hire-dept", dept.name ?? "");
+    } catch {
+      /* storage unavailable — the hire modal just opens without preselection */
+    }
+    window.location.href = "/app/agents";
+  };
 
   const openEdit = (dept: Department) => {
     setEditingDept(dept);
@@ -308,7 +387,7 @@ export default function DepartmentsPage() {
       setCreateDesc("");
       setCreateHead("");
       setCreateBudget("");
-      fetchDepartments();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create department");
     } finally {
@@ -335,7 +414,7 @@ export default function DepartmentsPage() {
         throw new Error(json?.error?.message ?? "Failed to update department");
       }
       setEditingDept(null);
-      fetchDepartments();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -361,7 +440,7 @@ export default function DepartmentsPage() {
         throw new Error(json?.error?.message ?? "Action failed");
       }
       setConfirmDept(null);
-      fetchDepartments();
+      load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -369,615 +448,659 @@ export default function DepartmentsPage() {
     }
   };
 
+  // Derived views: members and teams per department, resolved through the
+  // agent row's current department name (the FK wins over the legacy label).
+  const deptName = (d: Department) => d.name ?? "";
+  const membersOf = new Map<string, AgentRow[]>();
+  for (const a of agents) {
+    const key = a.departmentName ?? a.department ?? "";
+    if (!key) continue;
+    const list = membersOf.get(key) ?? [];
+    list.push(a);
+    membersOf.set(key, list);
+  }
+  const teamsOf = new Map<string, Team[]>();
+  for (const t of teams) {
+    const key = t.department ?? "";
+    if (!key) continue;
+    const list = teamsOf.get(key) ?? [];
+    list.push(t);
+    teamsOf.set(key, list);
+  }
+  const wfOf = new Map(workforce.map((w) => [w.departmentId, w]));
+  const teamsCount = teams.length;
+  const teamsDeptCount = new Set(teams.map((t) => t.department ?? "")).size;
+
   return (
     <PageErrorBoundary pageName="Departments" backHref="/app">
-    <div className="mx-auto max-w-4xl">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
-            Organization
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            Departments
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Founder-managed directly — no Executive Agent required. Each department groups AI employees by function and controls their budgets.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            aria-label="Refresh departments" onClick={fetchDepartments}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-50"
-          >
-            <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => { setShowTemplateModal(true); setTemplateDeptId(null); }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-brand-deep/30 bg-brand-deep/5 px-4 py-2 text-xs font-semibold text-brand-ink transition-colors hover:bg-brand-deep/10"
-          >
-            <Plus className="h-3.5 w-3.5" /> Hire from Template
-          </button>
-          <button
-            type="button"
-            onClick={() => { setShowDeptCatalog(true); fetchDeptTemplates(); }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-warm/30 bg-warm/5 px-4 py-2 text-xs font-semibold text-warm-ink transition-colors hover:bg-warm/10"
-          >
-            <Building2 className="h-3.5 w-3.5" /> Add from catalog
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
-          >
-            <Plus className="h-3.5 w-3.5" /> Create department
-          </button>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
-          <p className="text-sm text-error-ink">{error}</p>
-          <button type="button" onClick={() => setError(null)} className="ml-auto text-xs text-error-ink hover:text-error-ink">Dismiss</button>
-        </div>
-      )}
-
-      {/* Teams access — Organization → Department → Teams → AI employees */}
-      {!loading && (
-        <a
-          href="/app/teams"
-          className="mt-6 flex items-center gap-4 rounded-xl border border-hairline bg-white p-4 transition-colors hover:border-brand-deep/40"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ink text-brand-ink">
-            <GitBranch className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-ink">Teams</p>
-            <p className="text-xs text-muted">
-              {teams.length === 0
-                ? "No teams yet — teams group AI employees inside departments for focused work."
-                : `${teams.length} team${teams.length !== 1 ? "s" : ""} · ${teams.reduce((sum, t) => sum + t.agentCount, 0)} member${teams.reduce((sum, t) => sum + t.agentCount, 0) !== 1 ? "s" : ""} across ${new Set(teams.map((t) => t.department ?? "")).size} department${new Set(teams.map((t) => t.department ?? "")).size !== 1 ? "s" : ""}`}
+      <div className="space-y-4">
+        <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
+          <div>
+            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Organization
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Departments</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted">
+              Each department is a team Atlas staffs and directs. Budgets and leads are set by
+              authority rules.
             </p>
           </div>
-          <span className="text-xs font-medium text-brand-ink">
-            {teams.length === 0 ? "Create a team →" : "Manage teams →"}
-          </span>
-        </a>
-      )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowDeptCatalog(true); fetchDeptTemplates(); }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated"
+            >
+              <Building2 aria-hidden="true" className="h-3.5 w-3.5" /> Add from catalog
+            </button>
+            <button
+              type="button"
+              aria-label="Refresh departments"
+              onClick={load}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated disabled:opacity-40"
+            >
+              <RefreshCw aria-hidden="true" className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+              style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+            >
+              <Plus aria-hidden="true" className="h-3.5 w-3.5" /> New department
+            </button>
+          </div>
+        </header>
 
-      {loading && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-xl border border-hairline bg-white p-5">
-              <div className="h-4 w-1/2 rounded bg-hairline" />
-              <div className="mt-3 h-3 w-1/3 rounded bg-hairline" />
-              <div className="mt-3 h-16 rounded bg-hairline" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loading && departments.length === 0 && (
-        <div className="mt-6 rounded-xl border border-dashed border-hairline bg-white p-10 text-center">
-          <Building2 className="mx-auto h-10 w-10 text-muted/30" />
-          <p className="mt-4 text-sm font-medium text-ink">No departments yet</p>
-          <p className="mt-1 text-sm text-muted max-w-md mx-auto">
-            Create your first department directly, or let departments form when you assign agents during hiring.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand"
-          >
-            <Plus className="h-3.5 w-3.5" /> Create department
-          </button>
-        </div>
-      )}
-
-      {/* §22 scale controls — server-side search + pagination */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search departments…"
-            aria-label="Search departments"
-            className="w-full rounded-full border border-hairline bg-white py-2 pl-9 pr-3 text-xs text-ink outline-none transition-colors focus:border-brand-deep"
-          />
-        </div>
-        {!loading && (
-          <p className="text-xs text-muted" aria-live="polite">
-            {debouncedSearch.trim()
-              ? `${total} match${total !== 1 ? "es" : ""} for “${debouncedSearch.trim()}”${total > 200 ? " — showing the first 200" : ""}`
-              : total > 0
-                ? `${total} department${total !== 1 ? "s" : ""}`
-                : ""}
-          </p>
+        {error && (
+          <div className="console-card flex items-start gap-3 border-border-error p-4 text-sm text-error-ink">
+            <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="min-w-0 flex-1">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="shrink-0 text-xs text-error-ink hover:underline">
+              Dismiss
+            </button>
+          </div>
         )}
-      </div>
 
-      {!loading && departments.length === 0 && debouncedSearch.trim() && (
-        <div className="mt-6 rounded-xl border border-dashed border-hairline bg-white p-8 text-center">
-          <p className="text-sm font-medium text-ink">No departments match “{debouncedSearch.trim()}”</p>
-          <button
-            type="button"
-            onClick={() => setSearch("")}
-            className="mt-2 text-xs font-medium text-brand-ink hover:underline"
-          >
-            Clear search
-          </button>
-        </div>
-      )}
-
-      {!loading && departments.length > 0 && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {departments.map((dept) => (
-            <article key={dept.id} className="rounded-xl border border-hairline bg-white p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ink text-sm font-bold text-brand-ink">
-                    <GitBranch className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-semibold text-ink">
-                      <a href={`/app/departments/${dept.id}`} className="transition-colors hover:text-brand-ink hover:underline">
-                        {dept.name}
-                      </a>
-                    </h2>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {(() => {
-                        const wf = workforce.find((w) => w.departmentId === dept.id);
-                        if (!wf) return null;
-                        const badge = wf.coverageStatus === 'healthy'
-                          ? { bg: 'bg-brand-soft', text: 'text-brand-ink', border: 'border-brand-soft', icon: '🟢' }
-                          : wf.coverageStatus === 'near_capacity'
-                          ? { bg: 'bg-warm-soft', text: 'text-warm-ink', border: 'border-warm', icon: '🟡' }
-                          : wf.coverageStatus === 'over_capacity'
-                          ? { bg: 'bg-error-soft', text: 'text-error-ink', border: 'border-border-error', icon: '🔴' }
-                          : { bg: 'bg-surface-secondary', text: 'text-ink-muted', border: 'border-hairline', icon: '⚪' };
-                        return (
-                          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium ${badge.bg} ${badge.text} ${badge.border}`}>
-                            {badge.icon} {wf.coveragePct}% coverage
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <p className="text-xs text-muted mt-1">
-                      {dept.agentCount} agent{dept.agentCount !== 1 ? "s" : ""}
-                      {" · "}
-                      {dept.activeCount} active
-                      {" · "}
-                      <a
-                        href="/app/teams"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-0.5 text-brand-ink hover:underline"
-                      >
-                        {teams.filter((t) => t.department === dept.name).length} team
-                        {teams.filter((t) => t.department === dept.name).length !== 1 ? "s" : ""}
-                      </a>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(dept)}
-                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-ink"
-                    title="Configure department"
-                    aria-label={`Configure ${dept.name}`}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setConfirmDept(dept); setConfirmAction(dept.status === "archived" ? "delete" : "archive"); }}
-                    className="rounded-lg p-2 text-muted transition-colors hover:bg-canvas hover:text-error-ink"
-                    title={dept.status === "archived" ? "Delete department" : "Archive department"}
-                    aria-label={`Archive ${dept.name}`}
-                  >
-                    {dept.status === "archived" ? <Trash2 className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {dept.description && (
-                <p className="mt-3 text-xs text-muted leading-relaxed">{dept.description}</p>
+        {/* §22 scale controls — server-side search + pagination */}
+        {!loading && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="relative w-full max-w-xs">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search departments…"
+                aria-label="Search departments"
+                className="console-composer w-full rounded-md py-2 pl-9 pr-3 text-xs"
+              />
+            </div>
+            <p className="font-mono text-2xs uppercase tracking-wide text-muted" aria-live="polite">
+              {debouncedSearch.trim()
+                ? `${total} match${total !== 1 ? "es" : ""} for “${debouncedSearch.trim()}”${total > 200 ? " — showing the first 200" : ""}`
+                : `${total} department${total !== 1 ? "s" : ""}`}
+              {teamsCount > 0 && (
+                <>
+                  {" · "}
+                  <a href="/app/teams" className="normal-case hover:text-ink hover:underline">
+                    {teamsCount} team{teamsCount !== 1 ? "s" : ""} in {teamsDeptCount} dept{teamsDeptCount !== 1 ? "s" : ""} — manage
+                  </a>
+                </>
               )}
+            </p>
+          </div>
+        )}
 
-              <div className="mt-3 flex flex-wrap items-center gap-4">
-                <a
-                  href={`/app/departments/${dept.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink transition-colors hover:text-brand"
-                >
-                  <GitBranch className="h-3 w-3" /> Open workspace
-                </a>
-                <button
-                  type="button"
-                  onClick={() => { setShowTemplateModal(true); setTemplateDeptId(dept.id); }}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-ink transition-colors hover:text-brand"
-                >
-                  <Plus className="h-3 w-3" /> Hire from Template
-                </button>
+        {loading && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="console-card animate-pulse p-5">
+                <div className="h-4 w-1/2 rounded bg-hairline" />
+                <div className="mt-3 h-3 w-1/3 rounded bg-hairline" />
+                <div className="mt-3 h-16 rounded bg-hairline" />
               </div>
+            ))}
+          </div>
+        )}
 
-              {dept.budget != null && dept.budget > 0 && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-3xs mb-1">
-                    <span className="text-muted uppercase font-semibold tracking-wide">Budget utilization</span>
-                    <span className="font-mono text-muted">{dept.agentCount} agents · {dept.activeCount} active</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-hairline overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-brand-deep transition-all"
-                      style={{ width: `${Math.min((dept.activeCount / Math.max(dept.agentCount, 1)) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline">
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Capacity</dt>
-                  <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
-                    {(() => {
-                      const wf = workforce.find((w) => w.departmentId === dept.id);
-                      return wf ? `${Math.round(wf.totalWorkloadHours)}h / ${Math.round(wf.totalCapacityHours)}h` : `${dept.agentCount} agents`;
-                    })()}
-                  </dd>
-                </div>
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Teams</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-ink">
-                    {(() => {
-                      const wf = workforce.find((w) => w.departmentId === dept.id);
-                      const teamCount = wf?.teamCount ?? teams.filter((t) => t.department === dept.name).length;
-                      return teamCount > 0 ? teamCount : "—";
-                    })()}
-                  </dd>
-                </div>
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">Utilization</dt>
-                  <dd className="mt-0.5 text-xs font-medium text-ink">
-                    {(() => {
-                      const wf = workforce.find((w) => w.departmentId === dept.id);
-                      return wf ? `${wf.utilizationPct}%` : (dept.agentCount > 0 ? `${Math.round((dept.activeCount / dept.agentCount) * 100)}%` : "—");
-                    })()}
-                  </dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {/* Pagination — only when browsing (not searching) and more pages exist */}
-      {!loading && !debouncedSearch.trim() && total > DEPT_PAGE_SIZE && (
-        <nav className="mt-6 flex items-center justify-between" aria-label="Departments pagination">
-          <button
-            type="button"
-            onClick={() => setOffset(Math.max(0, offset - DEPT_PAGE_SIZE))}
-            disabled={offset === 0}
-            className="rounded-full border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-40"
-          >
-            ← Previous
-          </button>
-          <span className="font-mono text-2xs tabular-nums text-muted">
-            {offset + 1}–{Math.min(offset + DEPT_PAGE_SIZE, total)} of {total}
-          </span>
-          <button
-            type="button"
-            onClick={() => setOffset(offset + DEPT_PAGE_SIZE)}
-            disabled={offset + DEPT_PAGE_SIZE >= total}
-            className="rounded-full border border-hairline bg-white px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-canvas disabled:opacity-40"
-          >
-            Next →
-          </button>
-        </nav>
-      )}
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-              <h2 className="text-lg font-semibold text-ink">Create Department</h2>
-              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
-                <X className="h-5 w-5" />
+        {!loading && departments.length === 0 && !debouncedSearch.trim() && (
+          <div className="console-card p-10 text-center">
+            <Building2 aria-hidden="true" className="mx-auto h-8 w-8 text-muted/40" />
+            <p className="mt-3 text-sm font-medium text-ink">No departments yet</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-muted">
+              Create your first department directly, activate a ready-made one from the catalog, or
+              let departments form when you hire AI employees.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowDeptCatalog(true); fetchDeptTemplates(); }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated"
+              >
+                <Building2 aria-hidden="true" className="h-3.5 w-3.5" /> Add from catalog
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated"
+              >
+                <Plus aria-hidden="true" className="h-3.5 w-3.5" /> Create department
               </button>
             </div>
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Name *</label>
-                <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Marketing, Engineering" required className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
+          </div>
+        )}
+
+        {!loading && departments.length === 0 && debouncedSearch.trim() && (
+          <div className="console-card p-8 text-center">
+            <p className="text-sm text-ink">No departments match “{debouncedSearch.trim()}”</p>
+            <button type="button" onClick={() => setSearch("")} className="mt-2 text-xs font-medium text-ink-muted hover:text-ink hover:underline">
+              Clear search
+            </button>
+          </div>
+        )}
+
+        {!loading && departments.length > 0 && (
+          <ul className="grid gap-4 md:grid-cols-2">
+            {departments.map((dept) => {
+              const members = membersOf.get(deptName(dept)) ?? [];
+              const chip = deptChip(dept, members);
+              const wf = wfOf.get(dept.id);
+              const deptTeams = teamsOf.get(deptName(dept)) ?? [];
+              const utilization = wf
+                ? `${wf.utilizationPct}%`
+                : dept.agentCount > 0
+                  ? `${Math.round((dept.activeCount / dept.agentCount) * 100)}%`
+                  : "—";
+              return (
+                <li key={dept.id} className="console-card flex flex-col p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md font-mono text-sm font-semibold"
+                        style={{ backgroundColor: "var(--console-tile)", color: "var(--console-tile-text)" }}
+                      >
+                        {(dept.name ?? "?").charAt(0).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="truncate text-sm font-semibold text-ink">
+                          <a href={`/app/departments/${dept.id}`} className="transition-colors hover:underline">
+                            {dept.name ?? "Untitled department"}
+                          </a>
+                        </h2>
+                        <p className="mt-0.5 truncate text-xs text-muted">
+                          {dept.head ? `Lead: ${dept.head}` : "No lead assigned"}
+                          {dept.budget != null && dept.budget > 0 && ` · ${dept.budget.toLocaleString()} Cr budget`}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 font-mono text-2xs uppercase tracking-wide text-muted">
+                      <span className="state-dot" data-state={chip.state} aria-hidden="true" />
+                      {chip.label}
+                    </span>
+                  </div>
+
+                  {dept.description && (
+                    <p className="mt-3 text-xs leading-relaxed text-muted">{dept.description}</p>
+                  )}
+
+                  {/* Members — the mock's dm rows: who staffs this department */}
+                  {members.length > 0 ? (
+                    <div className="mt-3 border-t border-hairline pt-2">
+                      {members.slice(0, 4).map((m) => (
+                        <div key={m.id} className="flex items-center gap-2.5 py-1.5">
+                          <span
+                            aria-hidden="true"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-2xs font-semibold"
+                            style={{ backgroundColor: "var(--console-tile)", color: "var(--console-tile-text)" }}
+                          >
+                            {m.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">{m.name}</span>
+                          <span className="hidden shrink-0 text-2xs text-muted sm:inline">
+                            {roleLabel(m.role)} · {memberStatusText(m)}
+                          </span>
+                          <span
+                            className="state-dot shrink-0"
+                            data-state={memberStatusDot(m)}
+                            aria-label={memberStatusText(m)}
+                            title={memberStatusText(m)}
+                          />
+                          <span className="shrink-0 font-mono text-2xs tabular-nums text-muted">{fmtCr(m.weeklyCost)}</span>
+                        </div>
+                      ))}
+                      {members.length > 4 && (
+                        <p className="pt-1 text-2xs text-muted">+{members.length - 4} more in this department</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-3 border-t border-hairline pt-3 text-xs text-muted">
+                      No employees yet — hire to staff this department.
+                    </p>
+                  )}
+
+                  <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-hairline pt-3">
+                    <div>
+                      <dt className="font-mono text-2xs uppercase tracking-wide text-muted">Capacity</dt>
+                      <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">
+                        {wf ? `${Math.round(wf.totalWorkloadHours)}h / ${Math.round(wf.totalCapacityHours)}h` : `${dept.agentCount} agent${dept.agentCount !== 1 ? "s" : ""}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-mono text-2xs uppercase tracking-wide text-muted">Teams</dt>
+                      <dd className="mt-0.5 text-xs font-medium text-ink">{(wf?.teamCount ?? deptTeams.length) > 0 ? (wf?.teamCount ?? deptTeams.length) : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-mono text-2xs uppercase tracking-wide text-muted">Utilization</dt>
+                      <dd className="mt-0.5 text-xs font-medium tabular-nums text-ink">{utilization}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <a
+                      href={`/app/departments/${dept.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated"
+                    >
+                      Open workspace
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => { setShowTemplateModal(true); setTemplateDeptId(dept.id); }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated"
+                    >
+                      Hire from template
+                    </button>
+                    <span className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(dept)}
+                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink"
+                        title="Configure department"
+                        aria-label={`Configure ${dept.name ?? "department"}`}
+                      >
+                        <Settings aria-hidden="true" className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setConfirmDept(dept); setConfirmAction(dept.status === "archived" ? "delete" : "archive"); }}
+                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-error-ink"
+                        title={dept.status === "archived" ? "Delete department" : "Archive department"}
+                        aria-label={dept.status === "archived" ? `Delete ${dept.name ?? "department"}` : `Archive ${dept.name ?? "department"}`}
+                      >
+                        {dept.status === "archived" ? <Trash2 aria-hidden="true" className="h-4 w-4" /> : <Archive aria-hidden="true" className="h-4 w-4" />}
+                      </button>
+                    </span>
+                  </div>
+
+                  {/* The mock's dnew row — hands off to the Employees hire modal */}
+                  <button
+                    type="button"
+                    onClick={() => askAtlasToHire(dept)}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-hairline-strong px-3 py-2 text-xs text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+                  >
+                    <Plus aria-hidden="true" className="h-3.5 w-3.5" /> Ask Atlas to hire into {dept.name ?? "department"}
+                  </button>
+                </li>
+              );
+            })}
+
+            {/* The mock's new-department tile */}
+            <li>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="console-card flex h-full w-full flex-col items-start gap-2 border-dashed p-5 text-left transition-colors hover:bg-elevated"
+              >
+                <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline text-muted">
+                  <Plus className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-semibold text-ink">New department</span>
+                <span className="text-xs text-muted">
+                  Name it, set the lead and budget — you approve every hire into it.
+                </span>
+              </button>
+            </li>
+          </ul>
+        )}
+
+        {/* Pagination — only when browsing (not searching) and more pages exist */}
+        {!loading && !debouncedSearch.trim() && total > DEPT_PAGE_SIZE && (
+          <nav className="flex items-center justify-between" aria-label="Departments pagination">
+            <button
+              type="button"
+              onClick={() => setOffset(Math.max(0, offset - DEPT_PAGE_SIZE))}
+              disabled={offset === 0}
+              className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated disabled:opacity-40"
+            >
+              ← Previous
+            </button>
+            <span className="font-mono text-2xs tabular-nums text-muted">
+              {offset + 1}–{Math.min(offset + DEPT_PAGE_SIZE, total)} of {total}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOffset(offset + DEPT_PAGE_SIZE)}
+              disabled={offset + DEPT_PAGE_SIZE >= total}
+              className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </nav>
+        )}
+
+        {/* Create Modal */}
+        {showCreate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
+            <div className="console-card w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3.5">
+                <h2 className="text-sm font-semibold text-ink">New department</h2>
+                <button type="button" onClick={() => setShowCreate(false)} aria-label="Close" className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none" />
+              <form onSubmit={handleCreate} className="space-y-4 px-5 py-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-ink">Name *</label>
+                  <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="e.g. Research, Engineering" required className="console-composer w-full rounded-md px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-ink">Description</label>
+                  <textarea value={createDesc} onChange={(e) => setCreateDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="console-composer w-full resize-none rounded-md px-3 py-2 text-sm" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-ink">Lead</label>
+                    <input type="text" value={createHead} onChange={(e) => setCreateHead(e.target.value)} placeholder="e.g. Nova" className="console-composer w-full rounded-md px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-ink">Budget (Cr)</label>
+                    <input type="number" value={createBudget} onChange={(e) => setCreateBudget(e.target.value)} placeholder="e.g. 10000" className="console-composer w-full rounded-md px-3 py-2 text-sm" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => setShowCreate(false)} className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated">
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!createName.trim() || creating}
+                    className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+                  >
+                    {creating ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : <Plus aria-hidden="true" className="h-3.5 w-3.5" />}
+                    Create department
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {editingDept && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
+            <div className="console-card w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3.5">
+                <h2 className="text-sm font-semibold text-ink">Configure {editingDept.name}</h2>
+                <button type="button" onClick={() => setEditingDept(null)} aria-label="Close" className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Department Head</label>
-                <input type="text" value={createHead} onChange={(e) => setCreateHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
+              <div className="space-y-4 px-5 py-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-ink">Lead</label>
+                  <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Nova" className="console-composer w-full rounded-md px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-ink">Budget (Cr)</label>
+                  <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="console-composer w-full rounded-md px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-ink">Description</label>
+                  <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="console-composer w-full resize-none rounded-md px-3 py-2 text-sm" />
+                </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Budget (credits)</label>
-                <input type="number" value={createBudget} onChange={(e) => setCreateBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
-              </div>
-              <div className="flex justify-end gap-3 pt-1">
-                <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
+              <div className="flex justify-end gap-2 border-t border-hairline px-5 py-3">
+                <button type="button" onClick={() => setEditingDept(null)} className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated">
                   Cancel
                 </button>
-                <button type="submit" disabled={!createName.trim() || creating} className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50">
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Create
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+                >
+                  {saving ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Save
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editingDept && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-              <h2 className="text-lg font-semibold text-ink">
-                Configure {editingDept.name}
-              </h2>
-              <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Department Head</label>
-                <input type="text" value={editHead} onChange={(e) => setEditHead(e.target.value)} placeholder="e.g. Atlas" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Budget (credits)</label>
-                <input type="number" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="e.g. 10000" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink">Description</label>
-                <textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} placeholder="What does this department do?" className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep resize-none" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
-              <button type="button" onClick={() => setEditingDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
-                Cancel
-              </button>
-              <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Save
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Department Template Catalog (one-click activation) */}
-      {showDeptCatalog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-ink">Department catalog</h2>
-                <p className="text-xs text-muted">Activate a ready-made department with its teams — one click, no duplication of what you already run.</p>
-              </div>
-              <button type="button" onClick={() => setShowDeptCatalog(false)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              {deptTemplatesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
-                  <span className="ml-2 text-sm text-muted">Loading catalog…</span>
-                </div>
-              ) : deptTemplates.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="text-sm text-muted">No department templates available yet.</p>
-                </div>
-              ) : (
+        {/* Department Template Catalog (one-click activation) */}
+        {showDeptCatalog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
+            <div className="console-card flex max-h-[80vh] w-full max-w-2xl flex-col shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3.5">
                 <div>
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <input
-                      type="search"
-                      value={catalogQuery}
-                      onChange={(e) => setCatalogQuery(e.target.value)}
-                      placeholder="Search departments…"
-                      aria-label="Search department templates"
-                      className="min-w-0 flex-1 rounded-lg border border-hairline px-3 py-2 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-brand-deep/50"
-                    />
-                    <select
-                      value={catalogStage}
-                      onChange={(e) => setCatalogStage(Number(e.target.value))}
-                      aria-label="Filter by company stage"
-                      className="rounded-lg border border-hairline px-2.5 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand-deep/50"
-                    >
-                      {STAGE_FILTERS.map((f) => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
-                      ))}
-                    </select>
+                  <h2 className="text-sm font-semibold text-ink">Department catalog</h2>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Activate a ready-made department with its teams — one click, nothing you already run is duplicated.
+                  </p>
+                </div>
+                <button type="button" onClick={() => setShowDeptCatalog(false)} aria-label="Close" className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                {deptTemplatesLoading ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted">
+                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Loading catalog…
                   </div>
-                  <div className="max-h-[420px] space-y-2 overflow-y-auto">
-                  {deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).length === 0 ? (
-                    <p className="py-6 text-center text-sm text-muted">No departments match your search or stage filter.</p>
-                  ) : deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).map((t) => {
-                    const teamCount = Array.isArray(t.teams) ? t.teams.length : 0;
-                    const busy = activatingTemplateId === t.id;
-                    const active = justActivated === t.name;
-                    return (
-                      <div key={t.id} className="rounded-lg border border-hairline p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-ink">
-                              {t.name}
-                              <span className="ml-2 rounded-full bg-muted/10 px-2 py-0.5 text-3xs font-semibold text-muted">Stage {templateStage(t)}+</span>
-                            </p>
-                            <p className="mt-0.5 line-clamp-2 text-xs text-muted">{t.mission ?? t.description ?? ""}</p>
-                            {teamCount > 0 && (
-                              <p className="mt-1 text-2xs text-muted">Includes {teamCount} team{teamCount === 1 ? "" : "s"}: {(t.teams.map((x) => x.name)).join(", ")}</p>
+                ) : deptTemplates.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted">No department templates available yet.</p>
+                ) : (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <input
+                        type="search"
+                        value={catalogQuery}
+                        onChange={(e) => setCatalogQuery(e.target.value)}
+                        placeholder="Search departments…"
+                        aria-label="Search department templates"
+                        className="console-composer min-w-0 flex-1 rounded-md px-3 py-2 text-xs"
+                      />
+                      <select
+                        value={catalogStage}
+                        onChange={(e) => setCatalogStage(Number(e.target.value))}
+                        aria-label="Filter by company stage"
+                        className="console-composer rounded-md px-2.5 py-2 text-xs"
+                      >
+                        {STAGE_FILTERS.map((f) => (
+                          <option key={f.value} value={f.value}>{f.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      {deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted">No departments match your search or stage filter.</p>
+                      ) : deptTemplates.filter((t) => matchesCatalogFilter(t, catalogQuery, catalogStage)).map((t) => {
+                        const teamCount = Array.isArray(t.teams) ? t.teams.length : 0;
+                        const busy = activatingTemplateId === t.id;
+                        const active = justActivated === t.name;
+                        return (
+                          <div key={t.id} className="rounded-md border border-hairline p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">
+                                  {t.name}
+                                  <span className="rounded-full border border-hairline px-2 py-0.5 font-mono text-2xs uppercase tracking-wide text-muted">
+                                    Stage {templateStage(t)}+
+                                  </span>
+                                </p>
+                                <p className="mt-0.5 line-clamp-2 text-xs text-muted">{t.mission ?? t.description ?? ""}</p>
+                                {teamCount > 0 && (
+                                  <p className="mt-1 text-2xs text-muted">
+                                    Includes {teamCount} team{teamCount === 1 ? "" : "s"}: {t.teams.map((x) => x.name).join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => activateDeptTemplate(t.id)}
+                                disabled={busy || activatingTemplateId !== null}
+                                className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                                style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+                              >
+                                {busy ? "Activating…" : active ? "Activated ✓" : "Activate"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hire from Template Modal */}
+        {showTemplateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
+            <div className="console-card flex max-h-[80vh] w-full max-w-lg flex-col shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3.5">
+                <h2 className="text-sm font-semibold text-ink">
+                  Hire into {departments.find((d) => d.id === templateDeptId)?.name ?? "department"}
+                </h2>
+                <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} aria-label="Close" className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                {templatesLoading ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted">
+                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> Loading templates…
+                  </div>
+                ) : templates.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted">
+                    No templates available. Create templates through the Executive Agent or API.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSelectedTemplate(t.id)}
+                        className={`w-full rounded-md border p-3 text-left transition-colors ${
+                          selectedTemplate === t.id ? "border-warm bg-warm/5" : "border-hairline hover:border-hairline-strong hover:bg-elevated"
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-ink">{t.name}</p>
+                        <p className="mt-0.5 text-xs text-muted">{roleLabel(t.role)}</p>
+                        {t.description && <p className="mt-1 line-clamp-2 text-xs text-muted">{t.description}</p>}
+                        {t.capabilities.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {t.capabilities.slice(0, 3).map((cap) => (
+                              <span key={cap} className="rounded-full border border-hairline px-2 py-0.5 text-2xs text-muted">{cap}</span>
+                            ))}
+                            {t.capabilities.length > 3 && (
+                              <span className="rounded-full border border-hairline px-2 py-0.5 text-2xs text-muted">+{t.capabilities.length - 3}</span>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => activateDeptTemplate(t.id)}
-                            disabled={busy || activatingTemplateId !== null}
-                            className="shrink-0 rounded-lg bg-brand-deep px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
-                          >
-                            {busy ? "Activating…" : active ? "Activated ✓" : "Activate"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        )}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              )}
+                )}
+                {selectedTemplate && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-ink">Display name (optional)</label>
+                    <input
+                      type="text"
+                      value={hireName}
+                      onChange={(e) => setHireName(e.target.value)}
+                      placeholder="Custom name for this employee"
+                      className="console-composer w-full rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 border-t border-hairline px-5 py-3">
+                <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHireFromTemplate}
+                  disabled={!selectedTemplate || hiring}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+                >
+                  {hiring ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : <Plus aria-hidden="true" className="h-3.5 w-3.5" />}
+                  Hire
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Hire from Template Modal */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-              <h2 className="text-lg font-semibold text-ink">Hire from Template</h2>
-              <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              {templatesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand-ink" />
-                  <span className="ml-2 text-sm text-muted">Loading templates…</span>
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="text-sm text-muted">No templates available. Create templates through the Executive Agent or API.</p>
-                </div>
-              ) : (
-                <div className="max-h-[300px] space-y-2 overflow-y-auto">
-                  {templates.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setSelectedTemplate(t.id)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                        selectedTemplate === t.id
-                          ? "border-brand-deep bg-brand-deep/5"
-                          : "border-hairline hover:border-brand-deep/40"
-                      }`}
-                    >
-                      <p className="text-sm font-medium text-ink">{t.name}</p>
-                      <p className="text-xs text-muted mt-0.5">{t.role}</p>
-                      {t.description && (
-                        <p className="text-xs text-muted/70 mt-1 line-clamp-2">{t.description}</p>
-                      )}
-                      {t.capabilities.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {t.capabilities.slice(0, 3).map((cap) => (
-                            <span key={cap} className="rounded-full bg-canvas px-2 py-0.5 text-2xs text-muted">{cap}</span>
-                          ))}
-                          {t.capabilities.length > 3 && (
-                            <span className="rounded-full bg-canvas px-2 py-0.5 text-2xs text-muted">+{t.capabilities.length - 3}</span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {selectedTemplate && (
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-ink">Display Name (optional)</label>
-                  <input
-                    type="text"
-                    value={hireName}
-                    onChange={(e) => setHireName(e.target.value)}
-                    placeholder="Custom name for this employee"
-                    className="w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-deep"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
-              <button type="button" onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setHireName(""); }} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleHireFromTemplate}
-                disabled={!selectedTemplate || hiring}
-                className="flex items-center gap-2 rounded-lg bg-brand-deep px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
-              >
-                {hiring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Hire
-              </button>
+        {/* Confirm archive/delete Modal */}
+        {confirmDept && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
+            <div className="console-card w-full max-w-md shadow-2xl">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3.5">
+                <h2 className="text-sm font-semibold text-ink">
+                  {confirmAction === "archive" ? "Archive department" : "Delete department"}
+                </h2>
+                <button type="button" onClick={() => setConfirmDept(null)} aria-label="Close" className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                {confirmAction === "archive" ? (
+                  <p className="text-sm leading-relaxed text-muted">
+                    Archive <span className="font-medium text-ink">{confirmDept.name}</span>? Archived departments stay in the
+                    audit trail and can be restored. Its agents are not deleted.
+                  </p>
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted">
+                    Delete <span className="font-medium text-ink">{confirmDept.name}</span>? Deletion is permanent. Departments
+                    with assigned AI employees cannot be deleted — archive them instead.
+                  </p>
+                )}
+                {confirmDept.agentCount > 0 && (
+                  <p className="mt-3 rounded-md border border-warm/20 bg-warm/5 px-3 py-2 text-xs text-warm-ink">
+                    {confirmDept.agentCount} AI employee{confirmDept.agentCount !== 1 ? "s" : ""} currently assigned to this department.
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 border-t border-hairline px-5 py-3">
+                <button type="button" onClick={() => setConfirmDept(null)} className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-elevated">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={confirmBusy}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--orq-error)", color: "var(--orq-on-error)" }}
+                >
+                  {confirmBusy ? <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {confirmAction === "archive" ? "Archive" : "Delete permanently"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Confirm archive/delete Modal */}
-      {confirmDept && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-surface/60 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
-              <h2 className="text-lg font-semibold text-ink">
-                {confirmAction === "archive" ? "Archive department" : "Delete department"}
-              </h2>
-              <button type="button" onClick={() => setConfirmDept(null)} className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              {confirmAction === "archive" ? (
-                <p className="text-sm text-muted leading-relaxed">
-                  Archive <span className="font-medium text-ink">{confirmDept.name}</span>? Archived departments stay in the audit
-                  trail and can be restored. Its agents are not deleted.
-                </p>
-              ) : (
-                <p className="text-sm text-muted leading-relaxed">
-                  Delete <span className="font-medium text-ink">{confirmDept.name}</span>? Deletion is permanent. Departments with
-                  assigned AI employees cannot be deleted — archive them instead.
-                </p>
-              )}
-              {confirmDept.agentCount > 0 && (
-                <p className="mt-3 rounded-lg bg-warm/5 border border-warm/20 px-3 py-2 text-xs text-warm-ink">
-                  {confirmDept.agentCount} AI employee{confirmDept.agentCount !== 1 ? "s" : ""} currently assigned to this department.
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 border-t border-hairline px-6 py-4">
-              <button type="button" onClick={() => setConfirmDept(null)} className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-medium text-ink hover:bg-canvas">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={confirmBusy}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50 ${
-                  confirmAction === "archive" ? "bg-warm hover:bg-warm-deep" : "bg-error-fill hover:bg-error-fill"
-                }`}
-              >
-                {confirmBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {confirmAction === "archive" ? "Archive" : "Delete permanently"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </PageErrorBoundary>
   );
 }

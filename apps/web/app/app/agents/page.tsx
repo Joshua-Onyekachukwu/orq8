@@ -119,6 +119,18 @@ export default function AgentsPage() {
   }, []);
 
   useEffect(() => {
+    // Departments page hands off its "Ask Atlas to hire into X" row via
+    // sessionStorage: open the hire modal with that department preselected.
+    try {
+      const preselect = sessionStorage.getItem("orq8-hire-dept");
+      if (preselect) {
+        setHireDept(preselect);
+        setShowHireModal(true);
+        sessionStorage.removeItem("orq8-hire-dept");
+      }
+    } catch {
+      /* storage unavailable — the modal just opens without preselection */
+    }
     fetchAgents();
     fetch("/api/autonomy/policy", { cache: "no-store" })
       .then((res) => res.json().catch(() => null))
