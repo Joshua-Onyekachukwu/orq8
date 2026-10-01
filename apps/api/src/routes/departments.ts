@@ -6,6 +6,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { enforceResourceLimit } from '../services/entitlements.js';
 import { appendAudit } from '../services/audit.js';
 import { agents } from '@orq8/db';
+import { getToolsForRole } from '../services/tool-registry.js';
 import * as deptService from '../services/departments.js';
 import type { AppDeps } from '../types.js';
 
@@ -80,6 +81,63 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
     const filtered = q ? result.filter((d) => d.name.toLowerCase().includes(q)) : result;
     const page = filtered.slice(offset, offset + limit);
     return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
+  });
+
+  /**
+   * Department workspace (docs/71 §G) — one department with everything its
+   * page renders: members, teams, live work, the founder's pending decisions,
+   * activity, decisions, memory, resources, and the tools this department's
+   * roles can actually call.
+   *
+   * The tool list is resolved through the same `getToolsForRole` the execution
+   * path uses, so the Abilities surface and the runtime cannot disagree about
+   * what a role may run — the same reason the employee workspace reads it.
+   */
+  app.get<{ Params: { id: string } }>('/v1/departments/:id', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const detail = await deptService.findDetail(db, ctx.orgId, request.params.id);
+    if (!detail) {
+      return reply.status(404).send({
+        error: { code: 'not_found', message: 'Department not found.' },
+      });
+    }
+
+    const toolsById = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        description: string;
+        category: string;
+        riskLevel: string;
+        creditCost: number;
+        roles: string[];
+      }
+    >();
+    const rolesByTool = new Map<string, Set<string>>();
+    for (const member of detail.members) {
+      for (const tool of getToolsForRole(member.role)) {
+        const roles = rolesByTool.get(tool.id) ?? new Set<string>();
+        roles.add(member.role);
+        rolesByTool.set(tool.id, roles);
+        if (!toolsById.has(tool.id)) {
+          toolsById.set(tool.id, {
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            category: tool.category,
+            riskLevel: tool.riskLevel,
+            creditCost: tool.creditCost,
+            roles: [],
+          });
+        }
+      }
+    }
+    const tools = Array.from(toolsById.values())
+      .map((tool) => ({ ...tool, roles: Array.from(rolesByTool.get(tool.id) ?? []).sort() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return { data: { ...detail, tools } };
   });
 
   /** Create a new department. */

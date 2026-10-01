@@ -1,5 +1,5 @@
 import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, organizations, users, memberships, sessions, departments, teams, agents, goals, tasks, auditEvents } from '@orq8/db';
+import { createDb, organizations, users, memberships, sessions, departments, teams, agents, goals, tasks, approvals, auditEvents } from '@orq8/db';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
@@ -7,6 +7,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { getToolsForRole } from '../src/services/tool-registry.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
@@ -257,6 +258,65 @@ run('org structure — API + RLS integration', () => {
     });
     expect(moveTeam.statusCode).toBe(200);
     expect(moveTeam.json().data.departmentId).toBe(deptA);
+  });
+
+  it('department workspace reads its members, live work and waiting decisions (docs/71 §G)', async () => {
+    // Real live work and a real decision waiting on the founder.
+    const [taskRow] = await deps.db
+      .insert(tasks)
+      .values({ orgId: orgA, agentId: agentA, title: `Ship-${randomUUID()}`, status: 'in_progress' })
+      .returning();
+    const [approvalRow] = await deps.db
+      .insert(approvals)
+      .values({
+        orgId: orgA,
+        agentId: agentA,
+        action: 'Publish the launch post',
+        status: 'pending',
+        riskLevel: 'medium',
+      })
+      .returning();
+
+    // A decoy in ANOTHER department with its own pending approval. Every zone
+    // is scoped through this department's members, so the decoy must not leak.
+    const [decoyAgent] = await deps.db
+      .insert(agents)
+      .values({ orgId: orgA, name: `Decoy-${randomUUID()}`, role: 'content_writer', departmentId: deptA2 })
+      .returning();
+    const [decoyApproval] = await deps.db
+      .insert(approvals)
+      .values({ orgId: orgA, agentId: decoyAgent!.id, action: 'Decoy request', status: 'pending' })
+      .returning();
+
+    const res = await app.inject({ method: 'GET', url: `/v1/departments/${deptA}`, headers: authA() });
+    expect(res.statusCode).toBe(200);
+    const body = res.json().data;
+
+    expect(body.department.id).toBe(deptA);
+    expect(body.department.status).toBe('active');
+    expect(body.department.agentCount).toBe(1);
+
+    // Members are the scope; role files come through with the row.
+    expect(body.members.map((m: { id: string }) => m.id)).toEqual([agentA]);
+    expect(body.members[0].teamName).toBeTruthy();
+
+    // Both teams assigned to this department are listed.
+    const teamIds = body.teams.map((t: { id: string }) => t.id);
+    expect(teamIds).toContain(teamA);
+    expect(teamIds).toContain(teamA2);
+
+    // Now = live work only (finished work is each employee's history).
+    expect(body.now.some((t: { id: string }) => t.id === taskRow!.id)).toBe(true);
+
+    // Needs founder = this department's pending approvals, and only its own.
+    const waitingIds = body.needsFounder.map((a: { id: string }) => a.id);
+    expect(waitingIds).toContain(approvalRow!.id);
+    expect(waitingIds).not.toContain(decoyApproval!.id);
+
+    // The Tools tab is the runtime's own role resolver, not a second list.
+    expect(new Set(body.tools.map((t: { id: string }) => t.id))).toEqual(
+      new Set(getToolsForRole('software_engineer').map((t) => t.id)),
+    );
   });
 
   it('pauses an employee; team pause is not supported (rejected as invalid)', async () => {

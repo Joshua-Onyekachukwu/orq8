@@ -84880,6 +84880,7 @@ __export(departments_exports, {
   findById: () => findById3,
   findByName: () => findByName,
   findByOrg: () => findByOrg4,
+  findDetail: () => findDetail,
   updateDepartment: () => updateDepartment
 });
 async function tableExists(db) {
@@ -84928,6 +84929,221 @@ async function findById3(db, orgId, id) {
   } catch {
     return void 0;
   }
+}
+async function findDetail(db, orgId, id) {
+  if (!await tableExists(db)) return void 0;
+  const department = await findById3(db, orgId, id);
+  if (!department) return void 0;
+  let memberRows = [];
+  try {
+    const rows = await db.select({
+      id: agents.id,
+      name: agents.name,
+      role: agents.role,
+      status: agents.status,
+      autonomyLevel: agents.autonomyLevel,
+      currentTask: agents.currentTask,
+      teamId: agents.teamId,
+      tasksCompleted: agents.tasksCompleted,
+      tasksFailed: agents.tasksFailed,
+      creditsUsed: agents.creditsUsed,
+      weeklyCost: agents.weeklyCost,
+      lastActiveAt: agents.lastActiveAt,
+      authority: agents.authority
+    }).from(agents).where(and(eq(agents.orgId, orgId), eq(agents.departmentId, id))).orderBy(desc(agents.lastActiveAt));
+    memberRows = rows;
+  } catch {
+    memberRows = [];
+  }
+  const memberIds = memberRows.map((m) => m.id);
+  let departmentTeams = [];
+  try {
+    const rows = await db.select({ id: teams.id, name: teams.name, lead: teams.lead, status: teams.status }).from(teams).where(and(eq(teams.orgId, orgId), eq(teams.departmentId, id))).orderBy(desc(teams.createdAt));
+    departmentTeams = rows.map((t) => {
+      const inTeam = memberRows.filter((m) => m.teamId === t.id);
+      return {
+        ...t,
+        agentCount: inTeam.length,
+        activeCount: inTeam.filter((m) => m.status === "active").length
+      };
+    });
+  } catch {
+    departmentTeams = [];
+  }
+  const teamNameById = new Map(departmentTeams.map((t) => [t.id, t.name]));
+  const members = memberRows.map((m) => ({
+    ...m,
+    teamName: m.teamId ? teamNameById.get(m.teamId) ?? null : null
+  }));
+  let memberTaskIds = [];
+  try {
+    const rows = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.orgId, orgId), memberIds.length > 0 ? inArray(tasks.agentId, memberIds) : sql`false`)).orderBy(desc(tasks.createdAt)).limit(400);
+    memberTaskIds = rows.map((r) => r.id);
+  } catch {
+    memberTaskIds = [];
+  }
+  let now = [];
+  try {
+    if (memberIds.length > 0) {
+      now = await db.select({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        priority: tasks.priority,
+        agentId: tasks.agentId,
+        cost: tasks.cost,
+        dueDate: tasks.dueDate,
+        createdAt: tasks.createdAt
+      }).from(tasks).where(
+        and(
+          eq(tasks.orgId, orgId),
+          inArray(tasks.agentId, memberIds),
+          inArray(tasks.status, ["pending", "in_progress", "awaiting_approval"])
+        )
+      ).orderBy(desc(tasks.createdAt)).limit(25);
+    }
+  } catch {
+    now = [];
+  }
+  let needsFounder = [];
+  try {
+    if (memberIds.length > 0) {
+      needsFounder = await db.select({
+        id: approvals.id,
+        action: approvals.action,
+        description: approvals.description,
+        cost: approvals.cost,
+        riskLevel: approvals.riskLevel,
+        agentId: approvals.agentId,
+        taskId: approvals.taskId,
+        createdAt: approvals.createdAt
+      }).from(approvals).where(
+        and(
+          eq(approvals.orgId, orgId),
+          inArray(approvals.agentId, memberIds),
+          eq(approvals.status, "pending")
+        )
+      ).orderBy(desc(approvals.createdAt)).limit(25);
+    }
+  } catch {
+    needsFounder = [];
+  }
+  let recentApprovals = [];
+  try {
+    if (memberIds.length > 0) {
+      recentApprovals = await db.select({
+        id: approvals.id,
+        action: approvals.action,
+        description: approvals.description,
+        cost: approvals.cost,
+        riskLevel: approvals.riskLevel,
+        status: approvals.status,
+        decisionNote: approvals.decisionNote,
+        agentId: approvals.agentId,
+        taskId: approvals.taskId,
+        decidedAt: approvals.decidedAt,
+        createdAt: approvals.createdAt
+      }).from(approvals).where(
+        and(
+          eq(approvals.orgId, orgId),
+          inArray(approvals.agentId, memberIds),
+          sql`${approvals.status} <> 'pending'`
+        )
+      ).orderBy(desc(approvals.decidedAt), desc(approvals.createdAt)).limit(20);
+    }
+  } catch {
+    recentApprovals = [];
+  }
+  let activity = [];
+  try {
+    if (memberIds.length > 0) {
+      activity = await db.select({
+        id: activityEvents.id,
+        type: activityEvents.type,
+        summary: activityEvents.summary,
+        reason: activityEvents.reason,
+        cost: activityEvents.cost,
+        agentId: activityEvents.agentId,
+        occurredAt: activityEvents.occurredAt
+      }).from(activityEvents).where(and(eq(activityEvents.orgId, orgId), inArray(activityEvents.agentId, memberIds))).orderBy(desc(activityEvents.occurredAt)).limit(25);
+    }
+  } catch {
+    activity = [];
+  }
+  let recentDecisions = [];
+  try {
+    if (memberIds.length > 0) {
+      recentDecisions = await db.select({
+        id: decisions.id,
+        title: decisions.title,
+        decisionType: decisions.decisionType,
+        status: decisions.status,
+        confidence: decisions.confidence,
+        whatWasDecided: decisions.whatWasDecided,
+        rationale: decisions.rationale,
+        decisionMakerName: decisions.decisionMakerName,
+        decidedAt: decisions.decidedAt,
+        createdAt: decisions.createdAt
+      }).from(decisions).where(
+        and(
+          eq(decisions.orgId, orgId),
+          memberTaskIds.length > 0 ? or(
+            inArray(decisions.decisionMakerId, memberIds),
+            inArray(decisions.taskId, memberTaskIds)
+          ) : inArray(decisions.decisionMakerId, memberIds)
+        )
+      ).orderBy(desc(decisions.createdAt)).limit(20);
+    }
+  } catch {
+    recentDecisions = [];
+  }
+  let memory = [];
+  try {
+    if (memberIds.length > 0) {
+      memory = await db.select({
+        id: companyMemory.id,
+        category: companyMemory.category,
+        content: companyMemory.content,
+        importance: companyMemory.importance,
+        source: companyMemory.source,
+        agentId: companyMemory.agentId,
+        createdAt: companyMemory.createdAt
+      }).from(companyMemory).where(and(eq(companyMemory.orgId, orgId), inArray(companyMemory.agentId, memberIds))).orderBy(desc(companyMemory.importance), desc(companyMemory.createdAt)).limit(25);
+    }
+  } catch {
+    memory = [];
+  }
+  let departmentFiles = [];
+  try {
+    if (memberIds.length > 0) {
+      departmentFiles = await db.select({
+        id: files.id,
+        name: files.name,
+        mimeType: files.mimeType,
+        size: files.size,
+        agentId: files.agentId,
+        createdAt: files.createdAt
+      }).from(files).where(and(eq(files.orgId, orgId), inArray(files.agentId, memberIds))).orderBy(desc(files.createdAt)).limit(25);
+    }
+  } catch {
+    departmentFiles = [];
+  }
+  return {
+    department: {
+      ...department,
+      agentCount: members.length,
+      activeCount: members.filter((m) => m.status === "active").length
+    },
+    members,
+    teams: departmentTeams,
+    now,
+    needsFounder,
+    recentApprovals,
+    activity,
+    decisions: recentDecisions,
+    memory,
+    files: departmentFiles
+  };
 }
 async function createDepartment(db, data) {
   if (!await tableExists(db)) {
@@ -116079,6 +116295,7 @@ init_auth();
 init_entitlements();
 init_audit();
 init_src2();
+init_tool_registry();
 init_departments();
 function registerDepartmentRoutes(app, deps) {
   const { db, logger } = deps;
@@ -116130,6 +116347,37 @@ function registerDepartmentRoutes(app, deps) {
     const filtered = q ? result.filter((d) => d.name.toLowerCase().includes(q)) : result;
     const page = filtered.slice(offset, offset + limit);
     return { data: page, meta: { limit: all ? filtered.length : limit, offset, total: filtered.length } };
+  });
+  app.get("/v1/departments/:id", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const detail = await findDetail(db, ctx.orgId, request.params.id);
+    if (!detail) {
+      return reply.status(404).send({
+        error: { code: "not_found", message: "Department not found." }
+      });
+    }
+    const toolsById = /* @__PURE__ */ new Map();
+    const rolesByTool = /* @__PURE__ */ new Map();
+    for (const member of detail.members) {
+      for (const tool of getToolsForRole(member.role)) {
+        const roles = rolesByTool.get(tool.id) ?? /* @__PURE__ */ new Set();
+        roles.add(member.role);
+        rolesByTool.set(tool.id, roles);
+        if (!toolsById.has(tool.id)) {
+          toolsById.set(tool.id, {
+            id: tool.id,
+            name: tool.name,
+            description: tool.description,
+            category: tool.category,
+            riskLevel: tool.riskLevel,
+            creditCost: tool.creditCost,
+            roles: []
+          });
+        }
+      }
+    }
+    const tools = Array.from(toolsById.values()).map((tool) => ({ ...tool, roles: Array.from(rolesByTool.get(tool.id) ?? []).sort() })).sort((a, b) => a.name.localeCompare(b.name));
+    return { data: { ...detail, tools } };
   });
   app.post("/v1/departments", async (request, reply) => {
     const ctx = await requireAuth(request, deps);
