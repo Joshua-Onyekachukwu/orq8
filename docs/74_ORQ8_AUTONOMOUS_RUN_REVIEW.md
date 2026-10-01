@@ -157,7 +157,8 @@ live stack.
 | 8 | **Activity summaries stuttered** — `Execution blocked: Execution blocked by autonomy level: …` | Copy defect in the founder's feed | Reads `Failed: <task>` with the reason carried once |
 | 9 | **Light mode never persisted** — the server shell (a server component) imported the theme cookie *name* from `components/theme-toggle.tsx`, a `"use client"` module. On the server that import is a client reference, not the string, so the cookie lookup could never match and every request fell back to dark | The toggle appeared to work, then silently reverted on the next navigation. The failure was invisible: the code read as correctly wired | Server HTML carries `data-console-theme="light"` after switching; `scripts/scan-rsc-boundary.mjs` was extended to flag SCREAMING_SNAKE constants imported from client modules so this class cannot return |
 | 10 | **`.text-muted` rendered the marketing-light teal on the dark console** — `--muted-foreground` is declared at `:root` with its `var()` already substituted there, so inheriting it into `.console` bypassed every console token: every muted label (page subtitles, table captions, metadata) rendered `#356267` on `#0B0F14` | At **2.85:1** it was below even the 3:1 a drawn mark needs, on the muted label used on every console page — not a subtle tint problem, text that is hard to read. The contrast audit never saw it because it measures tokens, not the utility that resolves through a different alias | `.console` re-points `--muted-foreground`; measured live: dark `#97A3B4` (7.52:1), light `#5C6878` (5.67:1); the audit now measures the alias and treats an unmeasurable pair as a failure |
-| 11 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
+| 11 | **Four screens scrolled sideways at 375px** — the departments header button row, the approval card's Approve/Reject pair, the engineering registry grid (a `truncate` description forces a grid item's `auto` min-width) and the quality tab strip all overflowed the viewport | A founder on a phone gets a page that pans horizontally; it reads as broken, not dense | Each now wraps or shrinks (`min-w-0` on the grid items); the sweep gained `--width` and an overflow check, and is **37/37 clean at 375px** |
+| 12 | **Three light-theme contrast failures** — the light palette was written (lime, orange and red all exist *because* they must survive on white) but nothing measured it: `.console` re-points every token, so the existing audit only ever checked `:root` | (a) orange state dot `#E8761A` on a light card measured **2.81:1** — below the 3:1 a drawn mark needs, i.e. “needs you” quietly fading on white; (b) white-on-orange primary CTA **2.98:1** — the one button the design demands you find failed AA; (c) dark-on-red destructive label **3.43:1** | `scripts/color-contrast-audit.ts` now measures **both** console themes from the layered token maps; orange → `#DC6D14` (3.17:1), on-orange → `#231206` (5.38:1), new `--console-on-red` → `#FFFFFF` in light (dark keeps `#231206`); `pnpm audit:contrast` passes |
 
 Also fixed in this run: the sidebar was hard-coded ink-black (broke light mode),
 the light `--console-on-red` token did not exist (one “on-warm” value cannot
@@ -182,6 +183,7 @@ honesty rules and a six-step pre-ship checklist.
 | `pnpm --filter @orq8/web build` | green — 180 static pages |
 | Live workspace walk | Growth: 4 members, 1 needs-you card, 26 tools resolved through the runtime's role resolver, real memory/activity rows; a throwaway empty department rendered its explained empty state |
 | Live light/dark measurement | `data-console-theme` honoured after reload; card `#F7F8FA`, CTA chip `#DC6D14` on `#231206`, muted labels `#5C6878` (light) / `#97A3B4` (dark) |
+| `node scripts/route-sweep.mjs --width 375` | **37/37 routes clean** at 375px — after fixing the four overflows above |
 | Live authority write | toggled "Execute tasks" off → `PATCH` → server row `canExecuteTasks: false`; restored |
 | Live memory write | `POST` → `201` → entry retrievable with category and importance |
 
@@ -201,9 +203,9 @@ Not done, in the order I would do them next:
    one flat list, the integrations permission matrix is not built, and the
    hierarchy picker (Company → Department → Employee → Task) needs a persisted
    model field first.
-3. **Responsive/mobile walk** — the board grids and the two workspaces follow
-   the `lg`/`xl` rules, but the 375px pass over all 18 mock screens is not
-   re-done.
+3. **Responsive walk beyond the app routes** — the 375px sweep covers all 37
+   app routes (and the four overflows it found are fixed), but the marketing
+   pages are not in that sweep and were not re-walked at 375px.
 4. **Light-mode walk over the older screens** — the console palette is now
    measured in both themes and the new surfaces were walked in light mode, but
    the legacy pages (departments list, tasks board, memory) have been
