@@ -31,9 +31,9 @@ const Cta: React.FC = () => {
   }
 
   return (
-    <div id="waitlist" className="relative z-[1] py-[80px] md:py-[120px]">
+    <div id="waitlist" className="relative z-[1] border-t border-hairline bg-surface-white py-[80px] md:py-[120px]">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
-        <div className="relative overflow-hidden rounded-[20px] ink border border-white/[0.06]">
+        <div className="relative overflow-hidden rounded-[20px] ink border border-white/[0.06] shadow-[0_40px_90px_-60px_rgb(0_0_0_/_0.55)]">
           {/* Grid texture */}
           <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage:"linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",backgroundSize:"40px 40px"}} />
 
@@ -89,7 +89,7 @@ const Cta: React.FC = () => {
                     <button
                       type="submit"
                       disabled={status === "loading"}
-                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-brand-deep text-white font-bold uppercase text-overline tracking-[0.15em] px-[28px] h-[52px] hover:bg-brand disabled:opacity-60 transition-colors"
+                      className="btn-press inline-flex items-center justify-center gap-[10px] rounded-full bg-brand-deep text-white font-bold uppercase text-overline tracking-[0.15em] px-[28px] h-[52px] hover:bg-ink-accent hover:text-ink-surface disabled:opacity-60 transition-colors"
                     >
                       {status === "loading" ? (
                         <>

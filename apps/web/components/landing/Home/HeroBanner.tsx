@@ -45,16 +45,16 @@ const HeroBanner: React.FC = () => {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-[14px]">
-            <Link href="/register" className="inline-block rounded-full bg-brand-deep px-[28px] py-[14px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-brand">
+            <Link href="/register" className="group inline-block rounded-full bg-brand-deep px-[28px] py-[14px] uppercase text-overline font-bold text-white tracking-[1.8px] transition-all hover:bg-ink-accent hover:text-ink-surface">
               <span className="flex items-center justify-center gap-[12px]">
                 Get Started
-                <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm" />
+                <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/15 text-white flex items-center justify-center text-2sm transition-colors group-hover:bg-ink-surface/15 group-hover:text-ink-surface" />
               </span>
             </Link>
-            <Link href="/about" className="inline-block rounded-full border border-white/15 bg-white/5 backdrop-blur-sm px-[28px] py-[14px] uppercase text-overline font-bold text-white/70 tracking-[1.8px] transition-all hover:border-white/30 hover:text-white hover:bg-white/10">
+            <Link href="/about" className="group inline-block rounded-full border border-white/15 bg-white/5 backdrop-blur-sm px-[28px] py-[14px] uppercase text-overline font-bold text-white/70 tracking-[1.8px] transition-all hover:border-ink-accent/60 hover:text-white hover:bg-white/10">
               <span className="flex items-center justify-center gap-[12px]">
                 Learn More
-                <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/10 text-white/60 flex items-center justify-center text-2sm" />
+                <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-white/10 text-white/60 flex items-center justify-center text-2sm transition-colors group-hover:bg-ink-accent/20 group-hover:text-ink-accent" />
               </span>
             </Link>
           </div>

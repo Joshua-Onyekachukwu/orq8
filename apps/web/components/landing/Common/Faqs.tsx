@@ -78,7 +78,7 @@ const Faqs: React.FC = () => {
   };
 
   return (
-    <div id="faq" className="relative z-[1] py-[80px] md:py-[120px] lg:py-[160px] scroll-mt-[100px]">
+    <div id="faq" className="relative z-[1] bg-surface-white py-[80px] md:py-[120px] lg:py-[160px] scroll-mt-[100px]">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1200px] mx-auto px-[20px] md:px-[24px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[40px] lg:gap-[60px]">
           <div className="md:max-w-[480px]">

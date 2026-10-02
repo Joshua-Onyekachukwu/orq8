@@ -65,40 +65,76 @@ const Footer: React.FC = () => {
               </p>
 
               {status === "done" ? (
-                <p role="status" className="text-ink-accent font-medium">
-                  You&apos;re on the list. We&apos;ll email you.
-                </p>
-              ) : status === "error" ? (
-                <p role="alert" className="text-red-400 font-medium">
-                  Signup failed. Please try again.
-                </p>
-              ) : (
-                <form
-                  onSubmit={handleSubscribe}
-                  className="relative max-w-[440px]"
+                <div
+                  role="status"
+                  className="flex max-w-[440px] items-center gap-[12px] rounded-[14px] border border-ink-accent/25 bg-ink-accent/[0.07] px-[18px] py-[14px]"
                 >
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block h-[48px] border border-white/[0.08] bg-white/[0.03] w-full rounded-full placeholder:text-white/30 text-white px-[20px] outline-0 text-sm focus:border-ink-accent transition-colors"
-                    placeholder="Your email here"
-                    aria-label="Email address"
-                    name="email"
-                    autoComplete="email"
-                    spellCheck={false}
-                  />
-                  <button
-                    type="submit"
-                    disabled={status === "loading"}
-                    className="btn-press md:absolute md:top-[3px] ltr:md:right-[3px] rtl:md:left-[3px] inline-block rounded-full bg-brand-deep p-[6px] md:p-[6px] uppercase text-overline font-bold text-white tracking-[0.15em] hover:bg-ink-accent hover:text-ink-surface mt-[12px] md:mt-0 disabled:opacity-60 transition-colors"
-                  >
-                    <span className="flex items-center justify-center gap-[10px]">
-                      {status === "loading" ? "Joining…" : "Join the waitlist"}{" "}
-                      <i className="ri-arrow-right-up-line w-[24px] h-[24px] rounded-full bg-ink-surface/10 text-ink flex items-center justify-center text-xs"></i>
+                  <span className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-full bg-ink-accent text-ink-surface">
+                    <i className="ri-check-line text-base"></i>
+                  </span>
+                  <span className="text-sm text-white/80">
+                    You&apos;re on the list. We&apos;ll email you when your
+                    cohort opens.
+                  </span>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="max-w-[440px]">
+                  {/* One physical field. The input and its action share a single
+                      surface, so the form reads as one control rather than an
+                      input with a detached button floating beside it. */}
+                  <div className="flex items-center gap-[8px] rounded-full border border-white/[0.10] bg-white/[0.04] p-[6px] transition-colors focus-within:border-ink-accent/70 focus-within:bg-white/[0.07]">
+                    <span
+                      className="ltr:pl-[14px] rtl:pr-[14px] text-white/35"
+                      aria-hidden="true"
+                    >
+                      <i className="ri-mail-line text-base"></i>
                     </span>
-                  </button>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-[42px] min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-0"
+                      placeholder="you@company.com"
+                      aria-label="Email address"
+                      name="email"
+                      autoComplete="email"
+                      spellCheck={false}
+                    />
+                    <button
+                      type="submit"
+                      disabled={status === "loading"}
+                      className="btn-press inline-flex h-[42px] flex-none items-center justify-center gap-[8px] rounded-full bg-ink-accent px-[18px] uppercase text-overline font-bold tracking-[0.15em] text-ink-surface transition-all hover:bg-white disabled:opacity-60"
+                    >
+                      {status === "loading" ? (
+                        <>
+                          <span className="h-[13px] w-[13px] animate-spin rounded-full border-2 border-ink-surface/30 border-t-ink-surface" />
+                          <span className="hidden sm:inline">Joining…</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">Join the waitlist</span>
+                          <span className="sm:hidden">Join</span>
+                          <i className="ri-arrow-right-up-line text-base"></i>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {status === "error" ? (
+                    <p
+                      role="alert"
+                      className="mt-[10px] flex items-center gap-[8px] text-xs text-red-400 !mb-0"
+                    >
+                      <i className="ri-error-warning-line text-sm"></i>
+                      Signup failed. Please try again.
+                    </p>
+                  ) : (
+                    <p className="mt-[12px] flex items-center gap-[8px] text-xs text-white/40 !mb-0">
+                      <i className="ri-shield-check-line text-sm text-ink-accent"></i>
+                      No spam. One email when your cohort opens.
+                    </p>
+                  )}
                 </form>
               )}
             </div>
