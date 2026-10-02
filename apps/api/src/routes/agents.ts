@@ -456,6 +456,14 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const ctx = await requireAuth(request, deps);
     const { emergencyStopAgent } = await import('../services/emergency-stop.js');
     const result = await emergencyStopAgent(db, ctx.orgId, request.params.id, ctx.userId);
+    // An emergency stop that stopped nothing must not report success: the org
+    // filter inside the service means agentsAffected 0 is "no such agent here",
+    // and a 200 for an unknown id is a safety claim the system cannot back up
+    // (found by the abuse suite's foreign-id sweep). Matches /resume below.
+    if (result.agentsAffected === 0) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Agent not found in this organization' } };
+    }
     reply.code(200);
     return { data: result };
   });

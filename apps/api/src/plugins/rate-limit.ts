@@ -15,8 +15,19 @@ interface RateLimitEntry {
 
 const store = new Map<string, RateLimitEntry>();
 
+/**
+ * The housekeeping timers are `unref`'d: they exist to bound the maps, and a timer
+ * that holds the event loop open keeps a process alive after every request has been
+ * answered — in tests it is the difference between a clean exit and a runner that
+ * hangs until its close timeout. Nothing needs to await them.
+ */
+function backgroundInterval(fn: () => void, ms: number): void {
+  const timer = setInterval(fn, ms) as unknown as { unref?: () => void };
+  timer.unref?.();
+}
+
 // Clean up expired entries every 5 minutes
-setInterval(() => {
+backgroundInterval(() => {
   const now = Date.now();
   for (const [key, entry] of store) {
     if (now - entry.windowStart > 60_000) {
@@ -87,7 +98,7 @@ export function rateLimitRoute(
   const label = opts.label ?? opts.path;
   const attempts = new Map<string, RateLimitEntry>();
 
-  setInterval(() => {
+  backgroundInterval(() => {
     const now = Date.now();
     for (const [key, entry] of attempts) {
       if (now - entry.windowStart > windowMs) attempts.delete(key);
@@ -133,7 +144,7 @@ export function rateLimitLogin(app: FastifyInstance): void {
   const loginAttempts = new Map<string, RateLimitEntry>();
 
   // Cleanup
-  setInterval(() => {
+  backgroundInterval(() => {
     const now = Date.now();
     for (const [key, entry] of loginAttempts) {
       if (now - entry.windowStart > windowMs) {
