@@ -643,6 +643,23 @@ export const llmPerformance = pgTable(
     retryAttempt: integer('retry_attempt').notNull().default(0),
     /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
     routingSource: text('routing_source').notNull().default('default'),
+    /**
+     * docs/77 P1 §5 — real provider spend for this call, in USD. Derived from the
+     * provider's reported cost when it sends one, else from MODEL_REGISTRY rates;
+     * 0 with pricing_source 'unknown' when the model cannot be priced. This is the
+     * only USD cost figure in the system: `activity_events.cost` is credits and
+     * always was.
+     */
+    providerCostUsd: numeric('provider_cost_usd', { precision: 14, scale: 8 }).notNull().default('0'),
+    /**
+     * The credits this call's tokens earn under the published formula
+     * (`ceil(tokens / 1000)`). An *attribution*, not a charge: the charge happens
+     * once per task at settlement, so summing this column estimates what a task
+     * earned rather than what was billed.
+     */
+    creditsAttributed: integer('credits_attributed').notNull().default(0),
+    /** 'provider_reported' | 'registry' | 'unknown' — see services/llm-pricing.ts. */
+    pricingSource: text('pricing_source').notNull().default('unknown'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

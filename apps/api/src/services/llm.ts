@@ -217,6 +217,13 @@ export interface ChatCompletionResponse {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    /**
+     * USD charged for this request, when the provider reports it. OpenRouter
+     * returns `cost` (and `total_cost`) on every completion; providers that do
+     * not are priced from MODEL_REGISTRY instead (docs/77 P1 §5).
+     */
+    cost?: number;
+    total_cost?: number;
   };
 }
 
@@ -692,6 +699,9 @@ export async function chatCompletion(
                   totalTokens: usage?.total_tokens,
                   model: data.model,
                   responsePreview: data.choices?.[0]?.message?.content,
+                  // The provider's own USD figure wins over a registry estimate:
+                  // it is the amount that was actually charged.
+                  reportedCostUsd: usage?.cost ?? usage?.total_cost ?? null,
                 });
                 if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
               }
@@ -857,6 +867,9 @@ function recentTrace(id: string): LLMTraceEntry {
     retryAttempt: 0,
     maxRetries: 0,
     routingSource: 'default',
+    providerCostUsd: 0,
+    pricingSource: 'unknown',
+    creditsAttributed: 0,
     temperature: 0,
     maxTokens: 0,
   };
