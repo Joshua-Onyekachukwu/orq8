@@ -401,6 +401,7 @@ values
   ('gemini', 'Google Gemini', 'byok', null, 'https://aistudio.google.com/app/apikey', '["gemini-2.5-flash", "gemini-2.5-pro"]'::jsonb),
   ('deepseek', 'DeepSeek', 'byok', null, 'https://platform.deepseek.com/api_keys', '["deepseek-chat", "deepseek-reasoner"]'::jsonb),
   ('groq', 'Groq', 'byok', null, 'https://console.groq.com/keys', '["llama-3.3-70b-versatile"]'::jsonb),
-  ('openrouter', 'OpenRouter', 'byok', null, 'https://openrouter.ai/settings/keys', '[]'::jsonb),
+  ('openrouter', 'OpenRouter', 'byok', null, 'https://openrouter.ai/settings/keys', '["openai/gpt-4o-mini", "anthropic/claude-sonnet-4.5"]'::jsonb),
+  ('nvidia', 'NVIDIA NIM', 'byok', null, 'https://build.nvidia.com/exp', '["nvidia/llama-3.1-nemotron-70b-instruct", "meta/llama-3.3-70b-instruct"]'::jsonb),
   ('ollama', 'Ollama (local)', 'local', 'http://localhost:11434', 'https://ollama.com', '[]'::jsonb)
 on conflict (slug) do nothing;

@@ -600,6 +600,12 @@ export async function chatCompletion(
         const keyLabel = key ? `key…${key.slice(-6)}` : 'no-auth';
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (key) headers.Authorization = `Bearer ${key}`;
+        // OpenRouter attribution headers (their API guidance): the app URL and
+        // name identify ORQ8 on their dashboards and public leaderboards.
+        if (provider.id === 'openrouter') {
+          if (config.APP_URL) headers['HTTP-Referer'] = config.APP_URL;
+          headers['X-Title'] = 'ORQ8';
+        }
 
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {

@@ -18,6 +18,7 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { agents, departments, teams, goals, tasks, organizations, type Db } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { defaultPersonaForRole } from './agent-personas.js';
 import * as deptService from './departments.js';
 import * as teamService from './teams.js';
 import * as agentService from './agents.js';
@@ -241,7 +242,9 @@ export async function createAgent(
     if (!team) return { success: false, tool: 'create_agent', message: 'Team not found.', error: 'team_not_found' };
   }
 
-  // Create the agent
+  // Create the agent. A hire without an explicit persona carries the role's
+  // default (docs/71 §F), so every employee is prompted as someone.
+  const persona = defaultPersonaForRole(role.trim());
   const [created] = await ctx.db
     .insert(agents)
     .values({
@@ -253,6 +256,7 @@ export async function createAgent(
       status: 'active',
       autonomyLevel: autonomyLevel ?? 'execute_with_approval',
       capabilities: capabilities ?? [],
+      ...(persona ? { config: { systemPrompt: persona } } : {}),
     })
     .returning();
 

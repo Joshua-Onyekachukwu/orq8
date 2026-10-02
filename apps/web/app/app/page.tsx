@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowUpRight, Bot, Zap } from "lucide-react";
 
 import { EAOpenButton } from "../../components/dashboard/ea-open-button";
 import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
+import { EADock } from "../../components/dashboard/ea-dock";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import type { FounderStage } from "../../components/executive-agent-context";
 import { fetchWithAuth } from "../../lib/api";
@@ -23,6 +24,7 @@ interface Agent {
   currentTask: string | null;
   tasksCompleted: number;
   tasksFailed?: number;
+  weeklyCost?: number;
   lastActiveAt?: string | null;
 }
 
@@ -122,6 +124,15 @@ interface PriorityAction {
   suggestedAction: string;
 }
 
+/** The unratified plan revision shown in the dock's plan card (GET /v1/plan-revisions). */
+interface PendingRevision {
+  rev: number;
+  title: string;
+  summary: string | null;
+  authorName: string;
+  status: string;
+}
+
 interface DecisionRow {
   id: string;
   title: string;
@@ -159,6 +170,11 @@ const fetchPriorities = () =>
   fetchWithAuth<PriorityAction[]>("/v1/recommendations/priorities?limit=4", FRESH).catch(
     () => null,
   );
+const fetchPendingRevision = () =>
+  fetchWithAuth<{ revisions: PendingRevision[]; pending: PendingRevision | null }>(
+    "/v1/plan-revisions",
+    FRESH,
+  ).catch(() => null);
 const fetchDecisions = () =>
   fetchWithAuth<{ decisions: DecisionRow[]; total: number }>("/v1/decisions?limit=4", FRESH).catch(
     () => null,
@@ -290,6 +306,7 @@ export default async function AppPage() {
     priorities,
     decisionsRes,
     activeGoalsRes,
+    pendingRevisionRes,
   ] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
@@ -302,6 +319,7 @@ export default async function AppPage() {
     fetchPriorities(),
     fetchDecisions(),
     fetchActiveGoals(),
+    fetchPendingRevision(),
   ]);
 
   const agentList = agents ?? [];
@@ -390,6 +408,7 @@ export default async function AppPage() {
   const goalList = activeGoalsRes ?? [];
   const decisionList = decisionsRes?.decisions ?? [];
   const priorityList = priorities ?? [];
+  const pendingRevision = pendingRevisionRes?.pending ?? null;
 
   // ── The live organization ───────────────────────────────────────────────
   // Status is derived from the employee's own rows, never invented: an
@@ -468,6 +487,39 @@ export default async function AppPage() {
 
   const agentNameById = new Map(agentList.map((a) => [a.id, a.name]));
 
+  // ── The Atlas dock's props ────────────────────────────────────────────
+  // The employee mid-task right now: an active currentTask is the honest
+  // signal (the executor sets it when work starts and clears it when it ends).
+  const workingAgent =
+    agentList.find((a) => a.status === "active" && a.currentTask) ?? null;
+  const workingNow = workingAgent
+    ? { name: workingAgent.name, task: workingAgent.currentTask ?? "" }
+    : null;
+  const hourAgo = Date.now() - 60 * 60 * 1000;
+  const eventsThisHour = events.filter(
+    (e) => new Date(e.occurredAt).getTime() >= hourAgo,
+  ).length;
+  const dockEvents = events
+    .filter((e) => {
+      const tag = activityTag(e.type).tag;
+      return tag === "DONE" || tag === "GATE" || tag === "FAILED";
+    })
+    .slice(0, 2)
+    .map((e) => ({
+      id: e.id,
+      type: e.type,
+      summary: e.summary,
+      agentName: e.agentId ? (agentNameById.get(e.agentId) ?? null) : null,
+      cost: e.cost,
+    }));
+  const dockApprovals = approvalList.slice(0, 3).map((a) => ({
+    id: a.id,
+    agentName: a.agentId ? (agentNameById.get(a.agentId) ?? null) : null,
+    action: a.action,
+    description: a.description,
+    cost: a.cost,
+  }));
+
   // The banner morphs with company state (docs/71 §F): approvals first, then
   // blockers, then "all caught up".
   const banner =
@@ -534,7 +586,6 @@ export default async function AppPage() {
               {todayLine} · {orgName}
               {activeOrg?.org.plan ? ` · ${activeOrg.org.plan} plan` : ""}
             </p>
-            <p className="mt-2 max-w-2xl text-sm text-ink">{eaBody}</p>
             {founderStage === "in_progress" && remainingSteps.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {remainingSteps.map((step) => (
@@ -621,6 +672,10 @@ export default async function AppPage() {
         />
       </div>
 
+      {/* ── Main grid: the company column + the Atlas dock ────────────── */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-4">
+
       {/* ── The morphing banner ──────────────────────────────────────────── */}
       <div className="console-card flex flex-wrap items-center gap-3 p-4">
         <span className="state-dot" data-state={banner.state} aria-hidden="true" />
@@ -691,135 +746,164 @@ export default async function AppPage() {
             </EAOpenButton>
           </div>
         ) : (
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            {departmentList.map((department) => {
-              const members = membersByDepartment.get(department.id) ?? [];
-              const state = departmentState(members);
-              const progress = progressByDepartment.get(department.id);
-              const lead = department.head
-                ? members.find(
-                    (m) => m.name.toLowerCase() === department.head!.toLowerCase(),
-                  )
-                : undefined;
-              const others = members.filter((m) => m.id !== lead?.id);
-              return (
-                <div key={department.id} className="rounded-md border border-hairline bg-canvas p-3.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-4 flex flex-col items-center">
+            {/* Founder */}
+            <div className="flex min-w-[200px] items-center gap-2.5 rounded-md border border-hairline bg-elevated px-3.5 py-2">
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-canvas text-2xs font-semibold text-ink"
+              >
+                {(firstName ?? "F").charAt(0).toUpperCase()}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-ink">
+                  {firstName ?? "You"}
+                </span>
+                <span className="block text-2xs text-muted">Founder · human</span>
+              </span>
+            </div>
+            <span className="h-5 w-px bg-hairline-strong" aria-hidden="true" />
+            {/* The Executive Agent — directs all departments */}
+            <div
+              className="flex min-w-[230px] items-center gap-2.5 rounded-md border px-3.5 py-2"
+              style={{
+                borderColor: "rgba(166,206,149,0.45)",
+                backgroundColor: "rgba(166,206,149,0.07)",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm text-brand-ink"
+                style={{ backgroundColor: "rgba(166,206,149,0.12)" }}
+              >
+                ◈
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-ink">{EA_NAME}</span>
+                <span className="block text-2xs text-muted">
+                  Executive Agent · directs all departments
+                </span>
+              </span>
+              <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline px-2 py-0.5 text-2xs text-muted">
+                <span className="state-dot" data-state={workingNow ? "working" : ""} />
+                active
+              </span>
+            </div>
+            <span className="h-5 w-px bg-hairline-strong" aria-hidden="true" />
+
+            {/* Departments — who is in each and what their people are doing */}
+            <div className="flex w-full flex-wrap items-start justify-center gap-x-4 gap-y-7">
+              {departmentList.map((department) => {
+                const members = membersByDepartment.get(department.id) ?? [];
+                const lead = department.head
+                  ? members.find(
+                      (m) => m.name.toLowerCase() === department.head!.toLowerCase(),
+                    )
+                  : undefined;
+                const others = members.filter((m) => m.id !== lead?.id);
+                const roster = [...(lead ? [lead] : []), ...others];
+                const weekly = members.reduce((sum, m) => sum + (m.weeklyCost ?? 0), 0);
+                return (
+                  <div
+                    key={department.id}
+                    className="flex w-full min-w-[136px] flex-col items-center sm:w-[calc(50%-0.5rem)] xl:w-[calc(25%-0.75rem)]"
+                  >
                     <Link
                       href={`/app/departments/${department.id}`}
-                      className="text-sm font-semibold text-ink transition-colors hover:text-brand-ink"
+                      className="w-full rounded-md border border-hairline bg-elevated px-3 py-1.5 text-center transition-colors hover:border-hairline-strong"
                     >
-                      {department.name}
+                      <span className="block text-xs font-semibold text-ink">
+                        {department.name}
+                      </span>
+                      <span className="block text-2xs text-muted">
+                        {members.length} employee{members.length === 1 ? "" : "s"}
+                        {weekly > 0 ? ` · ${formatMoney(weekly / 100)}/wk` : ""}
+                      </span>
                     </Link>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted">
-                      <span className="state-dot" data-state={state.state} />
-                      {state.label}
+                    <span className="h-4 w-px bg-hairline-strong" aria-hidden="true" />
+                    {roster.length === 0 ? (
+                      <div className="w-full rounded-md border border-dashed border-hairline px-2 py-2.5 text-center">
+                        <p className="text-2xs text-muted">
+                          No employees yet — ask {EA_NAME} to hire.
+                        </p>
+                      </div>
+                    ) : (
+                      <ul className="w-full space-y-1.5">
+                        {roster.map((member) => {
+                          const memberInfo = memberState(member);
+                          return (
+                            <li key={member.id}>
+                              <Link
+                                href={`/app/agents/${member.id}`}
+                                className="flex w-full items-center gap-2 rounded-md border border-hairline bg-elevated px-2.5 py-1.5 transition-colors hover:border-hairline-strong"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-canvas text-2xs font-semibold text-ink"
+                                >
+                                  {member.name.charAt(0).toUpperCase()}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-xs text-ink">
+                                    {member.name}
+                                    {member.id === lead?.id && (
+                                      <span className="ml-1.5 text-2xs text-muted">Lead</span>
+                                    )}
+                                  </span>
+                                  <span className="block truncate text-2xs text-muted">
+                                    {memberInfo.detail}
+                                  </span>
+                                </span>
+                                <span
+                                  className="state-dot"
+                                  data-state={memberInfo.state}
+                                  title={memberInfo.label}
+                                />
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+
+              {unassigned.length > 0 && (
+                <div className="flex w-full min-w-[136px] flex-col items-center sm:w-[calc(50%-0.5rem)] xl:w-[calc(25%-0.75rem)]">
+                  <div className="w-full rounded-md border border-hairline bg-elevated px-3 py-1.5 text-center">
+                    <span className="block text-xs font-semibold text-ink">Unassigned</span>
+                    <span className="block text-2xs text-muted">
+                      {unassigned.length} employee{unassigned.length === 1 ? "" : "s"}
                     </span>
                   </div>
-
-                  {progress && (
-                    <div className="mt-2.5">
-                      <Meter pct={progress.progressPct} tone={state.tone} />
-                      <p className="mt-1 font-mono text-2xs text-muted">
-                        {progress.progressPct}% of tasks completed
-                        {progress.activeTaskCount > 0 ? ` · ${progress.activeTaskCount} active` : ""}
-                        {progress.blockedTaskCount > 0 ? ` · ${progress.blockedTaskCount} blocked` : ""}
-                      </p>
-                    </div>
-                  )}
-
-                  {members.length === 0 ? (
-                    <div className="mt-3 rounded-md border border-dashed border-hairline px-3 py-3">
-                      <p className="text-xs text-ink">No employees in this department yet.</p>
-                      <p className="mt-0.5 text-2xs text-muted">
-                        Ask {EA_NAME} to brief it, or hire into it from the department page.
-                      </p>
-                    </div>
-                  ) : (
-                    <ul className="mt-2.5 space-y-1.5">
-                      {lead && (
-                        <li>
+                  <span className="h-4 w-px bg-hairline-strong" aria-hidden="true" />
+                  <ul className="w-full space-y-1.5">
+                    {unassigned.map((member) => {
+                      const memberInfo = memberState(member);
+                      return (
+                        <li key={member.id}>
                           <Link
-                            href={`/app/agents/${lead.id}`}
-                            className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
+                            href={`/app/agents/${member.id}`}
+                            className="flex w-full items-center gap-2 rounded-md border border-dashed border-hairline bg-elevated px-2.5 py-1.5 transition-colors hover:border-hairline-strong"
                           >
-                            <span
-                              aria-hidden="true"
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-elevated text-2xs font-semibold text-ink"
-                            >
-                              {lead.name.charAt(0).toUpperCase()}
-                            </span>
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-xs text-ink">
-                                {lead.name}
-                                <span className="ml-1.5 text-2xs text-muted">Lead</span>
+                                {member.name}
                               </span>
                               <span className="block truncate text-2xs text-muted">
-                                {memberState(lead).detail}
+                                {memberInfo.label}
                               </span>
                             </span>
-                            <span className="state-dot" data-state={memberState(lead).state} />
+                            <span className="state-dot" data-state={memberInfo.state} />
                           </Link>
                         </li>
-                      )}
-                      {others.map((member) => {
-                        const memberInfo = memberState(member);
-                        return (
-                          <li key={member.id}>
-                            <Link
-                              href={`/app/agents/${member.id}`}
-                              className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
-                            >
-                              <span
-                                aria-hidden="true"
-                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-elevated text-2xs font-semibold text-ink"
-                              >
-                                {member.name.charAt(0).toUpperCase()}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs text-ink">{member.name}</span>
-                                <span className="block truncate text-2xs text-muted">
-                                  {memberInfo.detail}
-                                </span>
-                              </span>
-                              <span className="state-dot" data-state={memberInfo.state} />
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                      );
+                    })}
+                  </ul>
                 </div>
-              );
-            })}
-
-            {unassigned.length > 0 && (
-              <div className="rounded-md border border-dashed border-hairline bg-canvas p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-ink">Unassigned</span>
-                  <span className="font-mono text-2xs uppercase tracking-wide text-muted">
-                    {unassigned.length} employee{unassigned.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <ul className="mt-2.5 space-y-1.5">
-                  {unassigned.map((member) => (
-                    <li key={member.id}>
-                      <Link
-                        href={`/app/agents/${member.id}`}
-                        className="-mx-1.5 flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors hover:bg-surface-secondary"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-xs text-ink">
-                          {member.name}
-                        </span>
-                        <span className="truncate text-2xs text-muted">
-                          {memberState(member).label}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -1038,6 +1122,27 @@ export default async function AppPage() {
           </ul>
         </section>
       )}
+
+        </div>
+
+        {/* ── The Atlas dock — fixed on the right, per the mock ────────────── */}
+        <EADock
+          intro={eaBody}
+          approvals={dockApprovals}
+          events={dockEvents}
+          workingNow={workingNow}
+          pendingRevision={
+            pendingRevision
+              ? {
+                  rev: pendingRevision.rev,
+                  authorName: pendingRevision.authorName,
+                  summary: pendingRevision.summary,
+                }
+              : null
+          }
+          eventsThisHour={eventsThisHour}
+        />
+      </div>
 
       <ContrastSelfCheck />
     </div>

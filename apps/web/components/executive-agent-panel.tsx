@@ -7,10 +7,17 @@
  * sheet on mobile. The founder can ask questions about the current page,
  * the organization, or any entity they're viewing.
  *
+ * The conversation lives in ExecutiveAgentProvider (shared with the
+ * dashboard's Atlas dock), so a thread started on the dashboard continues
+ * here on any other page. On the dashboard route the floating launcher is
+ * hidden — the fixed Atlas dock owns the EA surface there; "Expand" on the
+ * dock opens this panel.
+ *
  * All responses go through the real Executive Agent backend (no fake data).
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   MessageSquare,
   X,
@@ -20,36 +27,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { useExecutiveAgent, type PageContext } from "./executive-agent-context";
-import { ExecutiveAgentProgress, type EAProgressStage } from "./ea-progress";
-import { runCommandStream, CommandStreamError } from "../lib/command-stream";
+import { ExecutiveAgentProgress } from "./ea-progress";
 import { FloatingLauncher } from "./floating-launcher";
 import { EA_NAME } from "../lib/ea";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  contextNote?: string;
-}
-
-/** Format the page context into a short note for the backend. */
-function formatContextNote(ctx: PageContext | null): string | undefined {
-  if (!ctx) return undefined;
-  const parts = [`Page: ${ctx.pageName} (${ctx.route})`];
-  if (ctx.entity) {
-    parts.push(
-      `Viewing: ${ctx.entity.type} "${ctx.entity.name ?? ctx.entity.id}" [${ctx.entity.status ?? "unknown"}]`,
-    );
-  }
-  if (ctx.extra) {
-    const entries = Object.entries(ctx.extra).slice(0, 5);
-    for (const [k, v] of entries) {
-      parts.push(`${k}: ${String(v)}`);
-    }
-  }
-  return parts.join(" | ");
-}
 
 /** Generate a suggested question based on the current page. */
 function suggestedQuestion(ctx: PageContext | null): string {
@@ -90,57 +70,22 @@ export function ExecutiveAgentPanel() {
     panelOpen,
     setPanelOpen,
     togglePanel,
-    userId,
     founderStage,
     pendingPrompt,
     setPendingPrompt,
+    messages,
+    sendMessage,
+    loading,
+    stages,
+    error,
   } = useExecutiveAgent();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Live pipeline stages from the streaming endpoint.
-  const [stages, setStages] = useState<EAProgressStage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Restore the persisted thread for this user (best-effort: a missing or
-  // corrupt entry simply starts a fresh conversation).
-  const storageKey = userId ? `orq8:ea:thread:${userId}` : null;
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    if (!storageKey) {
-      setHydrated(true);
-      return;
-    }
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ChatMessage[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(
-            parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })),
-          );
-        }
-      }
-    } catch {
-      // Unreadable storage — start fresh.
-    }
-    setHydrated(true);
-  }, [storageKey]);
-
-  // Persist as the conversation grows; cap the thread so storage stays bounded.
-  useEffect(() => {
-    if (!hydrated || !storageKey) return;
-    try {
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify(messages.slice(-40)),
-      );
-    } catch {
-      // Quota exceeded — persistence is best-effort.
-    }
-  }, [messages, hydrated, storageKey]);
+  // On the dashboard the fixed Atlas dock replaces the floating launcher —
+  // two doors to the same EA on one screen would read as two agents.
+  const pathname = usePathname();
+  const isDashboard = pathname === "/app";
 
   // A page action queued a prompt (e.g. the dashboard's "Tell the EA" action):
   // pre-fill the input when the panel opens, then consume it.
@@ -164,98 +109,11 @@ export function ExecutiveAgentPanel() {
     }
   }, [panelOpen]);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || loading) return;
-
-      const contextNote = formatContextNote(pageContext);
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text.trim(),
-        timestamp: new Date(),
-        contextNote,
-      };
-      setMessages((prev) => [...prev, userMsg]);
-      setInput("");
-      setLoading(true);
-      setError(null);
-      setStages([]);
-
-      try {
-        // Streaming first: live pipeline progress while the Executive Agent
-        // works, then the full result in a final `done` event. Falls back to
-        // the buffered POST ONLY when the stream never started the real
-        // pipeline (route missing / proxy down) — never after work began,
-        // to avoid double execution.
-        let data: any;
-        try {
-          data = await runCommandStream({
-            command: text.trim(),
-            context: { page: pageContext?.route, contextNote },
-            onStage: (ev) =>
-              setStages((prev) => {
-                const next = prev.filter((s) => s.stage !== ev.stage);
-                next.push({ stage: ev.stage, label: ev.label, status: ev.status });
-                return next;
-              }),
-          });
-        } catch (err) {
-          if (err instanceof CommandStreamError && !err.pipelineStarted) {
-            const res = await fetch("/api/executive-agent", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ command: text.trim(), contextNote }),
-            });
-            if (!res.ok) {
-              const body = await res.json().catch(() => null);
-              throw new Error(body?.error ?? `Agent returned ${res.status}`);
-            }
-            data = await res.json();
-          } else {
-            throw err;
-          }
-        }
-
-        const assistantMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content:
-            // Streaming endpoint: the `done` event's result IS the execution
-            // result, so the message sits at the top level. The buffered POST
-            // fallback wraps it in a `{ data }` envelope. Handle both — the
-            // stream shape must win or every streamed reply degrades to the
-            // generic "I processed your request..." line.
-            data?.message ??
-            data?.data?.message ??
-            data?.data?.intent?.response ??
-            data?.intent?.response ??
-            "I processed your request. Check the results in the relevant pages.",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err) {
-        const errMsg =
-          err instanceof Error ? err.message : "Unknown error occurred";
-        setError(errMsg);
-        const errorMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: `I couldn't process that request: ${errMsg}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMsg]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [pageContext, loading],
-  );
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(input);
+      void sendMessage(input);
+      setInput("");
     }
   };
 
@@ -266,8 +124,10 @@ export function ExecutiveAgentPanel() {
       {/* Floating trigger — collision-aware, draggable, snap-to-edge. Hidden
           while the panel is open: the panel owns the screen then, and the
           collision engine would otherwise fling the launcher to the opposite
-          corner (over the sidebar) for as long as the panel stays open. */}
-      {!panelOpen && (
+          corner (over the sidebar) for as long as the panel stays open. Also
+          hidden on the dashboard: the fixed Atlas dock is the EA surface
+          there; the launcher lives on every other page. */}
+      {!panelOpen && !isDashboard && (
         <FloatingLauncher
           onClick={togglePanel}
           icon={<MessageSquare className="h-5 w-5" />}
@@ -477,7 +337,10 @@ export function ExecutiveAgentPanel() {
                   className="flex-1 resize-none rounded-xl border border-hairline bg-surface-secondary px-4 py-2.5 text-sm text-ink placeholder-ink-faint focus:border-warm/40 focus:outline-none focus:ring-2 focus:ring-warm/20"
                 />
                 <button
-                  onClick={() => sendMessage(input)}
+                  onClick={() => {
+                    void sendMessage(input);
+                    setInput("");
+                  }}
                   disabled={!input.trim() || loading}
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-warm text-on-warm transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Send message"

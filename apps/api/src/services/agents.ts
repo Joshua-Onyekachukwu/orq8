@@ -1,5 +1,6 @@
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { agents, type Db } from '@orq8/db';
+import { defaultPersonaForRole } from './agent-personas.js';
 
 type AnyRecord = Record<string, any>;
 
@@ -159,6 +160,16 @@ export async function createAgent(
   db: Db,
   data: Record<string, unknown>,
 ): Promise<AnyRecord> {
+  // Every employee is prompted as someone (docs/71 §F): a hire without an
+  // explicit persona carries the role's default from the persona registry, so
+  // the executor never falls back to a generic role prompt for new agents.
+  const role = typeof data.role === 'string' ? data.role : '';
+  const cfg = (data.config ?? {}) as Record<string, unknown>;
+  if (role && typeof cfg.systemPrompt !== 'string') {
+    const persona = defaultPersonaForRole(role);
+    if (persona) data.config = { ...cfg, systemPrompt: persona };
+  }
+
   // Try with all columns first; if it fails due to missing columns, retry with core columns only
   try {
     const rows = await db.insert(agents).values(data as any).returning();

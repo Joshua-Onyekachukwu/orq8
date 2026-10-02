@@ -364,16 +364,31 @@ async function main(): Promise<void> {
     [orgId],
   );
 
-  const dept = (
-    await pg.pool.query<{ id: string }>(
-      "insert into departments (org_id, name, description) values ($1, 'Growth', 'Demand and positioning') returning id",
-      [orgId],
-    )
-  ).rows[0]?.id;
+  // ── A full startup, not a skeleton ────────────────────────────────────────
+  // The seeded company matches the approved org chart (docs/71 §F,
+  // marketing/headquarters-mock-v2.html): four departments, seven AI
+  // employees, and work in every state a real week produces — two employees
+  // mid-task, two waiting on the founder's decision, one blocked, the rest
+  // idle with queued work. Every persona is a real system prompt that the
+  // task executor will use when the employee runs work.
+  const deptRows = await pg.pool.query<{ id: string }>(
+    `insert into departments (org_id, name, description) values
+       ($1, 'Research', 'Markets, competitors and pricing signals from public data.'),
+       ($1, 'Engineering', 'Builds and ships the product surface: pages, APIs, deploys.'),
+       ($1, 'Communications', 'Public copy, briefings and newsletters. Publishes only through a gate.'),
+       ($1, 'Growth', 'Demand, positioning and waitlist conversion.')
+     returning id, name`,
+    [orgId],
+  );
+  const deptId = new Map(deptRows.rows.map((r) => [r.name, r.id]));
+  const research = deptId.get("Research")!;
+  const engineering = deptId.get("Engineering")!;
+  const communications = deptId.get("Communications")!;
+  const growth = deptId.get("Growth")!;
   const team = (
     await pg.pool.query<{ id: string }>(
-      "insert into teams (org_id, department_id, name, lead) values ($1, $2, 'Acquisition', 'Nova') returning id",
-      [orgId, dept],
+      "insert into teams (org_id, department_id, name, lead) values ($1, $2, 'Acquisition', 'Milo') returning id",
+      [orgId, growth],
     )
   ).rows[0]?.id;
 
@@ -381,20 +396,34 @@ async function main(): Promise<void> {
     name: string,
     role: string,
     autonomy: string,
-    inTeam: boolean,
+    opts: {
+      departmentId: string;
+      teamId?: string | null;
+      currentTask?: string | null;
+      creditsUsed?: number;
+      weeklyCost?: number;
+      tasksCompleted?: number;
+      tasksFailed?: number;
+      persona: string;
+      capabilities?: string[];
+    },
   ) =>
     (
       await pg.pool.query<{ id: string }>(
-        `insert into agents (org_id, name, role, department_id, team_id, status, autonomy_level, capabilities, authority)
-         values ($1, $2, $3, $4, $5, 'active', $6, $7::jsonb, $8::jsonb) returning id`,
+        `insert into agents (org_id, name, role, department_id, team_id, status, autonomy_level,
+                             capabilities, authority, config, current_task, credits_used,
+                             weekly_cost, tasks_completed, tasks_failed, last_active_at)
+         values ($1, $2, $3, $4, $5, 'active', $6, $7::jsonb, $8::jsonb,
+                 $9::jsonb, $10, $11, $12, $13, $14, now() - interval '4 minutes')
+         returning id`,
         [
           orgId,
           name,
           role,
-          dept,
-          inTeam ? team : null,
+          opts.departmentId,
+          opts.teamId ?? null,
           autonomy,
-          JSON.stringify([role.replace(/_/g, " "), "analysis"]),
+          JSON.stringify(opts.capabilities ?? [role.replace(/_/g, " "), "analysis"]),
           // The same complete shape `POST /v1/agents` writes. A hand-built row
           // with fewer fields used to be enough to crash a tool call inside the
           // registry — the registry is defensive now, but a fixture that seeds
@@ -415,34 +444,134 @@ async function main(): Promise<void> {
             ],
             forbiddenActions: [],
           }),
+          // Persona: the system prompt this employee is prompted with when it
+          // executes work (task-executor reads agents.config.systemPrompt).
+          JSON.stringify({ systemPrompt: opts.persona }),
+          opts.currentTask ?? null,
+          opts.creditsUsed ?? 0,
+          opts.weeklyCost ?? 0,
+          opts.tasksCompleted ?? 0,
+          opts.tasksFailed ?? 0,
         ],
       )
     ).rows[0]!.id;
 
-  const nova = await hire("Nova", "market_researcher", "autonomous", true);
+  const nova = await hire("Nova", "market_researcher", "autonomous", {
+    departmentId: research,
+    currentTask: "Pricing research sweep",
+    creditsUsed: 41200,
+    weeklyCost: 41200,
+    tasksCompleted: 14,
+    persona:
+      "You are Nova, the Market Researcher of Northwind Labs. You find markets, competitors and pricing signals from public data, and you turn them into decision-ready intelligence: specific numbers, named sources, clear recommendations. You never invent a figure — if the data is missing you say so and name what would fill the gap.",
+    capabilities: ["market_researcher", "competitive analysis", "pricing research", "analysis"],
+  });
+  const ada = await hire("Ada", "data_analyst", "autonomous", {
+    departmentId: research,
+    creditsUsed: 20300,
+    weeklyCost: 20300,
+    tasksCompleted: 9,
+    persona:
+      "You are Ada, the Data Analyst of Northwind Labs. You turn raw datasets into decision-ready summaries: baselines, trends and anomalies, each with the numbers behind it. You are precise with units and time windows, and you flag uncertainty instead of smoothing it over.",
+    capabilities: ["data_analyst", "metrics", "reporting", "analysis"],
+  });
+  const sage = await hire("Sage", "data_analyst", "autonomous", {
+    departmentId: research,
+    creditsUsed: 0,
+    tasksCompleted: 3,
+    persona:
+      "You are Sage, the Analyst of Northwind Labs. You own the weekly metrics baseline and the anomaly watch: every Monday you record where the numbers stand so the company can see movement honestly. You are quiet until the numbers move.",
+    capabilities: ["data_analyst", "weekly metrics", "anomaly detection"],
+  });
+  const ridge = await hire("Ridge", "software_engineer", "autonomous", {
+    departmentId: engineering,
+    currentTask: "Pricing page build",
+    creditsUsed: 68800,
+    weeklyCost: 68800,
+    tasksCompleted: 21,
+    persona:
+      "You are Ridge, the Engineer of Northwind Labs. You build and ship the product surface: pages, APIs and deploys. You write code that matches the existing design system, you verify your own work before reporting it done, and you flag anything that needs production access instead of forcing it — pushes to production go through the founder.",
+    capabilities: ["software_engineer", "frontend", "api", "testing"],
+  });
+  // Iris is in observe mode: her work is refused by the autonomy check, which is
+  // how a founder gets a failed task to retry.
+  const iris = await hire("Iris", "operations_manager", "observe", {
+    departmentId: engineering,
+    creditsUsed: 7700,
+    weeklyCost: 7700,
+    tasksCompleted: 6,
+    tasksFailed: 1,
+    persona:
+      "You are Iris, the Ops Engineer of Northwind Labs. You wire integrations, credentials and pipelines, and you keep the operational plumbing honest: every connection is tested, every failure is named. You never guess at credentials — you ask.",
+    capabilities: ["operations_manager", "integrations", "pipelines", "credentials"],
+  });
   // Ember is a communications agent because the tool gate is reached through a
   // tool the registry restricts by ROLE: `write_email` (requiresApproval) is
   // open to `communications_agent` and `executive_agent` only, so a content
   // writer asking for it is refused — correctly — and no approval is ever
   // raised. The fixture has to be a role that may actually use the tool for the
   // founder to see the gate at all.
-  const ember = await hire("Ember", "communications_agent", "execute_with_approval", true);
-  await hire("Ridge", "operations_manager", "execute_with_approval", false);
-  // Iris is in observe mode: her work is refused by the autonomy check, which is
-  // how a founder gets a failed task to retry.
-  const iris = await hire("Iris", "content_writer", "observe", false);
+  const ember = await hire("Ember", "communications_agent", "execute_with_approval", {
+    departmentId: communications,
+    creditsUsed: 9500,
+    weeklyCost: 9500,
+    tasksCompleted: 11,
+    persona:
+      "You are Ember, the Communications lead of Northwind Labs. You write and draft all public copy — announcements, briefings, newsletters — in a clear, warm voice that matches the brand. You draft freely, but you never publish externally yourself: publishing always goes through the founder's approval.",
+    capabilities: ["communications_agent", "copywriting", "email", "announcements"],
+  });
+  const milo = await hire("Milo", "market_researcher", "autonomous", {
+    departmentId: growth,
+    teamId: team,
+    creditsUsed: 0,
+    tasksCompleted: 4,
+    persona:
+      "You are Milo, the Growth lead of Northwind Labs. You own outreach, campaigns and waitlist conversion. You measure every channel by cost per activated trial, and you pause spend the moment a channel stops converting. Growth work that costs money is proposed, never started silently.",
+    capabilities: ["market_researcher", "growth", "outreach", "campaigns"],
+  });
 
+  // ── Goals, tasks, approvals: one live week ─────────────────────────────
+  const goal1 = (
+    await pg.pool.query<{ id: string }>(
+      "insert into goals (org_id, title, description, status, progress, priority, due_date) values ($1, 'Announce the new pricing page', 'Ship the public pricing page and announce it to the waitlist.', 'active', 64, 'high', now() + interval '3 days') returning id",
+      [orgId],
+    )
+  ).rows[0]!.id;
+  const goal2 = (
+    await pg.pool.query<{ id: string }>(
+      "insert into goals (org_id, title, description, status, progress, priority, due_date) values ($1, 'Convert waitlist to trials', 'Turn the waitlist into activated trials after the pricing announcement.', 'active', 8, 'normal', now() + interval '10 days') returning id",
+      [orgId],
+    )
+  ).rows[0]!.id;
+
+  // Two employees mid-task right now.
   await pg.pool.query(
-    "insert into goals (org_id, title, description, status, progress, priority, due_date) values ($1, 'Reach 100 paying companies', 'Move from design partners to a paying base.', 'active', 35, 'high', now() + interval '45 days')",
-    [orgId],
+    "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost) values ($1, $2, $3, 'Pricing research sweep', 'Collect the public pricing of the three closest competitors and summarize each plan.', 'in_progress', 'high', 600)",
+    [orgId, goal1, nova],
   );
   await pg.pool.query(
-    "insert into approvals (org_id, agent_id, action, description, cost, risk_level, status) values ($1, $2, 'Approve the paid pilot budget', 'The pilot needs a paid channel budget to start.', 250000, 'medium', 'pending')",
-    [orgId, nova],
+    "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost) values ($1, $2, $3, 'Pricing page build', 'Build the public pricing page: three tiers, annual toggle, FAQ. Match the site design system.', 'in_progress', 'high', 3600)",
+    [orgId, goal1, ridge],
+  );
+  // Finished work with real results, so Done columns and reports have rows.
+  await pg.pool.query(
+    "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost, result) values ($1, $2, $3, 'Competitor page screenshots', 'Screenshot and archive the competitor pricing pages.', 'completed', 'normal', 1800, $4)",
+    [orgId, goal1, iris, "Screenshots archived for all three competitor pricing pages (full-page, desktop + mobile widths) and filed under competitor-intel in company memory."],
   );
   await pg.pool.query(
-    "insert into tasks (org_id, agent_id, title, description, status, priority, cost, result) values ($1, $2, 'Draft the launch announcement', 'Write the public announcement for the beta.', 'pending', 'high', 0, null)",
-    [orgId, nova],
+    "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost, result) values ($1, $2, $3, 'Weekly metrics baseline', 'Record this week''s baseline: signups, activation, revenue.', 'completed', 'normal', 900, $4)",
+    [orgId, goal1, ada, "Baseline recorded: 412 signups, 9.4% activation, $1,204 MRR. No anomalies vs. last week."],
+  );
+  // The gated task: Ember's publish is stopped pending the founder's decision.
+  const publishTask = (
+    await pg.pool.query<{ id: string }>(
+      "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost) values ($1, $2, $3, 'Publish the pricing post', 'Publish the pricing announcement to the company blog and newsletter.', 'awaiting_approval', 'high', 0) returning id",
+      [orgId, goal1, ember],
+    )
+  ).rows[0]!.id;
+  await pg.pool.query(
+    "insert into tasks (org_id, goal_id, agent_id, title, description, status, priority, cost) values ($1, $2, $3, 'Draft launch email to waitlist', 'Draft the launch email announcing the new pricing.', 'pending', 'normal', 0)",
+    [orgId, goal2, ember],
   );
   // Left pending so the founder can run it from the product, and so "Run queued
   // work" has something to run.
@@ -466,7 +595,57 @@ async function main(): Promise<void> {
   console.log(
     `[review] observe-mode task executed on purpose: status=${blocked.body?.data?.status} ("Retry this task" needs a failure)`,
   );
-  console.log("[review] company seeded: 4 AI employees, Growth/Acquisition, goal, approval, 3 tasks (1 pending to run, 1 pending that stops for a tool approval, 1 failed)");
+
+  // Two open gates, matching the mock's banner: an external publish (Ember)
+  // and a spend-cap raise (Nova on Ada's behalf).
+  await pg.pool.query(
+    "insert into approvals (org_id, agent_id, action, description, cost, risk_level, status, task_id) values ($1, $2, 'Publish the pricing post', 'Ember wants to publish the pricing announcement to the company blog and newsletter. Authority: may draft, may not publish externally.', 2500, 'medium', 'pending', $3)",
+    [orgId, ember, publishTask],
+  );
+  await pg.pool.query(
+    "insert into approvals (org_id, agent_id, action, description, cost, risk_level, status) values ($1, $2, 'Raise Ada''s daily spend cap', 'Nova requests Ada''s cap 500 → 800 Cr/day for two days to finish the pricing sweep. If approved the cap resets automatically on Friday.', 60000, 'medium', 'pending')",
+    [orgId, nova],
+  );
+
+  // A live activity stream for the terminal and the EA dock (mixed types,
+  // newest last so the hub's newest-first slice reads like a real feed).
+  const ev = (minutesAgo: number, type: string, summary: string, opts: { agentId?: string; taskId?: string; cost?: number; department?: string } = {}) =>
+    pg.pool.query(
+      "insert into activity_events (org_id, agent_id, task_id, type, summary, reason, cost, department, occurred_at) values ($1, $2, $3, $4, $5, $6, $7, $8, now() - ($9 || ' minutes')::interval)",
+      [orgId, opts.agentId ?? null, opts.taskId ?? null, type, summary, null, opts.cost ?? 0, opts.department ?? null, String(minutesAgo)],
+    );
+  await ev(46, "task_completed", "Weekly metrics baseline recorded — 412 signups, 9.4% activation", { agentId: ada, cost: 900, department: "Research" });
+  await ev(41, "tool_call", "dataset.query · competitor_prices", { agentId: nova, cost: 40, department: "Research" });
+  await ev(37, "task_completed", "Competitor page screenshots archived", { agentId: iris, cost: 1800, department: "Engineering" });
+  await ev(31, "task_started", "Pricing page build", { agentId: ridge, department: "Engineering" });
+  await ev(27, "tool_call", "browser.open · pricing page preview", { agentId: ridge, cost: 60, department: "Engineering" });
+  await ev(22, "task_started", "Pricing research sweep", { agentId: nova, department: "Research" });
+  await ev(18, "analyzed", "Competitor pricing patterns summarized — seat-anchored vs usage-metered", { agentId: nova, cost: 120, department: "Research" });
+  await ev(13, "drafted", "Launch email outline ready for review", { agentId: ember, cost: 80, department: "Communications" });
+  await ev(9, "approval_requested", "Ember requests approval: publish the pricing post", { agentId: ember, taskId: publishTask, cost: 2500, department: "Communications" });
+  await ev(5, "tool_call", "test.run · pricing.spec.ts (14 checks)", { agentId: ridge, cost: 90, department: "Engineering" });
+  await ev(2, "executing", "Pricing research sweep — competitor tier comparison", { agentId: nova, cost: 30, department: "Research" });
+
+  // Two filed decisions so the Decision Center and the hub's "Recent
+  // decisions" panel show real rows.
+  await pg.pool.query(
+    `insert into decisions (org_id, title, decision_type, status, confidence, decision_maker_type, decision_maker_name, what_was_decided, rationale, expected_outcome, decided_at)
+     values ($1, 'Price the starter plan at $29 per month', 'pricing', 'active', 'high', 'user', 'Ada Founder',
+             'Starter is $29/mo per agency; Studio is $79/mo unlimited clients, with an annual toggle at two months free.',
+             'Design partners anchor value per agency, not per seat; usage pricing tested worse in the pilot.',
+             '10 paying agencies by Oct 31 at blended ARPU above $35.', now() - interval '2 days')`,
+    [orgId],
+  );
+  await pg.pool.query(
+    `insert into decisions (org_id, title, decision_type, status, confidence, decision_maker_type, decision_maker_name, what_was_decided, rationale, expected_outcome, decided_at)
+     values ($1, 'Move the pricing launch to Friday', 'operational', 'active', 'medium', 'agent', 'Atlas (Executive Agent)',
+             'Launch announcement moves to Friday because the Stripe test products are still in progress.',
+             'Announcing before checkout works would burn the waitlist''s first impression on a dead link.',
+             'Launch lands with a working checkout and a same-day newsletter.', now() - interval '3 hours')`,
+    [orgId],
+  );
+
+  console.log("[review] company seeded: 4 departments (Research, Engineering, Communications, Growth), 7 AI employees with personas, 2 goals, 8 tasks (2 in progress, 2 done, 1 gated, 2 pending to run, 1 failed), 2 open approvals, live activity stream, 2 decisions");
 
   // One command through the real pipeline so activity, credits, traces and the
   // attention queue carry real rows before the review starts.
@@ -558,7 +737,7 @@ async function main(): Promise<void> {
   console.log(`  email:     ${FOUNDER_EMAIL}`);
   console.log(`  password:  ${FOUNDER_PASSWORD}`);
   console.log(`  api:       ${API}`);
-  console.log(`  company:   Northwind Labs (4 AI employees, Growth/Acquisition)`);
+  console.log(`  company:   Northwind Labs (7 AI employees across 4 departments)`);
   // The gate is a machine, so it gets the literal IPv4 host: `localhost`
   // resolves to ::1 first on Windows and Next serves on IPv4 only, which costs
   // a ten-second happy-eyeballs wait on every request. The founder's browser is

@@ -18,6 +18,7 @@ const PROVIDER_CATALOG: NewProvider[] = [
   { slug: 'deepseek', name: 'DeepSeek', kind: 'byok', baseUrl: 'https://api.deepseek.com/v1', docUrl: 'https://platform.deepseek.com/api_keys', defaultModels: ['deepseek-chat'] },
   { slug: 'groq', name: 'Groq', kind: 'byok', baseUrl: 'https://api.groq.com/openai/v1', docUrl: 'https://console.groq.com/keys', defaultModels: ['llama-3.3-70b-versatile'] },
   { slug: 'openrouter', name: 'OpenRouter', kind: 'byok', baseUrl: 'https://openrouter.ai/api/v1', docUrl: 'https://openrouter.ai/keys', defaultModels: ['openai/gpt-4o-mini', 'anthropic/claude-sonnet-4.5'] },
+  { slug: 'nvidia', name: 'NVIDIA NIM', kind: 'byok', baseUrl: 'https://integrate.api.nvidia.com/v1', docUrl: 'https://build.nvidia.com/exp', defaultModels: ['nvidia/llama-3.1-nemotron-70b-instruct', 'meta/llama-3.3-70b-instruct'] },
   { slug: 'ollama', name: 'Ollama (local)', kind: 'local', baseUrl: 'http://localhost:11434', docUrl: 'https://ollama.com/library', defaultModels: ['llama3.2', 'nomic-embed-text'] },
 ];
 

@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm';
+import { ROLE_PROMPT_FALLBACK } from './agent-personas.js';
 import { agents, approvals, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chat } from './llm.js';
 import {
@@ -62,23 +63,9 @@ export interface TaskExecutionResult {
 
 // ─── Agent System Prompts ───────────────────────────────────────────────────
 
-const AGENT_PROMPTS: Record<string, string> = {
-  market_researcher: `You are a Market Researcher AI employee. Your job is to gather, analyze, and synthesize information about markets, competitors, trends, and opportunities. Provide structured, actionable intelligence with clear findings and recommendations. Be specific, cite patterns, and quantify where possible.`,
-  
-  content_writer: `You are a Content Writer AI employee. Your job is to create high-quality written content including articles, reports, briefs, marketing copy, and documentation. Match the tone and style to the audience. Be clear, engaging, and purposeful.`,
-  
-  communications_agent: `You are a Communications Agent AI employee. Your job is to draft professional communications including emails, notifications, status updates, and announcements. Be clear, concise, and appropriate for the audience.`,
-  
-  software_engineer: `You are a Software Engineer AI employee. Your job is to analyze technical requirements, design solutions, write code, review implementations, and provide technical guidance. Be precise, consider edge cases, and follow best practices.`,
-  
-  data_analyst: `You are a Data Analyst AI employee. Your job is to analyze data, identify patterns, create reports, and provide data-driven insights. Present findings clearly with supporting evidence and actionable recommendations.`,
-  
-  operations_manager: `You are an Operations Manager AI employee. Your job is to optimize processes, coordinate workflows, manage resources, and ensure efficient execution. Focus on practical improvements and measurable outcomes.`,
-  
-  financial_analyst: `You are a Financial Analyst AI employee. Your job is to analyze financial data, create projections, assess budgets, and provide financial guidance. Be precise with numbers and clear about assumptions.`,
-  
-  executive_agent: `You are the Executive Agent. Your job is to coordinate across all AI employees, manage priorities, break down complex objectives into actionable plans, and ensure organizational goals are met. Think strategically and communicate clearly.`,
-};
+// Role-level prompts now live in the persona registry (agent-personas.ts),
+// shared with the hire-time defaults so both paths speak in the same voice.
+const AGENT_PROMPTS: Record<string, string> = ROLE_PROMPT_FALLBACK;
 
 const DEFAULT_AGENT_PROMPT = `You are an AI employee of ORQ8. Complete the assigned task to the best of your ability. Be thorough, accurate, and provide clear, actionable output.`;
 
@@ -464,6 +451,11 @@ export async function executeTask(
   // 3. Load the agent (if assigned)
   let agentRole = 'executive_agent';
   let agentName = 'Executive Agent';
+  // Persona (docs/71 §F): an agent may carry its own system prompt in
+  // config.systemPrompt — seeded with the org, editable per employee. When
+  // present it replaces the generic role prompt, so Nova is prompted as Nova,
+  // not as "a Market Researcher".
+  let agentPersona: string | undefined;
   if (task.agentId) {
     const [agent] = await db
       .select()
@@ -473,6 +465,10 @@ export async function executeTask(
     if (agent) {
       agentRole = agent.role;
       agentName = agent.name;
+      const cfg = agent.config as { systemPrompt?: unknown } | null;
+      if (cfg && typeof cfg.systemPrompt === 'string' && cfg.systemPrompt.trim()) {
+        agentPersona = cfg.systemPrompt.trim();
+      }
     }
   }
 
@@ -491,7 +487,7 @@ export async function executeTask(
       })
     : null;
 
-  const basePrompt = AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
+  const basePrompt = agentPersona ?? AGENT_PROMPTS[agentRole] ?? DEFAULT_AGENT_PROMPT;
   const contextSection = agentContext ? buildContextPrompt(agentContext, agentName, agentRole) : '';
   const systemPrompt = contextSection
     ? `${basePrompt}\n\n${contextSection}`
