@@ -541,6 +541,38 @@ export const approvals = pgTable(
   ],
 );
 
+// Durable queue for agent work (docs/75 — backend phase, first slice). With
+// JOB_QUEUE_MODE=workers request handlers only enqueue; background workers
+// claim with FOR UPDATE SKIP LOCKED, retry with backoff, and reap stale locks.
+// The shape mirrors docs/75 §queue: small, index-first, no surprises.
+export const agentJobs = pgTable(
+  'agent_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    type: text('type').notNull(), // task.execute | command.run (extensible)
+    payload: jsonb('payload').notNull().default({}), // dispatcher input, e.g. { taskId }
+    status: text('status').notNull().default('pending'), // pending | running | done | failed | dead
+    priority: integer('priority').notNull().default(0), // higher runs first
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(3),
+    runAt: timestamp('run_at', { withTimezone: true }).notNull().defaultNow(), // next eligible time
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    lockedBy: text('locked_by'),
+    lastError: text('last_error'),
+    taskId: uuid('task_id'), // denormalized when the job targets one task
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('agent_jobs_claim_idx').on(t.status, t.runAt, t.priority),
+    index('agent_jobs_org_created_idx').on(t.orgId, t.createdAt),
+    index('agent_jobs_task_idx').on(t.taskId),
+  ],
+);
+
 export const activityEvents = pgTable(
   'activity_events',
   {

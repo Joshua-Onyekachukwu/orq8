@@ -54,6 +54,15 @@ const envSchema = z.object({
   // Comma-separated fallback models tried when OPENROUTER_MODEL fails.
   OPENROUTER_MODEL_FALLBACKS: z.string().optional(),
 
+  // Job queue mode (docs/75 — backend phase, first slice). 'inline' runs agent
+  // work on the request path exactly as before; 'workers' enqueues to the
+  // durable agent_jobs table and a background worker drains it (retries with
+  // backoff, stale-lock reaping), which is how the monolith graduates to
+  // worker microservices without changing the tool/pipeline code.
+  JOB_QUEUE_MODE: z.enum(['inline', 'workers']).default('inline'),
+  // Worker poll interval in ms (only meaningful in 'workers' mode).
+  JOB_WORKER_INTERVAL_MS: z.coerce.number().int().min(250).default(2000),
+
   // SerpAPI — real web search for agent research tools
   SERPAPI_KEY: z.string().optional(),
 

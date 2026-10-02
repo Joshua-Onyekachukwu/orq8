@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createLogger, initTracing, loadConfig } from '@orq8/core';
 import { createDb } from '@orq8/db';
-import { buildApp } from './app.js';
+import { buildApp, closeJobWorker } from './app.js';
 import { getRedis } from './services/redis.js';
 import { startOrphanReaper } from './services/orphaned-executions.js';
 
@@ -24,6 +24,9 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'shutting down');
     clearInterval(reaperTimer);
+    // Stop the queue worker first (short grace for a mid-flight job), then
+    // drain HTTP connections — see closeJobWorker in app.ts.
+    await closeJobWorker(app);
     await app.close();
     await redis.close();
     await pool.end();

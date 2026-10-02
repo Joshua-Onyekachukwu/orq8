@@ -9,6 +9,10 @@
  * panel on any other page (the floating launcher's door), and the launcher is
  * hidden on this route because the dock owns the EA surface here.
  *
+ * On phones the column would sit below the fold, so the same dock body also
+ * lives behind a fixed bottom bar (one tap → bottom sheet) — Atlas stays one
+ * tap away at every width, and it is still the same shared thread.
+ *
  * Everything shown is real: pending gates come from the approvals queue and
  * decide for real, event cards come from the activity feed, the plan card
  * from the strategy page's unratified revision, and messages go through the
@@ -16,9 +20,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp, ChevronUp, Loader2, X } from "lucide-react";
 
 import { useExecutiveAgent } from "../executive-agent-context";
 import { ExecutiveAgentProgress } from "../ea-progress";
@@ -57,14 +62,17 @@ function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function EADock({
+/** The dock's shared body — identical content in the desktop aside and the mobile sheet. */
+function DockBody({
+  variant,
+  onClose,
   intro,
   approvals,
   events,
   workingNow,
   pendingRevision,
   eventsThisHour,
-}: EADockProps) {
+}: EADockProps & { variant: "dock" | "sheet"; onClose?: () => void }) {
   const { messages, sendMessage, loading, stages, error, openPanel } =
     useExecutiveAgent();
   const router = useRouter();
@@ -114,7 +122,11 @@ export function EADock({
   return (
     <aside
       aria-label={`${EA_NAME} — Executive Agent dock`}
-      className="flex flex-col overflow-hidden rounded-lg border border-hairline bg-elevated lg:sticky lg:top-[4.5rem] lg:h-[calc(100vh-6.5rem)] lg:min-h-[520px]"
+      className={
+        variant === "dock"
+          ? "hidden flex-col overflow-hidden rounded-lg border border-hairline bg-elevated lg:sticky lg:top-[4.5rem] lg:flex lg:h-[calc(100vh-6.5rem)] lg:min-h-[520px]"
+          : "flex h-full w-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-hairline bg-elevated"
+      }
     >
       {/* Header */}
       <div className="flex items-center gap-2.5 border-b border-hairline px-3.5 py-3">
@@ -132,13 +144,24 @@ export function EADock({
             Executive Agent · {workingNow ? "directing work" : "active"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openPanel()}
-          className="ml-auto shrink-0 rounded-md border border-hairline px-2.5 py-1 text-2xs text-muted transition-colors hover:text-ink"
-        >
-          Expand
-        </button>
+        {variant === "sheet" ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={`Close ${EA_NAME}`}
+            className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-hairline text-muted transition-colors hover:text-ink"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openPanel()}
+            className="ml-auto shrink-0 rounded-md border border-hairline px-2.5 py-1 text-2xs text-muted transition-colors hover:text-ink"
+          >
+            Expand
+          </button>
+        )}
       </div>
 
       {/* Now strip — the employee mid-task, exactly the mock's live line */}
@@ -317,5 +340,102 @@ export function EADock({
         </div>
       </div>
     </aside>
+  );
+}
+
+/** The fixed bottom bar + sheet that carry the dock on phones (<lg). */
+function EAMobileDock(props: EADockProps) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Lock page scroll behind the sheet, and close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <>
+      {/* One-tap Atlas bar — the mock's dock, collapsed to a thumb-reachable line */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Open ${EA_NAME}, Executive Agent`}
+        className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-2.5 rounded-xl border border-hairline bg-elevated/95 px-3.5 py-2.5 text-left shadow-lg backdrop-blur lg:hidden"
+      >
+        <span
+          aria-hidden="true"
+          className="ea-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-mark-active/40 text-sm text-brand-ink"
+          style={{ backgroundColor: "rgba(166,206,149,0.08)" }}
+        >
+          ◈
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-ink">
+            {EA_NAME}
+            {props.approvals.length > 0 && (
+              <span
+                className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-semibold"
+                style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+              >
+                {props.approvals.length} gate{props.approvals.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </span>
+          <span className="flex items-center gap-1.5 text-2xs text-muted">
+            <span className="state-dot" data-state={props.workingNow ? "working" : ""} />
+            <span className="truncate">
+              {props.workingNow
+                ? `${props.workingNow.name} — ${props.workingNow.task}`
+                : "Executive Agent · active"}
+            </span>
+          </span>
+        </span>
+        <ChevronUp className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+      </button>
+
+      {/* The sheet — portaled to <body> so no page wrapper can clip it */}
+      {mounted &&
+        open &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${EA_NAME} — Executive Agent`}
+            className="fixed inset-0 z-50 lg:hidden"
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0 bg-black/55"
+              tabIndex={-1}
+            />
+            <div className="absolute inset-x-0 bottom-0 top-[6dvh]">
+              <DockBody variant="sheet" onClose={() => setOpen(false)} {...props} />
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+export function EADock(props: EADockProps) {
+  return (
+    <>
+      <DockBody variant="dock" {...props} />
+      <EAMobileDock {...props} />
+    </>
   );
 }

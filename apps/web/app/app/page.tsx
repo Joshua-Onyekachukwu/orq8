@@ -571,7 +571,7 @@ export default async function AppPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-16 lg:pb-0">
       <EAStageRegistrar stage={founderStage} route="/app" pageName="Dashboard" />
 
       {/* ── Greeting ─────────────────────────────────────────────────────── */}

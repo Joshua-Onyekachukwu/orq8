@@ -6,6 +6,7 @@ import { appendAudit } from '../services/audit.js';
 import { buildProviderChain } from '../services/llm.js';
 import * as userService from '../services/users.js';
 import { forbidden, platformAdminEmails } from '@orq8/core';
+import { jobsOverview } from '../services/jobs.js';
 import {
   users,
   organizations,
@@ -806,7 +807,9 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   // ── BACKGROUND JOBS ──
 
-  /** GET /v1/admin/jobs — Background job status. */
+  /** GET /v1/admin/jobs — Background job status, including the agent_jobs
+   *  queue (docs/75): counts by status plus recent rows. Platform-admin
+   *  gated because the rows span every tenant. */
   app.get('/v1/admin/jobs', async (request) => {
     await requirePlatformAdmin(request, deps);
     let dripPending = 0, dripSent = 0, dripFailed = 0;
@@ -818,7 +821,8 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     } catch { /* */ }
     let waitlistPending = 0;
     try { const [wp] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'pending')); waitlistPending = wp?.count ?? 0; } catch { /* */ }
-    return { data: { dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed }, waitlist: { pending: waitlistPending }, jobs: [
+    const agentQueue = await jobsOverview(db, 20).catch(() => ({ counts: {}, recent: [] }));
+    return { data: { dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed }, waitlist: { pending: waitlistPending }, agentQueue, jobs: [
       { name: 'Waitlist Drip Sequence', status: dripPending > 0 ? 'has_pending' : 'idle', pending: dripPending, sent: dripSent, failed: dripFailed },
       { name: 'Waitlist Processing', status: waitlistPending > 0 ? 'has_pending' : 'idle', pending: waitlistPending },
       { name: 'Weekly Report Generation', status: 'scheduled', nextRun: 'Sunday 00:00 UTC' },

@@ -79,6 +79,7 @@ import { registerLineageRoutes } from './routes/lineage.js';
 import { registerDeliberationRoutes } from './routes/deliberation.js';
 import { registerBuiltinTools } from './services/tool-registry.js';
 import { registerBuiltinToolHandlers } from './services/tool-handlers.js';
+import { startJobWorker, type JobWorkerHandle } from './services/job-worker.js';
 import { csrfPlugin } from './plugins/csrf.js';
 import type { AppDeps } from './types.js';
 
@@ -361,5 +362,26 @@ export async function buildApp(
   registerBuiltinTools();
   registerBuiltinToolHandlers();
 
+  // docs/75 — first slice of the backend phase: when JOB_QUEUE_MODE=workers a
+  // background worker drains the durable agent_jobs queue (task.execute runs
+  // through the same quality pipeline as the inline path). Test environments
+  // keep inline mode, which is why the handle is optional and nothing here
+  // changes route registration. Callers that need graceful shutdown await
+  // closeJobWorker(app).
+  if (deps.config.JOB_QUEUE_MODE === 'workers') {
+    const worker = startJobWorker(deps.config, deps.db, deps.logger);
+    (app as unknown as { jobWorker?: JobWorkerHandle }).jobWorker = worker;
+  }
+
   return app;
+}
+
+/**
+ * Stop the queue worker started by buildApp, if any. Separated from app.close
+ * so shutdown order is explicit: the worker (which may be mid-job) stops
+ * first with a short grace period, then Fastify drains connections.
+ */
+export async function closeJobWorker(app: FastifyInstance): Promise<void> {
+  const handle = (app as unknown as { jobWorker?: JobWorkerHandle }).jobWorker;
+  if (handle) await handle.stop();
 }

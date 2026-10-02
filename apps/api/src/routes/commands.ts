@@ -8,6 +8,7 @@ import * as executiveAgent from '../services/executive-agent.js';
 import { getTaskStatus, executeTask, executePendingTasks, retryTask } from '../services/task-executor.js';
 import { executeWithQuality } from '../services/quality-pipeline.js';
 import { getRecentTraces, getTraceSummary } from '../services/llm-tracer.js';
+import { enqueueJob } from '../services/jobs.js';
 import type { AppDeps } from '../types.js';
 
 const commandBody = z.object({
@@ -184,6 +185,27 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
    */
   app.post<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId/execute', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // docs/75 — in 'workers' mode the handler only enqueues: the background
+    // worker runs the same quality pipeline, and the founder polls task
+    // status instead of holding an HTTP connection through a model call.
+    if (config.JOB_QUEUE_MODE === 'workers') {
+      const job = await enqueueJob(db, {
+        orgId: ctx.orgId,
+        type: 'task.execute',
+        payload: { taskId: request.params.taskId },
+        taskId: request.params.taskId,
+      });
+      reply.code(202);
+      return {
+        data: {
+          queued: true,
+          jobId: job.id,
+          reused: job.reused,
+          taskId: request.params.taskId,
+          status: 'queued',
+        },
+      };
+    }
     try {
       const qualityResult = await executeWithQuality(config, db, ctx.orgId, request.params.taskId);
       return { data: qualityResult.executionResult, qa: qualityResult.qaEvaluation, status: qualityResult.finalStatus };
@@ -235,6 +257,26 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
    */
   app.post('/v1/commands/tasks/execute-pending', async (request) => {
     const ctx = await requireAuth(request, deps);
+    // docs/75 — 'workers' mode: enqueue one job per pending task and let the
+    // background worker drain them; the response reports what was queued.
+    if (config.JOB_QUEUE_MODE === 'workers') {
+      const pending = await db
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(and(eq(tasks.orgId, ctx.orgId), eq(tasks.status, 'pending')))
+        .limit(25);
+      const jobs = [] as Array<{ taskId: string; jobId: string; reused: boolean }>;
+      for (const t of pending) {
+        const job = await enqueueJob(db, {
+          orgId: ctx.orgId,
+          type: 'task.execute',
+          payload: { taskId: t.id },
+          taskId: t.id,
+        });
+        jobs.push({ taskId: t.id, jobId: job.id, reused: job.reused });
+      }
+      return { data: { queued: jobs.length, jobs } };
+    }
     const results = await executePendingTasks(config, db, ctx.orgId);
     return {
       data: {

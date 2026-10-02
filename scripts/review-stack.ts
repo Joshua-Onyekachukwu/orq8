@@ -77,6 +77,33 @@ const FOUNDER_PASSWORD = DEMO_ENV.DEMO_PASSWORD || "ReviewPass123!";
 const STUB_KEY = "review-stack-key";
 const STUB_MODEL = "stub/review-model";
 
+/**
+ * Live model credentials. When the operator has put real keys in
+ * apps/api/.env (gitignored) — or the process env — the stack talks to
+ * OpenRouter/NVIDIA for real and the stub gateway stands by; otherwise the
+ * stub gateway is the default so offline runs never fail. REVIEW_LLM=stub
+ * forces the offline gateway even with keys present.
+ */
+function readApiEnv(): Record<string, string> {
+  try {
+    return Object.fromEntries(
+      readFileSync(new URL("../apps/api/.env", import.meta.url), "utf8")
+        .split(/\r?\n/)
+        .filter((line) => line.includes("=") && !line.startsWith("#"))
+        .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1).trim()]),
+    );
+  } catch {
+    return {};
+  }
+}
+const API_ENV = readApiEnv();
+const OPENROUTER_KEY = (process.env.OPENROUTER_API_KEY ?? API_ENV.OPENROUTER_API_KEY ?? "").trim();
+const NVIDIA_KEY = (process.env.NVIDIA_API_KEY ?? API_ENV.NVIDIA_API_KEY ?? "").trim();
+const NVIDIA_KEYS = (process.env.NVIDIA_API_KEYS ?? API_ENV.NVIDIA_API_KEYS ?? "").trim();
+const LIVE_LLM =
+  process.env.REVIEW_LLM !== "stub" &&
+  (OPENROUTER_KEY.startsWith("sk-or-") || NVIDIA_KEY.startsWith("nvapi-"));
+
 const INTENT_JSON = {
   intent: "Research the three closest competitors and summarize their pricing",
   category: "research",
@@ -270,7 +297,7 @@ async function main(): Promise<void> {
   console.log(`[review] database on port ${pg.port}`);
 
   const gateway = await startGateway();
-  console.log(`[review] model gateway on port ${gateway.port}`);
+  console.log(`[review] model gateway on port ${gateway.port}${LIVE_LLM ? " (standby — live model keys in use)" : ""}`);
 
   const mail = WITH_MAIL ? await startMailSink() : null;
   console.log(
@@ -292,10 +319,23 @@ async function main(): Promise<void> {
     PORT: String(API_PORT),
     ALLOWED_ORIGINS: `http://localhost:${WEB_PORT}`,
     APP_URL: `http://localhost:${WEB_PORT}`,
-    NVIDIA_API_KEY: "",
-    OPENROUTER_API_KEY: STUB_KEY,
-    OPENROUTER_BASE_URL: `http://127.0.0.1:${gateway.port}/v1`,
-    OPENROUTER_MODEL: STUB_MODEL,
+    ...(LIVE_LLM
+      ? {
+          OPENROUTER_API_KEY: OPENROUTER_KEY.startsWith("sk-or-") ? OPENROUTER_KEY : "",
+          OPENROUTER_BASE_URL: API_ENV.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+          OPENROUTER_MODEL: API_ENV.OPENROUTER_MODEL || "openai/gpt-4o-mini",
+          NVIDIA_API_KEY: NVIDIA_KEY.startsWith("nvapi-") ? NVIDIA_KEY : "",
+          NVIDIA_API_KEYS: NVIDIA_KEYS || undefined,
+          NVIDIA_BASE_URL: API_ENV.NVIDIA_BASE_URL || undefined,
+          NVIDIA_MODEL: API_ENV.NVIDIA_MODEL || undefined,
+          NVIDIA_MODEL_FALLBACKS: API_ENV.NVIDIA_MODEL_FALLBACKS || undefined,
+        }
+      : {
+          NVIDIA_API_KEY: "",
+          OPENROUTER_API_KEY: STUB_KEY,
+          OPENROUTER_BASE_URL: `http://127.0.0.1:${gateway.port}/v1`,
+          OPENROUTER_MODEL: STUB_MODEL,
+        }),
     LLM_HEADERS_TIMEOUT_MS: "10000",
     LLM_TIMEOUT_MS: "20000",
     INTERNAL_TOKEN,
@@ -321,6 +361,11 @@ async function main(): Promise<void> {
   await app.listen({ port: API_PORT, host: "127.0.0.1" });
   const API = `http://127.0.0.1:${API_PORT}`;
   console.log(`[review] API on ${API}`);
+  console.log(
+    LIVE_LLM
+      ? `[review] LLM: LIVE — openrouter primary (${API_ENV.OPENROUTER_MODEL || "openai/gpt-4o-mini"})${NVIDIA_KEY ? ` → nvidia fallback (${API_ENV.NVIDIA_MODEL || "nvidia/llama-3.1-nemotron-70b-instruct"})` : ""}`
+      : "[review] LLM: stub gateway — no live keys found in apps/api/.env (REVIEW_LLM=stub forces this)",
+  );
 
   const api = async (route: string, init: { method?: string; token?: string; body?: unknown } = {}) => {
     const res = await fetch(`${API}${route}`, {
@@ -696,6 +741,174 @@ async function main(): Promise<void> {
   );
   console.log(`[review] plan seeded: rev ${rev1.rev} ratified (direction), rev 2 drafted by Atlas (unratified)`);
 
+  // ── The living company ───────────────────────────────────────────────
+  // A slow background ticker keeps Northwind Labs moving after the seed: an
+  // in-progress task finishes, the next pending one starts, tool calls and
+  // drafts land in the feed, and every few cycles a new approval shows up —
+  // so a demo never stares at a frozen snapshot. Every action is bounded
+  // (≤3 running, ≤4 pending, ≤2 open approvals) and REVIEW_TICKER=0 opts out.
+  const TICKER_ON = process.env.REVIEW_TICKER !== "0";
+  let tickerStopped = false;
+  let tickerTimer: NodeJS.Timeout | null = null;
+  if (TICKER_ON) {
+    const cast = [
+      { id: nova, name: "Nova", department: "Research" },
+      { id: ada, name: "Ada", department: "Research" },
+      { id: sage, name: "Sage", department: "Research" },
+      { id: ridge, name: "Ridge", department: "Engineering" },
+      { id: iris, name: "Iris", department: "Engineering" },
+      { id: ember, name: "Ember", department: "Communications" },
+      { id: milo, name: "Milo", department: "Growth" },
+    ];
+    const FLAVOR: Record<string, { type: string; summary: string; cost?: number }[]> = {
+      Nova: [
+        { type: "tool_call", summary: "dataset.query · competitor_pricing (12 rows)", cost: 40 },
+        { type: "analyzed", summary: "Competitor discounting patterns summarized — holiday bundles spotted", cost: 120 },
+      ],
+      Ada: [
+        { type: "tool_call", summary: "metrics.baseline · activation 9.4% → 9.6%", cost: 60 },
+        { type: "analyzed", summary: "Checkout funnel anomaly queue clear", cost: 90 },
+      ],
+      Sage: [
+        { type: "tool_call", summary: "weekly metrics delta computed", cost: 50 },
+        { type: "analyzed", summary: "Churn risk flat week-over-week", cost: 80 },
+      ],
+      Ridge: [
+        { type: "tool_call", summary: "test.run · pricing.spec.ts (14 checks green)", cost: 90 },
+        { type: "tool_call", summary: "deploy.preview · pricing page rebuilt", cost: 120 },
+      ],
+      Iris: [
+        { type: "tool_call", summary: "integrations.health — all connectors green", cost: 30 },
+        { type: "tool_call", summary: "Credential rotation reminder filed", cost: 0 },
+      ],
+      Ember: [
+        { type: "drafted", summary: "Waitlist announcement v2 — tightened for scannability", cost: 80 },
+        { type: "drafted", summary: "Launch email subject-line A/B pair ready", cost: 70 },
+      ],
+      Milo: [
+        { type: "tool_call", summary: "outreach.batch · 40 agencies queued", cost: 60 },
+        { type: "analyzed", summary: "Reply rate 15% — above the 12% bar", cost: 100 },
+      ],
+    };
+    const NEW_TASKS: Record<string, { title: string; description: string }[]> = {
+      Nova: [{ title: "Churn-signal scan on trial accounts", description: "Identify trial accounts showing churn signals and summarize the top three patterns." }],
+      Ada: [{ title: "Cohort retention cut", description: "Cut retention by signup cohort and flag any cohort below 40% on day 7." }],
+      Sage: [{ title: "Weekly metrics baseline", description: "Record where every KPI stands this Monday so movement stays visible." }],
+      Ridge: [{ title: "Performance pass on the pricing page", description: "Get LCP under 2.5s on the pricing page and re-run the spec suite." }],
+      Ember: [{ title: "Draft the waitlist announcement", description: "Draft the pricing-launch announcement email, warm and scannable." }],
+      Milo: [{ title: "Follow up with warm outreach replies", description: "Reply personally to every agency that answered the first outreach batch." }],
+    };
+    const RESULTS: Record<string, string> = {
+      Nova: "Pricing sweep updated — closest competitor moved to usage-metered at $0.008/request; delta and talking points filed.",
+      Ada: "Metrics baseline refreshed — activation 9.4% → 9.6%, no anomalies open; dashboards updated.",
+      Sage: "Weekly baseline recorded — every KPI inside its band except trial→paid (down 0.3pt), flagged for Growth.",
+      Ridge: "Pricing page build advanced — annual toggle shipped to preview; 14 spec checks green.",
+      Ember: "Draft ready for review — announcement email tightened, warm close added. Publishing stays gated to you.",
+      Milo: "Outreach batch processed — 40 sent, 6 replies; cost per reply $1.90, under the $3 bar.",
+    };
+    const GATES = [
+      { agentId: ember, name: "Ember", department: "Communications", action: "Publish the launch newsletter", description: "Ember wants to publish the launch newsletter to the full list. Authority: may draft, may not publish externally.", cost: 2500, risk: "medium" },
+      { agentId: nova, name: "Nova", department: "Research", action: "Raise Nova's daily spend cap", description: "Nova requests a temporary cap raise, 500 → 700 Cr/day, to finish the churn-signal scan in one pass.", cost: 20000, risk: "low" },
+    ];
+    const pick = <T,>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)]!;
+    const scalar = async (sql: string): Promise<string> =>
+      (await pg.pool.query<{ n: string }>(sql, [orgId])).rows[0]?.n ?? "0";
+
+    const tick = async (): Promise<void> => {
+      const actor = pick(cast);
+      const openGates = Number(await scalar("select count(*)::text as n from approvals where org_id = $1 and status = 'pending'"));
+      const running = Number(await scalar("select count(*)::text as n from tasks where org_id = $1 and status = 'in_progress'"));
+      const pending = Number(await scalar("select count(*)::text as n from tasks where org_id = $1 and status = 'pending'"));
+
+      // Rarely, a gated action asks for the founder (capped at two open).
+      if (openGates < 2 && Math.random() < 0.15) {
+        const gate = pick(GATES);
+        await pg.pool.query(
+          "insert into approvals (org_id, agent_id, action, description, cost, risk_level, status) values ($1, $2, $3, $4, $5, $6, 'pending')",
+          [orgId, gate.agentId, gate.action, gate.description, gate.cost, gate.risk],
+        );
+        await ev(0, "approval_requested", `${gate.name} requests approval: ${gate.action.charAt(0).toLowerCase()}${gate.action.slice(1)}`, { agentId: gate.agentId, cost: gate.cost, department: gate.department });
+        console.log(`[ticker] gate raised — ${gate.name}: ${gate.action}`);
+        return;
+      }
+
+      // Usually the actor's own in-progress task finishes (Iris is observe-mode
+      // by design — her runs are refused, so she never completes work here).
+      if (running > 0 && actor.name !== "Iris" && Math.random() < 0.4) {
+        const finished = (
+          await pg.pool.query<{ id: string; title: string }>(
+            "update tasks set status = 'completed', result = $3, updated_at = now() where id = (select id from tasks where org_id = $1 and agent_id = $2 and status = 'in_progress' order by created_at limit 1) returning id, title",
+            [orgId, actor.id, RESULTS[actor.name] ?? "Task completed."],
+          )
+        ).rows[0];
+        if (finished) {
+          await pg.pool.query(
+            "update agents set tasks_completed = tasks_completed + 1, credits_used = credits_used + 400, current_task = null, last_active_at = now() - interval '2 minutes' where id = $1",
+            [actor.id],
+          );
+          await ev(0, "task_completed", `${finished.title} — done`, { agentId: actor.id, cost: 400, department: actor.department });
+          console.log(`[ticker] completed — ${actor.name}: ${finished.title}`);
+          return;
+        }
+      }
+
+      // Or the actor picks up the next pending task.
+      if (running < 3 && pending > 0 && Math.random() < 0.5) {
+        const started = (
+          await pg.pool.query<{ id: string; title: string; agent_id: string | null }>(
+            "update tasks set status = 'in_progress', updated_at = now() where id = (select id from tasks where org_id = $1 and status = 'pending' order by created_at limit 1) returning id, title, agent_id",
+            [orgId],
+          )
+        ).rows[0];
+        if (started) {
+          const owner = cast.find((c) => c.id === started.agent_id) ?? actor;
+          await pg.pool.query(
+            "update agents set current_task = $2, last_active_at = now() - interval '2 minutes' where id = $1",
+            [owner.id, started.title],
+          );
+          await ev(0, "task_started", started.title, { agentId: owner.id, department: owner.department });
+          console.log(`[ticker] started — ${owner.name}: ${started.title}`);
+          return;
+        }
+      }
+
+      // Or the actor files a new piece of work to run later.
+      if (pending < 4) {
+        const next = pick(NEW_TASKS[actor.name] ?? []);
+        if (next) {
+          await pg.pool.query(
+            "insert into tasks (org_id, agent_id, title, description, status, priority) values ($1, $2, $3, $4, 'pending', 'normal')",
+            [orgId, actor.id, next.title, next.description],
+          );
+          console.log(`[ticker] queued — ${actor.name}: ${next.title}`);
+          return;
+        }
+      }
+
+      // And otherwise, just texture for the live feed.
+      const beat = pick(FLAVOR[actor.name] ?? []);
+      if (beat) {
+        await pg.pool.query(
+          "update agents set credits_used = credits_used + $2, last_active_at = now() - interval '2 minutes' where id = $1",
+          [actor.id, beat.cost ?? 0],
+        );
+        await ev(0, beat.type, beat.summary, { agentId: actor.id, cost: beat.cost ?? 0, department: actor.department });
+        console.log(`[ticker] ${beat.type} — ${actor.name}: ${beat.summary}`);
+      }
+    };
+
+    const scheduleTick = (): void => {
+      if (tickerStopped) return;
+      tickerTimer = setTimeout(() => {
+        void tick()
+          .catch((err) => console.error(`[ticker] skipped a beat: ${(err as Error).message}`))
+          .finally(scheduleTick);
+      }, 90_000 + Math.random() * 90_000);
+    };
+    scheduleTick();
+    console.log("[review] the company is alive — ticker on (tasks complete, agents move, gates appear; REVIEW_TICKER=0 to freeze)");
+  }
+
   // ── Web (built app) ──────────────────────────────────────────────────────
   // Both ports were checked at the top of main(), before anything was started:
   // the readiness poll below only asks whether *something* answers, so a stale
@@ -747,6 +960,8 @@ async function main(): Promise<void> {
   console.log(`===========================================\n`);
 
   const shutdown = async () => {
+    tickerStopped = true;
+    if (tickerTimer) clearTimeout(tickerTimer);
     web.kill();
     await app.close().catch(() => undefined);
     await gateway.close().catch(() => undefined);
