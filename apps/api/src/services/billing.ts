@@ -1,7 +1,52 @@
 import { eq, and } from 'drizzle-orm';
-import { subscriptions, organizations, type Db } from '@orq8/db';
+import { subscriptions, organizations, webhookEvents, type Db } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import { addPurchasedCredits } from './credits.js';
 import type { AppConfig } from '@orq8/core';
+
+// ─── Credit Packs (docs/77 §18) ─────────────────────────────────────────────
+//
+// Priced backwards from the plan economics: the Founder plan sells $39 for
+// 1,000 credits (~3.9¢/credit) and the Company plan $249 for 12,000 (~2.1¢).
+// Packs sit at 3.8¢ / 3.45¢ / 2.99¢ per credit, so a top-up never undercuts a
+// subscription and volume buyers get the discount. The server owns both
+// numbers: the client names a pack key and nothing else.
+export interface CreditPack {
+  key: string;
+  name: string;
+  credits: number;
+  priceCents: number;
+  /** Optional env key holding a Stripe Price id (preferred when configured). */
+  priceEnvKey: 'STRIPE_PRICE_CREDITS_STARTER' | 'STRIPE_PRICE_CREDITS_GROWTH' | 'STRIPE_PRICE_CREDITS_SCALE';
+  description: string;
+}
+
+export const CREDIT_PACKS: CreditPack[] = [
+  {
+    key: 'starter',
+    name: 'Starter',
+    credits: 500,
+    priceCents: 1_900,
+    priceEnvKey: 'STRIPE_PRICE_CREDITS_STARTER',
+    description: '500 Work Credits — 3.80¢ per credit',
+  },
+  {
+    key: 'growth',
+    name: 'Growth',
+    credits: 2_000,
+    priceCents: 6_900,
+    priceEnvKey: 'STRIPE_PRICE_CREDITS_GROWTH',
+    description: '2,000 Work Credits — 3.45¢ per credit',
+  },
+  {
+    key: 'scale',
+    name: 'Scale',
+    credits: 10_000,
+    priceCents: 29_900,
+    priceEnvKey: 'STRIPE_PRICE_CREDITS_SCALE',
+    description: '10,000 Work Credits — 2.99¢ per credit',
+  },
+];
 
 /**
  * Stripe Billing Service
@@ -277,17 +322,179 @@ export async function createPortalSession(
 // ─── Webhook Processing ─────────────────────────────────────────────────────
 
 export interface WebhookEvent {
+  /** Stripe's event id — the idempotency key for replay safety (docs/77 §A2). */
+  id: string;
   type: string;
   data: {
     object: Record<string, any>;
   };
 }
 
+// ─── Credit Pack Checkout ───────────────────────────────────────────────────
+
 /**
- * Process a Stripe webhook event.
- * Updates subscription status, credits, and organization plan in the database.
+ * Start a Stripe Checkout for a credit pack (docs/77 §16). The server owns the
+ * price and the credit quantity — the client only names the pack.
+ */
+export async function createCreditPackCheckout(
+  config: AppConfig,
+  db: Db,
+  orgId: string,
+  pack: CreditPack,
+): Promise<CheckoutResult> {
+  const stripe = getStripe(config);
+  if (!stripe) {
+    throw new Error('Billing is not configured. Set STRIPE_SECRET_KEY.');
+  }
+
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  if (!org) throw new Error('Organization not found');
+
+  const customerId = await getOrCreateStripeCustomer(stripe, db, orgId, org.name);
+  const priceId = config[pack.priceEnvKey] as string | undefined;
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: priceId
+      ? [{ price: priceId, quantity: 1 }]
+      : [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `ORQ8 ${pack.name} Credits`,
+              description: pack.description,
+            },
+            unit_amount: pack.priceCents,
+          },
+          quantity: 1,
+        }],
+    // The webhook reads orgId + credits from metadata; nothing in the session is
+    // trusted from the client.
+    metadata: {
+      orgId,
+      kind: 'credits',
+      pack: pack.key,
+      credits: String(pack.credits),
+    },
+    success_url: `${config.APP_URL ?? 'http://localhost:3000'}/app?credits=purchased`,
+    cancel_url: `${config.APP_URL ?? 'http://localhost:3000'}/app?credits=cancelled`,
+  });
+
+  return { sessionId: session.id, url: session.url! };
+}
+
+/**
+ * Resolve (or create) the Stripe customer for an org. Extracted so subscription
+ * checkout and credit-pack checkout cannot drift apart.
+ */
+async function getOrCreateStripeCustomer(
+  stripe: any,
+  db: Db,
+  orgId: string,
+  orgName: string,
+): Promise<string> {
+  const [existingSub] = await db
+    .select()
+    .from(subscriptions)
+    .where(and(eq(subscriptions.orgId, orgId), eq(subscriptions.status, 'active')))
+    .limit(1);
+
+  // Legacy mapping: subscription ids were used to smuggle the customer id.
+  const known = existingSub?.stripeSubscriptionId ?? null;
+  if (known) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(known);
+      if (typeof sub?.customer === 'string') return sub.customer;
+    } catch {
+      // Fall through to the metadata lookup below.
+    }
+  }
+
+  const search = await stripe.customers
+    .search({ query: `metadata['orgId']:'${orgId}'`, limit: 1 })
+    .catch(() => null);
+  if (search?.data?.[0]?.id) return search.data[0].id;
+
+  const customer = await stripe.customers.create({ name: orgName, metadata: { orgId } });
+  return customer.id;
+}
+
+// ─── Webhook Processing ─────────────────────────────────────────────────────
+
+/**
+ * Process a Stripe webhook event exactly once (docs/77 §A2).
+ *
+ * Idempotency is enforced by the `webhook_events` unique index on
+ * (org, provider, external_event_id): a second delivery of the same Stripe event
+ * finds the existing row and is skipped, so a replayed
+ * `checkout.session.completed` can never grant credits twice.
+ */
+export async function processWebhookEvent(
+  config: AppConfig,
+  db: Db,
+  event: WebhookEvent,
+): Promise<{ handled: boolean; duplicate: boolean; reason?: string }> {
+  const orgId = await resolveWebhookOrg(db, event);
+  if (!orgId) return { handled: false, duplicate: false, reason: 'unknown_org' };
+
+  const inserted = await db
+    .insert(webhookEvents)
+    .values({
+      orgId,
+      provider: 'stripe',
+      eventType: event.type,
+      externalEventId: event.id,
+      title: `Stripe ${event.type}`,
+      payload: { id: event.id, type: event.type },
+      status: 'processed',
+      processedAt: new Date(),
+    })
+    .onConflictDoNothing()
+    .returning({ id: webhookEvents.id });
+
+  if (inserted.length === 0) return { handled: false, duplicate: true };
+
+  await applyWebhook(config, db, event);
+  return { handled: true, duplicate: false };
+}
+
+/** Find the org a Stripe event belongs to, without ever guessing. */
+async function resolveWebhookOrg(db: Db, event: WebhookEvent): Promise<string | null> {
+  const object = event.data?.object ?? {};
+  const metadataOrg = object.metadata?.orgId;
+  if (typeof metadataOrg === 'string' && metadataOrg) return metadataOrg;
+
+  const stripeSubscriptionId =
+    typeof object.subscription === 'string'
+      ? object.subscription
+      : typeof object.id === 'string' && event.type.startsWith('customer.subscription.')
+        ? object.id
+        : null;
+  if (!stripeSubscriptionId) return null;
+
+  const [sub] = await db
+    .select({ orgId: subscriptions.orgId })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
+    .limit(1);
+  return sub?.orgId ?? null;
+}
+
+/**
+ * Apply a Stripe webhook event. Exported for the already-idempotency-checked
+ * path; callers that need replay safety use `processWebhookEvent`.
  */
 export async function handleWebhook(
+  config: AppConfig,
+  db: Db,
+  event: WebhookEvent,
+): Promise<void> {
+  return applyWebhook(config, db, event);
+}
+
+async function applyWebhook(
   config: AppConfig,
   db: Db,
   event: WebhookEvent,
@@ -297,9 +504,37 @@ export async function handleWebhook(
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const { orgId, plan, billingCycle } = session.metadata ?? {};
+      const { orgId, plan, billingCycle, kind, pack, credits: creditedRaw } = session.metadata ?? {};
 
-      if (orgId && plan) {
+      if (orgId && kind === 'credits') {
+        // Credit pack: grant exactly what the SERVER catalog says this pack is
+        // worth (never the client's or the session's number), keyed by the
+        // event id so a replay adds nothing.
+        const packKey = typeof pack === 'string' ? pack : '';
+        const known = CREDIT_PACKS.find((p) => p.key === packKey);
+        const credits = known?.credits ?? Number.parseInt(String(creditedRaw ?? '0'), 10);
+        if (credits > 0) {
+          const result = await addPurchasedCredits(
+            db,
+            orgId,
+            credits,
+            `Credit pack purchase: ${known?.name ?? packKey}`,
+            {
+              idempotencyKey: `stripe:${event.id}`,
+              type: 'purchase',
+              metadata: { stripeEventId: event.id, pack: packKey, sessionId: session.id },
+            },
+          );
+          await appendAudit(db, {
+            orgId,
+            actorType: 'system',
+            action: 'billing.credits.purchased',
+            outcome: result.applied ? 'success' : 'failure',
+            cost: credits,
+            resultRef: `stripe:${event.id} pack:${packKey}`,
+          });
+        }
+      } else if (orgId && plan) {
         await activateSubscription(db, orgId, plan, billingCycle ?? 'monthly', session.subscription);
       }
       break;

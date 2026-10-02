@@ -792,6 +792,39 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return { data: { weekly: { requests: weekly[0]?.count ?? 0, costCents: weekly[0]?.cost ?? 0 }, monthly: { requests: monthly[0]?.count ?? 0, costCents: monthly[0]?.cost ?? 0 }, allTime: { requests: allTime[0]?.count ?? 0, costCents: allTime[0]?.cost ?? 0 }, credits: { total: credits?.total ?? 0, used: credits?.used ?? 0 }, agents: { total: agentStats?.total ?? 0, active: agentStats?.active ?? 0 } } };
   });
 
+  /**
+   * GET /v1/admin/credits/reconcile — ledger vs balance drift (docs/77 P0).
+   *
+   * The ledger is the source of truth; `drift` is how far the cached balance has
+   * wandered. Non-zero drift means a charge was lost or double-applied — the
+   * failure mode that used to be invisible. Without `orgId` it reports every org
+   * that currently drifts.
+   */
+  app.get('/v1/admin/credits/reconcile', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const params = request.query as { orgId?: string; limit?: string };
+    const { reconcileLedger } = await import('../services/credits.js');
+
+    if (params.orgId) {
+      return { data: await reconcileLedger(db, params.orgId) };
+    }
+
+    const limit = Math.min(Math.max(Number(params.limit) || 200, 1), 1000);
+    const orgs = await db
+      .select({ id: organizations.id, name: organizations.name })
+      .from(organizations)
+      .limit(limit);
+
+    const results = [];
+    for (const org of orgs) {
+      results.push({ name: org.name, ...(await reconcileLedger(db, org.id)) });
+    }
+    const drifting = results.filter((r) => !r.balanced);
+    return {
+      data: { checked: results.length, drifting: drifting.length, orgs: drifting },
+    };
+  });
+
   // ── SECURITY CENTER ──
 
   /** GET /v1/admin/security — Security signals. */

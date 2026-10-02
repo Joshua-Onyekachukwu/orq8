@@ -12,6 +12,7 @@ import {
   uuid,
   vector,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // docs/34.1 conventions: uuid PKs, created_at/updated_at everywhere,
 // enums as constrained text, org_id on every business table, immutable audit rows.
@@ -294,7 +295,13 @@ export const creditBalances = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('credit_balances_org_period_idx').on(t.orgId, t.periodStart)],
+  (t) => [
+    index('credit_balances_org_period_idx').on(t.orgId, t.periodStart),
+    // docs/77 P0: one balance row per org/period — the old read-then-insert
+    // rollover could create two rows under concurrency (migration 0015). The
+    // migration creates this only when existing data is already clean.
+    uniqueIndex('credit_balances_org_period_unique').on(t.orgId, t.periodStart),
+  ],
 );
 
 export const creditTransactions = pgTable(
@@ -308,12 +315,30 @@ export const creditTransactions = pgTable(
     amount: integer('amount').notNull(), // positive = add, negative = consume
     description: text('description'), // e.g. 'Task execution', 'Credit top-up'
     referenceId: uuid('reference_id'), // taskId, subscriptionId, etc.
-    referenceType: text('reference_type'), // task | subscription | purchase
+    referenceType: text('reference_type'), // task | subscription | purchase | agent
+    // Retry/replay safety (docs/77 P0): a second write with the same key is
+    // rejected by a partial unique index and treated as "already applied".
+    idempotencyKey: text('idempotency_key'),
+    // Attribution — what this spend actually was, so internal economics can be
+    // computed without parsing the description string.
+    provider: text('provider'),
+    model: text('model'),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    providerCostUsd: numeric('provider_cost_usd', { precision: 14, scale: 8 }),
+    agentId: uuid('agent_id'),
+    taskId: uuid('task_id'),
+    jobId: uuid('job_id'),
+    metadata: jsonb('metadata').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('credit_transactions_org_idx').on(t.orgId, t.createdAt),
     index('credit_transactions_type_idx').on(t.orgId, t.type),
+    uniqueIndex('credit_transactions_org_idem_idx')
+      .on(t.orgId, t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
+    index('credit_transactions_task_idx').on(t.taskId),
   ],
 );
 

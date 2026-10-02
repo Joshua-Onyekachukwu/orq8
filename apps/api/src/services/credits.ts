@@ -173,6 +173,8 @@ export async function getOrCreateBalance(
         .limit(1);
 
       if (!existingBalance) {
+        // onConflictDoNothing + the unique (org, period_start) index (migration
+        // 0015) means two concurrent rollovers cannot create two balances.
         await db.insert(creditBalances).values({
           orgId,
           subscriptionId: subId,
@@ -181,7 +183,7 @@ export async function getOrCreateBalance(
           usedCredits: 0,
           periodStart,
           periodEnd,
-        });
+        }).onConflictDoNothing();
 
         await db.insert(creditTransactions).values({
           orgId,
@@ -249,9 +251,23 @@ export async function getOrCreateBalance(
         periodStart,
         periodEnd,
       })
+      .onConflictDoNothing()
       .returning();
 
-    balance = created!;
+    if (created) {
+      balance = created;
+    } else {
+      // A concurrent request won the insert — read the row it created.
+      [balance] = await db
+        .select()
+        .from(creditBalances)
+        .where(and(eq(creditBalances.orgId, orgId), eq(creditBalances.periodStart, periodStart)))
+        .limit(1);
+    }
+  }
+
+  if (!balance) {
+    throw new Error(`credits: no balance row could be created for org ${orgId}`);
   }
 
   const total = balance.includedCredits + balance.purchasedCredits;
@@ -304,6 +320,41 @@ export async function hasEnoughCredits(
  * `options.amount` so the ledger, the row that recorded the work and the audit
  * all carry one number instead of disagreeing.
  */
+/**
+ * Optional settlement metadata. `idempotencyKey` makes a retried settlement a
+ * no-op; `attribution` records what the spend actually was (provider, model,
+ * tokens, real provider cost) so internal margin reporting is possible.
+ */
+export interface CreditSettlementOptions {
+  amount?: number;
+  idempotencyKey?: string;
+  attribution?: {
+    provider?: string;
+    model?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    providerCostUsd?: number;
+    agentId?: string;
+    taskId?: string;
+    jobId?: string;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+/**
+ * Consume credits for an operation (docs/77 P0).
+ *
+ * Correctness contract:
+ *  - the debit is an **SQL increment**, never an absolute value computed from a
+ *    prior read — two concurrent charges both land, so the balance always
+ *    equals the sum of the ledger;
+ *  - the ledger row is written first inside the same transaction, and the
+ *    partial unique index on (org, idempotency_key) is the arbiter under a
+ *    race, so a retry/replay returns "already applied" instead of charging
+ *    twice;
+ *  - the cap guard lives in the UPDATE's WHERE, so overspend is impossible even
+ *    if the pre-read was stale.
+ */
 export async function consumeCredits(
   db: Db,
   orgId: string,
@@ -311,8 +362,8 @@ export async function consumeCredits(
   description: string,
   referenceId?: string,
   referenceType?: string,
-  options: { amount?: number } = {},
-): Promise<{ balance: CreditBalanceInfo; consumed: number }> {
+  options: CreditSettlementOptions = {},
+): Promise<{ balance: CreditBalanceInfo; consumed: number; duplicate?: boolean }> {
   const balance = await getOrCreateBalance(db, orgId);
   const cost = options.amount !== undefined
     ? Math.max(0, Math.round(options.amount))
@@ -325,40 +376,62 @@ export async function consumeCredits(
     throw new CreditExhaustedError(orgId, balance.remaining, cost, operationType);
   }
 
-  // Atomically update the balance with a guard against overspend.
-  // The WHERE clause ensures usedCredits + cost <= total, preventing race conditions
-  // where two concurrent requests both see enough credits and both consume.
-  const total = balance.included + balance.purchased;
-  const result = await db
-    .update(creditBalances)
-    .set({
-      usedCredits: balance.used + cost,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(creditBalances.orgId, orgId),
-        gte(creditBalances.periodStart, balance.periodStart),
-        // Atomic guard: only update if we won't overspend
-        sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
-      ),
-    )
-    .returning();
+  const a = options.attribution ?? {};
+  const settled = await db.transaction(async (tx) => {
+    // 1. Ledger row first. With an idempotency key the unique index decides the
+    //    race: zero rows returned means this exact charge was already applied.
+    const inserted = await tx
+      .insert(creditTransactions)
+      .values({
+        orgId,
+        type: 'usage',
+        amount: -cost,
+        description,
+        referenceId: referenceId ?? null,
+        referenceType: referenceType ?? null,
+        idempotencyKey: options.idempotencyKey ?? null,
+        provider: a.provider ?? null,
+        model: a.model ?? null,
+        inputTokens: a.inputTokens ?? null,
+        outputTokens: a.outputTokens ?? null,
+        providerCostUsd: a.providerCostUsd !== undefined ? String(a.providerCostUsd) : null,
+        agentId: a.agentId ?? null,
+        taskId: a.taskId ?? (referenceType === 'task' ? referenceId ?? null : null),
+        jobId: a.jobId ?? null,
+        metadata: a.metadata ?? {},
+      })
+      .onConflictDoNothing()
+      .returning({ id: creditTransactions.id });
 
-  if (result.length === 0) {
-    // The guard failed — another request consumed the credits first
-    throw new CreditExhaustedError(orgId, 0, cost, operationType);
-  }
+    if (inserted.length === 0) return { duplicate: true as const };
 
-  // Record the transaction
-  await db.insert(creditTransactions).values({
-    orgId,
-    type: 'usage',
-    amount: -cost,
-    description,
-    referenceId: referenceId ?? null,
-    referenceType: referenceType ?? null,
+    // 2. Atomic guarded debit — increment in SQL, cap check in the same WHERE.
+    const updated = await tx
+      .update(creditBalances)
+      .set({
+        usedCredits: sql`${creditBalances.usedCredits} + ${cost}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+          sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
+        ),
+      )
+      .returning({ id: creditBalances.id });
+
+    if (updated.length === 0) {
+      // Guard failed → the whole transaction (including the ledger row) rolls back.
+      throw new CreditExhaustedError(orgId, 0, cost, operationType);
+    }
+    return { duplicate: false as const };
   });
+
+  if (settled.duplicate) {
+    // Already billed under this key: report honestly, charge nothing.
+    return { balance: await getOrCreateBalance(db, orgId), consumed: 0, duplicate: true };
+  }
 
   // Audit the consumption
   await appendAudit(db, {
@@ -386,33 +459,59 @@ export async function consumeCredits(
 /**
  * Add purchased credits to an organization's balance.
  */
+/**
+ * Credit purchased credits (docs/77 P0). Server-to-server only: the caller must
+ * be a verified payment path (Stripe webhook) or an audited admin grant — see
+ * the P0 note in the routes: the old self-serve top-up endpoint is gone.
+ *
+ * `idempotencyKey` is required in practice for payment paths (use the provider
+ * event id), so a replayed webhook adds credits once.
+ */
 export async function addPurchasedCredits(
   db: Db,
   orgId: string,
   amount: number,
   description: string = 'Credit top-up',
-): Promise<CreditBalanceInfo> {
+  options: { idempotencyKey?: string; type?: string; metadata?: Record<string, unknown> } = {},
+): Promise<{ balance: CreditBalanceInfo; applied: boolean }> {
   const balance = await getOrCreateBalance(db, orgId);
+  const type = options.type ?? 'purchase';
 
-  await db
-    .update(creditBalances)
-    .set({
-      purchasedCredits: balance.purchased + amount,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(creditBalances.orgId, orgId),
-        gte(creditBalances.periodStart, balance.periodStart),
-      ),
-    );
+  const applied = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(creditTransactions)
+      .values({
+        orgId,
+        type,
+        amount,
+        description,
+        idempotencyKey: options.idempotencyKey ?? null,
+        metadata: options.metadata ?? {},
+      })
+      .onConflictDoNothing()
+      .returning({ id: creditTransactions.id });
+    if (inserted.length === 0) return false;
 
-  await db.insert(creditTransactions).values({
-    orgId,
-    type: 'purchase',
-    amount: amount ?? 0,
-    description,
+    // Increment in SQL — never an absolute value from a stale read.
+    await tx
+      .update(creditBalances)
+      .set({
+        purchasedCredits: sql`${creditBalances.purchasedCredits} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+        ),
+      );
+    return true;
   });
+
+  if (!applied) {
+    // Replay: credits were already granted for this key.
+    return { balance: await getOrCreateBalance(db, orgId), applied: false };
+  }
 
   await appendAudit(db, {
     orgId,
@@ -422,7 +521,7 @@ export async function addPurchasedCredits(
     cost: amount ?? 0,
   });
 
-  return getOrCreateBalance(db, orgId);
+  return { balance: await getOrCreateBalance(db, orgId), applied: true };
 }
 
 /**
@@ -433,31 +532,98 @@ export async function adjustCredits(
   orgId: string,
   amount: number,
   description: string,
-): Promise<CreditBalanceInfo> {
+  options: { idempotencyKey?: string; actorType?: 'user' | 'system' | 'agent'; actorId?: string } = {},
+): Promise<{ balance: CreditBalanceInfo; applied: boolean }> {
   const balance = await getOrCreateBalance(db, orgId);
-  const newPurchased = Math.max(0, balance.purchased + amount);
 
-  await db
-    .update(creditBalances)
-    .set({
-      purchasedCredits: newPurchased,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(creditBalances.orgId, orgId),
-        gte(creditBalances.periodStart, balance.periodStart),
-      ),
-    );
+  const applied = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(creditTransactions)
+      .values({
+        orgId,
+        type: 'adjustment',
+        amount,
+        description,
+        idempotencyKey: options.idempotencyKey ?? null,
+      })
+      .onConflictDoNothing()
+      .returning({ id: creditTransactions.id });
+    if (inserted.length === 0) return false;
 
-  await db.insert(creditTransactions).values({
-    orgId,
-    type: 'adjustment',
-    amount,
-    description,
+    // Atomic, floored at zero — `greatest(0, ...)` keeps the aggregate honest
+    // even when a negative adjustment exceeds what was purchased.
+    await tx
+      .update(creditBalances)
+      .set({
+        purchasedCredits: sql`greatest(0, ${creditBalances.purchasedCredits} + ${amount})`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+        ),
+      );
+    return true;
   });
 
-  return getOrCreateBalance(db, orgId);
+  // Adjustments were previously invisible in the audit trail (docs/77 §A13).
+  if (applied) {
+    await appendAudit(db, {
+      orgId,
+      actorType: options.actorType ?? 'system',
+      actorId: options.actorId,
+      action: 'credits.adjusted',
+      outcome: 'success',
+      cost: amount,
+    });
+  }
+
+  return { balance: await getOrCreateBalance(db, orgId), applied };
+}
+
+/**
+ * Reconcile the cached balance against the append-only ledger (docs/77 P0).
+ * The ledger is the source of truth; `drift` is how far the aggregate has
+ * wandered. Non-zero drift means a charge was lost or double-applied — the
+ * condition that used to be invisible.
+ */
+export async function reconcileLedger(
+  db: Db,
+  orgId: string,
+): Promise<{
+  orgId: string;
+  balanceUsed: number;
+  ledgerUsed: number;
+  drift: number;
+  balanced: boolean;
+  usageRows: number;
+}> {
+  const balance = await getOrCreateBalance(db, orgId);
+  const [row] = await db
+    .select({
+      ledgerUsed: sql<number>`COALESCE(SUM(-${creditTransactions.amount}), 0)::int`,
+      usageRows: sql<number>`count(*)::int`,
+    })
+    .from(creditTransactions)
+    .where(
+      and(
+        eq(creditTransactions.orgId, orgId),
+        eq(creditTransactions.type, 'usage'),
+        gte(creditTransactions.createdAt, balance.periodStart),
+        lte(creditTransactions.createdAt, balance.periodEnd),
+      ),
+    );
+  const ledgerUsed = row?.ledgerUsed ?? 0;
+  const drift = balance.used - ledgerUsed;
+  return {
+    orgId,
+    balanceUsed: balance.used,
+    ledgerUsed,
+    drift,
+    balanced: drift === 0,
+    usageRows: row?.usageRows ?? 0,
+  };
 }
 
 // ─── Transaction History ────────────────────────────────────────────────────

@@ -103,6 +103,12 @@ const envSchema = z.object({
   STRIPE_PRICE_TEAM_ANNUAL: z.string().optional(),
   STRIPE_PRICE_COMPANY_MONTHLY: z.string().optional(),
   STRIPE_PRICE_COMPANY_ANNUAL: z.string().optional(),
+  // Credit-pack prices (docs/77 §16/§18). When set, Stripe Checkout uses the
+  // configured Price id; otherwise it falls back to the server-owned price in
+  // CREDIT_PACKS (services/billing.ts). The client never sends a price.
+  STRIPE_PRICE_CREDITS_STARTER: z.string().optional(),
+  STRIPE_PRICE_CREDITS_GROWTH: z.string().optional(),
+  STRIPE_PRICE_CREDITS_SCALE: z.string().optional(),
   APP_URL: z.string().url().optional(),
 
   // S3/R2 — file storage (Cloudflare R2, AWS S3, or local fallback)

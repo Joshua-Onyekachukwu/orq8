@@ -5,11 +5,22 @@ import { validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as credits from '../services/credits.js';
+import * as billing from '../services/billing.js';
 import * as creditAlerts from '../services/credit-alerts.js';
 import type { AppDeps } from '../types.js';
 
 export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void {
-  const { db, logger } = deps;
+  const { db, config, logger } = deps;
+
+  /**
+   * docs/77 §A1 — self-serve manual consumption is a development affordance.
+   * In production it is invisible (404, not 403 — an attacker should not learn
+   * that an admin-only endpoint exists) unless the caller is a platform admin.
+   * It can only ever debit the caller's own org, so this closes API surface
+   * rather than a privilege escalation.
+   */
+  const devOnlyOrPlatformAdmin = (ctx: { platformRole: string }): boolean =>
+    config.NODE_ENV !== 'production' || ctx.platformRole === 'admin';
 
   /**
    * GET /v1/credits/balance — Get current credit balance for the org.
@@ -65,16 +76,25 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
   });
 
   /**
-   * POST /v1/credits/consume — Manually consume credits (for testing/admin).
-   * In production, credit consumption happens automatically through task execution.
+   * POST /v1/credits/consume — manually consume credits (dev/test + platform
+   * admin only; see docs/77 §A1). Production consumption happens through task
+   * execution, tool calls and EA commands.
    */
-  app.post('/v1/credits/consume', async (request) => {
+  app.post('/v1/credits/consume', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (!devOnlyOrPlatformAdmin(ctx)) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Route not found' } };
+    }
     const parsed = z.object({
       operation_type: z.string().min(1),
       description: z.string().min(1).max(500),
       reference_id: z.string().uuid().optional(),
       reference_type: z.string().optional(),
+      // Optional replay guard: a second call with the same key is a no-op
+      // (`duplicate: true`, `consumed: 0`) instead of a second charge.
+      idempotency_key: z.string().min(1).max(200).optional(),
+      amount: z.number().int().min(0).max(100_000).optional(),
     }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -86,6 +106,10 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
         parsed.data.description,
         parsed.data.reference_id,
         parsed.data.reference_type,
+        {
+          amount: parsed.data.amount,
+          idempotencyKey: parsed.data.idempotency_key,
+        },
       );
       return { data: result };
     } catch (error) {
@@ -104,26 +128,47 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
   });
 
   /**
-   * POST /v1/credits/top-up — Add purchased credits.
+   * GET /v1/credits/packs — the server's credit catalog.
+   *
+   * The client never sends a price or a credit quantity: it names a pack and the
+   * server owns both numbers (docs/77 §16).
    */
-  app.post('/v1/credits/top-up', async (request) => {
+  app.get('/v1/credits/packs', async () => {
+    return { data: billing.CREDIT_PACKS };
+  });
+
+  /**
+   * POST /v1/credits/purchase — start a Stripe Checkout for a credit pack.
+   *
+   * Credits are granted only by the verified, idempotent webhook — never by this
+   * response and never from client input. This replaces the removed top-up
+   * endpoint (docs/77 §A1).
+   */
+  app.post('/v1/credits/purchase', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    const parsed = z.object({
-      amount: z.number().int().positive().max(100_000),
-      description: z.string().max(500).optional(),
-    }).safeParse(request.body);
+    const parsed = z.object({ pack: z.string().min(1).max(64) }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
-    const balance = await credits.addPurchasedCredits(
-      db,
-      ctx.orgId,
-      parsed.data.amount,
-      parsed.data.description ?? `Top-up: ${parsed.data.amount} credits`,
-    );
+    const pack = billing.CREDIT_PACKS.find((p) => p.key === parsed.data.pack);
+    if (!pack) {
+      reply.code(400);
+      return { error: { code: 'validation_error', message: 'Unknown credit pack' } };
+    }
 
-    logger.info({ orgId: ctx.orgId, amount: parsed.data.amount }, 'Credits top-up');
-
-    return { data: balance };
+    try {
+      const result = await billing.createCreditPackCheckout(config, db, ctx.orgId, pack);
+      logger.info({ orgId: ctx.orgId, pack: pack.key }, 'credit pack checkout created');
+      return { data: result };
+    } catch (err) {
+      logger.error({ err, orgId: ctx.orgId, pack: pack.key }, 'credit pack checkout failed');
+      reply.code(503);
+      return {
+        error: {
+          code: 'billing_unavailable',
+          message: err instanceof Error ? err.message : 'Billing is not configured',
+        },
+      };
+    }
   });
 
   // ── CREDIT ALERTS ──

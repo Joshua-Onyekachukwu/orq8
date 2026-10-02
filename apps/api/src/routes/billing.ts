@@ -101,24 +101,35 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
       return { error: { code: 'bad_request', message: 'Missing stripe-signature header' } };
     }
 
-    // Get raw body for signature verification
-    // Fastify stores the parsed body; for Stripe webhook verification we need the raw body.
-    // We read it directly from the request stream.
-    const rawBody = JSON.stringify(request.body);
+    // docs/77 §A2 — Stripe signs the EXACT bytes it sent. The raw body is
+    // captured by the app's JSON parser (`request.rawBody`); re-serializing the
+    // parsed object changes whitespace/key order and makes every signature fail,
+    // which is how payments previously never activated.
+    const rawBody =
+      (request as unknown as { rawBody?: string }).rawBody ?? JSON.stringify(request.body);
     const event = billing.verifyWebhookSignature(config, rawBody, signature);
     if (!event) {
       reply.code(400);
       return { error: { code: 'bad_request', message: 'Invalid webhook signature' } };
     }
+    if (!event.id) {
+      reply.code(400);
+      return { error: { code: 'bad_request', message: 'Webhook event id is required' } };
+    }
 
     try {
-      await billing.handleWebhook(config, db, event);
+      // processWebhookEvent is replay-safe: the same Stripe event id is applied
+      // once, so credits and plans cannot be granted twice.
+      const result = await billing.processWebhookEvent(config, db, event);
 
-      logger.info({ eventType: event.type }, 'Stripe webhook processed');
+      logger.info(
+        { eventId: event.id, eventType: event.type, ...result },
+        'Stripe webhook processed',
+      );
       reply.code(200);
-      return { received: true };
+      return { received: true, duplicate: result.duplicate, handled: result.handled };
     } catch (err) {
-      logger.error({ err, eventType: event.type }, 'Failed to process webhook');
+      logger.error({ err, eventId: event.id, eventType: event.type }, 'Failed to process webhook');
       reply.code(500);
       return { error: { code: 'internal', message: 'Webhook processing failed' } };
     }

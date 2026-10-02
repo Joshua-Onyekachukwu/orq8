@@ -273,54 +273,101 @@ run('Credits — full integration flow', () => {
     });
   });
 
-  // ── Top-up ──
+  // ── Self-serve grants are gone (docs/77 §A1) ──
 
-  describe('POST /v1/credits/top-up', () => {
-    it('adds purchased credits to the balance', async () => {
-      const before = await app.inject({
-        method: 'GET',
-        url: '/v1/credits/balance',
-        headers: auth(tokenA),
-      });
-      const purchasedBefore = before.json().data.purchased;
-
+  describe('Credit minting is not self-serve', () => {
+    it('the old top-up endpoint no longer exists', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/v1/credits/top-up',
         headers: auth(tokenA),
-        payload: { amount: 500, description: 'Test top-up' },
+        payload: { amount: 100_000 },
       });
+      // 404: the route is gone, not merely forbidden.
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('purchased credits cannot be granted twice under one idempotency key', async () => {
+      const creditsService = await import('../src/services/credits.js');
+      const key = `test-grant-${randomUUID()}`;
+
+      const first = await creditsService.addPurchasedCredits(
+        deps.db, orgIdA, 250, 'Idempotency test grant', { idempotencyKey: key },
+      );
+      expect(first.applied).toBe(true);
+      const afterFirst = first.balance.purchased;
+
+      const second = await creditsService.addPurchasedCredits(
+        deps.db, orgIdA, 250, 'Idempotency test grant (replay)', { idempotencyKey: key },
+      );
+      expect(second.applied).toBe(false);
+      expect(second.balance.purchased).toBe(afterFirst);
+    });
+
+    it('the credit pack catalog is server-owned', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/credits/packs', headers: auth(tokenA) });
       expect(res.statusCode).toBe(200);
-      const data = res.json().data;
-      expect(data.purchased).toBe(purchasedBefore + 500);
+      const packs = res.json().data as { key: string; credits: number; priceCents: number }[];
+      expect(packs.length).toBeGreaterThan(0);
+      for (const pack of packs) {
+        expect(pack.credits).toBeGreaterThan(0);
+        expect(pack.priceCents).toBeGreaterThan(0);
+      }
+    });
+  });
 
-      // Verify the balance reflects the top-up
-      const after = await app.inject({
-        method: 'GET',
-        url: '/v1/credits/balance',
+  // ── Charge integrity (docs/77 §A3) ──
+
+  describe('Charge integrity', () => {
+    it('does not double-charge a replayed settlement', async () => {
+      const key = `idem-${randomUUID()}`;
+      const before = (await app.inject({ method: 'GET', url: '/v1/credits/balance', headers: auth(tokenA) })).json().data.used;
+
+      const first = await app.inject({
+        method: 'POST',
+        url: '/v1/credits/consume',
         headers: auth(tokenA),
+        payload: { operation_type: 'task.planned', description: 'replay test', idempotency_key: key },
       });
-      expect(after.json().data.purchased).toBe(purchasedBefore + 500);
+      expect(first.statusCode).toBe(200);
+      expect(first.json().data.consumed).toBe(1);
+
+      const replay = await app.inject({
+        method: 'POST',
+        url: '/v1/credits/consume',
+        headers: auth(tokenA),
+        payload: { operation_type: 'task.planned', description: 'replay test', idempotency_key: key },
+      });
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json().data.consumed).toBe(0);
+      expect(replay.json().data.duplicate).toBe(true);
+
+      const after = (await app.inject({ method: 'GET', url: '/v1/credits/balance', headers: auth(tokenA) })).json().data.used;
+      expect(after - before).toBe(1);
     });
 
-    it('rejects negative amounts', async () => {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/v1/credits/top-up',
-        headers: auth(tokenA),
-        payload: { amount: -100 },
-      });
-      expect(res.statusCode).toBe(400);
+    it('concurrent consumption lands every charge (no lost update)', async () => {
+      const before = (await app.inject({ method: 'GET', url: '/v1/credits/balance', headers: auth(tokenA) })).json().data.used;
+
+      const [a, b, c] = await Promise.all([
+        app.inject({ method: 'POST', url: '/v1/credits/consume', headers: auth(tokenA), payload: { operation_type: 'task.planned', description: 'concurrent 1' } }),
+        app.inject({ method: 'POST', url: '/v1/credits/consume', headers: auth(tokenA), payload: { operation_type: 'task.planned', description: 'concurrent 2' } }),
+        app.inject({ method: 'POST', url: '/v1/credits/consume', headers: auth(tokenA), payload: { operation_type: 'task.planned', description: 'concurrent 3' } }),
+      ]);
+      for (const res of [a, b, c]) expect(res.statusCode).toBe(200);
+
+      const after = (await app.inject({ method: 'GET', url: '/v1/credits/balance', headers: auth(tokenA) })).json().data.used;
+      // Three parallel 1-credit charges must all land: the balance is an SQL
+      // increment, never an absolute value written from a stale read.
+      expect(after - before).toBe(3);
     });
 
-    it('rejects amounts over 100,000', async () => {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/v1/credits/top-up',
-        headers: auth(tokenA),
-        payload: { amount: 200_000 },
-      });
-      expect(res.statusCode).toBe(400);
+    it('the ledger reconciles against the cached balance', async () => {
+      const creditsService = await import('../src/services/credits.js');
+      const report = await creditsService.reconcileLedger(deps.db, orgIdA);
+      expect(report.usageRows).toBeGreaterThan(0);
+      expect(report.drift).toBe(0);
+      expect(report.balanced).toBe(true);
     });
   });
 
@@ -502,7 +549,8 @@ run('Credits — database writes', () => {
     expect(latest.amount).toBeLessThan(0); // negative = consumption
   });
 
-  it('top-up creates a purchase transaction', async () => {
+  it('a payment-path grant creates exactly one purchase transaction and writes it once', async () => {
+    const creditsService = await import('../src/services/credits.js');
     const before = await app.inject({
       method: 'GET',
       url: '/v1/credits/history?limit=200',
@@ -510,11 +558,23 @@ run('Credits — database writes', () => {
     });
     const countBefore = before.json().meta.total;
 
-    await app.inject({
+    // The only supported way to add credits now is a server-to-server grant
+    // (Stripe webhook / audited admin). The old self-serve endpoint is gone.
+    const gone = await app.inject({
       method: 'POST',
       url: '/v1/credits/top-up',
       headers: auth(token),
-      payload: { amount: 100, description: 'DB write test top-up' },
+      payload: { amount: 100 },
+    });
+    expect(gone.statusCode).toBe(404);
+
+    const key = `db-write-${randomUUID()}`;
+    await creditsService.addPurchasedCredits(deps.db, orgId, 100, 'DB write test grant', {
+      idempotencyKey: key,
+    });
+    // Replay under the same key must not write a second row.
+    await creditsService.addPurchasedCredits(deps.db, orgId, 100, 'DB write test grant (replay)', {
+      idempotencyKey: key,
     });
 
     const after = await app.inject({
@@ -525,7 +585,6 @@ run('Credits — database writes', () => {
     const countAfter = after.json().meta.total;
     expect(countAfter).toBe(countBefore + 1);
 
-    // Verify the purchase transaction
     const transactions = after.json().data;
     const purchase = transactions.find((t: { type: string }) => t.type === 'purchase');
     expect(purchase).toBeDefined();
