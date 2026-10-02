@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { fetchWithAuth } from "../../../lib/api";
-import { PageShell } from "../../../components/page-shell";
+import { PageContainer } from "../../../components/layout/page-container";
 import { EAOpenButton } from "../../../components/dashboard/ea-open-button";
 import {
   WorkBoard,
@@ -36,26 +36,22 @@ export default async function TasksPage() {
   const done = list.filter((t) => t.status === "completed").length;
 
   return (
-    <PageShell pageName="Tasks" backHref="/app">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-            Work
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Tasks</h1>
-          <p className="mt-1.5 max-w-2xl text-sm text-muted">
-            Work is assigned from goals and by Atlas. Approvals pause work that needs you —
-            nothing else does.
-          </p>
-        </div>
+    <PageContainer
+      width="wide"
+      kicker="Work"
+      title="Tasks"
+      lede="Work is assigned from goals and by Atlas. Approvals pause work that needs you — nothing else does."
+      actions={
         <EAOpenButton
           prompt="Plan the work for "
           className="inline-flex items-center rounded-full border border-hairline-strong px-3.5 py-2 text-xs font-medium text-ink transition-colors hover:bg-elevated"
         >
           Ask Atlas to plan work
         </EAOpenButton>
-      </div>
-
+      }
+      pageName="Tasks"
+      backHref="/app"
+    >
       {list.length > 0 && (
         <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-2xs text-muted">
           <span>{list.length} tasks</span>
@@ -80,6 +76,6 @@ export default async function TasksPage() {
           goals={goals ?? []}
         />
       )}
-    </PageShell>
+    </PageContainer>
   );
 }

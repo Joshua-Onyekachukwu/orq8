@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { PageContainer } from "../../../components/layout/page-container";
 import {
   Activity,
   Bot,
@@ -327,23 +328,23 @@ function EngineeringDashboard() {
   ];
 
   return (
-    <div className="min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Engineering Department</h1>
-          <p className="text-sm text-muted mt-1">
-            The software factory: engineering AI employees, repositories, sandbox execution, quality gates and the capability registry.
-          </p>
-        </div>
+    <PageContainer
+      width="full"
+      kicker="Work"
+      title="Engineering Department"
+      lede="The software factory: engineering AI employees, repositories, sandbox execution, quality gates and the capability registry."
+      actions={
         <button
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg border border-input bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg border border-hairline-strong px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-elevated disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Refresh
         </button>
-      </div>
+      }
+      pageName="Engineering"
+    >
 
       {error && (
         <div className="mb-6 rounded-lg border border-border-error bg-error-soft px-4 py-3 text-sm text-error-ink">{error}</div>
@@ -827,7 +828,7 @@ function EngineeringDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

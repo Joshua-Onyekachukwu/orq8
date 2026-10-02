@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { fetchWithAuth } from "../../../lib/api";
 import { GoalActions } from "../../../components/goal-actions";
 import { TaskActions } from "../../../components/task-actions";
-import { PageShell } from "../../../components/page-shell";
+import { PageContainer } from "../../../components/layout/page-container";
 
 export const metadata = { title: "Goals" };
 
@@ -386,24 +386,21 @@ export default async function GoalsPage() {
   const unplanned = taskList.filter((t) => !t.goalId).length;
 
   return (
-    <PageShell pageName="Goals" backHref="/app">
+    <PageContainer
+      width="standard"
+      kicker={`Commitments · ${active} active`}
+      title="Goals"
+      lede="Each goal is a commitment with a plan. Expand one to see its steps and lineage."
+      actions={
+        <>
+          <TaskActions agents={agents} />
+          <GoalActions />
+        </>
+      }
+      pageName="Goals"
+      backHref="/app"
+    >
       <div className="space-y-4">
-        <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
-          <div>
-            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-              Commitments · {active} active
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Goals</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted">
-              Each goal is a commitment with a plan. Expand one to see its steps and lineage.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <TaskActions agents={agents} />
-            <GoalActions />
-          </div>
-        </header>
-
         {goalList.length === 0 ? (
           <div className="console-card p-8">
             <p className="text-sm font-medium text-ink">No goals yet</p>
@@ -441,6 +438,6 @@ export default async function GoalsPage() {
           </p>
         ) : null}
       </div>
-    </PageShell>
+    </PageContainer>
   );
 }

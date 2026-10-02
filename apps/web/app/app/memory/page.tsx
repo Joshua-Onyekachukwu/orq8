@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { PageContainer } from "../../../components/layout/page-container";
 import { Plus, Search, Trash2, AlertCircle, RefreshCw, X, Brain } from "lucide-react";
 
 /**
@@ -138,20 +139,15 @@ export default function MemoryPage() {
 
   return (
     <PageErrorBoundary pageName="Memory" backHref="/app">
-      <div className="space-y-4">
-        <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
-          <div>
-            <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-              Knowledge · {entries.length} {entries.length === 1 ? "entry" : "entries"}
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Memory</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted">
-              What the company knows and remembers. Only what actually happened is stored — nothing
-              is pre-seeded.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
+      <PageContainer
+        width="standard"
+        kicker={`Knowledge · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+        title="Memory"
+        lede="What the company knows and remembers. Only what actually happened is stored — nothing is pre-seeded."
+        pageName="Memory"
+      >
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
               type="button"
               onClick={fetchEntries}
               disabled={loading}
@@ -169,8 +165,7 @@ export default function MemoryPage() {
             >
               <Plus aria-hidden="true" className="h-3.5 w-3.5" /> Remember something
             </button>
-          </div>
-        </header>
+        </div>
 
         {error && (
           <div className="flex items-start gap-2.5 rounded-lg border border-hairline bg-error-soft/40 px-3.5 py-2.5">
@@ -284,7 +279,6 @@ export default function MemoryPage() {
             )}
           </section>
         </div>
-      </div>
 
       {/* Create modal — writes a real row the employees will be handed. */}
       {showCreateModal && (
@@ -372,6 +366,7 @@ export default function MemoryPage() {
           </div>
         </div>
       )}
+      </PageContainer>
     </PageErrorBoundary>
   );
 }
