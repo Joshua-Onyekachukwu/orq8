@@ -13,7 +13,7 @@ const aboutFeatures = [
 
 const About: React.FC = () => {
   return (
-    <div className="relative">
+    <div className="relative bg-surface-white">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
           {/* Image Section */}

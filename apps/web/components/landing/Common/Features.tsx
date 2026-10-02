@@ -75,13 +75,13 @@ const Features: React.FC = () => {
 
           {/* Central core */}
           <div className="absolute top-[450px] left-[500px] -translate-x-1/2 -translate-y-1/2 z-[3]">
-            <div className="w-[140px] h-[140px] rounded-full bg-ink-accent border border-brand-deep/20 flex items-center justify-center shadow-[0_0_60px_rgba(194,242,242,0.18)]">
+            <div className="w-[140px] h-[140px] rounded-full bg-white border border-white/70 flex items-center justify-center shadow-[0_0_60px_rgb(255_255_255_/_0.22)]">
               <div className="text-center">
                 <span className="block text-ink-surface text-[24px] font-bold leading-none">ORQ8</span>
                 <span className="block text-brand-deep text-3xs uppercase tracking-[3px] mt-[6px] font-bold">Core</span>
               </div>
             </div>
-            <div className="absolute inset-[-10px] rounded-full border border-ink-accent/25 animate-ping" style={{animationDuration:"3s"}} />
+            <div className="absolute inset-[-10px] rounded-full border border-white/25 animate-ping" style={{animationDuration:"3s"}} />
           </div>
 
           {/* 6 cards — clockwise from 12 o'clock */}

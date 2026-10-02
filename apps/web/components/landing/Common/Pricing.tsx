@@ -234,7 +234,7 @@ const Pricing: React.FC = () => {
                   href={plan.cta.href}
                   className={`block w-full rounded-[60px] p-[12px] uppercase text-overline font-bold tracking-[0.15em] transition-all duration-300 ${
                     popular
-                      ? "bg-brand-deep text-white hover:bg-brand hover:shadow-[0_4px_20px_rgb(53_98_103_/_0.25)]"
+                      ? "bg-brand-deep text-white hover:bg-ink-accent hover:text-ink-surface hover:shadow-[0_4px_20px_rgb(194_242_242_/_0.22)]"
                       : "bg-white/[0.06] text-white hover:bg-ink-accent hover:text-ink-surface hover:shadow-[0_4px_20px_rgb(53_98_103_/_0.18)]"
                   }`}
                 >

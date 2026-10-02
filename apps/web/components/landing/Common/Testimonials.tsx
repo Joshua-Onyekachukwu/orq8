@@ -41,7 +41,7 @@ const users = [
 
 const Testimonials: React.FC = () => {
   return (
-    <div className="relative">
+    <div className="relative bg-surface-white">
       <div className="container sm:max-w-[540px] md:max-w-[720px] lg:max-w-[960px] xl:max-w-[1308px] mx-auto px-[12px] py-[70px] md:py-[90px] lg:py-[110px] xl:py-[130px] 2xl:py-[150px]">
         {/* Header — Trezo style */}
         <div className="mb-[30px] md:mb-[40px] lg:mb-[50px] mx-auto text-center md:max-w-[495px] lg:max-w-[600px]">
@@ -60,7 +60,7 @@ const Testimonials: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[25px]">
           {/* Swiper carousel — Trezo style */}
           <div
-            className="bg-surface-white border border-hairline py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
+            className="bg-surface-white border border-hairline shadow-[0_24px_70px_-50px_rgb(53_98_103_/_0.5)] py-[25px] md:py-[50px] lg:py-[58.5px] xl:py-[125px] px-[20px] md:px-[30px] lg:px-[40px] xl:px-[60px] rounded-[10px] md:rounded-[20px] relative"
             id="orq8TestimonialsSlides"
           >
             <Swiper
