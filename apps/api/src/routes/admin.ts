@@ -16,10 +16,13 @@ import {
   activityEvents,
   subscriptions,
   creditBalances,
+  creditTransactions,
+  llmPerformance,
   sessions,
   waitlistSignups,
   type Db,
 } from '@orq8/db';
+import { computeMargin, CREDIT_RATE_BASIS, USD_PER_CREDIT_REFERENCE } from '../services/economics.js';
 import type { AppDeps } from '../types.js';
 
 /**
@@ -582,7 +585,8 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       pausedAgents,
       pendingApprovals,
       weeklyActivity,
-      weeklySpend,
+      weeklyCredits,
+      weeklyProviderCost,
     ] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(users),
       db.select({ count: sql<number>`count(*)::int` }).from(users).where(sql`${users.createdAt} >= ${weekAgo}`),
@@ -594,6 +598,15 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       db.select({ count: sql<number>`count(*)::int` }).from(approvals).where(eq(approvals.status, 'pending')),
       db.select({ count: sql<number>`count(*)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`),
       db.select({ total: sql<number>`coalesce(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`),
+      // docs/77 P1 §5 — the dashboard's "weekly spend" card read credits and
+      // printed them as dollars. `activityEvents.cost` is credits; the USD figure
+      // the card claims lives in llm_performance now. Both are returned so the
+      // card can show cost and the credits it was earned with.
+      db
+        .select({ total: sql<number>`coalesce(sum(${llmPerformance.providerCostUsd}), 0)::float8` })
+        .from(llmPerformance)
+        .where(sql`${llmPerformance.createdAt} >= ${weekAgo}`)
+        .catch(() => [{ total: 0 }]),
     ]);
 
     return {
@@ -603,7 +616,12 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
         agents: { total: totalAgents[0]?.count ?? 0, active: activeAgents[0]?.count ?? 0, paused: pausedAgents[0]?.count ?? 0 },
         approvals: { pending: pendingApprovals[0]?.count ?? 0 },
         activity: { thisWeek: weeklyActivity[0]?.count ?? 0 },
-        spend: { thisWeek: (weeklySpend[0]?.total ?? 0) / 100 },
+        spend: {
+          /** Provider spend this week, in USD — the number the card labels. */
+          providerCostUsdThisWeek: weeklyProviderCost[0]?.total ?? 0,
+          /** Work credits consumed this week (the charge, not the cost). */
+          creditsThisWeek: weeklyCredits[0]?.total ?? 0,
+        },
       },
     };
   });
@@ -777,19 +795,153 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   // ── AI USAGE & COST TRACKING ──
 
-  /** GET /v1/admin/ai-usage — Platform-wide AI usage. */
+  /**
+   * GET /v1/admin/ai-usage — Platform-wide AI usage, in the units that exist.
+   *
+   * Rewritten for docs/77 P1 §5. The previous version summed
+   * `activity_events.cost` — a **credits** column — and returned it as `costCents`,
+   * so the console displayed credits with a dollar sign and no margin was
+   * computable. The numbers here come from two different tables on purpose,
+   * because they answer two different questions:
+   *
+   *   spend  (llm_performance) — every call the platform made, including the ones
+   *          that failed or were never billed. This is what we paid providers.
+   *   billed (credit_transactions) — the credits actually charged for settled
+   *          work, and the provider cost those charges carried.
+   *
+   * Margin needs both: revenue comes from billed credits, and the cost of earning
+   * them is what those charges attributed. Spend that never became a charge
+   * (infrastructure failures) is reported separately as `unbilled`, never netted
+   * into the margin as if it were free.
+   */
   app.get('/v1/admin/ai-usage', async (request) => {
     await requirePlatformAdmin(request, deps);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [weekly, monthly, allTime] = await Promise.all([
-      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${weekAgo}`).catch(() => [{ count: 0, cost: 0 }]),
-      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).where(sql`${activityEvents.occurredAt} >= ${monthAgo}`).catch(() => [{ count: 0, cost: 0 }]),
-      db.select({ count: sql<number>`count(*)::int`, cost: sql<number>`COALESCE(sum(${activityEvents.cost}), 0)::int` }).from(activityEvents).catch(() => [{ count: 0, cost: 0 }]),
+
+    // Every LLM call, with its real USD cost. `unknownPricing` counts calls whose
+    // model the registry cannot price: their cost is 0 in the sum, and the count
+    // is reported beside it so a margin is never read as complete when it is not.
+    const callWindow = (since?: Date) =>
+      db
+        .select({
+          calls: sql<number>`count(*)::int`,
+          tokens: sql<number>`COALESCE(sum(${llmPerformance.totalTokens}), 0)::int`,
+          providerCostUsd: sql<number>`COALESCE(sum(${llmPerformance.providerCostUsd}), 0)::float8`,
+          unknownPricingCalls: sql<number>`count(*) filter (where ${llmPerformance.pricingSource} = 'unknown')::int`,
+          failedCalls: sql<number>`count(*) filter (where not ${llmPerformance.success})::int`,
+        })
+        .from(llmPerformance)
+        .where(since ? sql`${llmPerformance.createdAt} >= ${since}` : undefined)
+        .catch(() => [{ calls: 0, tokens: 0, providerCostUsd: 0, unknownPricingCalls: 0, failedCalls: 0 }]);
+
+    // Settled usage: credits charged and the provider cost those charges carried.
+    const billedWindow = (since?: Date) =>
+      db
+        .select({
+          creditsCharged: sql<number>`COALESCE(sum(case when ${creditTransactions.amount} < 0 then -${creditTransactions.amount} else 0 end), 0)::int`,
+          providerCostUsd: sql<number>`COALESCE(sum(${creditTransactions.providerCostUsd}), 0)::float8`,
+          charges: sql<number>`count(*)::int`,
+        })
+        .from(creditTransactions)
+        .where(
+          since
+            ? and(eq(creditTransactions.type, 'usage'), sql`${creditTransactions.createdAt} >= ${since}`)
+            : eq(creditTransactions.type, 'usage'),
+        )
+        .catch(() => [{ creditsCharged: 0, providerCostUsd: 0, charges: 0 }]);
+
+    const [weeklyCalls, monthlyCalls, allCalls, weeklyBilled, monthlyBilled, allBilled] = await Promise.all([
+      callWindow(weekAgo),
+      callWindow(monthAgo),
+      callWindow(),
+      billedWindow(weekAgo),
+      billedWindow(monthAgo),
+      billedWindow(),
     ]);
+
+    const byProvider = await db
+      .select({
+        provider: llmPerformance.provider,
+        calls: sql<number>`count(*)::int`,
+        tokens: sql<number>`COALESCE(sum(${llmPerformance.totalTokens}), 0)::int`,
+        providerCostUsd: sql<number>`COALESCE(sum(${llmPerformance.providerCostUsd}), 0)::float8`,
+      })
+      .from(llmPerformance)
+      .where(sql`${llmPerformance.createdAt} >= ${monthAgo}`)
+      .groupBy(llmPerformance.provider)
+      .orderBy(sql`COALESCE(sum(${llmPerformance.providerCostUsd}), 0) DESC`)
+      .limit(12)
+      .catch(() => []);
+
+    const byModel = await db
+      .select({
+        model: llmPerformance.model,
+        provider: llmPerformance.provider,
+        calls: sql<number>`count(*)::int`,
+        tokens: sql<number>`COALESCE(sum(${llmPerformance.totalTokens}), 0)::int`,
+        providerCostUsd: sql<number>`COALESCE(sum(${llmPerformance.providerCostUsd}), 0)::float8`,
+        unknownPricingCalls: sql<number>`count(*) filter (where ${llmPerformance.pricingSource} = 'unknown')::int`,
+      })
+      .from(llmPerformance)
+      .where(sql`${llmPerformance.createdAt} >= ${monthAgo}`)
+      .groupBy(llmPerformance.model, llmPerformance.provider)
+      .orderBy(sql`COALESCE(sum(${llmPerformance.providerCostUsd}), 0) DESC`)
+      .limit(15)
+      .catch(() => []);
+
     const [credits] = await db.select({ total: sql<number>`COALESCE(sum(${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}), 0)::int`, used: sql<number>`COALESCE(sum(${creditBalances.usedCredits}), 0)::int` }).from(creditBalances).catch(() => [{ total: 0, used: 0 }]);
     const [agentStats] = await db.select({ total: sql<number>`count(*)::int`, active: sql<number>`count(*) filter (where ${agents.status} = 'active')::int` }).from(agents).catch(() => [{ total: 0, active: 0 }]);
-    return { data: { weekly: { requests: weekly[0]?.count ?? 0, costCents: weekly[0]?.cost ?? 0 }, monthly: { requests: monthly[0]?.count ?? 0, costCents: monthly[0]?.cost ?? 0 }, allTime: { requests: allTime[0]?.count ?? 0, costCents: allTime[0]?.cost ?? 0 }, credits: { total: credits?.total ?? 0, used: credits?.used ?? 0 }, agents: { total: agentStats?.total ?? 0, active: agentStats?.active ?? 0 } } };
+
+    const monthlyMargin = computeMargin(monthlyBilled[0]?.creditsCharged ?? 0, monthlyBilled[0]?.providerCostUsd ?? 0);
+    const allTimeMargin = computeMargin(allBilled[0]?.creditsCharged ?? 0, allBilled[0]?.providerCostUsd ?? 0);
+    const monthlySpend = monthlyCalls[0]?.providerCostUsd ?? 0;
+
+    return {
+      data: {
+        // Calls, tokens and USD spend — what the platform did and what it cost.
+        weekly: {
+          calls: weeklyCalls[0]?.calls ?? 0,
+          tokens: weeklyCalls[0]?.tokens ?? 0,
+          providerCostUsd: weeklyCalls[0]?.providerCostUsd ?? 0,
+          creditsCharged: weeklyBilled[0]?.creditsCharged ?? 0,
+        },
+        monthly: {
+          calls: monthlyCalls[0]?.calls ?? 0,
+          tokens: monthlyCalls[0]?.tokens ?? 0,
+          providerCostUsd: monthlySpend,
+          creditsCharged: monthlyBilled[0]?.creditsCharged ?? 0,
+        },
+        allTime: {
+          calls: allCalls[0]?.calls ?? 0,
+          tokens: allCalls[0]?.tokens ?? 0,
+          providerCostUsd: allCalls[0]?.providerCostUsd ?? 0,
+          creditsCharged: allBilled[0]?.creditsCharged ?? 0,
+        },
+        /** Honesty markers: how much of the cost above is unknown or wasted. */
+        spend: {
+          providerCostUsd: allCalls[0]?.providerCostUsd ?? 0,
+          unknownPricingCalls: allCalls[0]?.unknownPricingCalls ?? 0,
+          failedCalls: allCalls[0]?.failedCalls ?? 0,
+        },
+        /** Revenue basis for the margin below — the rate is stated, not implied. */
+        billing: {
+          usdPerCredit: USD_PER_CREDIT_REFERENCE,
+          rateBasis: CREDIT_RATE_BASIS,
+        },
+        /** Margin over the last 30 days (the operating view) and all time. */
+        margin: {
+          monthly: monthlyMargin,
+          allTime: allTimeMargin,
+          /** Provider spend that never became a charge (failed/unbilled work). */
+          monthlyUnbilledProviderCostUsd: Math.max(0, Math.round((monthlySpend - monthlyMargin.providerCostUsd) * 1e8) / 1e8),
+        },
+        credits: { total: credits?.total ?? 0, used: credits?.used ?? 0 },
+        agents: { total: agentStats?.total ?? 0, active: agentStats?.active ?? 0 },
+        byProvider,
+        byModel,
+      },
+    };
   });
 
   /**

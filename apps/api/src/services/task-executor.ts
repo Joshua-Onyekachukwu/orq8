@@ -17,6 +17,7 @@ import {
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
 import { consumeCredits, hasEnoughCredits } from './credits.js';
+import { taskProviderCost } from './llm-pricing.js';
 import { broadcastToOrg } from './realtime.js';
 import { notifyAttentionChanged } from './attention.js';
 import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
@@ -717,6 +718,18 @@ export async function executeTask(
   //     already done, so the honest outcome is visible unbilled spend.
   if (modelCost > 0) {
     try {
+      // Attribution (docs/77 P1 §5): the ledger row records what the spend
+      // actually was — the provider/model that carried it, the provider's own
+      // token counts, and the real USD cost summed from this task's calls. The
+      // columns existed since docs/77 P0 but nothing filled them, so a usage row
+      // knew a credits number and nothing about the margin.
+      //
+      // No idempotency key is set here on purpose: settlement happens once per
+      // execution, and a task can legitimately execute twice (approval resume, a
+      // retry after failure). Keying on the task id would silently skip the
+      // second, honest charge — a replay guard belongs on the caller that knows
+      // whether this is a replay, not on the writer.
+      const attribution = await taskProviderCost(db, taskId);
       const charge = await consumeCredits(
         db,
         orgId,
@@ -724,7 +737,23 @@ export async function executeTask(
         `Task: ${task.title}`.slice(0, 200),
         task.id,
         'task',
-        { amount: modelCost },
+        {
+          amount: modelCost,
+          attribution: {
+            provider: attribution.provider ?? undefined,
+            model: attribution.model ?? undefined,
+            inputTokens: attribution.inputTokens,
+            outputTokens: attribution.outputTokens,
+            providerCostUsd: attribution.providerCostUsd,
+            agentId: task.agentId ?? undefined,
+            taskId,
+            metadata: {
+              llmCalls: attribution.calls,
+              pricingSources: attribution.pricingSources,
+              tokensUsed,
+            },
+          },
+        },
       );
       broadcastToOrg(orgId, {
         type: 'credits.consumed',

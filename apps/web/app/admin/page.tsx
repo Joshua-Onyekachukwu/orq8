@@ -114,8 +114,10 @@ export default async function AdminDashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted" />
             <span className="text-xs font-semibold text-muted">Weekly Spend</span>
           </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-ink tabular-nums">${(sp.thisWeek ?? 0).toFixed(2)}</p>
-          <p className="text-xs text-muted">AI infrastructure cost</p>
+          <p className="mt-2 text-2xl font-bold tracking-tight text-ink tabular-nums">${(sp.providerCostUsdThisWeek ?? 0).toFixed(2)}</p>
+          <p className="text-xs text-muted">
+            provider cost this week · {(sp.creditsThisWeek ?? 0).toLocaleString("en-US")} credits used
+          </p>
         </div>
         <div className="rounded-xl border border-hairline bg-white p-5">
           <div className="flex items-center gap-2">

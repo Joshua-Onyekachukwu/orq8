@@ -9,6 +9,7 @@
  */
 
 import { activityEvents, llmPerformance, type Db } from '@orq8/db';
+import { computeProviderCost, type PricingSource } from './llm-pricing.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,12 @@ export interface LLMTraceEntry {
   responsePreview?: string;
   /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
   routingSource: 'static' | 'measured' | 'default' | 'calibration';
+  /** docs/77 P1 §5 — real USD spend for this call (0 when unpriceable). */
+  providerCostUsd: number;
+  /** Where that USD figure came from, so reports can exclude 'unknown'. */
+  pricingSource: PricingSource;
+  /** The credits this call's tokens earn under the published formula (attribution). */
+  creditsAttributed: number;
 }
 
 export interface LLMTraceSummary {
@@ -109,6 +116,9 @@ export function startTrace(params: {
     temperature: params.temperature ?? 0.7,
     maxTokens: params.maxTokens ?? 2048,
     routingSource: params.routingSource ?? 'default',
+    providerCostUsd: 0,
+    pricingSource: 'unknown',
+    creditsAttributed: 0,
   };
 
   recentTraces.push(entry);
@@ -132,6 +142,12 @@ export function endTrace(
     error?: string;
     responsePreview?: string;
     model?: string;
+    /**
+     * The provider's own USD cost for this call, when it sends one (OpenRouter
+     * returns `usage.cost`). Trusted as metered truth; otherwise the registry's
+     * published rates price it (services/llm-pricing.ts).
+     */
+    reportedCostUsd?: number | null;
   },
 ): void {
   const entry = recentTraces.find(t => t.id === traceId);
@@ -146,6 +162,21 @@ export function endTrace(
   entry.error = result.error;
   entry.responsePreview = result.responsePreview?.slice(0, 200);
   if (result.model) entry.model = result.model;
+
+  // docs/77 P1 §5 — cost is derived here, once, at the one point where every
+  // field it needs (final model, real token counts, provider-reported cost) is
+  // known. Tokens are the provider's numbers, never an estimate from prompt
+  // length, so a task's cost is what was actually billed.
+  const cost = computeProviderCost({
+    model: entry.model,
+    promptTokens: entry.promptTokens,
+    completionTokens: entry.completionTokens,
+    totalTokens: entry.totalTokens,
+    reportedCostUsd: result.reportedCostUsd,
+  });
+  entry.providerCostUsd = cost.providerCostUsd;
+  entry.pricingSource = cost.pricingSource;
+  entry.creditsAttributed = Math.max(0, Math.ceil(entry.totalTokens / 1000));
 }
 
 /**
@@ -163,6 +194,10 @@ export async function persistTrace(
     `${trace.model}`,
     `${trace.durationMs}ms`,
     `${trace.totalTokens} tokens`,
+    // docs/77 P1 §5 — the feed shows real money. The activity row's own `cost`
+    // column stays credits (its documented unit); USD rides in the summary so the
+    // ops view never has to guess which unit it is reading.
+    trace.providerCostUsd > 0 ? `$${trace.providerCostUsd.toFixed(4)}` : '',
     trace.retryAttempt > 0 ? `(retry ${trace.retryAttempt}/${trace.maxRetries})` : '',
   ].filter(Boolean).join(' ');
 
@@ -199,6 +234,9 @@ export async function persistTrace(
       totalTokens: trace.totalTokens,
       retryAttempt: trace.retryAttempt,
       routingSource: trace.routingSource ?? 'default',
+      providerCostUsd: String(trace.providerCostUsd ?? 0),
+      creditsAttributed: trace.creditsAttributed ?? 0,
+      pricingSource: trace.pricingSource ?? 'unknown',
     });
   } catch {
     // Table may not exist on stale databases; insights degrade gracefully.
