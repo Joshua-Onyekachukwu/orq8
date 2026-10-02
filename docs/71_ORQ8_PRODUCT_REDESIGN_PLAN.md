@@ -534,6 +534,13 @@ No route is deleted without a redirect. Admin keeps its own (unchanged) shell.
 > should work; open to full-autonomy suggestions) — chat behaviors beyond
 > this surface stay unimplemented until it arrives. A draft autonomy
 > proposal to merge against it is in **§X**.
+>
+> **Implementation note (2026-10-01):** the §R item-4 backend gap — plan
+> revisions + ratify — is closed: `plan_revisions` table (migration 0013),
+> `/v1/plan-revisions` create/ratify/reject with `plan.revised` /
+> `plan.ratified` audit events, and the mock's screen-plan composition live
+> on `/app/strategy` (ratify banner, revision rail, diff card). The §R list
+> is now fully implemented.
 
 | # | Screen | Change (colors / wording / layout) | Status |
 |---|--------|------------------------------------|--------|

@@ -477,6 +477,46 @@ async function main(): Promise<void> {
   });
   console.log(`[review] executive agent command: status=${command.body?.data?.status} tasks=${command.body?.data?.taskIds?.length ?? 0} provider=${command.body?.data?.llmProvider}`);
 
+  // Plan revisions (docs/71 §W item 4): a ratified rev 1 as direction and an
+  // unratified rev 2 awaiting the founder, so the Strategy page shows the
+  // ratify banner, the revision rail and the diff card against real rows.
+  const rev1 = (
+    await pg.pool.query<{ id: string; rev: number }>(
+      `insert into plan_revisions
+         (org_id, rev, status, title, summary, content, author_type, author_name, ratified_at, ratified_by)
+       values ($1, 1, 'ratified', 'Initial plan', 'Scope: launch pricing before ads', $2::jsonb, 'user', 'Ada Founder', now() - interval '21 days', 'Ada Founder')
+       returning id, rev`,
+      [
+        orgId,
+        JSON.stringify({
+          whatWereBuilding:
+            "Northwind Labs sells a lightweight client-report portal for freelance agencies: branded dashboards their clients can log into, fed automatically from spreadsheets the agency already uses.",
+          whoItsFor: "Two-to-ten-person marketing agencies that report to clients monthly and lose a day per client to manual slide decks.",
+          howItMakesMoney: "$29/mo per agency (starter) and $79/mo (studio, unlimited clients). Annual toggle at two months free.",
+          currentFocus: ["Launch the public pricing page", "Convert waitlist to trials after announcement"],
+          kpis: "10 paying agencies by Oct 31 · 25% trial→paid · <2% weekly churn",
+        }),
+      ],
+    )
+  ).rows[0]!;
+  await pg.pool.query(
+    `insert into plan_revisions
+       (org_id, rev, status, title, summary, content, author_type, author_name)
+     values ($1, 2, 'draft', 'Move the launch to Friday', 'Pricing launch moved to Friday — Stripe test products still in progress', $2::jsonb, 'agent', 'Atlas')`,
+    [
+      orgId,
+      JSON.stringify({
+        whatWereBuilding:
+          "Northwind Labs sells a lightweight client-report portal for freelance agencies: branded dashboards their clients can log into, fed automatically from spreadsheets the agency already uses.",
+        whoItsFor: "Two-to-ten-person marketing agencies that report to clients monthly and lose a day per client to manual slide decks.",
+        howItMakesMoney: "$29/mo per agency (starter) and $79/mo (studio, unlimited clients). Annual toggle at two months free. Launch pricing announced Friday.",
+        currentFocus: ["Launch the public pricing page Friday", "Convert waitlist to trials after the Friday announcement"],
+        kpis: "10 paying agencies by Oct 31 · 25% trial→paid · <2% weekly churn",
+      }),
+    ],
+  );
+  console.log(`[review] plan seeded: rev ${rev1.rev} ratified (direction), rev 2 drafted by Atlas (unratified)`);
+
   // ── Web (built app) ──────────────────────────────────────────────────────
   // Both ports were checked at the top of main(), before anything was started:
   // the readiness poll below only asks whether *something* answers, so a stale

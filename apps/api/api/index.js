@@ -28348,6 +28348,7 @@ __export(schema_exports, {
   onboardingStates: () => onboardingStates,
   organizations: () => organizations,
   passwordResetTokens: () => passwordResetTokens,
+  planRevisions: () => planRevisions,
   providers: () => providers,
   repoEvents: () => repoEvents,
   repositories: () => repositories,
@@ -28372,7 +28373,7 @@ __export(schema_exports, {
   waitlistSignups: () => waitlistSignups,
   webhookEvents: () => webhookEvents
 });
-var users, organizations, memberships, invitations, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, goals, tasks, approvals, activityEvents, llmPerformance, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
+var users, organizations, memberships, invitations, sessions, auditEvents, providers, userProviderKeys, waitlistSignups, secretRecords, subscriptions, creditBalances, creditTransactions, departments, teams, agents, planRevisions, goals, tasks, approvals, activityEvents, llmPerformance, waitlistEmails, creditAlerts, onboardingStates, passwordResetTokens, emailVerificationTokens, companyMemory, webhookEvents, eventRules, connectorOutcomes, briefings, files, notifications, loginLockouts, repositories, repositoryBranches, repositoryFiles, repositoryFileContents, repoEvents, sandboxRuns, repositoryPrs, engineeringTasks, integrationProviders, integrationCredentials, integrationCapabilities, agentIntegrationAccess, simulations, analyticsEvents, knowledgeEntities, knowledgeRelations, companyDecisions, squads, squadAgents, mcpServers, mcpTools, capabilityRegistry, businessImports, jobRuns, departmentTemplates, teamTemplates, agentTemplates, strategies, objectives, keyResults, initiatives, decisions;
 var init_schema2 = __esm({
   "../../packages/db/src/schema.ts"() {
     "use strict";
@@ -28745,6 +28746,34 @@ var init_schema2 = __esm({
         index("agents_org_idx").on(t.orgId),
         index("agents_status_idx").on(t.orgId, t.status),
         index("agents_dept_idx").on(t.departmentId)
+      ]
+    );
+    planRevisions = pgTable(
+      "plan_revisions",
+      {
+        id: uuid3("id").primaryKey().defaultRandom(),
+        orgId: uuid3("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+        rev: integer2("rev").notNull(),
+        status: text("status").notNull().default("draft"),
+        // draft | ratified | rejected
+        title: text("title").notNull(),
+        summary: text("summary"),
+        // one-line "what changed" for the revision rail
+        content: jsonb("content").notNull().default({}),
+        // plan sections: whatWereBuilding, whoItsFor, howItMakesMoney, currentFocus, kpis
+        authorType: text("author_type").notNull().default("agent"),
+        // user | agent
+        authorId: uuid3("author_id"),
+        authorName: text("author_name").notNull(),
+        // snapshot at authoring time
+        ratifiedAt: timestamp("ratified_at", { withTimezone: true }),
+        ratifiedBy: text("ratified_by"),
+        // name snapshot of the ratifier
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+      },
+      (t) => [
+        index("plan_revisions_org_created_idx").on(t.orgId, t.createdAt),
+        uniqueIndex("plan_revisions_org_rev_idx").on(t.orgId, t.rev)
       ]
     );
     goals = pgTable(
@@ -35691,6 +35720,7 @@ __export(src_exports, {
   onboardingStates: () => onboardingStates,
   organizations: () => organizations,
   passwordResetTokens: () => passwordResetTokens,
+  planRevisions: () => planRevisions,
   providers: () => providers,
   repoEvents: () => repoEvents,
   repositories: () => repositories,
@@ -125307,6 +125337,198 @@ function registerStrategyRoutes(app, deps) {
   });
 }
 
+// src/routes/plan-revisions.ts
+init_zod();
+init_auth();
+
+// src/services/plan-revisions.ts
+init_drizzle_orm();
+init_src2();
+init_src();
+init_audit();
+async function listPlanRevisions(db, orgId) {
+  const revisions = await db.select().from(planRevisions).where(eq(planRevisions.orgId, orgId)).orderBy(desc(planRevisions.rev));
+  const current = revisions.find((r) => r.status === "ratified" && r.ratifiedAt != null) ?? null;
+  const pending = revisions.find((r) => r.status === "draft") ?? null;
+  return { revisions, current, pending };
+}
+async function createPlanRevision(db, orgId, input) {
+  return db.transaction(async (tx) => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const [maxRow] = await tx.select({ maxRev: sql`max(${planRevisions.rev})` }).from(planRevisions).where(eq(planRevisions.orgId, orgId));
+      const rev = (maxRow?.maxRev ?? 0) + 1;
+      try {
+        const [row] = await tx.insert(planRevisions).values({
+          orgId,
+          rev,
+          status: "draft",
+          title: input.title,
+          summary: input.summary ?? null,
+          content: input.content ?? {},
+          authorType: input.authorType ?? "agent",
+          authorId: input.authorId ?? null,
+          authorName: input.authorName ?? "Atlas",
+          createdAt: /* @__PURE__ */ new Date()
+        }).returning();
+        const created = row;
+        await appendAudit(tx, {
+          orgId,
+          actorType: input.authorType ?? "agent",
+          actorId: input.authorId ?? null,
+          action: "plan.revised",
+          outcome: "success",
+          resultRef: JSON.stringify({
+            revision: created.rev,
+            revision_id: created.id,
+            ratified: false
+          })
+        });
+        return created;
+      } catch (err) {
+        if (attempt < 2 && typeof err === "object" && err !== null && err.code === "23505") {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new AppError(503, "contention", "Too much contention creating plan revision");
+  });
+}
+async function ratifyPlanRevision(db, orgId, id, ratifier) {
+  return db.transaction(async (tx) => {
+    const [target] = await tx.select().from(planRevisions).where(and(eq(planRevisions.orgId, orgId), eq(planRevisions.id, id))).limit(1);
+    if (!target) {
+      throw new AppError(404, "not_found", "Plan revision not found");
+    }
+    if (target.status === "ratified") {
+      return target;
+    }
+    if (target.status !== "draft") {
+      throw new AppError(
+        409,
+        "not_ratifiable",
+        `Revision ${target.rev} was rejected and cannot be ratified`
+      );
+    }
+    await tx.update(planRevisions).set({ status: "superseded" }).where(
+      and(
+        eq(planRevisions.orgId, orgId),
+        eq(planRevisions.status, "ratified"),
+        ne(planRevisions.id, id)
+      )
+    );
+    const [row] = await tx.update(planRevisions).set({
+      status: "ratified",
+      ratifiedAt: /* @__PURE__ */ new Date(),
+      ratifiedBy: ratifier.name
+    }).where(eq(planRevisions.id, id)).returning();
+    const ratified = row;
+    await appendAudit(tx, {
+      orgId,
+      actorType: ratifier.type,
+      actorId: ratifier.id ?? null,
+      action: "plan.ratified",
+      outcome: "success",
+      resultRef: JSON.stringify({
+        revision: ratified.rev,
+        revision_id: ratified.id,
+        ratified_by: ratifier.name
+      })
+    });
+    return ratified;
+  });
+}
+async function rejectPlanRevision(db, orgId, id, rejector) {
+  return db.transaction(async (tx) => {
+    const [target] = await tx.select().from(planRevisions).where(and(eq(planRevisions.orgId, orgId), eq(planRevisions.id, id))).limit(1);
+    if (!target) {
+      throw new AppError(404, "not_found", "Plan revision not found");
+    }
+    if (target.status !== "draft") {
+      throw new AppError(
+        409,
+        "not_rejectable",
+        `Only unratified drafts can be rejected (revision ${target.rev} is ${target.status})`
+      );
+    }
+    const [row] = await tx.update(planRevisions).set({ status: "rejected" }).where(eq(planRevisions.id, id)).returning();
+    const rejected = row;
+    await appendAudit(tx, {
+      orgId,
+      actorType: rejector.type,
+      actorId: rejector.id ?? null,
+      action: "plan.revision_rejected",
+      outcome: "success",
+      resultRef: JSON.stringify({
+        revision: rejected.rev,
+        revision_id: rejected.id,
+        rejected_by: rejector.name
+      })
+    });
+    return rejected;
+  });
+}
+
+// src/routes/plan-revisions.ts
+var planContentSchema = external_exports.record(external_exports.string(), external_exports.unknown()).optional().nullable();
+var createRevisionBody = external_exports.object({
+  title: external_exports.string().trim().min(1).max(300),
+  summary: external_exports.string().trim().max(2e3).optional().nullable(),
+  content: planContentSchema,
+  // Atlas drafts as an agent; the founder can also author directly.
+  authorType: external_exports.enum(["user", "agent"]).optional(),
+  authorId: external_exports.string().uuid().optional().nullable(),
+  authorName: external_exports.string().trim().min(1).max(120).optional().nullable()
+});
+var ratifyBody = external_exports.object({
+  // Snapshot of who pressed the button, for the audit trail + rail label.
+  ratifierName: external_exports.string().trim().min(1).max(120).optional()
+});
+var rejectBody = external_exports.object({
+  rejectorName: external_exports.string().trim().min(1).max(120).optional()
+});
+function registerPlanRevisionRoutes(app, deps) {
+  const { db } = deps;
+  app.get("/v1/plan-revisions", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    return listPlanRevisions(db, ctx.orgId);
+  });
+  app.post("/v1/plan-revisions", async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const body = createRevisionBody.parse(request.body);
+    const revision = await createPlanRevision(db, ctx.orgId, {
+      title: body.title,
+      summary: body.summary ?? null,
+      content: body.content ?? {},
+      authorType: body.authorType ?? "user",
+      authorId: body.authorId ?? (body.authorType === "agent" ? null : ctx.userId),
+      authorName: body.authorName ?? ctx.email
+    });
+    reply.code(201);
+    return revision;
+  });
+  app.post("/v1/plan-revisions/:id/ratify", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    const body = ratifyBody.parse(request.body ?? {});
+    return ratifyPlanRevision(db, ctx.orgId, id, {
+      type: "user",
+      id: ctx.userId,
+      name: body.ratifierName ?? ctx.email
+    });
+  });
+  app.post("/v1/plan-revisions/:id/reject", async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params;
+    const body = rejectBody.parse(request.body ?? {});
+    return rejectPlanRevision(db, ctx.orgId, id, {
+      type: "user",
+      id: ctx.userId,
+      name: body.rejectorName ?? ctx.email
+    });
+  });
+}
+
 // src/routes/workforce-roi.ts
 init_zod();
 init_auth();
@@ -127078,6 +127300,7 @@ async function buildApp(deps, opts = {}) {
   registerEntitlementRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
   registerStrategyRoutes(app, deps);
+  registerPlanRevisionRoutes(app, deps);
   registerWorkforceROIRoutes(app, deps);
   registerDecisionRoutes(app, deps);
   registerModelRoutes(app, deps);

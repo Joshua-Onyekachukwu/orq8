@@ -69,6 +69,7 @@ import { registerEntitlementRoutes } from './routes/entitlements.js';
 import { registerConnectorActionRoutes } from './routes/connector-actions.js';
 import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerStrategyRoutes } from './routes/strategy.js';
+import { registerPlanRevisionRoutes } from './routes/plan-revisions.js';
 import { registerWorkforceROIRoutes } from './routes/workforce-roi.js';
 import { registerDecisionRoutes } from './routes/decisions.js';
 import { registerAttentionRoutes } from './routes/attention.js';
@@ -346,6 +347,7 @@ export async function buildApp(
   registerEntitlementRoutes(app, deps);
   registerConnectorActionRoutes(app, deps);
   registerStrategyRoutes(app, deps);
+  registerPlanRevisionRoutes(app, deps);
   registerWorkforceROIRoutes(app, deps);
   registerDecisionRoutes(app, deps);
   registerModelRoutes(app, deps);

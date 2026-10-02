@@ -17,6 +17,9 @@ import {
   Edit3,
   Link as LinkIcon,
   X,
+  FileText,
+  GitCompareArrows,
+  CircleCheck,
 } from "lucide-react";
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -78,6 +81,28 @@ interface Initiative {
   createdAt: string;
 }
 
+// docs/71 §R item 4 — plan revisions + ratify.
+interface PlanRevision {
+  id: string;
+  rev: number;
+  status: string; // draft | ratified | superseded | rejected
+  title: string;
+  summary: string | null;
+  content: Record<string, string | string[]>;
+  authorType: string;
+  authorId: string | null;
+  authorName: string;
+  ratifiedAt: string | null;
+  ratifiedBy: string | null;
+  createdAt: string;
+}
+
+interface PlanRevisionsPayload {
+  revisions: PlanRevision[];
+  current: PlanRevision | null;
+  pending: PlanRevision | null;
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function priorityColor(p: string) {
@@ -111,11 +136,44 @@ function calcStrategyProgress(objectives: Objective[]): number {
   return Math.round(objectives.reduce((sum, o) => sum + o.progress, 0) / objectives.length);
 }
 
+function fmtWhen(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function fmtWhenTime(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  if (sameDay) {
+    return `today ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+  }
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 async function api<T>(path: string, opts?: { method?: string; body?: unknown }): Promise<T | null> {
   try {
     const res = await fetch(`/api/strategy${path}`, {
+      method: opts?.method ?? "GET",
+      headers: opts?.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts?.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function planApi<T>(path: string, opts?: { method?: string; body?: unknown }): Promise<T | null> {
+  try {
+    const res = await fetch(`/api/plan-revisions${path}`, {
       method: opts?.method ?? "GET",
       headers: opts?.body ? { "Content-Type": "application/json" } : undefined,
       body: opts?.body ? JSON.stringify(opts.body) : undefined,
@@ -400,6 +458,369 @@ function StrategyCard({
   );
 }
 
+// ── Plan Document (revisions + ratify — docs/71 §W item 4) ─────────────────
+
+const SECTION_LABELS: Array<{ key: string; label: string }> = [
+  { key: "whatWereBuilding", label: "What we're building" },
+  { key: "whoItsFor", label: "Who it's for" },
+  { key: "howItMakesMoney", label: "How it makes money" },
+  { key: "currentFocus", label: "Current focus" },
+  { key: "kpis", label: "KPIs" },
+];
+
+function sectionLines(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    return value.split("\n").map((l) => l.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+// Content diff vs the previous revision: − lines are in prev only, + lines in
+// this one only, per section. Small diffs read instantly; no diff library.
+function diffSections(rev: PlanRevision, prev: PlanRevision | null): Array<{ label: string; removed: string[]; added: string[] }> {
+  const out: Array<{ label: string; removed: string[]; added: string[] }> = [];
+  for (const { key, label } of SECTION_LABELS) {
+    const a = sectionLines(prev?.content?.[key]);
+    const b = sectionLines(rev.content?.[key]);
+    const removed = a.filter((l) => !b.includes(l));
+    const added = b.filter((l) => !a.includes(l));
+    if (removed.length || added.length) out.push({ label, removed, added });
+  }
+  // Sections only present in the raw content (custom keys) — surface them too.
+  for (const key of Object.keys(rev.content ?? {})) {
+    if (SECTION_LABELS.some((s) => s.key === key)) continue;
+    const a = sectionLines(prev?.content?.[key]);
+    const b = sectionLines(rev.content?.[key]);
+    const removed = a.filter((l) => !b.includes(l));
+    const added = b.filter((l) => !a.includes(l));
+    if (removed.length || added.length) out.push({ label: key, removed, added });
+  }
+  return out;
+}
+
+function PlanRevisionsBlock({ onToast }: { onToast: (msg: string) => void }) {
+  const [payload, setPayload] = useState<PlanRevisionsPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedDiff, setExpandedDiff] = useState<string | null>(null);
+  const [showDraft, setShowDraft] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftSummary, setDraftSummary] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await planApi<PlanRevisionsPayload>("");
+    setPayload(res);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const ratify = async (rev: PlanRevision) => {
+    setBusyId(rev.id);
+    const res = await planApi<PlanRevision>(`/${rev.id}/ratify`, {
+      method: "POST",
+      body: { ratifierName: "You (founder)" },
+    });
+    setBusyId(null);
+    if (res) {
+      onToast(`Rev ${res.rev} is now direction`);
+      await load();
+    } else {
+      onToast("Could not ratify that revision");
+    }
+  };
+
+  const reject = async (rev: PlanRevision) => {
+    setBusyId(rev.id);
+    const res = await planApi<PlanRevision>(`/${rev.id}/reject`, {
+      method: "POST",
+      body: { rejectorName: "You (founder)" },
+    });
+    setBusyId(null);
+    if (res) {
+      onToast(`Rev ${res.rev} rejected`);
+      await load();
+    } else {
+      onToast("Could not reject that revision");
+    }
+  };
+
+  const draft = async () => {
+    if (!draftTitle.trim()) return;
+    setBusyId("__draft__");
+    const res = await planApi<PlanRevision>("", {
+      method: "POST",
+      body: { title: draftTitle, summary: draftSummary || null, content: {} },
+    });
+    setBusyId(null);
+    if (res) {
+      setDraftTitle(""); setDraftSummary(""); setShowDraft(false);
+      onToast(`Rev ${res.rev} drafted — awaiting ratification`);
+      await load();
+    } else {
+      onToast("Could not draft a revision");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="console-card mt-6 animate-pulse p-5">
+        <div className="h-4 w-40 rounded bg-muted/20" />
+        <div className="mt-3 h-3 w-72 rounded bg-muted/10" />
+      </div>
+    );
+  }
+
+  const revisions = payload?.revisions ?? [];
+  const current = payload?.current ?? null;
+  const pending = payload?.pending ?? null;
+
+  return (
+    <section className="mt-6" aria-label="Company plan">
+      {/* Ratify banner — the mock's working-plan banner (§W item 4) */}
+      {pending && (
+        <div className="console-card flex flex-wrap items-center gap-x-4 gap-y-2 p-4" style={{ borderLeft: "3px solid var(--orq-warm)" }}>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-ink">
+              This is the team&apos;s working plan — ratify to make it direction.
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              Revision {pending.rev} by {pending.authorName} is awaiting your ratification
+              {current ? `. Until then, rev ${current.rev} is direction.` : "."}
+              {pending.summary ? ` ${pending.summary}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={busyId === pending.id}
+              onClick={() => ratify(pending)}
+              className="rounded-md px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+              style={{ backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" }}
+            >
+              Ratify rev {pending.rev}
+            </button>
+            <button
+              type="button"
+              disabled={busyId === pending.id}
+              onClick={() => reject(pending)}
+              className="btn-ghost-danger rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Two-column: revision rail + plan doc */}
+      <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Revisions rail */}
+        <aside className="console-card h-fit p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xs font-semibold uppercase tracking-wide text-muted">Revisions</h2>
+            <button
+              type="button"
+              onClick={() => setShowDraft(true)}
+              className="inline-flex items-center gap-1 rounded-md border border-hairline-strong px-2 py-1 text-2xs text-ink transition-colors hover:bg-elevated"
+            >
+              <Plus className="h-3 w-3" /> Draft
+            </button>
+          </div>
+          {revisions.length === 0 ? (
+            <p className="mt-4 text-xs text-muted">
+              No revisions yet. Draft one, or ask Atlas to redraft the plan.
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-1">
+              {revisions.map((rev) => {
+                const isCurrent = current?.id === rev.id;
+                const isPending = pending?.id === rev.id;
+                return (
+                  <li key={rev.id}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDiff(isPending ? rev.id : null)}
+                      className="w-full rounded-md px-2 py-2 text-left transition-colors hover:bg-elevated"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="state-dot"
+                          data-state={isPending ? "waiting" : isCurrent ? "working" : undefined}
+                          style={isCurrent ? { background: "var(--console-lime)" } : undefined}
+                        />
+                        <span className="text-xs font-medium text-ink">Rev {rev.rev}</span>
+                        {isCurrent && (
+                          <span className="rounded-full px-1.5 py-0.5 font-mono text-3xs font-semibold uppercase" style={{ background: "rgba(166,206,149,0.14)", color: "var(--console-lime)" }}>
+                            direction
+                          </span>
+                        )}
+                        {isPending && (
+                          <span className="rounded-full px-1.5 py-0.5 font-mono text-3xs font-semibold uppercase" style={{ background: "rgba(233,151,79,0.14)", color: "var(--console-orange)" }}>
+                            unratified
+                          </span>
+                        )}
+                        {rev.status === "rejected" && (
+                          <span className="rounded-full px-1.5 py-0.5 font-mono text-3xs font-semibold uppercase text-muted" style={{ background: "var(--console-hover)" }}>
+                            rejected
+                          </span>
+                        )}
+                        {rev.status === "superseded" && (
+                          <span className="rounded-full px-1.5 py-0.5 font-mono text-3xs font-semibold uppercase text-muted" style={{ background: "var(--console-hover)" }}>
+                            past
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-2xs text-muted">
+                        {rev.authorName} · {fmtWhenTime(rev.createdAt)}
+                      </span>
+                      {rev.summary && (
+                        <span className="mt-0.5 block text-2xs text-muted line-clamp-2">{rev.summary}</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </aside>
+
+        {/* Plan document */}
+        <div className="console-card p-5">
+          {!current ? (
+            <div className="py-8 text-center">
+              <FileText className="mx-auto h-6 w-6 text-muted/40" />
+              <p className="mt-2 text-sm font-medium text-ink">No plan is direction yet</p>
+              <p className="mt-1 text-xs text-muted">
+                Ratify a revision (or draft one) to set the company plan.
+              </p>
+            </div>
+          ) : (
+            <>
+              <header className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold text-ink">{current.title}</h2>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Rev {current.rev} · ratified {fmtWhen(current.ratifiedAt)} by {current.ratifiedBy ?? "—"} · authored by {current.authorName}
+                  </p>
+                </div>
+                <span className="rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase" style={{ background: "rgba(166,206,149,0.14)", color: "var(--console-lime)" }}>
+                  direction
+                </span>
+              </header>
+
+              <div className="mt-4 space-y-4">
+                {SECTION_LABELS.map(({ key, label }) => {
+                  const lines = sectionLines(current.content?.[key]);
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-2xs font-semibold uppercase tracking-wide text-muted">{label}</h3>
+                        <span className="text-2xs text-muted">Edit section</span>
+                      </div>
+                      {lines.length > 0 ? (
+                        <ul className="mt-1.5 space-y-1">
+                          {lines.map((l, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-ink">
+                              <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--console-lime)" }} />
+                              <span className="min-w-0">{l}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted">Nothing written yet for this section.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Diff card for the unratified draft (§W item 4) */}
+          {pending && (() => {
+            const prev = revisions.find((r) => r.rev === pending.rev - 1) ?? null;
+            const diffs = diffSections(pending, prev);
+            const open = expandedDiff === pending.id;
+            return (
+              <div className="mt-5 rounded-lg border border-hairline p-4" style={{ background: "var(--console-bg)" }}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 text-left"
+                  onClick={() => setExpandedDiff(open ? null : pending.id)}
+                >
+                  <GitCompareArrows className="h-4 w-4 shrink-0" style={{ color: "var(--console-orange)" }} />
+                  <span className="min-w-0 flex-1 text-sm font-medium text-ink">
+                    What changed in rev {pending.rev} (unratified draft)
+                  </span>
+                  {open ? <ChevronDown className="h-4 w-4 text-muted" /> : <ChevronRight className="h-4 w-4 text-muted" />}
+                </button>
+                {open && (
+                  diffs.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted">
+                      No section text yet — the draft carries a summary only. Open it to review, then ratify or reject.
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {diffs.map((d) => (
+                        <div key={d.label}>
+                          <p className="text-2xs font-semibold uppercase tracking-wide text-muted">{d.label}</p>
+                          {d.removed.map((l, i) => (
+                            <p key={`r${i}`} className="mt-1 rounded px-2 py-1 text-xs" style={{ background: "rgba(224,122,122,0.08)", color: "var(--console-red)" }}>
+                              − {l}
+                            </p>
+                          ))}
+                          {d.added.map((l, i) => (
+                            <p key={`a${i}`} className="mt-1 rounded px-2 py-1 text-xs" style={{ background: "rgba(166,206,149,0.10)", color: "var(--console-lime)" }}>
+                              + {l}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Draft modal */}
+      <Modal open={showDraft} onClose={() => setShowDraft(false)} title="Draft a plan revision">
+        <div className="space-y-3">
+          <input
+            autoFocus
+            value={draftTitle}
+            onChange={e => setDraftTitle(e.target.value)}
+            placeholder="Revision title (e.g., Move launch to Friday)"
+            className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep"
+            onKeyDown={e => e.key === "Enter" && draft()}
+          />
+          <textarea
+            value={draftSummary}
+            onChange={e => setDraftSummary(e.target.value)}
+            placeholder="What changed (shown in the revision rail)"
+            rows={3}
+            className="w-full rounded-lg border border-hairline px-3 py-2 text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-deep resize-none"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setShowDraft(false)} className="px-3 py-1.5 text-xs text-muted hover:text-ink">Cancel</button>
+            <button
+              onClick={draft}
+              disabled={busyId === "__draft__" || !draftTitle.trim()}
+              className="rounded-lg bg-brand-deep px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep/90 disabled:opacity-40"
+            >
+              Draft revision
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </section>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 export default function StrategyPage() {
@@ -408,6 +829,7 @@ export default function StrategyPage() {
   const [allKeyResults, setAllKeyResults] = useState<KeyResult[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Modal states
   const [showNewStrategy, setShowNewStrategy] = useState(false);
@@ -424,6 +846,11 @@ export default function StrategyPage() {
   const [newHorizon, setNewHorizon] = useState("quarterly");
   const [newMetricTarget, setNewMetricTarget] = useState("");
   const [newUnit, setNewUnit] = useState("");
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 4000);
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -553,9 +980,12 @@ export default function StrategyPage() {
           </button>
         </div>
 
+        {/* Plan document — revisions rail + ratify flow (§W item 4) */}
+        <PlanRevisionsBlock onToast={showToast} />
+
         {/* Stats bar */}
         {strategies.length > 0 && (
-          <div className="mt-4 flex items-center gap-4 rounded-xl border border-hairline bg-white px-4 py-3 text-xs text-muted">
+          <div className="mt-6 flex items-center gap-4 rounded-xl border border-hairline bg-white px-4 py-3 text-xs text-muted">
             <div className="flex items-center gap-1.5">
               <Target className="h-3.5 w-3.5 text-brand-ink" />
               <span className="font-medium text-ink">{strategies.filter(s => s.status === "active").length}</span> active strategies
@@ -612,6 +1042,16 @@ export default function StrategyPage() {
             ))
           )}
         </div>
+
+        {/* Toast */}
+        {toast && (
+          <div
+            role="status"
+            className="console-card fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2.5 text-xs font-medium text-ink shadow-xl"
+          >
+            {toast}
+          </div>
+        )}
 
         {/* ── Modals ────────────────────────────────────────────────────── */}
 

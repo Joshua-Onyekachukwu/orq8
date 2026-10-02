@@ -125,6 +125,19 @@ attention and traces are not empty.
    labelled its warm fill with `text-ink-surface`, which the console light
    block re-points to white — white on orange at 3.4:1. It now uses the
    designed `text-on-warm` / `text-on-error` pairs (5.4:1 in light).
+19. **Plan revisions + ratify** (`/app/strategy`) — the last §R backend gap:
+   the mock's `screen-plan` composition is live. A revision rail (rev number,
+   author, when, "what changed" line, state chip — direction / unratified /
+   rejected / past), the ratify banner ("This is the team's working plan —
+   ratify to make it direction"), a diff card for the unratified draft (− / +
+   lines per plan section vs the previous revision), the plan document itself
+   (five sections, ratification header line) and a draft-revision modal.
+   Backing it: migration `0013_add_plan_revisions.sql`, the `plan_revisions`
+   table + service + `/v1/plan-revisions` routes (create auto-numbers revs per
+   org and audits `plan.revised`; ratify supersedes the previous direction and
+   audits `plan.ratified`; reject guards drafts only), web proxies, and a
+   9-test integration suite. The review stack seeds a ratified rev 1 and an
+   unratified rev 2 by Atlas.
 
 ---
 
@@ -258,8 +271,11 @@ as zero, and a failed fetch shows the failure rather than a confident `0`.
 
 Not done, in the order I would do them next:
 
-1. **Plan revisions + ratify** — needs a new table and endpoints; the design is
-   in `docs/71 §W` (the mock's "Keep rev 4 / Apply rev 6" card).
+1. ~~**Plan revisions + ratify** — needs a new table and endpoints; the design is
+   in `docs/71 §W` (the mock's "Keep rev 4 / Apply rev 6" card).~~ **Done this
+   run** — `plan_revisions` table, `/v1/plan-revisions` create/ratify/reject,
+   the Strategy-page rail + banner + diff card, seeded in the review stack
+   (item 19 above).
 2. **Memory tabs, Integrations permissions map, Auto Model controls (§M)** — the
    employees' memory is now visible, but the company-wide memory page still has
    one flat list, the integrations permission matrix is not built, and the

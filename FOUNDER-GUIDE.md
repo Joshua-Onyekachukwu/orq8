@@ -49,7 +49,13 @@ class theme — toggle it in Settings; every page has been verified in both.
 
 Newest first (all committed locally on `main`, nothing pushed):
 
-1. **Departments** — the last legacy screen. Department cards with live member rows
+1. **Plan revisions + ratify** — the Strategy page now carries the company plan as a
+   living document: revision rail (rev, author, what changed), a ratify banner when a
+   draft awaits you (ratify = becomes direction; the old direction steps down), a −/+
+   diff card, and a draft-revision modal. Ratify/reject writes `plan.ratified` /
+   `plan.revised` to the audit trail. The review stack seeds rev 1 (direction) and an
+   unratified rev 2 by Atlas.
+2. **Departments** — the last legacy screen. Department cards with live member rows
    (who's staffed, their state, Cr/wk), capacity/teams/utilization from real workforce
    data, department catalog with stage filters, and "Ask Atlas to hire into X" which
    opens the Employees hire modal preselected.
@@ -72,17 +78,20 @@ Newest first (all committed locally on `main`, nothing pushed):
 ## 3. A five-minute click-through
 
 1. Log in → you land on **HQ**. Note the dark console: sidebar, warm CTA, state dots.
-2. **Approvals** — one pending approval (Nova's paid pilot budget). Approve or reject;
+2. **Strategy** — the plan document with a revision rail. An orange banner says rev 2
+   (by Atlas) awaits ratification; open the diff card to see what changed, then
+   **Ratify rev 2** (or Reject) — the audit trail records your decision.
+3. **Approvals** — one pending approval (Nova's paid pilot budget). Approve or reject;
    the audit trail records you as the actor.
-3. **Employees** — the four seeded employees. Iris is in observe mode: run her task and
+4. **Employees** — the four seeded employees. Iris is in observe mode: run her task and
    watch it be refused by the autonomy check (that's the gate working).
-4. **Tasks** — run the queued tool-gate task (Ember); approvals wire up from it.
-5. **Departments** — the new screen. Growth has 4 members, 1 team, utilization 13%.
+5. **Tasks** — run the queued tool-gate task (Ember); approvals wire up from it.
+6. **Departments** — the new screen. Growth has 4 members, 1 team, utilization 13%.
    Click "Ask Atlas to hire into Growth" — the hire modal opens with the department
    preselected.
-6. **Budgets** — per-goal/per-employee credit meters over real usage.
-7. **Audit** — every action so far, with actor and a verify button (hash chain).
-8. **Settings** — flip **Theme → Light**; every page stays legible (this was walked
+7. **Budgets** — per-goal/per-employee credit meters over real usage.
+8. **Audit** — every action so far, with actor and a verify button (hash chain).
+9. **Settings** — flip **Theme → Light**; every page stays legible (this was walked
    page by page).
 
 ## 4. Quick health checks
@@ -101,7 +110,6 @@ PGPORT=5433 PGHOST=127.0.0.1 pnpm test        # 1,165 passing
 
 ## 5. Still open
 
-- **Plan-revisions table + ratify flow** (docs/71 §W) — schema, endpoints, UI.
 - **Memory tabs / integrations permission map / Auto Model hierarchy** (docs/74 §M).
 - docs/68 screen matrix re-walk against the mock.
 - Marketing pages outside the console scope (login, landing) still on brand-light.

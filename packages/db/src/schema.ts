@@ -418,6 +418,37 @@ export const agents = pgTable(
   ],
 );
 
+// ── Plan Revisions (docs/71 §R item 4) ─────────────────────────────────────
+// The Plan page is a living document. The EA (or the founder) drafts a
+// revision; the founder ratifies one to make it direction. Until ratified, the
+// previous ratified revision stays direction — unratified drafts never
+// silently take over. Rev numbers are per-org monotonic via a unique index.
+export const planRevisions = pgTable(
+  'plan_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    rev: integer('rev').notNull(),
+    status: text('status').notNull().default('draft'), // draft | ratified | rejected
+    title: text('title').notNull(),
+    summary: text('summary'), // one-line "what changed" for the revision rail
+    content: jsonb('content').notNull().default({}), // plan sections: whatWereBuilding, whoItsFor, howItMakesMoney, currentFocus, kpis
+    authorType: text('author_type').notNull().default('agent'), // user | agent
+    authorId: uuid('author_id'),
+    authorName: text('author_name').notNull(), // snapshot at authoring time
+    ratifiedAt: timestamp('ratified_at', { withTimezone: true }),
+    ratifiedBy: text('ratified_by'), // name snapshot of the ratifier
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('plan_revisions_org_created_idx').on(t.orgId, t.createdAt),
+    uniqueIndex('plan_revisions_org_rev_idx').on(t.orgId, t.rev),
+  ],
+);
+
+export type PlanRevision = typeof planRevisions.$inferSelect;
+export type NewPlanRevision = typeof planRevisions.$inferInsert;
+
 export const goals = pgTable(
   'goals',
   {
