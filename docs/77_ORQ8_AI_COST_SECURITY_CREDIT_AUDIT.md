@@ -1,6 +1,31 @@
 # 77 — AI Cost, Security, Rate Limiting & Credit Economy: Audit + Remediation Plan
 
-Status: **AUDIT COMPLETE — PLAN AWAITING APPROVAL. No code has been changed.**
+Status: **AUDIT COMPLETE. P0 shipped; P1 §5 (cost recording) shipped; the rest awaits approval.**
+
+Shipped since this audit was written:
+
+- **P0** (items 1–3): `POST /v1/credits/top-up` deleted; Stripe signature verification on
+  `request.rawBody` + `webhook_events` idempotency; atomic SQL-increment balance math with
+  idempotency keys, `(org, period_start)` unique index, and `GET /v1/admin/credits/reconcile`.
+  See commit `24103f6`.
+- **P1 §5** (item 5): real per-call provider cost — `llm_performance.provider_cost_usd`,
+  `credits_attributed`, `pricing_source` (migrations 0016 / 0040); cost derived from the
+  provider's reported figure or `MODEL_REGISTRY` rates; settlement writes the attribution onto
+  the ledger row it already had columns for; `/v1/admin/ai-usage` reports USD and credits as
+  separate units with a stated-rate margin. See `services/llm-pricing.ts`, `services/economics.ts`.
+- **P3 §13** (partial): the abuse suite (`test/abuse-suite.integration.test.ts`) covers
+  cross-tenant ids, list leakage, waitlist spam/burst, `Idempotency-Key` replay, and a
+  concurrent settlement race. Its five `it.todo` entries are the scenarios still without a
+  control — the layered limits below are the first of them.
+- Two defects the suite found and this work fixed: the `Idempotency-Key` guard compared its
+  payload hash in `onRequest` (before Fastify parses the body), so every legitimate replay was
+  answered **409 "different payload" instead of the stored response**; and
+  `POST /v1/agents/:id/emergency-stop` answered **200 for an unknown agent**, claiming a stop
+  that never happened.
+
+Still open: P1 §6–8 (reservations, budget enforcement, layered rate limits) and P2.
+**No further code should be written against the numbers above until the founder has reviewed the
+margin output of §5.**
 
 Method: full read of the credit, billing, usage, rate-limit, LLM-routing, worker and auth surfaces,
 with file:line citations. Nothing below is assumed correct because it exists.

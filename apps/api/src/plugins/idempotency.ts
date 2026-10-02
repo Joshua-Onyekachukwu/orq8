@@ -27,7 +27,14 @@ function isAsyncStore(store: IdempotencyStore): store is IdempotencyStore & {
 export function idempotencyPlugin(app: FastifyInstance, store: IdempotencyStore): void {
   const useAsync = isAsyncStore(store);
 
-  app.addHook('onRequest', async (request, reply) => {
+  // preHandler, not onRequest: this hook compares the stored payload hash against
+  // `request.body`, and Fastify parses the body *after* onRequest. Run there and the
+  // hash is always `JSON.stringify(undefined)` = undefined, so every legitimate
+  // replay (same key, same body) was answered 409 "different payload" instead of the
+  // stored response — the guard was inert, and a client that retried a request it
+  // never got an answer to was told its payload had changed. Found by the abuse
+  // suite's replay test (docs/77 P3 §13).
+  app.addHook('preHandler', async (request, reply) => {
     if (!MUTATING.has(request.method)) return;
     const header = request.headers['idempotency-key'];
     if (typeof header !== 'string' || header.length === 0) return;
