@@ -378,8 +378,10 @@ export async function createCreditPackCheckout(
       pack: pack.key,
       credits: String(pack.credits),
     },
-    success_url: `${config.APP_URL ?? 'http://localhost:3000'}/app?credits=purchased`,
-    cancel_url: `${config.APP_URL ?? 'http://localhost:3000'}/app?credits=cancelled`,
+    // The buyer returns to the purchase page, which reads these markers to
+    // render the success / cancelled state beside the purchase history.
+    success_url: `${config.APP_URL ?? 'http://localhost:3000'}/app/credits?credits=purchased`,
+    cancel_url: `${config.APP_URL ?? 'http://localhost:3000'}/app/credits?credits=cancelled`,
   });
 
   return { sessionId: session.id, url: session.url! };
