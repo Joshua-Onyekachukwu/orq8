@@ -9,6 +9,7 @@ import { getTaskStatus, executeTask, executePendingTasks, retryTask } from '../s
 import { executeWithQuality } from '../services/quality-pipeline.js';
 import { getRecentTraces, getTraceSummary } from '../services/llm-tracer.js';
 import { enqueueJob } from '../services/jobs.js';
+import { enforceAgentJobQuota, enforceOrgLimit, sendRateLimited } from '../plugins/rate-limits.js';
 import type { AppDeps } from '../types.js';
 
 const commandBody = z.object({
@@ -52,6 +53,11 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
 
     const parsed = commandBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
+
+    // Per-org layer (docs/80 §3.3): the company-wide ceiling on AI execution,
+    // applied before any context building or model call.
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'ai.execute');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'task execution');
 
     logger.info({ orgId: ctx.orgId, userId: ctx.userId, command: parsed.data.command }, 'Executive Agent: processing command');
 
@@ -185,15 +191,36 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
    */
   app.post<{ Params: { taskId: string } }>('/v1/commands/tasks/:taskId/execute', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    // docs/75 — in 'workers' mode the handler only enqueues: the background
-    // worker runs the same quality pipeline, and the founder polls task
-    // status instead of holding an HTTP connection through a model call.
-    if (config.JOB_QUEUE_MODE === 'workers') {
+
+    // Layered limits (docs/80 §3.3): org ceiling first, then the per-agent job
+    // quota, both before any work is queued or run.
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'ai.execute');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'task execution');
+
+    // The task must exist in the caller's org before any spend path opens — a
+    // missing or foreign id is a 404, not something the worker discovers later.
+    const [target] = await db
+      .select({ id: tasks.id, agentId: tasks.agentId })
+      .from(tasks)
+      .where(and(eq(tasks.id, request.params.taskId), eq(tasks.orgId, ctx.orgId)))
+      .limit(1);
+    if (!target) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Task not found' } };
+    }
+    const agentVerdict = await enforceAgentJobQuota(deps, ctx.orgId, target.agentId);
+    if (!agentVerdict.allowed) return sendRateLimited(reply, agentVerdict, 'agent work');
+
+    // docs/75 — in 'enqueue'/'workers' mode the handler only enqueues: a
+    // worker (own process in 'enqueue', in-process in 'workers') runs the same
+    // quality pipeline, and the founder polls task status instead of holding an
+    // HTTP connection through a model call.
+    if (config.JOB_QUEUE_MODE !== 'inline') {
       const job = await enqueueJob(db, {
         orgId: ctx.orgId,
         type: 'task.execute',
-        payload: { taskId: request.params.taskId },
-        taskId: request.params.taskId,
+        payload: { taskId: target.id },
+        taskId: target.id,
       });
       reply.code(202);
       return {
@@ -201,7 +228,7 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           queued: true,
           jobId: job.id,
           reused: job.reused,
-          taskId: request.params.taskId,
+          taskId: target.id,
           status: 'queued',
         },
       };
@@ -255,18 +282,33 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
    * by construction — `awaiting_approval` is not `pending`, and a background
    * pass must never answer a question that was put to a person.
    */
-  app.post('/v1/commands/tasks/execute-pending', async (request) => {
+  app.post('/v1/commands/tasks/execute-pending', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    // docs/75 — 'workers' mode: enqueue one job per pending task and let the
-    // background worker drain them; the response reports what was queued.
-    if (config.JOB_QUEUE_MODE === 'workers') {
+
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'ai.execute');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'task execution');
+
+    // docs/75 — 'enqueue'/'workers' mode: enqueue one job per pending task and
+    // let the worker drain them; the response reports what was queued.
+    if (config.JOB_QUEUE_MODE !== 'inline') {
       const pending = await db
-        .select({ id: tasks.id })
+        .select({ id: tasks.id, agentId: tasks.agentId })
         .from(tasks)
         .where(and(eq(tasks.orgId, ctx.orgId), eq(tasks.status, 'pending')))
         .limit(25);
       const jobs = [] as Array<{ taskId: string; jobId: string; reused: boolean }>;
+      // Per-agent quota: one employee's backlog cannot be drained past its
+      // hourly cap, but the rest of the batch still goes out (docs/80 §3.3).
+      const throttled: Array<{ taskId: string; reason: string }> = [];
       for (const t of pending) {
+        const quota = await enforceAgentJobQuota(deps, ctx.orgId, t.agentId);
+        if (!quota.allowed) {
+          throttled.push({
+            taskId: t.id,
+            reason: 'agent job quota reached — this employee resumes next hour',
+          });
+          continue;
+        }
         const job = await enqueueJob(db, {
           orgId: ctx.orgId,
           type: 'task.execute',
@@ -275,7 +317,7 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
         });
         jobs.push({ taskId: t.id, jobId: job.id, reused: job.reused });
       }
-      return { data: { queued: jobs.length, jobs } };
+      return { data: { queued: jobs.length, jobs, throttled } };
     }
     const results = await executePendingTasks(config, db, ctx.orgId);
     return {

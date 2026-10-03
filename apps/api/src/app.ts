@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { idempotencyPlugin } from './plugins/idempotency.js';
 import { rateLimitLogin, rateLimitRoute } from './plugins/rate-limit.js';
+import { registerLayeredRateLimits } from './plugins/rate-limits.js';
 import { registerActivityRoutes } from './routes/activity.js';
 import { registerAuditRoutes } from './routes/audit.js';
 import { registerAgentRoutes } from './routes/agents.js';
@@ -29,6 +30,7 @@ import { registerProviderRoutes } from './routes/providers.js';
 import { registerCommandRoutes } from './routes/commands.js';
 import { registerCommandStreamRoutes } from './routes/command-stream.js';
 import { registerCreditRoutes } from './routes/credits.js';
+import { registerAiBudgetRoutes } from './routes/ai-budget.js';
 import { registerBillingRoutes } from './routes/billing.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerFileRoutes } from './routes/files.js';
@@ -216,7 +218,8 @@ export async function buildApp(
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/verify-email/request', max: 3, windowMs: 900_000, label: 'verify-email-request' });
     rateLimitRouteRedis(app, redis, { path: '/v1/auth/oauth', max: 20, windowMs: 60_000, label: 'oauth' });
-    rateLimitRouteRedis(app, redis, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands', keyFn: sessionOrIpKey });
+    // /v1/commands now belongs to the layered ai.execute class (docs/80 §3.3),
+    // which covers both the Redis and in-memory paths with one bucket.
   } else if (rateLimitEnabled) {
     rateLimitLogin(app);
     rateLimitRoute(app, { path: '/v1/auth/register', max: 3, label: 'registration' });
@@ -224,8 +227,13 @@ export async function buildApp(
     rateLimitRoute(app, { path: '/v1/auth/reset-password', max: 5, windowMs: 900_000, label: 'reset-password' });
     rateLimitRoute(app, { path: '/v1/auth/verify-email/request', max: 3, windowMs: 900_000, label: 'verify-email-request' });
     rateLimitRoute(app, { path: '/v1/auth/oauth', max: 20, windowMs: 60_000, label: 'oauth' });
-    rateLimitRoute(app, { path: '/v1/commands', max: 10, windowMs: 60_000, label: 'commands' }); // in-memory fallback path
   }
+
+  // Layered per-user/per-org/per-agent/per-class limits over the AI-bearing
+  // routes (docs/80 §3.3 — the docs/77 P1 §8 gap). Registered independently of
+  // the legacy auth buckets: it is off in tests unless ORQ8_TEST_RATE_LIMITS=1,
+  // and off entirely when RATE_LIMIT_ENABLED=false.
+  registerLayeredRateLimits(app, deps);
 
   // Security headers on every response (including CSRF cookie + HSTS)
   app.addHook('onSend', async (_request, reply) => {
@@ -310,6 +318,7 @@ export async function buildApp(
   registerCommandRoutes(app, deps);
   registerCommandStreamRoutes(app, deps);
   registerCreditRoutes(app, deps);
+  registerAiBudgetRoutes(app, deps);
   registerBillingRoutes(app, deps);
   registerMemoryRoutes(app, deps);
   registerFileRoutes(app, deps);

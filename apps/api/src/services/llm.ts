@@ -1,5 +1,7 @@
 import type { AppConfig } from '@orq8/core';
 import { startTrace, endTrace, persistTrace } from './llm-tracer.js';
+import { loadOrgProviderKeys, type OrgProviderKey } from './org-provider-keys.js';
+import { acquireProviderSlot, GateTimeoutError } from './concurrency-gate.js';
 import type { Db } from '@orq8/db';
 
 /**
@@ -169,6 +171,46 @@ export function getPrimaryProviderId(config: NvidiaConfig): LLMProviderId | null
   return chain[0]?.id ?? null;
 }
 
+/**
+ * Does an org key's allow-list permit this model? An empty list means "any model
+ * the provider offers"; otherwise exact or vendor-prefix-insensitive match.
+ */
+function orgKeyAllowsModel(allowedModels: string[], model: string): boolean {
+  if (allowedModels.length === 0) return true;
+  const tail = (m: string) => m.trim().toLowerCase().split('/').pop() ?? m.trim().toLowerCase();
+  const target = model.trim().toLowerCase();
+  return allowedModels.some((m) => {
+    const candidate = m.trim().toLowerCase();
+    return candidate === target || tail(candidate) === tail(target);
+  });
+}
+
+/**
+ * Choose the key pool for one provider attempt (docs/80 §3.2 — BYOK).
+ *
+ * The org's own key wins when it exists, is within its month-to-date spend
+ * ceiling, and allows the model being requested. Otherwise the platform's keys
+ * serve the call, and `reason` says why the org key was passed over. Pure, so the
+ * policy is unit-testable without a database or a network.
+ */
+export function selectProviderKeys(params: {
+  platformKeys: string[];
+  orgKey?: Pick<OrgProviderKey, 'apiKey' | 'allowedModels' | 'withinCeiling'> | null;
+  requestedModel: string;
+}): { keys: string[]; keySource: 'org' | 'platform'; reason?: string } {
+  const { platformKeys, orgKey, requestedModel } = params;
+  if (orgKey) {
+    if (!orgKey.withinCeiling) {
+      return { keys: platformKeys, keySource: 'platform', reason: 'org key over its monthly spend ceiling' };
+    }
+    if (!orgKeyAllowsModel(orgKey.allowedModels, requestedModel)) {
+      return { keys: platformKeys, keySource: 'platform', reason: 'model not in the org key allow-list' };
+    }
+    return { keys: [orgKey.apiKey], keySource: 'org' };
+  }
+  return { keys: platformKeys, keySource: 'platform' };
+}
+
 /** Dedupe and drop empty entries from a key pool, preserving order. */
 function uniqueKeys(keys: Array<string | undefined>): string[] {
   const seen = new Set<string>();
@@ -244,7 +286,9 @@ export interface LLMOptions {
     agentId?: string;
     db?: Db;
     /** §31: selection path that chose the model — persisted to llm_performance. */
-    routingSource?: 'static' | 'measured' | 'default' | 'calibration';
+    routingSource?: 'static' | 'measured' | 'default' | 'calibration' | 'plan_cap';
+    /** docs/80 Phase 4: why that path chose what it chose (persisted). */
+    routingReason?: string;
   };
 }
 
@@ -541,6 +585,14 @@ export async function chatCompletion(
   // Import circuit breaker for provider failure handling
   const { isAvailable, recordSuccess, recordFailure } = await import('./circuit-breaker.js');
 
+  // BYOK (docs/80 §3.2): when the call carries an org + db, load the org's own
+  // provider keys once. A failure here must never break the call — an empty map
+  // means the platform keys serve it, exactly as before this feature.
+  let orgKeys: Map<string, OrgProviderKey> | null = null;
+  if (traceCtx?.db && traceCtx.orgId) {
+    orgKeys = await loadOrgProviderKeys(traceCtx.db, traceCtx.orgId, config).catch(() => null);
+  }
+
   for (const provider of chain) {
     // Circuit breaker: skip providers that are in open state
     if (!isAvailable(provider.id)) {
@@ -548,8 +600,17 @@ export async function chatCompletion(
       continue;
     }
 
-    const endpoint = chatCompletionsEndpoint(provider.baseUrl);
-    const keys = provider.apiKeys.length > 0 ? provider.apiKeys : [''];
+    // Key pool for this provider: the org's own key when it is usable, else the
+    // platform's env keys (docs/80 §3.2). `keySource` rides the trace.
+    const orgKey = orgKeys?.get(provider.id) ?? null;
+    const requestedModel = explicitModel ?? provider.defaultModel;
+    const platformKeys = provider.apiKeys.length > 0 ? provider.apiKeys : [''];
+    const keyChoice = selectProviderKeys({ platformKeys, orgKey, requestedModel });
+    const keys = keyChoice.keys;
+    // A BYO endpoint key may point at a different base URL.
+    const endpoint = chatCompletionsEndpoint(
+      keyChoice.keySource === 'org' && orgKey?.baseUrl ? orgKey.baseUrl : provider.baseUrl,
+    );
     // Models tried for this provider: the default first, then NVIDIA fallbacks.
     // An explicitly requested model (e.g. a capability-tier pick) is tried
     // FIRST, but is followed by the provider's entitled defaults — a registry
@@ -580,11 +641,18 @@ export async function chatCompletion(
         agentId: traceCtx.agentId,
         maxRetries,
         routingSource: traceCtx.routingSource,
+        routingReason: traceCtx.routingReason,
+        // BYOK (docs/80 §3.2): which key pool paid for this attempt.
+        keySource: keyChoice.keySource,
+        providerKeyId: keyChoice.keySource === 'org' ? orgKey?.keyId : undefined,
       });
       traceId = trace.traceId;
     }
 
     let providerError = 'unknown';
+    // Set when the provider's own concurrency ceiling (not the provider) was
+    // the cause: fail over without tripping the circuit breaker.
+    let saturated = false;
 
     // Walk the model list. NVIDIA entitlements are granted per account per
     // model, so when a model 404s ("Function not found for account") the next
@@ -615,12 +683,18 @@ export async function chatCompletion(
         }
 
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          let releaseSlot: (() => void) | null = null;
           try {
             if (attempt > 0) {
               // Exponential backoff with jitter on retries
               const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 500;
               await new Promise((r) => setTimeout(r, delay));
             }
+
+            // Provider concurrency (docs/80 §3.3): hold one global + one
+            // per-provider slot for the duration of the call. The wait is
+            // bounded — a saturated provider fails over instead of hanging.
+            releaseSlot = await acquireProviderSlot(config, provider.id);
 
             const { response, cancelTotal } = await fetchWithTimeout(
               endpoint,
@@ -717,6 +791,13 @@ export async function chatCompletion(
               cancelTotal();
             }
           } catch (err) {
+            if (err instanceof GateTimeoutError) {
+              // Not a provider failure: submit to the ceiling and try the next
+              // provider (which has its own gate) rather than hanging.
+              modelError = `${provider.id} concurrency ceiling reached`;
+              saturated = true;
+              break keyLoop;
+            }
             modelError = `${model} → ${keyLabel}: ${err instanceof Error ? err.message : 'network error'}`;
             // Timeout = the provider function hangs instead of 404ing. NVIDIA
             // keys share one account, so they share the hang too — skip the
@@ -731,8 +812,26 @@ export async function chatCompletion(
             if (err instanceof DOMException && err.name === 'AbortError') {
               continue keyLoop;
             }
+          } finally {
+            // Release on every path (success, provider error, timeout, abort).
+            if (releaseSlot) {
+              releaseSlot();
+              releaseSlot = null;
+            }
           }
         }
+        if (saturated) break;
+      }
+
+      if (saturated) {
+        // A saturated provider is not a broken one: close its trace, skip the
+        // circuit breaker, and let the chain try the next provider.
+        if (traceId) {
+          endTrace(traceId, { success: false, error: `${provider.id} saturated: ${modelError}` });
+          if (traceCtx?.db) await persistTrace(traceCtx.db, recentTrace(traceId));
+        }
+        lastError = `${provider.id}: ${modelError}`;
+        continue;
       }
 
       // Every key failed on this model — record it and try the next fallback
@@ -870,13 +969,8 @@ function recentTrace(id: string): LLMTraceEntry {
     providerCostUsd: 0,
     pricingSource: 'unknown',
     creditsAttributed: 0,
+    keySource: 'platform',
     temperature: 0,
     maxTokens: 0,
   };
 }
-
-// ─── Re-exports for Model Router ───────────────────────────────────────────
-// The ModelRouter provides capability-aware routing across multiple providers.
-// Import from './model-router.js' for full access.
-export { getModelRouter, resetModelRouter } from './model-router.js';
-export type { ModelRouter, RouterResult, TaskRequirements } from './model-router.js';

@@ -6,7 +6,13 @@ import { appendAudit } from '../services/audit.js';
 import { buildProviderChain } from '../services/llm.js';
 import * as userService from '../services/users.js';
 import { forbidden, platformAdminEmails } from '@orq8/core';
-import { jobsOverview } from '../services/jobs.js';
+import {
+  deadLetterJobs,
+  jobsHealth,
+  jobsOverview,
+  recentJobsDetailed,
+  retryJob,
+} from '../services/jobs.js';
 import {
   users,
   organizations,
@@ -1006,12 +1012,104 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     } catch { /* */ }
     let waitlistPending = 0;
     try { const [wp] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'pending')); waitlistPending = wp?.count ?? 0; } catch { /* */ }
-    const agentQueue = await jobsOverview(db, 20).catch(() => ({ counts: {}, recent: [] }));
-    return { data: { dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed }, waitlist: { pending: waitlistPending }, agentQueue, jobs: [
-      { name: 'Waitlist Drip Sequence', status: dripPending > 0 ? 'has_pending' : 'idle', pending: dripPending, sent: dripSent, failed: dripFailed },
-      { name: 'Waitlist Processing', status: waitlistPending > 0 ? 'has_pending' : 'idle', pending: waitlistPending },
-      { name: 'Weekly Report Generation', status: 'scheduled', nextRun: 'Sunday 00:00 UTC' },
-      { name: 'Credit Reconciliation', status: 'scheduled', nextRun: 'Daily 00:00 UTC' },
-    ] } };
+    const agentQueue = await jobsOverview(db, 20).catch(() => ({
+      counts: {},
+      health: null,
+      recent: [],
+    }));
+    // The fabricated ``jobs`` list this used to return ("Weekly Report
+    // Generation — Sunday 00:00 UTC") described schedulers that do not exist.
+    // The real queue is what the Commands tab reads, so only real rows are
+    // reported from here on.
+    return {
+      data: {
+        dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed },
+        waitlist: { pending: waitlistPending },
+        queueMode: deps.config.JOB_QUEUE_MODE,
+        agentQueue,
+      },
+    };
+  });
+
+  /**
+   * GET /v1/admin/jobs/health — queue depth and worker liveness.
+   *
+   * Liveness is derived from the queue itself (a running job with a fresh
+   * lock), so an idle-but-alive worker and a dead worker are told apart by the
+   * last completed job rather than by a heartbeat nothing writes.
+   */
+  app.get('/v1/admin/jobs/health', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const health = await jobsHealth(db);
+    return { data: { mode: deps.config.JOB_QUEUE_MODE, ...health } };
+  });
+
+  /** GET /v1/admin/jobs/recent — recent jobs with their real task and employee. */
+  app.get('/v1/admin/jobs/recent', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const jobs = await recentJobsDetailed(db, {
+      status: url.searchParams.get('status') ?? undefined,
+      type: url.searchParams.get('type') ?? undefined,
+      limit: Number(url.searchParams.get('limit') ?? 50),
+    });
+    return { data: jobs };
+  });
+
+  /** GET /v1/admin/jobs/dead-letter — jobs that will not run again on their own. */
+  app.get('/v1/admin/jobs/dead-letter', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const jobs = await deadLetterJobs(db, Number(url.searchParams.get('limit') ?? 50));
+    return { data: jobs };
+  });
+
+  /**
+   * POST /v1/admin/jobs/:id/retry — requeue a dead-lettered job.
+   *
+   * The retry is audited with the job's prior state so the trail answers "who
+   * asked for this to run again, and what was it the first time".
+   */
+  app.post<{ Params: { id: string } }>('/v1/admin/jobs/:id/retry', async (request, reply) => {
+    const ctx = await requirePlatformAdmin(request, deps);
+    const outcome = await retryJob(db, request.params.id);
+
+    if (!outcome.ok) {
+      reply.code(outcome.status);
+      return {
+        error: {
+          code: outcome.status === 404 ? 'job.not_found' : 'job.not_retryable',
+          message: outcome.reason,
+        },
+      };
+    }
+
+    await appendAudit(db, {
+      orgId: outcome.job.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'job.retry_requested',
+      tool: 'admin-commands',
+      outcome: 'success',
+      inputRef: JSON.stringify({
+        jobId: outcome.job.id,
+        jobType: outcome.job.type,
+        taskId: outcome.job.taskId,
+        previousStatus: outcome.previous.status,
+        previousAttempts: outcome.previous.attempts,
+        previousError: outcome.previous.lastError?.slice(0, 500) ?? null,
+      }),
+    }).catch(() => undefined);
+
+    return {
+      data: {
+        job: outcome.job,
+        previous: {
+          status: outcome.previous.status,
+          attempts: outcome.previous.attempts,
+        },
+        requeued: true,
+      },
+    };
   });
 }

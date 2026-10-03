@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { validation, forbidden } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceOrgLimit, sendRateLimited } from '../plugins/rate-limits.js';
 import {
   analyzeBusinessImport,
   approveBusinessImport,
@@ -43,6 +44,8 @@ export function registerBusinessImportRoutes(app: FastifyInstance, deps: AppDeps
 
   app.post('/v1/business-imports/analyze', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'ai.import');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'business import');
     const parsed = analyzeBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
     try {

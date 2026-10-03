@@ -17,6 +17,8 @@ import { agents, tasks, activityEvents, type Db } from '@orq8/db';
 import { delegateTask, submitFeedback, aggregateSubTaskResults } from './multi-agent.js';
 import { appendAudit } from './audit.js';
 import { broadcastToOrg } from './realtime.js';
+import { resolveDelegationLimits, type DelegationLimits } from './delegation-guard.js';
+import type { AppConfig } from '@orq8/core';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,8 @@ export interface DelegationResult {
   createdTaskIds: string[];
   delegatedCount: number;
   unassignedCount: number;
+  /** Plan entries not created because `maxTasksPerCommand` was reached. */
+  skippedCount: number;
 }
 
 // ─── Orchestration ──────────────────────────────────────────────────────────
@@ -154,13 +158,19 @@ export async function executeDelegationPlan(
     suggestedAgentRole: string;
     priority?: string;
   }>,
+  config?: Pick<AppConfig, 'DELEGATION_MAX_DEPTH' | 'DELEGATION_MAX_CHILDREN_PER_TASK' | 'DELEGATION_MAX_TASKS_PER_COMMAND'>,
 ): Promise<DelegationResult> {
+  const limits: DelegationLimits = resolveDelegationLimits(config);
   const createdTaskIds: string[] = [];
   let delegatedCount = 0;
   let unassignedCount = 0;
+  let skippedCount = 0;
+  // docs/80 Phase 2: one command may not create unbounded work.
+  const atCap = () => createdTaskIds.length >= limits.maxTasksPerCommand;
 
   // 1. Direct assignments — create tasks with agent assigned
   for (const assignment of plan.directAssignments) {
+    if (atCap()) { skippedCount++; continue; }
     const taskDef = intentDecomposition.find(t => t.title === assignment.taskTitle);
     if (!taskDef) continue;
 
@@ -198,6 +208,7 @@ export async function executeDelegationPlan(
 
   // 2. Delegations — create sub-tasks via multi-agent system
   for (const delegation of plan.delegations) {
+    if (atCap()) { skippedCount++; continue; }
     const result = await delegateTask(db, {
       orgId,
       delegatingAgentId: delegation.delegatingAgentId,
@@ -207,6 +218,7 @@ export async function executeDelegationPlan(
       description: delegation.subTaskDescription,
       priority: delegation.priority,
       context: `Delegated by Executive Agent. Original task: ${delegation.parentTaskTitle}`,
+      limits,
     });
 
     if (result.status === 'created' && result.subTaskId) {
@@ -217,6 +229,7 @@ export async function executeDelegationPlan(
 
   // 3. Unassigned — create tasks without agent assignment
   for (const unassigned of plan.unassigned) {
+    if (atCap()) { skippedCount++; continue; }
     const taskDef = intentDecomposition.find(t => t.title === unassigned.taskTitle);
     if (!taskDef) continue;
 
@@ -243,7 +256,7 @@ export async function executeDelegationPlan(
   broadcastToOrg(orgId, {
     type: 'command.processed',
     commandId: `delegation-${Date.now()}`,
-    summary: `Delegation plan executed: ${delegatedCount} delegated, ${unassignedCount} unassigned`,
+    summary: `Delegation plan executed: ${delegatedCount} delegated, ${unassignedCount} unassigned${skippedCount ? `, ${skippedCount} skipped (command cap)` : ''}`,
   });
 
   // 5. Audit
@@ -258,14 +271,29 @@ export async function executeDelegationPlan(
       directAssignments: plan.directAssignments.length,
       delegations: plan.delegations.length,
       unassigned: plan.unassigned.length,
+      skipped: skippedCount,
+      maxTasksPerCommand: limits.maxTasksPerCommand,
     }),
   }).catch(() => {});
+
+  if (skippedCount > 0) {
+    await appendAudit(db, {
+      orgId,
+      actorType: 'system',
+      action: 'delegation.capped',
+      tool: 'delegation_orchestrator',
+      cost: 0,
+      outcome: 'success',
+      resultRef: `${skippedCount} task(s) skipped at the ${limits.maxTasksPerCommand}-task command cap`,
+    }).catch(() => {});
+  }
 
   return {
     plan,
     createdTaskIds,
     delegatedCount,
     unassignedCount,
+    skippedCount,
   };
 }
 

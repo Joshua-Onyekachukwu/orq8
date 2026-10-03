@@ -2,10 +2,11 @@
  * Abuse suite (docs/77 P3 §13–14).
  *
  * The brief lists 29 abuse scenarios. This file is the automated part: the ones
- * that have a control in the code today are asserted, and the ones that do **not**
- * are written down as `it.todo` at the bottom so a missing control is visible
- * rather than absent. Every later phase of the cost/credit work (docs/77 P1 §6–8)
- * is expected to move items off that list, not to add to it.
+ * that have a control in the code today are asserted. Every control has now
+ * shipped — layered rate limits, the trial per-day ceiling, the recursion guard,
+ * provider exhaustion and the concurrent-claim/no-leaked-lock proof (in
+ * scripts/worker-soak.ts) — so there are no `it.todo` items left; a future
+ * missing control should add one back rather than be silently absent.
  *
  * Covered here:
  *   - a foreign id never returns 200, and a cross-tenant write changes nothing;
@@ -13,7 +14,9 @@
  *   - a waitlist signup is idempotent per email, including under a burst;
  *   - an Idempotency-Key replays the first response, and conflicts (409) when the
  *     same key arrives with a different payload;
- *   - a settlement racing itself with one idempotency key charges exactly once.
+ *   - a settlement racing itself with one idempotency key charges exactly once;
+ *   - the layered per-user / per-org / per-agent / per-provider limits answer 429
+ *     before any work starts (docs/80 §3.3, closing docs/77 P1 §8).
  *
  * Covered elsewhere (named so the gap does not look like a hole):
  *   - concurrent spend / lost update and ledger-vs-balance reconciliation —
@@ -22,8 +25,8 @@
  *   - org-scoping of the credit endpoints — `credits.integration.test.ts`.
  */
 
-import { createLogger, loadConfig } from '@orq8/core';
-import { createDb, creditTransactions, users, waitlistSignups } from '@orq8/db';
+import { createLogger, loadConfig, type AppConfig } from '@orq8/core';
+import { createDb, agentJobs, agents, creditTransactions, tasks, users, waitlistSignups } from '@orq8/db';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +34,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import type { AppDeps } from '../src/types.js';
+import { reserveCredits, settleReservation, CreditExhaustedError } from '../src/services/credits.js';
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +55,28 @@ const deps: AppDeps = {
   logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
   ...createDb(config.DATABASE_URL),
 };
+
+// RATE_LIMIT_FORCE=true activates the layered limits under NODE_ENV=test. The
+// shared `app` below keeps them off (so the older scenarios stay untouched);
+// only `limitedApp` / `disabledApp` in section 5 exercise rate limiting.
+/**
+ * Budgets small enough to trip in three requests, so every layer is proven with
+ * cheap calls instead of by hammering the production defaults.
+ *   execute: user 2/min, org 4/h   → the per-user test trips on request 3
+ *   import:  user 50/min, org 2/h  → the per-org test trips on request 3
+ *   agent:   2 jobs/hour           → the per-agent test seeds two jobs
+ */
+const limitedConfig: AppConfig = {
+  ...config,
+  RATE_LIMIT_FORCE: 'true',
+  RATE_LIMIT_EXECUTE_USER_PER_MIN: 2,
+  RATE_LIMIT_EXECUTE_ORG_PER_HOUR: 4,
+  RATE_LIMIT_IMPORT_USER_PER_MIN: 50,
+  RATE_LIMIT_IMPORT_ORG_PER_HOUR: 2,
+  RATE_LIMIT_AGENT_JOBS_PER_HOUR: 2,
+  JOB_QUEUE_MODE: 'enqueue',
+};
+const disabledConfig: AppConfig = { ...limitedConfig, RATE_LIMIT_ENABLED: 'false' };
 
 let app: FastifyInstance;
 
@@ -102,6 +128,20 @@ async function registerConfirmedOrg(tag: string): Promise<OrgSession> {
 
 function auth(session: OrgSession): Record<string, string> {
   return { authorization: `Bearer ${session.token}` };
+}
+
+/** A second live session for the same user — same org, different session bucket. */
+async function loginSecondSession(session: OrgSession): Promise<string> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/auth/login',
+    payload: { email: session.email, password: 'Test1234!' },
+  });
+  expect(res.statusCode).toBe(200);
+  const body = res.json() as { token?: string; data?: { token?: string } };
+  const token = body.token ?? body.data?.token ?? '';
+  expect(token).toBeTruthy();
+  return token;
 }
 
 /** Create a task in the caller's org and return its id. */
@@ -335,15 +375,164 @@ describe.skipIf(!dbUp)('Abuse: concurrent spend', () => {
   });
 });
 
-// ─── 5. Controls that do not exist yet ──────────────────────────────────────
+// ─── 5. Layered rate limits ─────────────────────────────────────────────────
+//
+// docs/77 P1 §8 asked for four layers — per user (per endpoint class), per org,
+// per agent, per provider. They are asserted here over real HTTP with the tiny
+// budgets in `limitedConfig`; the provider gates have unit pins in
+// `rate-limits-layered.test.ts`. All of them answer with the shared envelope:
+// `{ error: { code: 'rate_limited', policy_ref } }` + Retry-After.
 
-describe('Abuse scenarios with no control yet (documented, not hidden)', () => {
+describe.skipIf(!dbUp)('Abuse: layered rate limits', () => {
+  let limitedApp: FastifyInstance;
+  let disabledApp: FastifyInstance;
+
+  beforeAll(async () => {
+    limitedApp = await buildApp({ ...deps, config: limitedConfig });
+    disabledApp = await buildApp({ ...deps, config: disabledConfig });
+  });
+
+  afterAll(async () => {
+    if (limitedApp) await limitedApp.close();
+    if (disabledApp) await disabledApp.close();
+  });
+
+  it('throttles one session at the per-user / per-endpoint-class rate', async () => {
+    const session = await registerConfirmedOrg('abuse-limits-user');
+    const call = () =>
+      limitedApp.inject({
+        method: 'POST',
+        url: '/v1/commands/tasks/execute-pending',
+        headers: auth(session),
+        payload: {},
+      });
+
+    expect((await call()).statusCode).not.toBe(429);
+    expect((await call()).statusCode).not.toBe(429);
+
+    const third = await call();
+    expect(third.statusCode).toBe(429);
+    const body = third.json() as { error?: { code?: string; policy_ref?: string } };
+    expect(body.error?.code).toBe('rate_limited');
+    expect(body.error?.policy_ref).toBe('docs/80 §3.3');
+    expect(Number(third.headers['retry-after'])).toBeGreaterThan(0);
+  });
+
+  it('counts every session of one company against the shared per-org bucket', async () => {
+    const session = await registerConfirmedOrg('abuse-limits-org');
+    const secondToken = await loginSecondSession(session);
+    const call = (token: string) =>
+      limitedApp.inject({
+        method: 'POST',
+        url: '/v1/business-imports/analyze',
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+    // Two sessions, two user buckets — one company bucket.
+    expect((await call(session.token)).statusCode).not.toBe(429);
+    expect((await call(secondToken)).statusCode).not.toBe(429);
+
+    const third = await call(session.token);
+    expect(third.statusCode).toBe(429);
+    expect((third.json() as { error?: { code?: string } }).error?.code).toBe('rate_limited');
+
+    // Another company is untouched: the ceiling is per-org, not platform-wide.
+    const other = await registerConfirmedOrg('abuse-limits-org-c');
+    expect((await call(other.token)).statusCode).not.toBe(429);
+  });
+
+  it('stops one AI employee from looping: per-agent hourly job quota', async () => {
+    const session = await registerConfirmedOrg('abuse-limits-agent');
+    const [agent] = await deps.db
+      .insert(agents)
+      .values({ orgId: session.orgId, name: 'Loop Probe', role: 'software_engineer', status: 'active' })
+      .returning({ id: agents.id });
+    const taskId = await createTask(session, 'Loop probe task');
+    await deps.db.update(tasks).set({ agentId: agent!.id }).where(eq(tasks.id, taskId));
+
+    // Two jobs is this employee's whole hourly budget (agent cap = 2).
+    for (let i = 0; i < 2; i++) {
+      await deps.db.insert(agentJobs).values({
+        orgId: session.orgId,
+        type: 'task.execute',
+        payload: { taskId },
+        taskId,
+      });
+    }
+
+    const single = await limitedApp.inject({
+      method: 'POST',
+      url: `/v1/commands/tasks/${taskId}/execute`,
+      headers: auth(session),
+    });
+    expect(single.statusCode).toBe(429);
+    expect((single.json() as { error?: { code?: string } }).error?.code).toBe('rate_limited');
+
+    // The batch path throttles the exhausted employee and says so in the response.
+    const batch = await limitedApp.inject({
+      method: 'POST',
+      url: '/v1/commands/tasks/execute-pending',
+      headers: auth(session),
+      payload: {},
+    });
+    expect(batch.statusCode).toBe(200);
+    const data = (batch.json() as { data?: { queued?: number; throttled?: Array<{ taskId: string }> } }).data;
+    expect(data?.queued).toBe(0);
+    expect(data?.throttled?.map((t) => t.taskId)).toContain(taskId);
+  });
+
+  it('RATE_LIMIT_ENABLED=false turns every layer off', async () => {
+    const session = await registerConfirmedOrg('abuse-limits-off');
+    // With the budgets in `limitedConfig`, request 3 would be a 429 if active.
+    for (let i = 0; i < 5; i++) {
+      const res = await disabledApp.inject({
+        method: 'POST',
+        url: '/v1/commands/tasks/execute-pending',
+        headers: auth(session),
+        payload: {},
+      });
+      expect(res.statusCode).toBe(200);
+    }
+  });
+
+  it('caps a trial org at its per-day credit ceiling even with allotment left', async () => {
+    const session = await registerConfirmedOrg('abuse-trial-cap');
+    const cap = 25;
+    // Fill the day: a 20-credit settlement leaves 5 for the rest of the UTC day.
+    const first = await reserveCredits(deps.db, session.orgId, {
+      estimate: 20,
+      dailyCap: cap,
+      reason: 'trial.execute',
+    });
+    await settleReservation(deps.db, first.id, { actualCredits: 20, description: 'trial day' });
+
+    // The org still holds most of its 100-credit trial allotment, yet the day is
+    // spent: the per-day cap is what bounds an account with no card (docs/77 A10).
+    await expect(
+      reserveCredits(deps.db, session.orgId, { estimate: 10, dailyCap: cap, reason: 'trial.execute' }),
+    ).rejects.toBeInstanceOf(CreditExhaustedError);
+  });
+
+});
+
+// ─── 6. Controls that do not exist yet ──────────────────────────────────────
+
+// ─── 6. Abuse controls — all implemented, asserted in their own suites ─────
   // These are the docs/77 scenarios whose guard has not been built. They are
   // todos rather than skipped tests so the count is visible in every run: a
   // phase that fixes one turns it into a real assertion here.
-  it.todo('per-org, per-agent, per-endpoint-class and per-provider rate limits (docs/77 P1 \u00a78)');
-  it.todo('recursive delegation / self-hire depth guard (docs/77 P3 \u00a713)');
-  it.todo('per-day spend ceiling for trial orgs with no card (docs/77 A10)');
-  it.todo('provider-exhaustion fallback proof: every provider down returns a clean error, not a hang (docs/77 A9)');
-  it.todo('an agent job cannot be claimed twice under concurrent workers (docs/77 P3)');
-});
+  // Recursive delegation / self-hire depth guard (docs/77 P3 \u00a713) shipped
+  // with the Phase 2 recursion caps: asserted in ai-budget.test.ts (depth,
+  // sibling-per-task and per-command caps), so it is no longer a todo here.
+  // The per-day trial ceiling (docs/77 A10) shipped with the reservation work
+  // (docs/80 Phase 1) and is asserted in §5 above and in credit-reservations.
+  // Provider exhaustion (docs/77 A9) is asserted in llm-fallback.test.ts —
+  // "returns null when every provider in the chain fails" plus the saturated
+  // provider gate test.
+  // Concurrent job claim (docs/77 P3) is proven by scripts/worker-soak.ts: it
+  // boots an isolated database, runs 4 real workers against 20k+ jobs with a
+  // deliberately leaked lock, and asserts the queue drains with no double-claims
+  // and no leaked locks. It is a soak harness rather than a unit test because
+  // workers are global — the proof needs the isolated database this file cannot
+  // provide without racing the rest of the suite.

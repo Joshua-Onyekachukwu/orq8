@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { subscriptions, organizations, webhookEvents, type Db } from '@orq8/db';
 import { appendAudit } from './audit.js';
 import { addPurchasedCredits } from './credits.js';
@@ -424,12 +424,25 @@ async function getOrCreateStripeCustomer(
 // ─── Webhook Processing ─────────────────────────────────────────────────────
 
 /**
- * Process a Stripe webhook event exactly once (docs/77 §A2).
+ * Process a Stripe webhook event exactly once (docs/77 §A2, hardened in
+ * docs/80 Phase 0 / H1).
  *
  * Idempotency is enforced by the `webhook_events` unique index on
- * (org, provider, external_event_id): a second delivery of the same Stripe event
- * finds the existing row and is skipped, so a replayed
- * `checkout.session.completed` can never grant credits twice.
+ * (org, provider, external_event_id). The row is the **claim**, not the
+ * receipt:
+ *
+ *   1. the first delivery inserts the row as `pending`;
+ *   2. `applyWebhook` runs the side effects;
+ *   3. only after it succeeds does the row become `processed`.
+ *
+ * A delivery that fails mid-apply leaves the row `failed` (or `pending` if the
+ * process died), and the next Stripe retry of the same event re-applies it
+ * instead of being answered "duplicate" — the old order marked the row
+ * processed before applying, so one transient failure meant the credits were
+ * never granted and no retry could fix it. Re-applying is safe because every
+ * side effect is idempotent: credit grants carry the event/session idempotency
+ * key, and `activateSubscription` refuses to create a second subscription for
+ * the same Stripe id.
  */
 export async function processWebhookEvent(
   config: AppConfig,
@@ -448,15 +461,64 @@ export async function processWebhookEvent(
       externalEventId: event.id,
       title: `Stripe ${event.type}`,
       payload: { id: event.id, type: event.type },
-      status: 'processed',
-      processedAt: new Date(),
+      status: 'pending',
     })
     .onConflictDoNothing()
     .returning({ id: webhookEvents.id });
 
-  if (inserted.length === 0) return { handled: false, duplicate: true };
+  let eventRowId = inserted[0]?.id;
+  if (!eventRowId) {
+    const [existing] = await db
+      .select({ id: webhookEvents.id, status: webhookEvents.status })
+      .from(webhookEvents)
+      .where(
+        and(
+          eq(webhookEvents.orgId, orgId),
+          eq(webhookEvents.provider, 'stripe'),
+          eq(webhookEvents.externalEventId, event.id),
+        ),
+      )
+      .limit(1);
 
-  await applyWebhook(config, db, event);
+    if (!existing) {
+      // The row vanished between the insert conflict and this read — a
+      // concurrent delivery owns the event right now. Refusing is the safe
+      // answer; Stripe's retry will find the settled row.
+      return { handled: false, duplicate: true, reason: 'concurrent_delivery' };
+    }
+    if (existing.status === 'processed') return { handled: false, duplicate: true };
+
+    // A previous delivery failed (or died) before confirming the apply. Claim it
+    // again so the retry actually runs.
+    eventRowId = existing.id;
+    await db
+      .update(webhookEvents)
+      .set({
+        status: 'pending',
+        lastError: null,
+        retryCount: sql`${webhookEvents.retryCount} + 1`,
+      })
+      .where(eq(webhookEvents.id, existing.id));
+  }
+
+  try {
+    await applyWebhook(config, db, event);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown webhook error';
+    await db
+      .update(webhookEvents)
+      .set({ status: 'failed', lastError: message.slice(0, 500) })
+      .where(eq(webhookEvents.id, eventRowId))
+      .catch(() => undefined);
+    // Re-throw so the route answers 500 and Stripe redelivers.
+    throw err;
+  }
+
+  await db
+    .update(webhookEvents)
+    .set({ status: 'processed', processedAt: new Date(), lastError: null })
+    .where(eq(webhookEvents.id, eventRowId));
+
   return { handled: true, duplicate: false };
 }
 
@@ -576,6 +638,25 @@ async function activateSubscription(
 ): Promise<void> {
   const planConfig = PLANS[plan];
   if (!planConfig) return;
+
+  // Idempotent replay (docs/80 Phase 0 / H1): a re-delivered checkout event
+  // must not cancel the live subscription and create a second row for the same
+  // Stripe subscription id. If this Stripe subscription is already active for
+  // this org and plan, the event has already been applied.
+  if (stripeSubscriptionId) {
+    const [already] = await db
+      .select({ id: subscriptions.id, plan: subscriptions.plan })
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId),
+          eq(subscriptions.status, 'active'),
+        ),
+      )
+      .limit(1);
+    if (already && already.plan === plan) return;
+  }
 
   const now = new Date();
   const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);

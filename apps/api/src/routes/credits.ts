@@ -6,7 +6,9 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as credits from '../services/credits.js';
 import * as billing from '../services/billing.js';
+import { estimateCredits } from '../services/credit-estimator.js';
 import * as creditAlerts from '../services/credit-alerts.js';
+import { enforceOrgLimit, sendRateLimited } from '../plugins/rate-limits.js';
 import type { AppDeps } from '../types.js';
 
 export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -21,6 +23,10 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
    */
   const devOnlyOrPlatformAdmin = (ctx: { platformRole: string }): boolean =>
     config.NODE_ENV !== 'production' || ctx.platformRole === 'admin';
+
+  /** Spending the company's money (buying credits) needs an owner or admin. */
+  const canSpendOrgMoney = (ctx: { role: string }): boolean =>
+    ctx.role === 'owner' || ctx.role === 'admin';
 
   /**
    * GET /v1/credits/balance — Get current credit balance for the org.
@@ -73,6 +79,33 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
       parsed.data.operation_type,
     );
     return { data: result };
+  });
+
+  /**
+   * POST /v1/credits/estimate — the credits a piece of work should reserve.
+   *
+   * docs/80 Phase 1: a pre-run estimate shown to the user before running, so the
+   * execute surfaces can display "this will reserve ~N credits" and route to
+   * approval when the estimate exceeds the per-task ceiling. The number is a
+   * reservation, not a quote — settlement charges the measured actual, capped at
+   * this estimate.
+   */
+  app.post('/v1/credits/estimate', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z.object({
+      operation_class: z.string().min(1).max(64).optional(),
+      phase: z.string().min(1).max(64).optional(),
+      agent_id: z.string().uuid().optional(),
+    }).safeParse(request.body ?? {});
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const estimate = await estimateCredits(db, config, {
+      orgId: ctx.orgId,
+      operationClass: parsed.data.operation_class,
+      phase: parsed.data.phase,
+      agentId: parsed.data.agent_id,
+    });
+    return { data: estimate };
   });
 
   /**
@@ -146,6 +179,21 @@ export function registerCreditRoutes(app: FastifyInstance, deps: AppDeps): void 
    */
   app.post('/v1/credits/purchase', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // docs/80 Phase 0 (H3): a viewer/member must not be able to spend the
+    // company's money. Membership roles are owner | admin | member | viewer.
+    if (!canSpendOrgMoney(ctx)) {
+      reply.code(403);
+      return {
+        error: {
+          code: 'forbidden',
+          message: 'Only an organization owner or admin can purchase credits.',
+        },
+      };
+    }
+    // Per-org purchase ceiling (docs/80 §3.3): many members of one company
+    // cannot open an unbounded number of checkout sessions.
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'purchase');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'purchase');
     const parsed = z.object({ pack: z.string().min(1).max(64) }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 

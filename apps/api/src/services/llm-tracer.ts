@@ -36,13 +36,19 @@ export interface LLMTraceEntry {
   maxTokens: number;
   responsePreview?: string;
   /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
-  routingSource: 'static' | 'measured' | 'default' | 'calibration';
+  routingSource: 'static' | 'measured' | 'default' | 'calibration' | 'plan_cap';
+  /** docs/80 Phase 4: why that path chose what it chose. */
+  routingReason?: string;
   /** docs/77 P1 §5 — real USD spend for this call (0 when unpriceable). */
   providerCostUsd: number;
   /** Where that USD figure came from, so reports can exclude 'unknown'. */
   pricingSource: PricingSource;
   /** The credits this call's tokens earn under the published formula (attribution). */
   creditsAttributed: number;
+  /** docs/80 Phase 4 (BYOK): whose provider key paid for this call. */
+  keySource: 'org' | 'platform';
+  /** The org provider-key row, when `keySource` is 'org'. */
+  providerKeyId?: string;
 }
 
 export interface LLMTraceSummary {
@@ -89,11 +95,16 @@ export function startTrace(params: {
   temperature?: number;
   maxTokens?: number;
   commandId?: string;
-  taskId?: string;
-  agentId?: string;    retryAttempt?: number;
-    maxRetries?: number;
-    routingSource?: 'static' | 'measured' | 'default' | 'calibration';
-  }): { traceId: string; startedAt: Date } {
+  taskId?: string;  agentId?: string;
+  retryAttempt?: number;
+  maxRetries?: number;
+  routingSource?: 'static' | 'measured' | 'default' | 'calibration' | 'plan_cap';
+  /** docs/80 Phase 4: why that path chose what it chose (persisted). */
+  routingReason?: string;
+  /** docs/80 Phase 4 (BYOK): which key pool this call used. */
+  keySource?: 'org' | 'platform';
+  providerKeyId?: string;
+}): { traceId: string; startedAt: Date } {
   const id = traceId();
   const startedAt = new Date();
 
@@ -116,9 +127,12 @@ export function startTrace(params: {
     temperature: params.temperature ?? 0.7,
     maxTokens: params.maxTokens ?? 2048,
     routingSource: params.routingSource ?? 'default',
+    routingReason: params.routingReason,
     providerCostUsd: 0,
     pricingSource: 'unknown',
     creditsAttributed: 0,
+    keySource: params.keySource ?? 'platform',
+    providerKeyId: params.providerKeyId,
   };
 
   recentTraces.push(entry);
@@ -234,9 +248,12 @@ export async function persistTrace(
       totalTokens: trace.totalTokens,
       retryAttempt: trace.retryAttempt,
       routingSource: trace.routingSource ?? 'default',
+      routingReason: trace.routingReason ?? null,
       providerCostUsd: String(trace.providerCostUsd ?? 0),
       creditsAttributed: trace.creditsAttributed ?? 0,
       pricingSource: trace.pricingSource ?? 'unknown',
+      keySource: trace.keySource ?? 'platform',
+      providerKeyId: trace.providerKeyId ?? null,
     });
   } catch {
     // Table may not exist on stale databases; insights degrade gracefully.

@@ -48,7 +48,8 @@ export type RealtimeEvent =
   | { type: 'task.revision_required'; taskId: string; summary: string }
   // A founder's rejection stops work for good (migration 0036). The client needs
   // to hear it so a task list does not keep showing it as live.
-  | { type: 'task.cancelled'; taskId: string; reason: string };
+  | { type: 'task.cancelled'; taskId: string; reason: string }
+  | { type: 'ai_spend.paused'; paused: boolean };
 
 interface ClientConnection {
   reply: FastifyReply;

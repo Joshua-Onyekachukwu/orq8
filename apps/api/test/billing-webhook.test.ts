@@ -150,6 +150,103 @@ run('Stripe webhooks — verification and replay safety', () => {
     expect(after - before).toBe(pack.credits * 2);
   });
 
+  it('re-applies a webhook that failed before granting, and settles it once (H1)', async () => {
+    const { webhookEvents } = await import('@orq8/db');
+    const { eq } = await import('drizzle-orm');
+    const creditsService = await import('../src/services/credits.js');
+
+    // Simulate the exact H1 state: a previous delivery inserted the row but
+    // died before applyWebhook succeeded. Under the old order the row was
+    // already marked processed, so Stripe's retry was answered "duplicate" and
+    // the credits were lost forever.
+    const eventId = `evt_retry_${randomUUID()}`;
+    await deps.db.insert(webhookEvents).values({
+      orgId,
+      provider: 'stripe',
+      eventType: 'checkout.session.completed',
+      externalEventId: eventId,
+      title: 'Stripe checkout.session.completed',
+      payload: {},
+      status: 'failed',
+      lastError: 'simulated transient failure before the grant',
+    });
+
+    const pack = billing.CREDIT_PACKS.find((p) => p.key === 'starter')!;
+    const before = (await creditsService.getOrCreateBalance(deps.db, orgId)).purchased;
+    const event: billing.WebhookEvent = {
+      id: eventId,
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: `cs_test_${randomUUID()}`,
+          metadata: { orgId, kind: 'credits', pack: 'starter' },
+        },
+      },
+    };
+
+    const retry = await billing.processWebhookEvent(config, deps.db, event);
+    expect(retry).toEqual({ handled: true, duplicate: false });
+
+    const after = (await creditsService.getOrCreateBalance(deps.db, orgId)).purchased;
+    expect(after - before).toBe(pack.credits);
+
+    const [row] = await deps.db
+      .select({ status: webhookEvents.status, retryCount: webhookEvents.retryCount })
+      .from(webhookEvents)
+      .where(eq(webhookEvents.externalEventId, eventId));
+    expect(row?.status).toBe('processed');
+    expect(row?.retryCount ?? 0).toBeGreaterThan(0);
+
+    // A third delivery (event now processed) is a duplicate and grants nothing.
+    const third = await billing.processWebhookEvent(config, deps.db, event);
+    expect(third).toEqual({ handled: false, duplicate: true });
+    const settled = (await creditsService.getOrCreateBalance(deps.db, orgId)).purchased;
+    expect(settled - before).toBe(pack.credits);
+  });
+
+  it('a replayed subscription checkout does not create a second subscription row (H1)', async () => {
+    const { webhookEvents, subscriptions } = await import('@orq8/db');
+    const { eq, sql } = await import('drizzle-orm');
+    const stripeSubId = `sub_replay_${randomUUID()}`;
+    const eventId = `evt_sub_replay_${randomUUID()}`;
+    const event: billing.WebhookEvent = {
+      id: eventId,
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: `cs_test_${randomUUID()}`,
+          subscription: stripeSubId,
+          metadata: { orgId, plan: 'founder', billingCycle: 'monthly' },
+        },
+      },
+    };
+
+    const first = await billing.processWebhookEvent(config, deps.db, event);
+    expect(first.handled).toBe(true);
+
+    const countRows = async () => {
+      const [r] = await deps.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(subscriptions)
+        .where(eq(subscriptions.stripeSubscriptionId, stripeSubId));
+      return r?.n ?? 0;
+    };
+    expect(await countRows()).toBe(1);
+
+    // Force the H1 replay: the event row is marked failed even though the apply
+    // succeeded, so Stripe's redelivery re-runs activateSubscription.
+    await deps.db
+      .update(webhookEvents)
+      .set({ status: 'failed' })
+      .where(eq(webhookEvents.externalEventId, eventId));
+
+    const replay = await billing.processWebhookEvent(config, deps.db, event);
+    expect(replay).toEqual({ handled: true, duplicate: false });
+    // The idempotency guard in activateSubscription must hold: one Stripe
+    // subscription id, one row.
+    expect(await countRows()).toBe(1);
+  });
+
   it('resolves a subscription event to its org and is replay-safe', async () => {
     const { subscriptions } = await import('@orq8/db');
     const { eq } = await import('drizzle-orm');
