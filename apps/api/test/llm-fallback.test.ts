@@ -21,6 +21,7 @@ import {
   getPrimaryProviderId,
   type ChatCompletionResponse,
 } from '../src/services/llm.js';
+import { acquireProviderSlot, __resetConcurrencyGates } from '../src/services/concurrency-gate.js';
 
 type FetchCall = { url: string; init?: RequestInit };
 
@@ -230,5 +231,31 @@ describe('LLM fallback chain — auth headers', () => {
     expect((nvidia.init!.headers as Record<string, string>).Authorization).toBe('Bearer nvapi-test-key');
     expect((litellm.init!.headers as Record<string, string>).Authorization).toBe('Bearer sk-orq8-dev-litellm');
     expect((ollama.init!.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+});
+
+describe('LLM fallback chain — provider concurrency gates', () => {
+  it('fails over to the next provider instead of queueing behind a saturated one', async () => {
+    const config = makeConfig({
+      ...ALL_PROVIDERS,
+      LLM_MAX_CONCURRENT_PER_PROVIDER: '1',
+      LLM_CONCURRENCY_WAIT_MS: '1000',
+    });
+    __resetConcurrencyGates();
+    // Hold OpenRouter's only slot. A saturated provider is not a broken one: the
+    // chain must fail over (docs/80 §3.3) rather than hang a task behind it.
+    const held = await acquireProviderSlot(config, 'openrouter');
+    const { calls } = stubFetch((call) =>
+      call.url === NVIDIA_URL ? { status: 200, body: okBody() } : { status: 500 },
+    );
+
+    try {
+      const res = await chatCompletion(config, { ...MSG, retries: 0 });
+      expect(res).not.toBeNull();
+      expect(calls.map((c) => c.url)).toEqual([NVIDIA_URL]); // OpenRouter never even called
+    } finally {
+      held();
+      __resetConcurrencyGates();
+    }
   });
 });

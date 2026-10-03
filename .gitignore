@@ -36,6 +36,7 @@ pgdata/
 .integration-suite-pg/
 .integration-suite-data/
 .vertical-slice-data/
+.worker-soak-data/
 
 # Logs
 *.log

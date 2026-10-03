@@ -15,6 +15,12 @@ import { eq, and, desc } from 'drizzle-orm';
 import { agents, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { appendAudit } from './audit.js';
 import { broadcastToOrg } from './realtime.js';
+import {
+  checkDelegationGuard,
+  isUuid,
+  DEFAULT_DELEGATION_LIMITS,
+  type DelegationLimits,
+} from './delegation-guard.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +42,8 @@ export interface DelegationRequest {
   context?: string;
   /** Deadline */
   dueDate?: Date;
+  /** docs/80 Phase 2: recursion caps; defaults to the shared limits. */
+  limits?: DelegationLimits;
 }
 
 export interface DelegationResult {
@@ -125,6 +133,14 @@ export async function delegateTask(
     return { subTaskId: '', status: 'blocked', reason: 'Target agent is not active' };
   }
 
+  // 2b. Recursion guard (docs/80 Phase 2): refuse a sub-task that would exceed
+  //     the depth or sibling caps, so a delegation loop always terminates.
+  const limits = { ...DEFAULT_DELEGATION_LIMITS, ...(request.limits ?? {}) };
+  const guard = await checkDelegationGuard(db, request.orgId, request.parentTaskId, limits);
+  if (!guard.allowed) {
+    return { subTaskId: '', status: 'blocked', reason: guard.detail ?? 'Delegation guard refused this sub-task' };
+  }
+
   // 3. Create the sub-task
   const description = [
     request.description,
@@ -143,6 +159,9 @@ export async function delegateTask(
       priority: request.priority,
       status: 'pending',
       cost: 0,
+      // The hierarchy the recursion guard walks. Only a real uuid is persisted;
+      // callers that pass a placeholder get a top-level task instead.
+      parentTaskId: isUuid(request.parentTaskId) ? request.parentTaskId : null,
       dueDate: request.dueDate ?? null,
     })
     .returning();

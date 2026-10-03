@@ -1,6 +1,15 @@
 import { cookies } from "next/headers";
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
-import { Zap, TrendingUp, Calendar, Bot, DollarSign, Percent, AlertTriangle } from "lucide-react";
+import {
+  Zap,
+  TrendingUp,
+  Calendar,
+  Bot,
+  DollarSign,
+  Percent,
+  AlertTriangle,
+  ShieldCheck,
+} from "lucide-react";
 
 export const metadata = { title: "AI Usage — Admin" };
 
@@ -66,6 +75,38 @@ async function fetchData(token: string): Promise<UsageData | null> {
   }
 }
 
+interface DriftingOrg {
+  name: string;
+  balanceUsed: number;
+  ledgerUsed: number;
+  drift: number;
+}
+
+interface ReconcileData {
+  checked: number;
+  drifting: number;
+  orgs: DriftingOrg[];
+}
+
+/**
+ * Ledger vs balance drift (docs/77 P0, surfaced here in docs/80 Phase 0).
+ * The ledger is the source of truth; non-zero drift means a charge was lost or
+ * double-applied. Reported as null when the API did not answer — never as a
+ * clean zero, which would read as "all good" when nothing was checked.
+ */
+async function fetchReconcile(token: string): Promise<ReconcileData | null> {
+  try {
+    const res = await fetch(`${API_URL}/v1/admin/credits/reconcile`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return ((await res.json()) as { data?: ReconcileData }).data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function usd(value: number | undefined): string {
   return `$${(value ?? 0).toFixed(value !== undefined && Math.abs(value) < 0.01 && value > 0 ? 4 : 2)}`;
 }
@@ -78,7 +119,7 @@ function pct(value: number | null | undefined): string {
 export default async function AIUsagePage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value ?? "";
-  const data = await fetchData(token);
+  const [data, reconcile] = await Promise.all([fetchData(token), fetchReconcile(token)]);
 
   if (!data) {
     return (
@@ -273,6 +314,66 @@ export default async function AIUsagePage() {
               : "No model calls recorded in the last 30 days"}
           </p>
         </div>
+      </div>
+
+      {/* Ledger integrity — the balance must equal the append-only ledger */}
+      <div className="mb-8 rounded-xl border border-hairline bg-white p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted" />
+          <h2 className="text-sm font-semibold text-ink">Ledger integrity</h2>
+        </div>
+        {reconcile === null ? (
+          <p className="text-sm text-muted">
+            Not checked — the reconcile endpoint did not answer. Nothing is shown rather than a
+            clean zero that would read as healthy.
+          </p>
+        ) : reconcile.drifting === 0 ? (
+          <p className="text-sm text-muted">
+            {reconcile.checked.toLocaleString("en-US")} organization
+            {reconcile.checked === 1 ? "" : "s"} checked — every balance equals the sum of its
+            ledger rows. No drift.
+          </p>
+        ) : (
+          <div>
+            <p className="text-sm text-error-ink">
+              {reconcile.drifting} of {reconcile.checked} organizations drift from the ledger — a
+              charge was lost or double-applied. Investigate before trusting the numbers above.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-hairline">
+                    {["Organization", "Balance says", "Ledger says", "Drift"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2 text-left font-mono text-3xs font-semibold uppercase tracking-wider text-muted"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-hairline">
+                  {reconcile.orgs.map((org) => (
+                    <tr key={org.name}>
+                      <td className="px-3 py-2 text-sm text-ink">{org.name}</td>
+                      <td className="px-3 py-2 font-mono text-xs tabular-nums text-muted">
+                        {org.balanceUsed.toLocaleString("en-US")}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs tabular-nums text-muted">
+                        {org.ledgerUsed.toLocaleString("en-US")}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs font-semibold tabular-nums text-error-ink">
+                        {org.drift > 0 ? "+" : ""}
+                        {org.drift.toLocaleString("en-US")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Where the money went */}

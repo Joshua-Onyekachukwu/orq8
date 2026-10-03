@@ -71,7 +71,9 @@ beforeAll(async () => {
   if (!dbUp) return;
   const [orgRow] = await deps.db
     .insert(organizations)
-    .values({ name: `router-${randomUUID()}`, slug: `router-${randomUUID()}` })
+    // A plan that allows every tier, so these tests exercise measured routing
+    // rather than the plan cap (docs/80 Phase 4).
+    .values({ name: `router-${randomUUID()}`, slug: `router-${randomUUID()}`, plan: 'company' })
     .returning();
   orgId = orgRow!.id;
   const [userRow] = await deps.db
@@ -109,7 +111,7 @@ run('model selector consumes measured llm_performance history', () => {
   it('keeps the static pick when the org has no measured history', async () => {
     const freshOrg = await deps.db
       .insert(organizations)
-      .values({ name: `router-empty-${randomUUID()}`, slug: `router-empty-${randomUUID()}` })
+      .values({ name: `router-empty-${randomUUID()}`, slug: `router-empty-${randomUUID()}`, plan: 'company' })
       .returning();
     const freshId = freshOrg[0]!.id;
 
@@ -147,7 +149,7 @@ run('model selector consumes measured llm_performance history', () => {
     // cleaned up — this org starts clean.
     const freshOrg = await deps.db
       .insert(organizations)
-      .values({ name: `router-degraded-${randomUUID()}`, slug: `router-degraded-${randomUUID()}` })
+      .values({ name: `router-degraded-${randomUUID()}`, slug: `router-degraded-${randomUUID()}`, plan: 'company' })
       .returning();
     const freshId = freshOrg[0]!.id;
 

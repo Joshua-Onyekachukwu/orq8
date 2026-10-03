@@ -54,14 +54,96 @@ const envSchema = z.object({
   // Comma-separated fallback models tried when OPENROUTER_MODEL fails.
   OPENROUTER_MODEL_FALLBACKS: z.string().optional(),
 
-  // Job queue mode (docs/75 — backend phase, first slice). 'inline' runs agent
-  // work on the request path exactly as before; 'workers' enqueues to the
-  // durable agent_jobs table and a background worker drains it (retries with
-  // backoff, stale-lock reaping), which is how the monolith graduates to
-  // worker microservices without changing the tool/pipeline code.
-  JOB_QUEUE_MODE: z.enum(['inline', 'workers']).default('inline'),
-  // Worker poll interval in ms (only meaningful in 'workers' mode).
+  // Job queue mode (docs/75 — backend phase). Three meanings, one per process:
+  //   'inline'   run agent work on the request path (single-process default)
+  //   'enqueue'  request handlers ONLY enqueue into agent_jobs; no local loop.
+  //              This is what the API runs once the worker is its own process.
+  //   'workers'  enqueue AND start the in-process drain loop (docs/75 phase 1),
+  //              kept for one-process deployments and for `apps/worker` itself.
+  // The queue is the durable agent_jobs table in every mode that touches it:
+  // transactional enqueue, SKIP LOCKED claiming, backoff retries, stale-lock
+  // reaping, dead-lettering at the retry ceiling.
+  JOB_QUEUE_MODE: z.enum(['inline', 'enqueue', 'workers']).default('inline'),
+  // Worker poll interval in ms (only meaningful where a loop runs).
   JOB_WORKER_INTERVAL_MS: z.coerce.number().int().min(250).default(2000),
+  // Identity of this worker process in agent_jobs.locked_by. Defaults to
+  // hostname+pid when unset, so replicas are still distinguishable in ops.
+  WORKER_ID: z.string().optional(),
+  // How long a single claimed job may run before the worker gives up on it.
+  // The stale-lock reaper (300s > this) still recovers a job whose process
+  // was killed outright.
+  JOB_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(600_000),
+  // Graceful shutdown: time allowed for an in-flight job to finish after
+  // SIGTERM before the process exits.
+  JOB_SHUTDOWN_GRACE_MS: z.coerce.number().int().min(0).default(30_000),
+  // Jobs claimed per tick. Bounded so one slow org cannot starve the queue.
+  JOB_BATCH_SIZE: z.coerce.number().int().min(1).max(50).default(5),
+  // Max jobs from ONE org running at the same time across all workers. A
+  // runaway agent loop therefore cannot occupy every worker slot; other orgs
+  // keep draining. 0 disables the cap (unlimited). Enforced in the claim
+  // query (docs/80 §3.3, job-level layer).
+  JOB_MAX_CONCURRENT_PER_ORG: z.coerce.number().int().min(0).default(10),
+
+  // ── Layered rate limits (docs/80 §3.3, docs/77 P1 §8) ────────────────────
+  // The legacy IP/session auth limits always apply. These layers add
+  // per-user, per-org, per-agent and per-endpoint-class ceilings over the
+  // AI-bearing routes so one session, one company, or one runaway employee
+  // cannot consume the platform. Set RATE_LIMIT_ENABLED=false to disable the
+  // whole layered system (the legacy auth buckets are controlled separately
+  // by NODE_ENV; this flag does not disable login/register protection).
+  RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
+  // When Redis is configured but unreachable, AI-spend classes deny (503-style
+  // 429) instead of failing open. Read-only buckets stay fail-open.
+  RATE_LIMIT_FAIL_CLOSED: z.enum(['true', 'false']).default('true'),
+  // Activate the layered limits even under NODE_ENV=test. Existing suites leave
+  // this off so a new ceiling cannot silently rewrite them; the abuse suite and
+  // the review/demo stack set it true to exercise the real limits.
+  RATE_LIMIT_FORCE: z.enum(['true', 'false']).default('false'),
+  // Per-user (session) ceilings, per endpoint class.
+  RATE_LIMIT_EXECUTE_USER_PER_MIN: z.coerce.number().int().min(1).default(10),
+  RATE_LIMIT_ANALYZE_USER_PER_MIN: z.coerce.number().int().min(1).default(10),
+  RATE_LIMIT_IMPORT_USER_PER_MIN: z.coerce.number().int().min(1).default(3),
+  RATE_LIMIT_PURCHASE_USER_PER_MIN: z.coerce.number().int().min(1).default(3),
+  RATE_LIMIT_CREDITS_USER_PER_MIN: z.coerce.number().int().min(1).default(60),
+  // Per-org ceilings, per endpoint class (fan-out across many members is the
+  // threat these close: N users of one company cannot bypass the user layer).
+  RATE_LIMIT_EXECUTE_ORG_PER_HOUR: z.coerce.number().int().min(1).default(60),
+  RATE_LIMIT_ANALYZE_ORG_PER_HOUR: z.coerce.number().int().min(1).default(120),
+  RATE_LIMIT_IMPORT_ORG_PER_HOUR: z.coerce.number().int().min(1).default(30),
+  RATE_LIMIT_CREDITS_ORG_PER_HOUR: z.coerce.number().int().min(1).default(300),
+  RATE_LIMIT_PURCHASE_ORG_PER_HOUR: z.coerce.number().int().min(1).default(5),
+  // Per-agent: how many jobs one AI employee may generate per hour. Bounds a
+  // task→tool→task loop until the Phase 2 recursion guards land. 0 = off.
+  RATE_LIMIT_AGENT_JOBS_PER_HOUR: z.coerce.number().int().min(0).default(60),
+
+  // ── Credit reservations (docs/80 Phase 1) ────────────────────────────────
+  // A task holds an estimate of its cost out of the balance before it runs, so
+  // concurrent work cannot over-commit the same credits. This is how long a hold
+  // survives without settling (a crashed worker or an abandoned task); the stale
+  // sweep releases anything older.
+  CREDIT_RESERVATION_TTL_MS: z.coerce.number().int().min(10_000).default(1_800_000),
+  // Per-task ceiling: no single piece of work may reserve more than this, so a
+  // bad estimate cannot hold a whole company's balance. Work that would exceed it
+  // is flagged for approval at estimate time (docs/80 §3.1/§3.7).
+  CREDIT_TASK_CEILING: z.coerce.number().int().min(1).default(100),
+  // Estimation floor — the smallest hold, so even a tiny operation reserves
+  // something and the measured-settlement path is exercised.
+  CREDIT_ESTIMATE_FLOOR: z.coerce.number().int().min(0).default(2),
+  // How far back measured usage (llm_performance) is read for the p90 estimate.
+  CREDIT_ESTIMATE_LOOKBACK_DAYS: z.coerce.number().int().min(1).default(90),
+  // Trial per-day ceiling (docs/80 §3.3): a trial org has no payment method, so
+  // this caps how many credits one account can burn per UTC day regardless of its
+  // starting allotment. 0 disables. Closes the trial-farm abuse scenario.
+  CREDIT_TRIAL_DAILY_CAP: z.coerce.number().int().min(0).default(20),
+
+  // ── Delegation recursion guard (docs/80 Phase 2) ─────────────────────
+  // A task → agent → task loop must terminate. `maxDepth` bounds the parent
+  // chain (a root task is depth 0), `maxChildrenPerTask` bounds how many direct
+  // sub-tasks one parent may own, and `maxTasksPerCommand` bounds one delegation
+  // plan. All are enforced in services/delegation-guard.ts.
+  DELEGATION_MAX_DEPTH: z.coerce.number().int().min(1).default(3),
+  DELEGATION_MAX_CHILDREN_PER_TASK: z.coerce.number().int().min(1).default(10),
+  DELEGATION_MAX_TASKS_PER_COMMAND: z.coerce.number().int().min(1).default(50),
 
   // SerpAPI — real web search for agent research tools
   SERPAPI_KEY: z.string().optional(),
@@ -74,6 +156,15 @@ const envSchema = z.object({
   // for slow-but-legitimate long generations.
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
   LLM_HEADERS_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  // Provider-level concurrency (docs/80 §3.3). ORQ8 must not exceed the
+  // provider's own limits; these bounds are per PROCESS, so with N API/worker
+  // replicas the effective cap is N×. LLM_MAX_CONCURRENT bounds all providers
+  // together, LLM_MAX_CONCURRENT_PER_PROVIDER bounds each one separately, and
+  // a request that waits longer than LLM_CONCURRENCY_WAIT_MS fails over to the
+  // next provider instead of hanging.
+  LLM_MAX_CONCURRENT: z.coerce.number().int().min(1).default(12),
+  LLM_MAX_CONCURRENT_PER_PROVIDER: z.coerce.number().int().min(1).default(6),
+  LLM_CONCURRENCY_WAIT_MS: z.coerce.number().int().min(1_000).default(45_000),
 
   // Observability (docs/39)
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),

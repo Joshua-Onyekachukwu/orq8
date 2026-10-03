@@ -1,13 +1,24 @@
-import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, lt, sql } from 'drizzle-orm';
 import {
   agents,
   creditBalances,
+  creditReservations,
   creditTransactions,
   subscriptions,
   tasks,
+  type CreditReservation,
   type Db,
 } from '@orq8/db';
 import { appendAudit } from './audit.js';
+import {
+  evaluateBudget,
+  BudgetExceededError,
+  BudgetApprovalRequiredError,
+} from './ai-budget.js';
+
+// Re-exported so callers that already import credit primitives can catch the
+// budget failures without a second import.
+export { BudgetExceededError, BudgetApprovalRequiredError };
 
 // ─── Plan Credit Allocation ─────────────────────────────────────────────────
 
@@ -69,10 +80,17 @@ export const OPERATION_COSTS: Record<string, number> = {
 
 export interface CreditBalanceInfo {
   orgId: string;
+  /** The active subscription plan (`trial`, `founder`, `team`, `company`, …). */
+  plan: string;
   included: number;
   purchased: number;
   used: number;
+  /** Credits held by active reservations (docs/80 Phase 1). */
+  reserved: number;
+  /** `available` — total − used − reserved. Kept named `remaining` for callers. */
   remaining: number;
+  /** Same as `remaining`, named explicitly for the reservation code paths. */
+  available: number;
   total: number;
   utilizationPercent: number;
   periodStart: Date;
@@ -271,15 +289,22 @@ export async function getOrCreateBalance(
   }
 
   const total = balance.includedCredits + balance.purchasedCredits;
-  const remaining = total - balance.usedCredits;
+  const reserved = balance.reservedCredits;
+  // `available` is what can still be committed: work in flight has already
+  // reserved its estimate, so a second reservation cannot double-book it.
+  const available = Math.max(0, total - balance.usedCredits - reserved);
+  const remaining = available;
   const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
   return {
     orgId,
+    plan: subPlan,
     included: balance.includedCredits,
     purchased: balance.purchasedCredits,
     used: balance.usedCredits,
+    reserved,
     remaining,
+    available,
     total,
     utilizationPercent: total > 0 ? Math.round((balance.usedCredits / total) * 100) : 0,
     periodStart: balance.periodStart,
@@ -416,7 +441,10 @@ export async function consumeCredits(
         and(
           eq(creditBalances.orgId, orgId),
           gte(creditBalances.periodStart, balance.periodStart),
-          sql`${creditBalances.usedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
+          // docs/80 Phase 1: reserved credits are already committed to in-flight
+          // work, so a direct charge may not touch them — the cap spans
+          // `used + reserved + cost <= total`.
+          sql`${creditBalances.usedCredits} + ${creditBalances.reservedCredits} + ${cost} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
         ),
       )
       .returning({ id: creditBalances.id });
@@ -600,16 +628,20 @@ export async function reconcileLedger(
   usageRows: number;
 }> {
   const balance = await getOrCreateBalance(db, orgId);
+  // Refunds move a settled charge back (a positive `refund` row), so they are
+  // summed here too: `-amount` on a positive refund subtracts it, keeping
+  // `drift = balance.used − ledger` at zero after a refund instead of leaving a
+  // phantom positive drift.
   const [row] = await db
     .select({
       ledgerUsed: sql<number>`COALESCE(SUM(-${creditTransactions.amount}), 0)::int`,
-      usageRows: sql<number>`count(*)::int`,
+      usageRows: sql<number>`count(*) FILTER (WHERE ${creditTransactions.type} = 'usage')::int`,
     })
     .from(creditTransactions)
     .where(
       and(
         eq(creditTransactions.orgId, orgId),
-        eq(creditTransactions.type, 'usage'),
+        sql`${creditTransactions.type} IN ('usage', 'refund')`,
         gte(creditTransactions.createdAt, balance.periodStart),
         lte(creditTransactions.createdAt, balance.periodEnd),
       ),
@@ -773,6 +805,508 @@ export async function getUsageSummary(
     dailyUsage,
     period: { start: balance.periodStart, end: balance.periodEnd },
   };
+}
+
+// ─── Credit Reservations (docs/80 Phase 1) ───────────────────────────────────
+//
+// Reserve → execute → settle/release. A reservation is *state*, not a money
+// movement: taking one writes no ledger row (that would double-count under
+// expiry), it only moves credits from `available` into `reserved`. The money
+// lands once, at settlement, as a `usage` row. This is what makes concurrent
+// long-running work safe: two tasks cannot both spend the same last 10 credits,
+// because each holds its estimate out of the balance before it starts.
+
+/** Default hold lifetime when a caller does not pass one (30 minutes). */
+export const DEFAULT_RESERVATION_TTL_MS = 30 * 60 * 1000;
+
+export interface ReserveCreditsInput {
+  /** Estimated credits this work will cost (the hold). */
+  estimate: number;
+  taskId?: string;
+  jobId?: string;
+  agentId?: string;
+  reason?: string;
+  /** Hold lifetime; defaults to `DEFAULT_RESERVATION_TTL_MS`. */
+  ttlMs?: number;
+  /** Absolute deadline, overriding `ttlMs`. */
+  expiresAt?: Date;
+  /**
+   * Trial per-day ceiling (docs/80 §3.3): when the org is on the `trial` plan and
+   * this is > 0, the reservation is refused once today's measured spend plus this
+   * estimate would exceed the cap. Closes the trial-farm abuse scenario (#3).
+   */
+  dailyCap?: number;
+  /**
+   * docs/80 Phase 2: set when a founder has already approved spend above the
+   * constitution's `requiresApprovalAbove` (the executor consumes the granted
+   * approval and re-reserves). Hard ceilings and the kill switch still apply.
+   */
+  approved?: boolean;
+}
+
+export interface CreditReservationInfo {
+  id: string;
+  orgId: string;
+  estimateCredits: number;
+  settledCredits: number | null;
+  status: string;
+  reason: string | null;
+  expiresAt: Date;
+}
+
+export interface ReservationOutcome {
+  reservationId: string;
+  /** Credits actually charged at settlement (0 for a release). */
+  settled: number;
+  /** Credits handed back to `available` (estimate − settled for a settle). */
+  released: number;
+  status: string;
+  /** True when the reservation was already settled/released (a replay). */
+  duplicate: boolean;
+}
+
+export interface SettleReservationOptions {
+  /** Measured credits to charge. Capped at the reservation estimate (hard stop). */
+  actualCredits: number;
+  description?: string;
+  referenceId?: string;
+  referenceType?: string;
+  idempotencyKey?: string;
+  attribution?: CreditSettlementOptions['attribution'];
+}
+
+function toReservationInfo(row: CreditReservation): CreditReservationInfo {
+  return {
+    id: row.id,
+    orgId: row.orgId,
+    estimateCredits: row.estimateCredits,
+    settledCredits: row.settledCredits,
+    status: row.status,
+    reason: row.reason,
+    expiresAt: row.expiresAt,
+  };
+}
+
+/**
+ * Take a reservation against an org's balance.
+ *
+ * Throws `CreditExhaustedError` when `available` cannot cover the estimate. The
+ * cap guard lives in the UPDATE's WHERE (`used + reserved + estimate <= total`),
+ * so two concurrent reservations cannot over-commit even if both pre-reads were
+ * stale.
+ */
+export async function reserveCredits(
+  db: Db,
+  orgId: string,
+  input: ReserveCreditsInput,
+): Promise<CreditReservationInfo> {
+  const estimate = Math.max(0, Math.round(input.estimate));
+
+  // docs/80 Phase 2: the constitution's budget policy is enforced here, at the
+  // one place every spend path passes through. A hard ceiling or the org kill
+  // switch refuses the work (nothing runs, nothing is charged); spend above the
+  // approval threshold is refused until a founder's grant is presented.
+  const budget = await evaluateBudget(db, { orgId, estimate, agentId: input.agentId });
+  if (!budget.allowed) {
+    throw new BudgetExceededError(orgId, budget.reason!, budget.detail, estimate);
+  }
+  if (budget.approvalRequired && !input.approved) {
+    throw new BudgetApprovalRequiredError(orgId, estimate, budget.policy.requiresApprovalAbove, budget.detail);
+  }
+
+  const balance = await getOrCreateBalance(db, orgId);
+
+  if (estimate > balance.available) {
+    throw new CreditExhaustedError(orgId, balance.available, estimate, input.reason ?? 'reservation');
+  }
+
+  // Trial per-day ceiling: a trial org has no payment method, so a daily cap
+  // bounds what one account can consume regardless of its starting allotment.
+  if (input.dailyCap && input.dailyCap > 0 && balance.plan === 'trial') {
+    const spentToday = await getDailyUsage(db, orgId);
+    const remainingToday = Math.max(0, input.dailyCap - spentToday);
+    if (estimate > remainingToday) {
+      throw new CreditExhaustedError(orgId, remainingToday, estimate, 'trial.daily_cap');
+    }
+  }
+
+  const expiresAt =
+    input.expiresAt ?? new Date(Date.now() + (input.ttlMs ?? DEFAULT_RESERVATION_TTL_MS));
+
+  const reservation = await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(creditBalances)
+      .set({
+        reservedCredits: sql`${creditBalances.reservedCredits} + ${estimate}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+          sql`${creditBalances.usedCredits} + ${creditBalances.reservedCredits} + ${estimate} <= ${creditBalances.includedCredits} + ${creditBalances.purchasedCredits}`,
+        ),
+      )
+      .returning({ id: creditBalances.id });
+
+    if (updated.length === 0) {
+      throw new CreditExhaustedError(orgId, 0, estimate, input.reason ?? 'reservation');
+    }
+
+    const [row] = await tx
+      .insert(creditReservations)
+      .values({
+        orgId,
+        taskId: input.taskId ?? null,
+        jobId: input.jobId ?? null,
+        agentId: input.agentId ?? null,
+        estimateCredits: estimate,
+        status: 'active',
+        reason: input.reason ?? null,
+        expiresAt,
+      })
+      .returning();
+
+    return row!;
+  });
+
+  return toReservationInfo(reservation);
+}
+
+/**
+ * Settle a reservation: charge the measured actual and release the remainder.
+ *
+ * Hard stop (docs/80 §3.1): the settled amount can never exceed the estimate —
+ * the excess is unbilled, not silently charged. Idempotent: a replay finds the
+ * reservation no longer `active` and reports `duplicate` instead of charging
+ * twice.
+ */
+export async function settleReservation(
+  db: Db,
+  reservationId: string,
+  options: SettleReservationOptions,
+): Promise<ReservationOutcome> {
+  const [reservation] = await db
+    .select()
+    .from(creditReservations)
+    .where(eq(creditReservations.id, reservationId))
+    .limit(1);
+
+  if (!reservation) {
+    throw new Error(`credits: reservation ${reservationId} not found`);
+  }
+
+  if (reservation.status !== 'active') {
+    // A replay charges nothing *here* — `settled` is what THIS call did. The
+    // reservation's own settledCredits is on the row; `status` tells the caller
+    // whether it was already settled (no action) or swept (released/expired).
+    return {
+      reservationId,
+      settled: 0,
+      released: 0,
+      status: reservation.status,
+      duplicate: true,
+    };
+  }
+
+  const estimate = reservation.estimateCredits;
+  const actual = Math.min(estimate, Math.max(0, Math.round(options.actualCredits)));
+  const balance = await getOrCreateBalance(db, reservation.orgId);
+  const a = options.attribution ?? {};
+
+  const claimed = await db.transaction(async (tx) => {
+    // Claim first: the status transition is the arbiter, so a second settle of
+    // the same reservation releases nothing and charges nothing.
+    const updatedReservation = await tx
+      .update(creditReservations)
+      .set({ status: 'settled', settledCredits: actual, updatedAt: new Date() })
+      .where(and(eq(creditReservations.id, reservationId), eq(creditReservations.status, 'active')))
+      .returning({ id: creditReservations.id });
+
+    if (updatedReservation.length === 0) return false;
+
+    if (actual > 0) {
+      await tx
+        .insert(creditTransactions)
+        .values({
+          orgId: reservation.orgId,
+          type: 'usage',
+          amount: -actual,
+          description: options.description ?? 'Reserved work settlement',
+          referenceId:
+            options.referenceId ?? reservation.taskId ?? reservation.jobId ?? null,
+          referenceType:
+            options.referenceType ?? (reservation.taskId ? 'task' : reservation.jobId ? 'job' : null),
+          idempotencyKey: options.idempotencyKey ?? null,
+          provider: a.provider ?? null,
+          model: a.model ?? null,
+          inputTokens: a.inputTokens ?? null,
+          outputTokens: a.outputTokens ?? null,
+          providerCostUsd: a.providerCostUsd !== undefined ? String(a.providerCostUsd) : null,
+          agentId: a.agentId ?? reservation.agentId ?? null,
+          taskId: a.taskId ?? reservation.taskId ?? null,
+          jobId: a.jobId ?? reservation.jobId ?? null,
+          metadata: a.metadata ?? {},
+        })
+        .onConflictDoNothing();
+    }
+
+    await tx
+      .update(creditBalances)
+      .set({
+        usedCredits: sql`${creditBalances.usedCredits} + ${actual}`,
+        reservedCredits: sql`greatest(0, ${creditBalances.reservedCredits} - ${estimate})`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, reservation.orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+        ),
+      );
+
+    return true;
+  });
+
+  if (!claimed) {
+    return { reservationId, settled: 0, released: 0, status: 'settled', duplicate: true };
+  }
+
+  if (actual > 0) {
+    await appendAudit(db, {
+      orgId: reservation.orgId,
+      actorType: 'system',
+      agentId: reservation.agentId ?? undefined,
+      taskId: reservation.taskId ?? undefined,
+      action: 'credits.consumed',
+      outcome: 'success',
+      cost: actual,
+    }).catch(() => undefined);
+  }
+
+  return {
+    reservationId,
+    settled: actual,
+    released: estimate - actual,
+    status: 'settled',
+    duplicate: false,
+  };
+}
+
+/**
+ * Release a reservation without charging (no work ran, or the work's spend was
+ * already accounted for elsewhere). Idempotent.
+ */
+export async function releaseReservation(
+  db: Db,
+  reservationId: string,
+  reason?: string,
+): Promise<ReservationOutcome> {
+  return finalizeRelease(db, reservationId, 'released', reason);
+}
+
+async function finalizeRelease(
+  db: Db,
+  reservationId: string,
+  status: 'released' | 'expired',
+  reason?: string,
+): Promise<ReservationOutcome> {
+  const [reservation] = await db
+    .select()
+    .from(creditReservations)
+    .where(eq(creditReservations.id, reservationId))
+    .limit(1);
+
+  if (!reservation) {
+    throw new Error(`credits: reservation ${reservationId} not found`);
+  }
+
+  if (reservation.status !== 'active') {
+    return { reservationId, settled: 0, released: 0, status: reservation.status, duplicate: true };
+  }
+
+  const estimate = reservation.estimateCredits;
+  const balance = await getOrCreateBalance(db, reservation.orgId);
+
+  const claimed = await db.transaction(async (tx) => {
+    const updatedReservation = await tx
+      .update(creditReservations)
+      .set({ status, reason: reason ?? reservation.reason, updatedAt: new Date() })
+      .where(and(eq(creditReservations.id, reservationId), eq(creditReservations.status, 'active')))
+      .returning({ id: creditReservations.id });
+
+    if (updatedReservation.length === 0) return false;
+
+    await tx
+      .update(creditBalances)
+      .set({
+        reservedCredits: sql`greatest(0, ${creditBalances.reservedCredits} - ${estimate})`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, reservation.orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+        ),
+      );
+
+    // Traceability with no money movement: a zero-amount `reservation_release`
+    // row records when the hold ended and why (the ledger vocabulary includes
+    // it for exactly this). Reconcile ignores it; transaction history shows it.
+    await tx
+      .insert(creditTransactions)
+      .values({
+        orgId: reservation.orgId,
+        type: 'reservation_release',
+        amount: 0,
+        description:
+          status === 'expired' ? 'Reservation expired' : `Reservation released${reason ? `: ${reason}` : ''}`,
+        referenceId: reservation.taskId ?? reservation.jobId ?? null,
+        referenceType: reservation.taskId ? 'task' : reservation.jobId ? 'job' : null,
+        idempotencyKey: `reservation_release:${reservationId}`,
+        taskId: reservation.taskId ?? null,
+        jobId: reservation.jobId ?? null,
+        agentId: reservation.agentId ?? null,
+        metadata: { estimateCredits: estimate },
+      })
+      .onConflictDoNothing();
+
+    return true;
+  });
+
+  return {
+    reservationId,
+    settled: 0,
+    released: claimed ? estimate : 0,
+    status,
+    duplicate: !claimed,
+  };
+}
+
+/**
+ * Stale sweep (docs/80 §3.1): release live reservations past their deadline so
+ * a crashed worker, a timed-out job or an abandoned task returns its hold. Run
+ * from the worker tick or a cron; safe to call repeatedly.
+ */
+export async function expireStaleReservations(
+  db: Db,
+  options: { now?: Date; limit?: number } = {},
+): Promise<{ expired: number; releasedCredits: number }> {
+  const now = options.now ?? new Date();
+  const limit = options.limit ?? 100;
+
+  const stale = await db
+    .select({ id: creditReservations.id })
+    .from(creditReservations)
+    .where(and(eq(creditReservations.status, 'active'), lt(creditReservations.expiresAt, now)))
+    .limit(limit);
+
+  let expired = 0;
+  let releasedCredits = 0;
+  for (const row of stale) {
+    const outcome = await finalizeRelease(db, row.id, 'expired', 'expired');
+    if (!outcome.duplicate) {
+      expired += 1;
+      releasedCredits += outcome.released;
+    }
+  }
+
+  return { expired, releasedCredits };
+}
+
+/**
+ * Measured spend so far today (UTC), the basis for the trial per-day ceiling.
+ * Counts `usage` rows only; refunds are not spend.
+ */
+export async function getDailyUsage(db: Db, orgId: string, now: Date = new Date()): Promise<number> {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const [row] = await db
+    .select({ spent: sql<number>`COALESCE(SUM(-${creditTransactions.amount}), 0)::int` })
+    .from(creditTransactions)
+    .where(
+      and(
+        eq(creditTransactions.orgId, orgId),
+        eq(creditTransactions.type, 'usage'),
+        gte(creditTransactions.createdAt, start),
+      ),
+    );
+  return row?.spent ?? 0;
+}
+
+/**
+ * Refund a settled charge (docs/80 §3.1/§3.8). ORQ8-caused failure after a
+ * charge returns the credits and reverses the usage in the reconcile sum, so
+ * the ledger stays consistent. Idempotent on the caller's key.
+ */
+export async function refundCredits(
+  db: Db,
+  orgId: string,
+  amount: number,
+  options: {
+    reason: string;
+    idempotencyKey?: string;
+    referenceId?: string;
+    referenceType?: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<{ balance: CreditBalanceInfo; refunded: number; duplicate?: boolean }> {
+  const credits = Math.max(0, Math.round(amount));
+  if (credits === 0) {
+    return { balance: await getOrCreateBalance(db, orgId), refunded: 0 };
+  }
+
+  const balance = await getOrCreateBalance(db, orgId);
+
+  const applied = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(creditTransactions)
+      .values({
+        orgId,
+        type: 'refund',
+        amount: credits,
+        description: options.reason,
+        referenceId: options.referenceId ?? null,
+        referenceType: options.referenceType ?? null,
+        idempotencyKey: options.idempotencyKey ?? null,
+        metadata: options.metadata ?? {},
+      })
+      .onConflictDoNothing()
+      .returning({ id: creditTransactions.id });
+
+    if (inserted.length === 0) return false;
+
+    // A refund returns spent credits: decrement `used`, floored at zero so a
+    // refund larger than the period's spend cannot make the aggregate negative.
+    await tx
+      .update(creditBalances)
+      .set({
+        usedCredits: sql`greatest(0, ${creditBalances.usedCredits} - ${credits})`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(creditBalances.orgId, orgId),
+          gte(creditBalances.periodStart, balance.periodStart),
+        ),
+      );
+
+    return true;
+  });
+
+  if (!applied) {
+    return { balance: await getOrCreateBalance(db, orgId), refunded: 0, duplicate: true };
+  }
+
+  await appendAudit(db, {
+    orgId,
+    actorType: 'system',
+    action: 'credits.refunded',
+    outcome: 'success',
+    cost: credits,
+    resultRef: options.reason.slice(0, 200),
+  }).catch(() => undefined);
+
+  return { balance: await getOrCreateBalance(db, orgId), refunded: credits };
 }
 
 // ─── Errors ─────────────────────────────────────────────────────────────────

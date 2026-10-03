@@ -13,6 +13,11 @@ The product works and cannot be reached. That sentence has been true for three
 cycles and the reason has not changed: **there is no host for the API and no
 confirmed production database**, so every founder-facing outcome is local.
 
+> **Update 2026-10-02:** unchanged on both counts (docs/68 MVP-001/MVP-002). What has moved is the
+> product behind the wall: docs/80 Phase 0 and the layered rate limits (Phase 3) shipped, docs/79
+> phases 5–7 are built in the working tree, and `docs/81_SERVICE_SETUP_CHECKLIST.md` is the ordered
+> answer to "what do I provision" — the two founder decisions above remain the first step.
+
 What changed in this cycle is the shape of the unknowns. There are no longer any
 *unknown* blockers. The ecosystem had four documents claiming to be the plan, one
 deployment story contradicted by its own section headings and by a CI workflow,

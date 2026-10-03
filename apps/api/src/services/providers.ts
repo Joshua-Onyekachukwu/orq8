@@ -94,7 +94,32 @@ export async function replaceKeyPayload(
   return row ?? null;
 }
 
+/**
+ * Update a key's spending controls (docs/80 Phase 4): the monthly ceiling and
+ * only-authorized policy, plus enable/disable and the model allow-list. Secrets
+ * are never touched here — rotation is its own endpoint. Returns null when the
+ * row is not this org's.
+ */
+export async function updateKeyControls(
+  db: Db,
+  id: string,
+  orgId: string,
+  patch: {
+    monthlySpendCeiling?: number | null;
+    enabled?: boolean;
+    allowedModels?: string[];
+  },
+) {
+  const [row] = await db
+    .update(userProviderKeys)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(and(eq(userProviderKeys.id, id), eq(userProviderKeys.orgId, orgId)))
+    .returning();
+  return row ?? null;
+}
+
 export async function markKeyTested(db: Db, id: string, orgId: string) {
+
   await db
     .update(userProviderKeys)
     .set({ lastTestedAt: new Date(), updatedAt: new Date() })

@@ -1,5 +1,169 @@
 # ORQ8 Changelog
 
+## 2026-10-03 — Worker soak: the queue's safety properties are now proven, not asserted
+
+- **`scripts/worker-soak.ts`** boots an isolated embedded Postgres, runs N real `startJobWorker`
+  loops against a producer that keeps the queue deep, injects a deliberately leaked lock, and
+  asserts at the end that the queue **drains** (no pending/running), that **no job is claimed
+  twice** (`attempts` stays 1), that **no lock leaks** (no lock outside `running`), that the leaked
+  lock is reaped, and that only the intended jobs are dead-lettered. It uses completed tasks so the
+  worker preflight skips them — deterministic and credential-free, while exercising the exact
+  claim/complete/reap path under concurrency. Exit code 1 on any failed check.
+- **Verified:** a full five-minute run — 4 workers, **23,226 jobs**, all drained, `attempts > 1` = 0,
+  leaked locks = 0, dead = the 5 seeded on purpose. This closes the last abuse-suite todo (concurrent
+  claim); the suite is now `12 tests, 0 todo`.
+
+## 2026-10-03 — Plan tier caps, a recorded routing reason, and the dead ModelRouter is gone (docs/80 Phase 4 remainder)
+
+- **Plan model-tier caps (decision 5).** Routing is now bounded by the org's plan — `trial ≤ 0`,
+  `founder ≤ 1`, `team ≤ 2`, `company/enterprise ≤ 3` — via `PLAN_TIER_CAP`/`planTierCap` in
+  `model-intelligence.ts` and a `maxTier` on `selectTierModel`; the live `selectMeasuredModel`
+  reads `organizations.plan` and clamps candidates to it. The cap routes *down*: when a task's own
+  risk/complexity (or calibration) floor is higher than the plan allows, the cap wins, so a
+  low-revenue plan cannot burn a flagship model — exactly the negative-margin risk the plan names.
+- **Recorded routing reason.** Selection returns a human-readable `reason` beside `source`; a
+  cap-bound pick reports `source: 'plan_cap'`. `llm_performance` gained `routing_reason`
+  (migrations `0021` / `0045`), the trace carries it, and the task executor, routed chat and
+  Executive Agent all pass it through — so a veto is always explainable.
+- **The dead `ModelRouter` stack is deleted.** The 1,955-line module's `ModelRouter` class and four
+  provider adapters were never instantiated (only re-exported by `llm.ts`); they and their test are
+  gone, leaving the live `MODEL_REGISTRY` + the types real code imports. That removes a large false
+  surface an agent or a reader could mistake for the routing path.
+- **Verified:** `test/model-plan-cap.test.ts` (5 tests); the full API suite **948 passed / 3 skipped
+  / 1 todo**, 0 failed; `pnpm -r typecheck` clean (8 projects).
+
+## 2026-10-03 — Budgets, the approval bridge, the recursion guard and the org kill switch (docs/80 Phase 2)
+
+- **The stored `budgetPolicy` is enforced, not just stored.** The constitution's
+  `budgetPolicy` (`dailyLimit`, `monthlyLimit`, `requiresApprovalAbove`, all in credits) was written
+  by every playbook and read by nothing. A new `services/ai-budget.ts` resolves it and
+  `reserveCredits` enforces it at the one boundary every spend path passes through, so a task and an
+  Executive Agent command are both covered. A daily or monthly ceiling that would be crossed, or a
+  per-agent cap, refuses the work before it starts and charges nothing (`BudgetExceededError`).
+- **`requiresApprovalAbove` opens a real approval.** A reservation over the threshold no longer
+  runs: the task executor raises a gated approval and moves the task to `awaiting_approval`, and the
+  founder's grant is consumed once on resume (`BudgetApprovalRequiredError` → `findGrantedGate` →
+  `approved: true`). The same bridge catches the estimator's own per-task ceiling.
+- **Per-agent budgets** live in `agents.config.budget` (`dailyCredits`, `monthlyCredits`,
+  `perTaskCredits`) with no migration, and are enforced from measured agent spend. The org kill
+  switch is `organizations.settings.aiSpend.paused`; owner/admin can flip it and every reservation
+  refuses while it is on.
+- **The delegation recursion guard** bounds the tree three ways — `maxDepth`, `maxChildrenPerTask`,
+  `maxTasksPerCommand` — closing abuse-suite todo #2. Sub-tasks now record their parent
+  (`tasks.parent_task_id`, migrations `0020` / `0044`), which is what the depth walk reads; a
+  delegation loop terminates instead of fanning out. `delegateTask` merges its limits over the
+  defaults so a partial override cannot silently disable a cap.
+- **New surface:** `GET /v1/budgets` (policy + measured spend + per-agent budgets + kill-switch
+  state), `PUT /v1/budgets/agents/:agentId` (owner/admin), and `POST /v1/budgets/kill-switch`
+  (owner/admin). Config: `DELEGATION_MAX_DEPTH` (3), `DELEGATION_MAX_CHILDREN_PER_TASK` (10),
+  `DELEGATION_MAX_TASKS_PER_COMMAND` (50).
+- **Verified:** `test/ai-budget.test.ts` (13 tests — pure resolution, org/per-agent ceilings, the
+  approval threshold, the kill switch, the HTTP surface, and depth/sibling/command recursion caps);
+  `pnpm -r typecheck` clean (8 projects); focused suites green. The recursion `it.todo` in the abuse
+  suite is now a pointer to the real assertions rather than a hidden gap.
+
+## 2026-10-03 — BYOK: the company's own provider key now serves its model calls
+
+- **Org provider keys are used for real calls, with the platform keys as the fallback.** A new
+  `services/org-provider-keys.ts` is the one place a stored `user_provider_keys` row becomes usable
+  credentials: it loads active+enabled rows, decrypts the AES-256-GCM payload (a payload that fails
+  to decrypt is skipped, never fatal), and sums each key's month-to-date spend from
+  `llm_performance.provider_key_id`. `services/llm.ts` loads that map once per call and, for each
+  provider, prefers the org key through the pure, unit-tested `selectProviderKeys` — the org key
+  wins only when it is within its `monthly_spend_ceiling` and its `allowed_models` permits the model;
+  otherwise the platform env keys serve the call and the reason is recorded.
+- **Attribution lands in the data.** `llm_performance` gained `key_source` (`'org'` | `'platform'`)
+  and `provider_key_id` (migrations `0019` / `0043`, mirrored in the Drizzle schema, with per-key and
+  per-agent indexes), and the trace carries both — so BYOK spend can finally be separated from
+  platform spend, which is the whole point: a customer who brings a key has a different cost base.
+- **`monthly_spend_ceiling` is now enforced**, not just stored: the gateway falls back to platform
+  keys the moment a key's month-to-date spend reaches the ceiling. It is read as USD dollars (the
+  stored integer had no documented unit).
+- **Verified:** `test/llm-byok.test.ts` (8 tests — policy unit tests + decrypt/ceiling integration);
+  `pnpm -r typecheck` clean (8 projects); full API suite **954 passed / 3 skipped / 2 todo**, 0 failed.
+
+### Abuse-suite status (docs/77 P3/A9/A10)
+
+- **Trial day cap** — now a real assertion (Phase 1): abuse suite §5 and `credit-reservations`.
+- **Provider exhaustion** — asserted at the gateway in `llm-fallback.test.ts` (all-providers-fail →
+  null, no hang; saturated gate fails over); an API-level proof would be the next step.
+- **Concurrent job claim** — `claimJob` uses `FOR UPDATE SKIP LOCKED`, but a deterministic two-worker
+  assertion needs an isolated database because workers are global; kept as a documented todo rather
+  than a flaky test.
+- **Recursion / self-hire depth guard** — **closed (docs/80 Phase 2):** asserted in
+  `ai-budget.test.ts` (depth, sibling-per-task and per-command caps).
+
+## 2026-10-03 — Credit reservations: work holds its credits before it runs, and the margin invariant is a test
+
+- **docs/80 Phase 1 shipped — reserve → execute → settle/release.** A task now takes a reservation
+  for its estimated cost before it starts (the estimate comes from the p90 of measured tokens for
+  that org and phase, priced at the published 1-credit-per-1K formula, floored and capped by the
+  per-task ceiling), settles the *measured* actual capped at that estimate, and releases the
+  remainder. Concurrent work can no longer over-commit the same credits: `available = included +
+  purchased − used − reserved` and both `reserveCredits` and `consumeCredits` guard in the UPDATE's
+  WHERE. New `credit_reservations` table + `credit_balances.reserved_credits` +
+  `tasks.estimated_credits` (`packages/db/migrations/0018`, `supabase/migrations/0042`).
+- **Failure rules are real:** a failed task measured no model work, so its whole hold is released
+  with no charge; a hold swept mid-task (crashed worker, timeout, expiry) falls back to charging the
+  measured actual so real work is never unbilled; `refundCredits` returns a settled charge
+  idempotently and `reconcileLedger` counts refunds, so drift stays 0. The worker tick now runs the
+  stale-reservation sweep next to the lock reaper.
+- **The task executor and the Executive Agent both reserve** — the task at its pre-execution credit
+  check (recording `estimated_credits` on the row), the command at its step-3 check (settled at
+  step 7). `POST /v1/credits/estimate` returns the pre-run estimate with `approvalRequired` for the
+  execute surfaces.
+- **The margin invariant is now a test** (`test/margin-invariants.test.ts`): for every revenue-bearing
+  plan (founder/team/company, monthly and annual) × every registry model within the plan's tier cap
+  × mixes 50/50, 20/80 and 0/100, credits charged strictly exceed provider cost — and any workflow
+  where cost would meet or exceed revenue is flagged. No negative-margin workflow exists in the
+  current registry; a sentinel $15/$75 model proves the detector can fail, so the suite is not
+  vacuous. Training the alarm now is what stops a premium model silently starving a low-margin plan.
+- **Trial orgs get a per-day ceiling** (`CREDIT_TRIAL_DAILY_CAP`, default 20, enforced at
+  reservation): a trial account has no card, so the cap bounds what one account can burn per day
+  regardless of its starting allotment; paid plans are exempt. This closes abuse-suite todo #3, now
+  a real assertion in both the abuse suite and the reservations suite.
+- **Verified:** `pnpm -r typecheck` clean (8 projects); full API suite **946 passed / 3 skipped /
+  3 todo**, 0 failed (`credit-reservations` 13, `margin-invariants` 5 new; abuse suite now 3 todo);
+  both migration lineages apply cleanly on a fresh embedded database. Config:
+  `CREDIT_RESERVATION_TTL_MS`, `CREDIT_TASK_CEILING`, `CREDIT_ESTIMATE_FLOOR`,
+  `CREDIT_ESTIMATE_LOOKBACK_DAYS`, `CREDIT_TRIAL_DAILY_CAP`.
+
+## 2026-10-02 — Layered rate limits and provider gates: the platform can no longer be outspent by one session, one company or one looping employee
+
+- **docs/77 P1 §8 is closed — four layers, each at the boundary where its identity is known.**
+  *User*: an `onRequest` hook maps the request to an endpoint class (task execution 10/min,
+  analysis 10/min, business import 3/min, credits 60/min, purchase 3/min) and counts it against a
+  session bucket. *Org*: handlers enforce the company bucket after auth (60/120/30/300/5 per hour),
+  so N sessions of one company share one ceiling. *Agent*: a task execute or an execute-pending
+  batch asks how many jobs that AI employee has generated in the last hour (default 60) and
+  throttles only that employee — the rest of the batch still goes out, and the response says who
+  was throttled. *Provider*: `chatCompletion` acquires one global and one per-provider slot (12 / 6)
+  around every attempt; a saturated gate fails over to the next provider instead of hanging. A
+  fifth, job-level layer caps one org at 10 concurrently running jobs in `claimJob`.
+- **Storage is Redis when `REDIS_URL` is set, in-memory otherwise — and the AI classes fail closed.**
+  If Redis is configured but unreachable (or drops mid-call, or throws), AI-spend classes answer
+  429 rather than opening the valve; a Redis outage cannot become an unbounded-spend incident. With
+  no `REDIS_URL` the in-memory window is single-instance only, stated in code. `RATE_LIMIT_ENABLED=false`
+  disables the whole layered system; under `NODE_ENV=test` it is off unless `RATE_LIMIT_FORCE=true`,
+  which the review stack sets so the demo shows the real limits.
+- **Every 429 is explainable.** Every layer answers the shared envelope `{ error: { code:
+  'rate_limited', policy_ref: 'docs/80 §3.3' } }` with `Retry-After`. The legacy `/v1/commands`
+  10/min IP bucket was removed so commands are one bucket in the layered system, not two that can
+  disagree.
+- **The abuse suite's first `it.todo` became four real tests** (`test/abuse-suite.integration.test.ts`
+  §5): per-user class 429 with policy_ref + Retry-After, per-org fan-out across two sessions of one
+  company with another company untouched, the per-agent hourly quota (single execute 429 plus the
+  batch path's `throttled` list), and the `RATE_LIMIT_ENABLED=false` kill switch. A new unit suite
+  (`test/rate-limits-layered.test.ts`, 14 tests) pins the class table, window expiry, the fail-closed
+  paths (Redis down, Redis dropping mid-call, Redis throwing) and the gate FIFO/timeout/disable
+  behaviour; `test/llm-fallback.test.ts` proves a saturated provider fails over without a call.
+- **Verified:** `pnpm -r typecheck` clean (8 projects); full API suite **927 passed / 3 skipped /
+  4 todo**, 0 failed; review stack restarted with `RATE_LIMIT_FORCE=true` and the live 429 walked
+  (4th import call in a minute → `429`, `retry-after: 59`, `policy_ref: docs/80 §3.3`).
+- **docs/79 phases 5–7 were already in the tree** (admin commands dashboard, standalone
+  `apps/worker`, compose service) and remain uncommitted pending review; docs/81 (service setup
+  checklist) was written so the founder knows exactly what to provision.
+
 ## 2026-10-01 — The plan becomes a living document: revisions, ratify, and the diff you sign off on
 
 - **Plan revisions + ratify is live (`/app/strategy`) — the last §R backend gap closed.** The Strategy page now opens with the mock's plan composition (§W item 4 / `screen-plan`): a **revision rail** (rev number, author, when, "what changed" line, and a state chip — direction / unratified / rejected / past), the **ratify banner** when a draft awaits the founder ("This is the team's working plan — ratify to make it direction. Revision 2 by Atlas is awaiting your ratification. Until then, rev 1 is direction"), a collapsible **diff card** ("What changed in rev 2 (unratified draft)") rendering − / + lines per plan section against the previous revision, the plan document itself (five sections — what we're building, who it's for, how it makes money, current focus, KPIs — under a "Rev 1 · ratified … by … · authored by …" header), and a **Draft a plan revision** modal. Ghost decision pair on the banner: Reject (red outline) / ratify (the one warm CTA).
@@ -62,7 +226,7 @@
 - **The console now has a written standard.** `docs/73_ORQ8_CONSOLE_UI_SKILL.md` records the mechanics that actually exist — the `.console` token scope, the compatibility shims, `state-dot` / `.console-card` / `.console-composer` / the ghost decision pair, the one-primary-CTA and colour-as-state rules, the honesty rules, and a six-step pre-ship checklist — plus three audit scripts (`scan-rsc-boundary.mjs`, `content-audit.mjs`, `content-audit-browser.mjs`) that enforce parts of it automatically.
 - **Light mode was chosen, written, and then thrown away on every request.** `app/app/layout.tsx` is a server component, and it imported the cookie *name* from `components/theme-toggle.tsx` — a `"use client"` module. Across that boundary a plain value is not the value: the server received a client reference, `cookies().get(reference)` matched nothing, and the shell fell back to dark no matter what the toggle had just written. Nothing looked wrong — the toggle worked, the cookie was set, the server read a variable named after the same string. The constant now lives in `lib/console-theme.ts`, a plain module both sides can import, and `scripts/scan-rsc-boundary.mjs` — which existed to catch client *functions* imported into server components — now also flags SCREAMING_SNAKE *constants*, because that is the shape this defect took. Verified: the server-rendered HTML carries `data-console-theme="light"` after the switch; before, it was always `dark`.
 - **The console's own contrast rule did not apply to the console.** The palette in `docs/73` insists every state colour survives on white — which is why the light theme has a deeper lime, orange and red at all — but `color-contrast-audit.ts` measured only `:root`, and `.console` re-points every `--orq-*` token at `--console-*` primitives it never saw. Measuring both themes found three real failures in light mode: the orange **state dot** was `#E8761A` at **2.81:1** (a drawn mark needs 3:1 — the "needs you" signal fading on white), the **white-on-orange primary CTA** was **2.98:1** (the one button the design says to find, failing AA), and the dark **label on a destructive red fill** was **3.43:1**. Fixes: orange → `#DC6D14` (3.17:1, indistinguishable as a fill), the CTA label → `#231206` (5.38:1, matching dark), and a new `--console-on-red` (`#FFFFFF` in light, `#231206` in dark) because one shared "on-warm" value cannot label both a pale dark-theme red and a deep light-theme red. The audit now prints every pair for both themes on one line, so a future accent that only fails on white fails loudly. `pnpm audit:contrast` passes.
-- **Verified:** `pnpm typecheck` clean across all 7 packages; `pnpm test` **1,155 passing / 0 failing** (api 845 + 3 skipped, core 213, web 72, db 20, auth 5); `pnpm audit:contrast` passes with both console themes measured; route sweep **35/35 clean**; both content audits clean; the web build green at 180 static pages. Review instructions, credentials and the honest remaining list are in [docs/74](74_ORQ8_AUTONOMOUS_RUN_REVIEW.md).
+- **Verified:** `pnpm typecheck` clean across all 7 packages; `pnpm test` **1,155 passing / 0 failing** (api 845 + 3 skipped, core 213, web 72, db 20, auth 5); `pnpm audit:contrast` passes with both console themes measured; route sweep **35/35 clean**; both content audits clean; the web build green at 180 static pages. Review instructions, credentials and the honest remaining list are in [docs/74 (now archived)](archive/history/74_ORQ8_AUTONOMOUS_RUN_REVIEW.md).
 
 ## 2026-09-29 — The gate sends the mail, and the price the founder approves is the price they pay
 

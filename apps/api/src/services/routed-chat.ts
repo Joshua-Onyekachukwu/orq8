@@ -34,15 +34,15 @@ async function resolveRoutedModel(
   db: Db,
   ctx: ToolExecutionContext,
   options: RoutedOptions,
-): Promise<{ modelId: string | undefined; source: 'static' | 'measured' | 'default' }> {
+): Promise<{ modelId: string | undefined; source: 'static' | 'measured' | 'default' | 'plan_cap'; reason?: string }> {
   const routing = classifyTask({
     title: ctx.agentRole,
     description: `${ctx.agentName ?? ''} ${options.tool ?? ''}`.slice(0, 500),
     agentRole: ctx.agentRole,
   });
   const calibrationAdvice = await getCalibrationAdvice(db, ctx.orgId);
-  const { modelId, source } = await selectMeasuredModel(db, ctx.orgId, routing, calibrationAdvice);
-  return { modelId, source };
+  const { modelId, source, reason } = await selectMeasuredModel(db, ctx.orgId, routing, calibrationAdvice);
+  return { modelId, source, reason };
 }
 
 /**
@@ -58,7 +58,7 @@ export async function routedToolChat(
   userMessage: string,
   options: RoutedOptions = {},
 ): Promise<string | null> {
-  const { modelId, source } = await resolveRoutedModel(db, ctx, options);
+  const { modelId, source, reason } = await resolveRoutedModel(db, ctx, options);
 
   return chat(config, systemPrompt, userMessage, {
     model: modelId,
@@ -72,6 +72,7 @@ export async function routedToolChat(
       agentId: ctx.agentId,
       db,
       routingSource: source,
+      routingReason: reason,
     },
   });
 }
@@ -85,7 +86,7 @@ export async function routedToolChatJson<T = unknown>(
   userMessage: string,
   options: RoutedOptions = {},
 ): Promise<T | null> {
-  const { modelId, source } = await resolveRoutedModel(db, ctx, options);
+  const { modelId, source, reason } = await resolveRoutedModel(db, ctx, options);
 
   return chatJson<T>(config, systemPrompt, userMessage, {
     model: modelId,
@@ -99,6 +100,7 @@ export async function routedToolChatJson<T = unknown>(
       agentId: ctx.agentId,
       db,
       routingSource: source,
+      routingReason: reason,
     },
   });
 }

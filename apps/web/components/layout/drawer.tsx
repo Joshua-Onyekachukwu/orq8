@@ -28,6 +28,7 @@ export function Drawer({
   headerRight,
   children,
   width = "lg",
+  scope = "console",
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,10 +39,27 @@ export function Drawer({
   children: React.ReactNode;
   /** Panel width class: "md" = 480px, "lg" = 640px, "xl" = 860px. */
   width?: "md" | "lg" | "xl";
+  /**
+   * Theme scope for the panel. The drawer portals to document.body, which is
+   * outside the `#main.console` subtree, so console-scoped styles
+   * (`console-card`, `state-dot`, the `--console-*` tokens) simply did not
+   * apply inside a drawer. "console" re-applies the scope on the panel itself
+   * and mirrors the host console's theme; "none" leaves the panel on the
+   * document palette (useful outside the app shell). The overlay stays
+   * unscoped either way — the panel must not paint an opaque page background
+   * over the dashboard behind it.
+   */
+  scope?: "console" | "none";
 }) {
   const [mounted, setMounted] = useState(false);
+  const [consoleTheme, setConsoleTheme] = useState<string | null>(null);
   useEffect(() => setMounted(true), []);
-
+  useEffect(() => {
+    if (!open || scope !== "console") return;
+    setConsoleTheme(
+      document.querySelector(".console")?.getAttribute("data-console-theme") ?? null,
+    );
+  }, [open, scope]);
   // Escape closes; body scroll locks while open (mirrors ea-dock.tsx).
   useEffect(() => {
     if (!open) return;
@@ -73,8 +91,10 @@ export function Drawer({
       <div
         className={cn(
           "absolute inset-y-0 right-0 flex w-full flex-col border-l border-hairline bg-elevated shadow-2xl",
+          scope === "console" && "console",
           widthCls,
         )}
+        data-console-theme={scope === "console" ? consoleTheme ?? undefined : undefined}
       >
         <div className="flex items-start justify-between gap-3 border-b border-hairline px-5 py-4">
           <div className="min-w-0">

@@ -2,6 +2,11 @@ import Link from "next/link";
 import { AlertTriangle, ArrowUpRight, Bot, Zap } from "lucide-react";
 
 import { EAOpenButton } from "../../components/dashboard/ea-open-button";
+import {
+  WhatsHappeningNow,
+  type HappeningDepartment,
+  type HappeningMember,
+} from "../../components/dashboard/whats-happening";
 import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
 import { EADock } from "../../components/dashboard/ea-dock";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
@@ -453,37 +458,111 @@ export default async function AppPage() {
     return { label: "Idle", detail: "Idle", state: "" };
   }
 
-  const membersByDepartment = new Map<string, Agent[]>();
-  const unassigned: Agent[] = [];
-  for (const agent of agentList) {
-    if (agent.departmentId) {
-      const list = membersByDepartment.get(agent.departmentId) ?? [];
-      list.push(agent);
-      membersByDepartment.set(agent.departmentId, list);
-    } else {
-      unassigned.push(agent);
+  // ── "What's happening now" (§1–§4) ─────────────────────────────────────
+  // One row per employee, derived from the employee's own row plus the org's
+  // open approvals and the newest event it produced. Nothing here is invented:
+  // a missing task or a missing event is shown as missing, never filled in.
+  const departmentById = new Map((departments ?? []).map((d) => [d.id, d]));
+  const approvalByAgent = new Map<string, Approval>();
+  for (const approval of approvalList) {
+    if (approval.agentId && !approvalByAgent.has(approval.agentId)) {
+      approvalByAgent.set(approval.agentId, approval);
     }
   }
+  const lastActiveLabel = (iso?: string | null): string | null => {
+    if (!iso) return null;
+    const diff = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(diff)) return null;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+  const humanRole = (role: string): string =>
+    role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  const progressByDepartment = new Map<string, DepartmentProgress>(
-    (companyProgress?.departments ?? []).map((d) => [d.departmentId, d]),
-  );
+  const happeningMembers: HappeningMember[] = agentList.map((agent) => {
+    const info = memberState(agent);
+    const newest = newestEventByAgent.get(agent.id) ?? null;
+    const approval = approvalByAgent.get(agent.id) ?? null;
+    const department = agent.departmentId ? departmentById.get(agent.departmentId) : undefined;
+    const state: HappeningMember["state"] =
+      info.label === "Needs you"
+        ? "needs_you"
+        : info.label === "Blocked"
+          ? "blocked"
+          : info.label === "Working"
+            ? "working"
+            : info.label === "Paused"
+              ? "paused"
+              : info.label === "Retired"
+                ? "retired"
+                : "idle";
+    const tag = newest ? activityTag(newest.type) : null;
+    // The terminal renderer strips the "<name>: " prefix because the row does
+    // not repeat the employee; the card header does, so the same strip keeps
+    // the summary from reading "Nova: Nova: …".
+    const summary = newest
+      ? newest.summary
+          .replace(/^(failed|blocked|execution blocked):\s*/i, "")
+          .replace(new RegExp(`^${agent.name}: `), "")
+      : null;
+    return {
+      id: agent.id,
+      name: agent.name,
+      roleLabel: humanRole(agent.role),
+      departmentName:
+        agent.departmentName ?? department?.name ?? agent.department ?? null,
+      isLead: !!department?.head && department.head.toLowerCase() === agent.name.toLowerCase(),
+      state,
+      stateLabel: info.label,
+      dotState: info.state,
+      currentTask: agent.currentTask ?? null,
+      latestChange:
+        newest && tag && summary
+          ? {
+              tag: tag.tag,
+              color: tag.color,
+              summary,
+              clock: formatClock(newest.occurredAt),
+            }
+          : null,
+      lastActiveLabel: lastActiveLabel(agent.lastActiveAt),
+      tasksCompleted: agent.tasksCompleted ?? 0,
+      tasksFailed: agent.tasksFailed ?? 0,
+      weeklyCostLabel:
+        (agent.weeklyCost ?? 0) > 0 ? `${formatMoney((agent.weeklyCost ?? 0) / 100)}/wk` : null,
+      ask: approval
+        ? `${approval.action}${approval.description ? ` — ${approval.description}` : ""}`
+        : state === "blocked"
+          ? info.detail
+          : null,
+      actionHref:
+        state === "needs_you"
+          ? "/app/approvals"
+          : newest?.taskId
+            ? `/app/tasks/${newest.taskId}`
+            : null,
+      actionLabel:
+        state === "needs_you" ? "Review the gate" : state === "blocked" ? "Open the task" : null,
+    };
+  });
 
-  function departmentState(members: Agent[]): {
-    label: string;
-    state: DotState;
-    tone: "ok" | "warn" | "danger";
-  } {
-    const states = members.map((m) => memberState(m).label);
-    if (states.includes("Needs you")) return { label: "Needs you", state: "waiting", tone: "warn" };
-    if (states.includes("Blocked")) return { label: "Blocked", state: "blocked", tone: "danger" };
-    const working = states.filter((s) => s === "Working").length;
-    if (working > 0) {
-      return { label: `${working} working`, state: "working", tone: "ok" };
-    }
-    if (members.length === 0) return { label: "Empty", state: "", tone: "ok" };
-    return { label: "Idle", state: "", tone: "ok" };
-  }
+  // Departments keep their place in the hierarchy (Founder → EA → Departments →
+  // employees): one slim row of real counts, derived from the same members the
+  // cards use, instead of the old full-width org-chart columns.
+  const happeningDepartments: HappeningDepartment[] = departmentList.map((department) => {
+    const members = happeningMembers.filter((m) => m.departmentName === department.name);
+    return {
+      id: department.id,
+      name: department.name,
+      employees: members.length,
+      working: members.filter((m) => m.state === "working").length,
+      needsYou: members.filter((m) => m.state === "needs_you" || m.state === "blocked").length,
+    };
+  });
 
   const agentNameById = new Map(agentList.map((a) => [a.id, a.name]));
 
@@ -522,19 +601,31 @@ export default async function AppPage() {
 
   // The banner morphs with company state (docs/71 §F): approvals first, then
   // blockers, then "all caught up".
+  //
+  // It states the founder-level fact only. It used to list the pending approval
+  // actions, which the employee cards below now show in full — the same two
+  // sentences read twice, inches apart. The banner names who is stopped; the
+  // cards say what for.
   const banner =
     approvalList.length > 0
       ? {
           state: "waiting" as DotState,
-          title: `${approvalList.length} approval${approvalList.length !== 1 ? "s" : ""} holding work`,
-          body:
-            approvalList
-              .slice(0, 2)
-              .map(
-                (a) =>
-                  `${a.agentId ? (agentNameById.get(a.agentId) ?? "An employee") : "System"} — ${a.action}`,
-              )
-              .join(" · ") + (approvalList.length > 2 ? ` · +${approvalList.length - 2} more` : ""),
+          title: `${approvalList.length} decision${approvalList.length !== 1 ? "s" : ""} holding work`,
+          body: (() => {
+            const stopped = [
+              ...new Set(
+                approvalList
+                  .map((a) => (a.agentId ? agentNameById.get(a.agentId) : null))
+                  .filter((name): name is string => !!name),
+              ),
+            ];
+            if (stopped.length === 0) return "Work is paused until you decide.";
+            const named =
+              stopped.length <= 3
+                ? stopped.join(", ")
+                : `${stopped.slice(0, 3).join(", ")} and ${stopped.length - 3} more`;
+            return `${named} ${stopped.length === 1 ? "is" : "are"} stopped until you decide.`;
+          })(),
           href: "/app/approvals",
           cta: "Review",
         }
@@ -719,7 +810,7 @@ export default async function AppPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/app/departments"
-              className="text-xs text-muted transition-colors hover:text-ink"
+              className="-my-2 inline-flex min-h-8 items-center py-2 text-xs text-muted transition-colors hover:text-ink"
             >
               All departments →
             </Link>
@@ -746,164 +837,11 @@ export default async function AppPage() {
             </EAOpenButton>
           </div>
         ) : (
-          <div className="mt-4 flex flex-col items-center">
-            {/* Founder */}
-            <div className="flex min-w-[200px] items-center gap-2.5 rounded-md border border-hairline bg-elevated px-3.5 py-2">
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-canvas text-2xs font-semibold text-ink"
-              >
-                {(firstName ?? "F").charAt(0).toUpperCase()}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-ink">
-                  {firstName ?? "You"}
-                </span>
-                <span className="block text-2xs text-muted">Founder · human</span>
-              </span>
-            </div>
-            <span className="h-5 w-px bg-hairline-strong" aria-hidden="true" />
-            {/* The Executive Agent — directs all departments */}
-            <div
-              className="flex min-w-[230px] items-center gap-2.5 rounded-md border px-3.5 py-2"
-              style={{
-                borderColor: "rgba(166,206,149,0.45)",
-                backgroundColor: "rgba(166,206,149,0.07)",
-              }}
-            >
-              <span
-                aria-hidden="true"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm text-brand-ink"
-                style={{ backgroundColor: "rgba(166,206,149,0.12)" }}
-              >
-                ◈
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-ink">{EA_NAME}</span>
-                <span className="block text-2xs text-muted">
-                  Executive Agent · directs all departments
-                </span>
-              </span>
-              <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline px-2 py-0.5 text-2xs text-muted">
-                <span className="state-dot" data-state={workingNow ? "working" : ""} />
-                active
-              </span>
-            </div>
-            <span className="h-5 w-px bg-hairline-strong" aria-hidden="true" />
-
-            {/* Departments — who is in each and what their people are doing */}
-            <div className="flex w-full flex-wrap items-start justify-center gap-x-4 gap-y-7">
-              {departmentList.map((department) => {
-                const members = membersByDepartment.get(department.id) ?? [];
-                const lead = department.head
-                  ? members.find(
-                      (m) => m.name.toLowerCase() === department.head!.toLowerCase(),
-                    )
-                  : undefined;
-                const others = members.filter((m) => m.id !== lead?.id);
-                const roster = [...(lead ? [lead] : []), ...others];
-                const weekly = members.reduce((sum, m) => sum + (m.weeklyCost ?? 0), 0);
-                return (
-                  <div
-                    key={department.id}
-                    className="flex w-full min-w-[136px] flex-col items-center sm:w-[calc(50%-0.5rem)] xl:w-[calc(25%-0.75rem)]"
-                  >
-                    <Link
-                      href={`/app/departments/${department.id}`}
-                      className="w-full rounded-md border border-hairline bg-elevated px-3 py-1.5 text-center transition-colors hover:border-hairline-strong"
-                    >
-                      <span className="block text-xs font-semibold text-ink">
-                        {department.name}
-                      </span>
-                      <span className="block text-2xs text-muted">
-                        {members.length} employee{members.length === 1 ? "" : "s"}
-                        {weekly > 0 ? ` · ${formatMoney(weekly / 100)}/wk` : ""}
-                      </span>
-                    </Link>
-                    <span className="h-4 w-px bg-hairline-strong" aria-hidden="true" />
-                    {roster.length === 0 ? (
-                      <div className="w-full rounded-md border border-dashed border-hairline px-2 py-2.5 text-center">
-                        <p className="text-2xs text-muted">
-                          No employees yet — ask {EA_NAME} to hire.
-                        </p>
-                      </div>
-                    ) : (
-                      <ul className="w-full space-y-1.5">
-                        {roster.map((member) => {
-                          const memberInfo = memberState(member);
-                          return (
-                            <li key={member.id}>
-                              <Link
-                                href={`/app/agents/${member.id}`}
-                                className="flex w-full items-center gap-2 rounded-md border border-hairline bg-elevated px-2.5 py-1.5 transition-colors hover:border-hairline-strong"
-                              >
-                                <span
-                                  aria-hidden="true"
-                                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hairline bg-canvas text-2xs font-semibold text-ink"
-                                >
-                                  {member.name.charAt(0).toUpperCase()}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-xs text-ink">
-                                    {member.name}
-                                    {member.id === lead?.id && (
-                                      <span className="ml-1.5 text-2xs text-muted">Lead</span>
-                                    )}
-                                  </span>
-                                  <span className="block truncate text-2xs text-muted">
-                                    {memberInfo.detail}
-                                  </span>
-                                </span>
-                                <span
-                                  className="state-dot"
-                                  data-state={memberInfo.state}
-                                  title={memberInfo.label}
-                                />
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-
-              {unassigned.length > 0 && (
-                <div className="flex w-full min-w-[136px] flex-col items-center sm:w-[calc(50%-0.5rem)] xl:w-[calc(25%-0.75rem)]">
-                  <div className="w-full rounded-md border border-hairline bg-elevated px-3 py-1.5 text-center">
-                    <span className="block text-xs font-semibold text-ink">Unassigned</span>
-                    <span className="block text-2xs text-muted">
-                      {unassigned.length} employee{unassigned.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  <span className="h-4 w-px bg-hairline-strong" aria-hidden="true" />
-                  <ul className="w-full space-y-1.5">
-                    {unassigned.map((member) => {
-                      const memberInfo = memberState(member);
-                      return (
-                        <li key={member.id}>
-                          <Link
-                            href={`/app/agents/${member.id}`}
-                            className="flex w-full items-center gap-2 rounded-md border border-dashed border-hairline bg-elevated px-2.5 py-1.5 transition-colors hover:border-hairline-strong"
-                          >
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-xs text-ink">
-                                {member.name}
-                              </span>
-                              <span className="block truncate text-2xs text-muted">
-                                {memberInfo.label}
-                              </span>
-                            </span>
-                            <span className="state-dot" data-state={memberInfo.state} />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
+          <div className="mt-4">
+            <WhatsHappeningNow
+              members={happeningMembers}
+              departments={happeningDepartments}
+            />
           </div>
         )}
       </section>

@@ -32,6 +32,20 @@ export const rotateProviderKeyBody = z.object({
 });
 export type RotateProviderKeyBody = z.infer<typeof rotateProviderKeyBody>;
 
+/**
+ * Spending controls for an existing key (docs/80 Phase 4). Setting the ceiling
+ * to null clears it (uncapped). Secrets are not touched — rotation has its own
+ * endpoint, so this body can never accidentally replace a key.
+ */
+export const updateProviderKeyBody = z
+  .object({
+    monthly_spend_ceiling: z.number().int().nonnegative().max(10_000_000).nullable().optional(),
+    enabled: z.boolean().optional(),
+    allowed_models: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
+  })
+  .strict();
+export type UpdateProviderKeyBody = z.infer<typeof updateProviderKeyBody>;
+
 export const providerKeyResponse = z.object({
   id: z.string(),
   provider: z.string(), // slug
@@ -47,6 +61,14 @@ export const providerKeyResponse = z.object({
   last_tested_at: z.string().nullable(),
   last_used_at: z.string().nullable(),
   created_at: z.string(),
+  // docs/80 Phase 4 — the enforcement state of this key, so the settings page
+  // can show spend against the ceiling instead of only storing it.
+  monthly_spend_ceiling: z.number().nullable(),
+  month_to_date_spend_usd: z.number(),
+  /** True when this key is the one the gateway would use for its provider. */
+  active_for_routing: z.boolean(),
+  /** Why it is not active, when it is not ('over_ceiling' | 'disabled' | 'revoked'). */
+  routing_blocked_reason: z.string().nullable(),
 });
 export type ProviderKeyResponse = z.infer<typeof providerKeyResponse>;
 

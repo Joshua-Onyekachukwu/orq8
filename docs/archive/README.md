@@ -8,6 +8,12 @@ documents that *are* authoritative.
 Archived: 2026-09-29, during the ecosystem reconciliation (report at
 `docs/69_ECOSYSTEM_RECONCILIATION_REPORT.md`).
 
+Archived 2026-10-02, during the docs/80 Phase 0/3 work:
+
+| File | What it was | Why it is here | Read instead |
+| --- | --- | --- | --- |
+| `history/74_ORQ8_AUTONOMOUS_RUN_REVIEW.md` | Review guide for one autonomous run (2026-10-01), with its own verification counts and "still open" list | A dated snapshot: its test totals, route counts and open list have moved (docs/80 Phase 0/3 landed, docs/79 phases 5–7 shipped), so reading it as current guidance would mislead | `FOUNDER-GUIDE.md` (how to look at the product now), `docs/79` §13 (phase log), `docs/80` Appendix C (what shipped since) |
+
 | File | What it was | Why it is here | Read instead |
 | --- | --- | --- | --- |
 | `superseded/43_DEPLOYMENT.md` | Deployment pipeline, artifacts, rollout | Describes the pre-Supabase single-host pipeline; the live path is different | `docs/58_DEPLOYMENT.md` |
