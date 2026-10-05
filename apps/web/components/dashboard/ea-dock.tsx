@@ -25,9 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowUp, ChevronUp, Loader2, X } from "lucide-react";
 
-import { useExecutiveAgent } from "../executive-agent-context";
-import { ExecutiveAgentProgress } from "../ea-progress";
-import { EA_NAME } from "../../lib/ea";
+import { useExecutiveAgent, useEaName } from "../executive-agent-context";
 
 export interface EADockApproval {
   id: string;
@@ -75,6 +73,7 @@ function DockBody({
 }: EADockProps & { variant: "dock" | "sheet"; onClose?: () => void }) {
   const { messages, sendMessage, loading, stages, error, openPanel } =
     useExecutiveAgent();
+  const EA_NAME = useEaName();
   const router = useRouter();
   const [input, setInput] = useState("");
   const [deciding, setDeciding] = useState<string | null>(null);
@@ -124,7 +123,7 @@ function DockBody({
       aria-label={`${EA_NAME} — Executive Agent dock`}
       className={
         variant === "dock"
-          ? "hidden flex-col overflow-hidden rounded-lg border border-hairline bg-elevated lg:sticky lg:top-[4.5rem] lg:flex lg:h-[calc(100vh-6.5rem)] lg:min-h-[520px]"
+          ? "hidden flex-col overflow-hidden rounded-lg border border-hairline bg-elevated lg:sticky lg:top-[4.5rem] lg:flex lg:h-[calc(100vh-4.5rem)] lg:min-h-[720px]"
           : "flex h-full w-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-hairline bg-elevated"
       }
     >
@@ -204,14 +203,14 @@ function DockBody({
 
         {loading && (
           <div className="rounded-xl border border-hairline bg-canvas px-3.5 py-2.5">
-            {stages.length > 0 ? (
-              <ExecutiveAgentProgress stages={stages} />
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-muted">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                {EA_NAME} is working…
-              </div>
-            )}
+            {/* Single quiet indicator while working. The stage-by-stage
+                narration ("reading the organization", "analyzing command"…)
+                was noise: the founder asked for execute-and-report, not a
+                progress play-by-play. Stages stay in the stream for logs. */}
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              {EA_NAME} is working…
+            </div>
           </div>
         )}
 
@@ -302,7 +301,7 @@ function DockBody({
       <div className="border-t border-hairline px-3 py-2.5">
         <div className="rounded-md border border-hairline bg-canvas px-2.5 py-2 focus-within:border-hairline-strong">
           <textarea
-            rows={2}
+            rows={5}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -313,7 +312,7 @@ function DockBody({
             }}
             placeholder={`Message ${EA_NAME} — give direction, ask anything`}
             aria-label={`Message ${EA_NAME}`}
-            className="w-full resize-none bg-transparent text-sm text-ink outline-none placeholder:text-muted/70"
+            className="min-h-[5.5rem] w-full resize-none bg-transparent text-sm leading-relaxed text-ink outline-none placeholder:text-muted/70"
           />
           <div className="mt-1 flex items-center gap-1.5">
             {["/hire ", "/budget ", "/pause "].map((cmd) => (
@@ -345,6 +344,7 @@ function DockBody({
 
 /** The fixed bottom bar + sheet that carry the dock on phones (<lg). */
 function EAMobileDock(props: EADockProps) {
+  const EA_NAME = useEaName();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
