@@ -51,19 +51,42 @@ export async function enqueueJob(
       .limit(1);
     if (existing) return { id: existing.id, reused: true };
   }
-  const [row] = await db
-    .insert(agentJobs)
-    .values({
-      orgId: input.orgId,
-      type: input.type,
-      payload: input.payload,
-      taskId: input.taskId ?? null,
-      priority: input.priority ?? 0,
-      runAt: input.runAt ?? new Date(),
-    })
-    .returning({ id: agentJobs.id });
-  if (!row) throw new Error('enqueueJob: insert returned no row');
-  return { id: row.id, reused: false };
+  try {
+    const [row] = await db
+      .insert(agentJobs)
+      .values({
+        orgId: input.orgId,
+        type: input.type,
+        payload: input.payload,
+        taskId: input.taskId ?? null,
+        priority: input.priority ?? 0,
+        runAt: input.runAt ?? new Date(),
+      })
+      .returning({ id: agentJobs.id });
+    if (!row) throw new Error('enqueueJob: insert returned no row');
+    return { id: row.id, reused: false };
+  } catch (err) {
+    // The check-then-insert above races: two concurrent executes can both see
+    // no open job and both insert. `agent_jobs_open_task_uniq` (migration 0046)
+    // owns the invariant — on conflict, the winner already exists, so report it
+    // as reused instead of surfacing a 500 for a double-click.
+    if ((err as { code?: string }).code === '23505' && input.taskId) {
+      const [existing] = await db
+        .select({ id: agentJobs.id })
+        .from(agentJobs)
+        .where(
+          and(
+            eq(agentJobs.orgId, input.orgId),
+            eq(agentJobs.type, input.type),
+            eq(agentJobs.taskId, input.taskId),
+            sql`${agentJobs.status} in ('pending', 'running')`,
+          ),
+        )
+        .limit(1);
+      if (existing) return { id: existing.id, reused: true };
+    }
+    throw err;
+  }
 }
 
 /**

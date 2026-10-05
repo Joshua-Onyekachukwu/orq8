@@ -641,6 +641,12 @@ export const agentJobs = pgTable(
     index('agent_jobs_claim_idx').on(t.status, t.runAt, t.priority),
     index('agent_jobs_org_created_idx').on(t.orgId, t.createdAt),
     index('agent_jobs_task_idx').on(t.taskId),
+    // Enqueue dedup is check-then-insert in application code, which races: two
+    // concurrent executes can both see "no open job" and both insert. The
+    // database now owns the invariant — one open job per (org, type, task).
+    uniqueIndex('agent_jobs_open_task_uniq')
+      .on(t.orgId, t.type, t.taskId)
+      .where(sql`${t.status} in ('pending', 'running') and ${t.taskId} is not null`),
   ],
 );
 

@@ -92,6 +92,76 @@
       "when": 1788550100000,
       "tag": "0012_add_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788550200000,
+      "tag": "0013_add_plan_revisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788550300000,
+      "tag": "0014_add_agent_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788550400000,
+      "tag": "0015_credit_accounting_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788550500000,
+      "tag": "0016_llm_cost_attribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788550600000,
+      "tag": "0017_credit_ledger_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788550700000,
+      "tag": "0018_credit_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788550800000,
+      "tag": "0019_llm_key_attribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788550900000,
+      "tag": "0020_task_delegation_parent",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788551000000,
+      "tag": "0021_model_routing_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791211686109,
+      "tag": "0022_absent_boomer",
+      "breakpoints": true
     }
   ]
 }
