@@ -896,10 +896,18 @@ export async function executeTask(
     }
   }
 
-  // 7. Update agent stats
+  // 7. Update agent stats — including the agent's own credit rollup. The org
+  //    ledger (6b) carries the spend, but the agent row was never told, so a
+  //    founder reading an employee's creditsUsed saw 0 while the company
+  //    balance moved. Same measured `cost` the task row and ledger carry:
+  //    model credits + tool credits, zero when no work was consumed.
   if (task.agentId) {
     const [agent] = await db
-      .select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed })
+      .select({
+        tasksCompleted: agents.tasksCompleted,
+        tasksFailed: agents.tasksFailed,
+        creditsUsed: agents.creditsUsed,
+      })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
@@ -909,6 +917,7 @@ export async function executeTask(
         .update(agents)
         .set({
           tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
+          creditsUsed: (agent?.creditsUsed ?? 0) + cost,
           currentTask: null,
           lastActiveAt: new Date(),
           updatedAt: new Date(),
@@ -919,6 +928,7 @@ export async function executeTask(
         .update(agents)
         .set({
           tasksFailed: (agent?.tasksFailed ?? 0) + 1,
+          creditsUsed: (agent?.creditsUsed ?? 0) + cost,
           currentTask: null,
           lastActiveAt: new Date(),
           updatedAt: new Date(),
