@@ -328,6 +328,11 @@ async function main(): Promise<void> {
     // are not rewritten by a new ceiling; the review stack forces them on so
     // the demo shows the real production limits (docs/80 §3.3).
     RATE_LIMIT_FORCE: "true",
+    // The review stack has no real inbox: with verification on, every new
+    // account would strand at /check-email (the SMTP sink swallows the
+    // link). Accounts are active at signup here by design; production keeps
+    // the default 'true' with a real mail provider.
+    REQUIRE_EMAIL_VERIFICATION: "false",
     // docs/75: the API stops executing agent work on the request path; the
     // worker process below drains it. REVIEW_JOBS=0 keeps the old inline path
     // for pure-UI review sessions.

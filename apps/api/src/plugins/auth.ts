@@ -38,7 +38,9 @@ export async function requireAuth(request: FastifyRequest, deps: AppDeps): Promi
 
   // Email confirmation enforcement: a page-level gate would leave every data
   // API reachable with the registration cookie, so the check lives here too.
-  if (!user.emailVerifiedAt && !isUnconfirmedAllowed(request.url)) {
+  // REQUIRE_EMAIL_VERIFICATION=false makes the account active at signup, so
+  // there is nothing to gate (registration stamps email_verified_at).
+  if (deps.config.REQUIRE_EMAIL_VERIFICATION !== 'false' && !user.emailVerifiedAt && !isUnconfirmedAllowed(request.url)) {
     throw new AppError(
       403,
       'email_not_verified',

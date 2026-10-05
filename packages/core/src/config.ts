@@ -177,6 +177,13 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('ORQ8 <founder@orq8.ai>'),
+  // Whether a new account must confirm its email before it can sign in.
+  // 'true' (the original behaviour) gates login and every data route until
+  // the emailed link is opened — which dead-ends signups whenever mail is not
+  // configured (no Resend/SMTP = the link is only logged). 'false' makes the
+  // account active at signup: no verification email is sent, no gate is
+  // applied. Set false for a launch where mail delivery is not yet wired.
+  REQUIRE_EMAIL_VERIFICATION: z.enum(['true', 'false']).default('true'),
 
   // Executive Agent brand name — used in the EA system prompt so the agent
   // introduces itself consistently. Change without a code change.
