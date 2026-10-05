@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders, parseApiError } from "../../../lib/api";
 
 function getSessionToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
       headers: proxyAuthHeaders(token),
       next: { revalidate: 30 },
     });
-    if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
+    if (!res.ok) {
+      // Relay the API's precise message (e.g. which field failed validation);
+      // a bare "Failed" hides the one thing the founder needs to correct.
+      const upstream = await res.json().catch(() => null);
+      return NextResponse.json(
+        { error: parseApiError(upstream, "Request failed") },
+        { status: res.status },
+      );
+    }
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
@@ -39,7 +47,13 @@ export async function POST(request: NextRequest) {
       headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
     });
-    if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
+    if (!res.ok) {
+      const upstream = await res.json().catch(() => null);
+      return NextResponse.json(
+        { error: parseApiError(upstream, "Request failed") },
+        { status: res.status },
+      );
+    }
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });

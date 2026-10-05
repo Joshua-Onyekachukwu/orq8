@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { API_URL, SESSION_COOKIE, proxyAuthHeaders } from "../../../../lib/api";
+import { API_URL, SESSION_COOKIE, proxyAuthHeaders, parseApiError } from "../../../../lib/api";
 
 function getSessionToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
@@ -21,7 +21,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       // badge, no link to the decision).
       cache: "no-store",
     });
-    if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: res.status });
+    if (!res.ok) {
+      const upstream = await res.json().catch(() => null);
+      return NextResponse.json(
+        { error: parseApiError(upstream, "Not found") },
+        { status: res.status },
+      );
+    }
     return NextResponse.json(await res.json(), { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
@@ -41,7 +47,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       headers: proxyAuthHeaders(token, "application/json"),
       body: JSON.stringify(body),
     });
-    if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
+    if (!res.ok) {
+      const upstream = await res.json().catch(() => null);
+      return NextResponse.json(
+        { error: parseApiError(upstream, "Request failed") },
+        { status: res.status },
+      );
+    }
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
@@ -59,7 +71,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       method: "DELETE",
       headers: proxyAuthHeaders(token),
     });
-    if (!res.ok) return NextResponse.json({ error: "Failed" }, { status: res.status });
+    if (!res.ok) {
+      const upstream = await res.json().catch(() => null);
+      return NextResponse.json(
+        { error: parseApiError(upstream, "Request failed") },
+        { status: res.status },
+      );
+    }
     return new NextResponse(null, { status: 204 });
   } catch {
     return NextResponse.json({ error: "Backend unavailable" }, { status: 502 });
