@@ -26,11 +26,11 @@ import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
 import { Pool } from "pg";
+import { killStaleEmbeddedPostgres } from "./lib/embedded-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DB_DIR = path.join(ROOT, ".rls-e2e-pg");
-const PGDATA_ESC = DB_DIR.replace(/\\/g, "\\\\");
 const DB_NAME = "orq8_rls_e2e";
 
 let PG_PORT = 54336;
@@ -240,22 +240,12 @@ async function main() {
   PG_PORT = await freePort();
   DATABASE_URL = `postgres://orq8:orq8_load@localhost:${PG_PORT}/${DB_NAME}?client_encoding=utf8`;
 
-  // Kill leftover embedded-postgres postmasters from a crashed prior run
-  // (Windows shared-memory key stays held otherwise).
-  if (process.platform === "win32") {
-    try {
-      const { execSync } = await import("node:child_process");
-      const ps =
-        `Get-CimInstance Win32_Process -Filter "name='postgres.exe'" | ` +
-        `Where-Object { $_.CommandLine -like '*@embedded-postgres*' -or $_.CommandLine -like '*${PGDATA_ESC}*' } | ` +
-        `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
-      const b64 = Buffer.from(ps, "utf16le").toString("base64");
-      execSync(`powershell -NoProfile -EncodedCommand ${b64}`, { timeout: 20_000, stdio: "ignore" });
-    } catch {
-      /* nothing to kill */
-    }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
+  // Kill leftover postmasters from THIS harness's crashed prior runs only
+  // (Windows shared-memory key stays held otherwise). Scoped to our data
+  // dir: the old unscoped kill matched every @embedded-postgres process and
+  // took down a running review stack's database with it — every page then
+  // answered 500 (ECONNREFUSED) with no visible cause.
+  await killStaleEmbeddedPostgres(".rls-e2e-pg");
 
   // A previous run's data directory must go before `initdb` runs, not after.
   // `initdb` refuses a non-empty directory, and this harness names its data
@@ -463,6 +453,25 @@ async function main() {
         [orgId],
       );
     }
+    // One queue row per company (docs/82 §rls-agent-jobs): agent_jobs is RLS
+    // enabled + FORCED with no client policies — service-role-only. The checks
+    // in §3.3/§3.7 need a real B-row for A to reach for.
+    await adminPool.query(
+      `INSERT INTO agent_jobs (id, org_id, type, payload, task_id)
+       VALUES ('bbbbbbbb-6666-4000-8000-00000000bbbb', $1, 'task.execute',
+               '{"taskId":"bbbbbbbb-3333-4000-8000-00000000bbbb"}',
+               'bbbbbbbb-3333-4000-8000-00000000bbbb')
+       ON CONFLICT DO NOTHING`,
+      [orgB],
+    );
+    await adminPool.query(
+      `INSERT INTO agent_jobs (id, org_id, type, payload, task_id)
+       VALUES ('aaaaaaaa-6666-4000-8000-00000000aaaa', $1, 'task.execute',
+               '{"taskId":"aaaaaaaa-3333-4000-8000-00000000aaaa"}',
+               'aaaaaaaa-3333-4000-8000-00000000aaaa')
+       ON CONFLICT DO NOTHING`,
+      [orgA],
+    );
     for (const [orgId] of [[orgA], [orgB]] as const) {
       const sub = await adminPool.query(
         `INSERT INTO subscriptions (id, org_id, plan, status, current_period_start, current_period_end)
@@ -622,6 +631,7 @@ async function main() {
     const protectedTables = [
       "tasks", "approvals", "company_memory", "audit_events", "agents",
       "departments", "credit_balances", "files", "notifications",
+      "agent_jobs",
     ];
     for (const t of protectedTables) {
       await act(adminPool, null, async (q) => {
@@ -813,6 +823,47 @@ async function main() {
         n = 0;
       }
       check("unauthenticated cannot read department templates", n === 0, `got ${n}`);
+    });
+
+    // ── 3.7 agent_jobs is service-role-only (docs/82 §rls-agent-jobs) ─────
+    // RLS enabled + FORCED with NO policies: every client-visible path is
+    // denied by default, including A reaching for B's queue rows and A
+    // writing into their own queue by hand (enqueueing is the API's job, and
+    // the quota/serialization layers live there — the queue is not a client
+    // surface).
+    await act(adminPool, users.a, async (q) => {
+      let visible = -1;
+      try {
+        const sel = await q(`SELECT count(*)::int AS n FROM agent_jobs WHERE org_id = $1`, [orgB]);
+        visible = Number(sel.rows[0]?.n ?? -1);
+      } catch {
+        visible = 0;
+      }
+      check("A cannot READ Company B agent_jobs", visible === 0, `got ${visible}`);
+
+      let wrote = false;
+      try {
+        const ins = await q(
+          `INSERT INTO agent_jobs (id, org_id, type, payload) VALUES (gen_random_uuid(), $1, 'task.execute', '{}') RETURNING 1`,
+          [orgA],
+        );
+        wrote = ins.rowCount !== 0;
+      } catch {
+        wrote = false;
+      }
+      check("A cannot WRITE agent_jobs (no policies → default deny)", !wrote);
+    });
+    await act(adminPool, users.b, async (q) => {
+      // The owner of the org cannot read their own queue rows either — FORCE
+      // means even the table owner is subject; the service role alone works.
+      let visible = -1;
+      try {
+        const sel = await q(`SELECT count(*)::int AS n FROM agent_jobs WHERE org_id = $1`, [orgB]);
+        visible = Number(sel.rows[0]?.n ?? -1);
+      } catch {
+        visible = 0;
+      }
+      check("B (own org owner) cannot READ agent_jobs either (FORCED, no policies)", visible === 0, `got ${visible}`);
     });
 
     console.log("[4/4] summary");

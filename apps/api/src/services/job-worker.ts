@@ -28,6 +28,7 @@ import type { Logger } from 'pino';
 import { claimJob, completeJob, deadLetterJob, failJob, reapStaleJobs, skipJob } from './jobs.js';
 import { executeWithQuality } from './quality-pipeline.js';
 import { expireStaleReservations } from './credits.js';
+import { expireOpenGates } from './approvals.js';
 
 export interface JobWorkerStats {
   claimed: number;
@@ -80,6 +81,148 @@ function withTimeout<T>(work: Promise<T>, ms: number, onTimeout: string): Promis
   });
 }
 
+/**
+ * Preflight one claim: decide whether this job should run at all, before any
+ * work or model call happens.
+ *
+ *   { dead }  the job can never succeed (no payload, or the task is gone) —
+ *             retrying it wastes the ladder, so it is dead-lettered now.
+ *   { skip }  the job is legitimate but unnecessary right now: another job is
+ *             already running this task, or the task is already completed or
+ *             settled by the founder. Running it again would either duplicate
+ *             execution or overwrite the founder's own record of what
+ *             happened with a fresh, unasked-for run.
+ *   null      run it.
+ */
+async function preflightTaskJob(
+  db: Db,
+  job: { id: string; orgId: string; type: string; taskId: string | null },
+): Promise<{ dead: string } | { skip: string } | null> {
+  if (job.type !== 'task.execute') return null;
+  if (!job.taskId) return { dead: 'task.execute job has no taskId in its payload' };
+
+  // The org match is defense in depth (docs/80 Phase 0): the job row's org
+  // is authoritative, and a payload that ever pointed at a foreign task must
+  // read as gone rather than be executed under the wrong tenant.
+  const [task] = await db
+    .select({ status: tasks.status })
+    .from(tasks)
+    .where(and(eq(tasks.id, job.taskId), eq(tasks.orgId, job.orgId)))
+    .limit(1);
+  if (!task) return { dead: `task ${job.taskId} no longer exists` };
+  if (task.status === 'completed') {
+    return { skip: 'the task is already completed — it will not be run again' };
+  }
+  if (task.status === 'cancelled' || task.status === 'rejected') {
+    return { skip: `the task is ${task.status}; it was settled by the founder` };
+  }
+
+  const [other] = await db
+    .select({ id: agentJobs.id })
+    .from(agentJobs)
+    .where(
+      and(
+        eq(agentJobs.taskId, job.taskId),
+        eq(agentJobs.orgId, job.orgId),
+        eq(agentJobs.status, 'running'),
+        sql`${agentJobs.id} <> ${job.id}`,
+        sql`${agentJobs.lockedAt} > now() - (${STALE_LOCK_SECONDS} || ' seconds')::interval`,
+      ),
+    )
+    .limit(1);
+  if (other) {
+    return { skip: `another job (${other.id.slice(0, 8)}) is already running this task` };
+  }
+  return null;
+}
+
+export type ClaimedJobOutcome =
+  | { kind: 'empty' }
+  | { kind: 'done'; jobId: string; taskId: string | null }
+  | { kind: 'skipped'; jobId: string; taskId: string | null; reason: string }
+  | { kind: 'failed'; jobId: string; taskId: string | null; dead: boolean; error: string };
+
+/**
+ * Claim ONE pending job and take it through the shared preflight → dispatch →
+ * settle ladder. Extracted from the interval loop so the identical ladder can
+ * be driven deterministically — by tests, and by code paths that release one
+ * unit of already-approved work (e.g. a founder decision on a gate) without
+ * waiting for the next tick. Every queue consumer goes through this function:
+ * the loop and the callers can never drift apart in what running a job means.
+ */
+export async function claimAndRunOne(
+  config: AppConfig,
+  db: Db,
+  logger: Logger,
+  workerId: string,
+): Promise<ClaimedJobOutcome> {
+  const job = await claimJob(db, workerId, {
+    maxConcurrentPerOrg: config.JOB_MAX_CONCURRENT_PER_ORG,
+  });
+  if (!job) return { kind: 'empty' };
+  const started = Date.now();
+  try {
+    const verdict = await preflightTaskJob(db, job);
+    if (verdict && 'dead' in verdict) {
+      throw new NotRetryableError(verdict.dead);
+    }
+    if (verdict && 'skip' in verdict) {
+      await skipJob(db, job.id, verdict.skip);
+      logger.warn(
+        { jobId: job.id, type: job.type, taskId: job.taskId, reason: verdict.skip },
+        'job-worker: job skipped — the work was not run again',
+      );
+      return { kind: 'skipped', jobId: job.id, taskId: job.taskId, reason: verdict.skip };
+    }
+
+    if (job.type !== 'task.execute' || !job.taskId) {
+      // A reserved type with no arm (docs/75 phase 2 keeps `command.run`
+      // reserved), or a task.execute job with no taskId: fail fast and visibly
+      // rather than retrying three times over nothing.
+      throw new NotRetryableError(
+        job.type !== 'task.execute'
+          ? `no dispatcher for job type "${job.type}"`
+          : 'task.execute job has no taskId in its payload',
+      );
+    }
+    await withTimeout(
+      executeWithQuality(config, db, job.orgId, job.taskId),
+      config.JOB_TIMEOUT_MS,
+      `job exceeded JOB_TIMEOUT_MS (${config.JOB_TIMEOUT_MS}ms)`,
+    );
+
+    await completeJob(db, job.id);
+    logger.info(
+      { jobId: job.id, type: job.type, taskId: job.taskId, ms: Date.now() - started },
+      'job-worker: job done',
+    );
+    return { kind: 'done', jobId: job.id, taskId: job.taskId };
+  } catch (err) {
+    const message = (err as Error)?.message ?? String(err);
+    const notRetryable = err instanceof NotRetryableError || err instanceof JobTimeoutError;
+    if (notRetryable) {
+      await deadLetterJob(db, job.id, err);
+      logger.error(
+        { jobId: job.id, type: job.type, taskId: job.taskId, reason: message },
+        'job-worker: job dead-lettered (not retryable)',
+      );
+      return { kind: 'failed', jobId: job.id, taskId: job.taskId, dead: true, error: message };
+    }
+    const outcome = await failJob(db, job.id, job.attempts, job.maxAttempts, err);
+    logger.warn(
+      { jobId: job.id, type: job.type, taskId: job.taskId, attempts: job.attempts, outcome, err },
+      'job-worker: job failed',
+    );
+    return {
+      kind: 'failed',
+      jobId: job.id,
+      taskId: job.taskId,
+      dead: outcome === 'dead',
+      error: message,
+    };
+  }
+}
+
 export function startJobWorker(config: AppConfig, db: Db, logger: Logger): JobWorkerHandle {
   let stopped = false;
   let running = false; // no overlapping ticks if a run outlasts the interval
@@ -98,135 +241,6 @@ export function startJobWorker(config: AppConfig, db: Db, logger: Logger): JobWo
     reaped: 0,
     lastClaimAt: null,
     lastError: null,
-  };
-
-  /**
-   * Preflight every claim: decide whether this job should run at all, before
-   * any work or model call happens.
-   *
-   *   { dead }  the job can never succeed (no payload, or the task is gone) —
-   *             retrying it wastes the ladder, so it is dead-lettered now.
-   *   { skip }  the job is legitimate but unnecessary right now: another job is
-   *             already running this task, or the task is already completed or
-   *             settled by the founder. Running it again would either duplicate
-   *             execution or overwrite the founder's own record of what
-   *             happened with a fresh, unasked-for run.
-   *   null      run it.
-   */
-  const preflight = async (
-    job: { id: string; orgId: string; type: string; taskId: string | null },
-  ): Promise<{ dead: string } | { skip: string } | null> => {
-    if (job.type !== 'task.execute') return null;
-    if (!job.taskId) return { dead: 'task.execute job has no taskId in its payload' };
-
-    // The org match is defense in depth (docs/80 Phase 0): the job row's org
-    // is authoritative, and a payload that ever pointed at a foreign task must
-    // read as gone rather than be executed under the wrong tenant.
-    const [task] = await db
-      .select({ status: tasks.status })
-      .from(tasks)
-      .where(and(eq(tasks.id, job.taskId), eq(tasks.orgId, job.orgId)))
-      .limit(1);
-    if (!task) return { dead: `task ${job.taskId} no longer exists` };
-    if (task.status === 'completed') {
-      return { skip: 'the task is already completed — it will not be run again' };
-    }
-    if (task.status === 'cancelled' || task.status === 'rejected') {
-      return { skip: `the task is ${task.status}; it was settled by the founder` };
-    }
-
-    const [other] = await db
-      .select({ id: agentJobs.id })
-      .from(agentJobs)
-      .where(
-        and(
-          eq(agentJobs.taskId, job.taskId),
-          eq(agentJobs.orgId, job.orgId),
-          eq(agentJobs.status, 'running'),
-          sql`${agentJobs.id} <> ${job.id}`,
-          sql`${agentJobs.lockedAt} > now() - (${STALE_LOCK_SECONDS} || ' seconds')::interval`,
-        ),
-      )
-      .limit(1);
-    if (other) {
-      return { skip: `another job (${other.id.slice(0, 8)}) is already running this task` };
-    }
-    return null;
-  };
-
-  const dispatch = async (job: {
-    id: string;
-    type: string;
-    orgId: string;
-    taskId: string | null;
-  }): Promise<void> => {
-    switch (job.type) {
-      case 'task.execute': {
-        if (!job.taskId) {
-          throw new NotRetryableError('task.execute job has no taskId in its payload');
-        }
-        await executeWithQuality(config, db, job.orgId, job.taskId);
-        return;
-      }
-      default:
-        // A reserved type with no arm (docs/75 phase 2 keeps `command.run`
-        // reserved): fail fast and visibly rather than retrying three times
-        // over nothing.
-        throw new NotRetryableError(`no dispatcher for job type "${job.type}"`);
-    }
-  };
-
-  const runOne = async (job: Awaited<ReturnType<typeof claimJob>>): Promise<void> => {
-    if (!job) return;
-    stats.claimed += 1;
-    stats.lastClaimAt = new Date();
-    const started = Date.now();
-    try {
-      const verdict = await preflight(job);
-      if (verdict && 'dead' in verdict) {
-        throw new NotRetryableError(verdict.dead);
-      }
-      if (verdict && 'skip' in verdict) {
-        stats.skipped += 1;
-        await skipJob(db, job.id, verdict.skip);
-        logger.warn(
-          { jobId: job.id, type: job.type, taskId: job.taskId, reason: verdict.skip },
-          'job-worker: job skipped — the work was not run again',
-        );
-        return;
-      }
-      await withTimeout(
-        dispatch(job),
-        config.JOB_TIMEOUT_MS,
-        `job exceeded JOB_TIMEOUT_MS (${config.JOB_TIMEOUT_MS}ms)`,
-      );
-      await completeJob(db, job.id);
-      stats.done += 1;
-      logger.info(
-        { jobId: job.id, type: job.type, taskId: job.taskId, ms: Date.now() - started },
-        'job-worker: job done',
-      );
-    } catch (err) {
-      const message = (err as Error)?.message ?? String(err);
-      stats.lastError = message;
-      const notRetryable = err instanceof NotRetryableError || err instanceof JobTimeoutError;
-      if (notRetryable) {
-        stats.deadLettered += 1;
-        await deadLetterJob(db, job.id, err);
-        logger.error(
-          { jobId: job.id, type: job.type, taskId: job.taskId, reason: message },
-          'job-worker: job dead-lettered (not retryable)',
-        );
-        return;
-      }
-      const outcome = await failJob(db, job.id, job.attempts, job.maxAttempts, err);
-      stats.failed += 1;
-      if (outcome === 'dead') stats.deadLettered += 1;
-      logger.warn(
-        { jobId: job.id, type: job.type, taskId: job.taskId, attempts: job.attempts, outcome, err },
-        'job-worker: job failed',
-      );
-    }
   };
 
   const tick = async (): Promise<void> => {
@@ -254,13 +268,30 @@ export function startJobWorker(config: AppConfig, db: Db, logger: Logger): JobWo
         );
       }
 
+      // Gate expiry (docs/82 §gate-expiry): an open approval past its decision
+      // window expires to a pause — silence never approves. Same cadence as
+      // the reservation sweep: cheap, indexed, safe to run every tick.
+      const gatesExpired = await expireOpenGates(db, { limit: 100 }).catch(() => []);
+      if (gatesExpired.length > 0) {
+        logger.warn(
+          { expired: gatesExpired.length, gates: gatesExpired.map((g) => g.approvalId.slice(0, 8)) },
+          'job-worker: expired unanswered approval gates (paused, never approved)',
+        );
+      }
+
       for (let i = 0; i < batchSize; i++) {
         if (stopped) break;
-        const job = await claimJob(db, workerId, {
-          maxConcurrentPerOrg: config.JOB_MAX_CONCURRENT_PER_ORG,
-        });
-        if (!job) break;
-        await runOne(job);
+        const outcome = await claimAndRunOne(config, db, logger, workerId);
+        if (outcome.kind === 'empty') break;
+        stats.claimed += 1;
+        stats.lastClaimAt = new Date();
+        if (outcome.kind === 'done') stats.done += 1;
+        if (outcome.kind === 'skipped') stats.skipped += 1;
+        if (outcome.kind === 'failed') {
+          stats.failed += 1;
+          stats.lastError = outcome.error;
+          if (outcome.dead) stats.deadLettered += 1;
+        }
       }
     } catch (err) {
       // The queue is durable and the interval persistent — a bad tick must

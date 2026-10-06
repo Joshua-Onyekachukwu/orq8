@@ -453,6 +453,19 @@ export async function consumeCredits(
       // Guard failed → the whole transaction (including the ledger row) rolls back.
       throw new CreditExhaustedError(orgId, 0, cost, operationType);
     }
+
+    // Audit inside the same transaction as the ledger row and the debit: a
+    // charge can never land without its audit (a charge that is unaudited is
+    // invisible money). If the audit write fails the whole charge rolls back
+    // and the caller retries.
+    await appendAudit(tx, {
+      orgId,
+      actorType: 'system',
+      action: 'credits.consumed',
+      outcome: 'success',
+      cost: cost ?? 0,
+    });
+
     return { duplicate: false as const };
   });
 
@@ -460,15 +473,6 @@ export async function consumeCredits(
     // Already billed under this key: report honestly, charge nothing.
     return { balance: await getOrCreateBalance(db, orgId), consumed: 0, duplicate: true };
   }
-
-  // Audit the consumption
-  await appendAudit(db, {
-    orgId,
-    actorType: 'system',
-    action: 'credits.consumed',
-    outcome: 'success',
-    cost: cost ?? 0,
-  });
 
   // Return updated balance
   const updatedBalance = await getOrCreateBalance(db, orgId);
@@ -533,6 +537,16 @@ export async function addPurchasedCredits(
           gte(creditBalances.periodStart, balance.periodStart),
         ),
       );
+
+    // Audit inside the transaction: a grant that lands without its audit row is
+    // invisible money. Rollback on audit failure keeps ledger and audit atomic.
+    await appendAudit(tx, {
+      orgId,
+      actorType: 'system',
+      action: 'credits.purchased',
+      outcome: 'success',
+      cost: amount ?? 0,
+    });
     return true;
   });
 
@@ -541,14 +555,8 @@ export async function addPurchasedCredits(
     return { balance: await getOrCreateBalance(db, orgId), applied: false };
   }
 
-  await appendAudit(db, {
-    orgId,
-    actorType: 'system',
-    action: 'credits.purchased',
-    outcome: 'success',
-    cost: amount ?? 0,
-  });
-
+  // (The audit fired inside the transaction — a grant is never unaudited, and
+  // never audited twice.)
   return { balance: await getOrCreateBalance(db, orgId), applied: true };
 }
 
@@ -578,12 +586,16 @@ export async function adjustCredits(
       .returning({ id: creditTransactions.id });
     if (inserted.length === 0) return false;
 
-    // Atomic, floored at zero — `greatest(0, ...)` keeps the aggregate honest
-    // even when a negative adjustment exceeds what was purchased.
+    // No silent floor. An adjustment that overdraws what was purchased leaves a
+    // negative `purchasedCredits`, which the reconciliation math reads exactly
+    // as what happened; `greatest(0, …)` here used to erase a negative
+    // adjustment from the aggregate while its ledger row stayed, so the ledger
+    // and the balance disagreed BY CONSTRUCTION and every reconciliation
+    // report for the org showed phantom drift forever after.
     await tx
       .update(creditBalances)
       .set({
-        purchasedCredits: sql`greatest(0, ${creditBalances.purchasedCredits} + ${amount})`,
+        purchasedCredits: sql`${creditBalances.purchasedCredits} + ${amount}`,
         updatedAt: new Date(),
       })
       .where(
@@ -592,12 +604,12 @@ export async function adjustCredits(
           gte(creditBalances.periodStart, balance.periodStart),
         ),
       );
-    return true;
-  });
 
-  // Adjustments were previously invisible in the audit trail (docs/77 §A13).
-  if (applied) {
-    await appendAudit(db, {
+    // Adjustments were previously invisible in the audit trail (docs/77 §A13).
+    // Inside the transaction: a charge that is never audited is invisible
+    // money. If the audit write fails the whole adjustment rolls back — an
+    // applied adjustment and its audit row succeed or fail together.
+    await appendAudit(tx, {
       orgId,
       actorType: options.actorType ?? 'system',
       actorId: options.actorId,
@@ -605,7 +617,8 @@ export async function adjustCredits(
       outcome: 'success',
       cost: amount,
     });
-  }
+    return true;
+  });
 
   return { balance: await getOrCreateBalance(db, orgId), applied };
 }
@@ -615,6 +628,15 @@ export async function adjustCredits(
  * The ledger is the source of truth; `drift` is how far the aggregate has
  * wandered. Non-zero drift means a charge was lost or double-applied — the
  * condition that used to be invisible.
+ *
+ * The balance has TWO independent aggregates, each fed by different ledger
+ * types, so they are reconciled separately:
+ *   • used  ← usage (−) and refund (+): spend net of give-backs
+ *   • purchased ← purchase, adjustment, rollover (+ or −): credit supply
+ * Summing every type into one number (the previous attempt) folded a top-up
+ * into spend and reported `drift = −grant` forever; summing only usage missed
+ * a lost refund. Each side compared against its own aggregate is the only
+ * form that is zero in BOTH the grant-less and the topped-up case.
  */
 export async function reconcileLedger(
   db: Db,
@@ -626,35 +648,45 @@ export async function reconcileLedger(
   drift: number;
   balanced: boolean;
   usageRows: number;
+  /** Backward-compatible alias: the dominant side (used) drift. */
+  ledgerPurchased: number;
+  balancePurchased: number;
+  purchasedDrift: number;
 }> {
   const balance = await getOrCreateBalance(db, orgId);
-  // Refunds move a settled charge back (a positive `refund` row), so they are
-  // summed here too: `-amount` on a positive refund subtracts it, keeping
-  // `drift = balance.used − ledger` at zero after a refund instead of leaving a
-  // phantom positive drift.
+  // `amount` is signed from the spender's perspective: negative rows are
+  // charges (usage), positive rows are give-backs (refund) or supply
+  // (purchase/adjustment/rollover). So `-amount` sums each side in the
+  // direction of the aggregate it feeds.
   const [row] = await db
     .select({
-      ledgerUsed: sql<number>`COALESCE(SUM(-${creditTransactions.amount}), 0)::int`,
+      ledgerUsed: sql<number>`COALESCE(SUM(-${creditTransactions.amount}) FILTER (WHERE ${creditTransactions.type} IN ('usage', 'refund')), 0)::int`,
+      ledgerPurchased: sql<number>`COALESCE(SUM(${creditTransactions.amount}) FILTER (WHERE ${creditTransactions.type} IN ('purchase', 'adjustment', 'rollover')), 0)::int`,
       usageRows: sql<number>`count(*) FILTER (WHERE ${creditTransactions.type} = 'usage')::int`,
     })
     .from(creditTransactions)
     .where(
       and(
         eq(creditTransactions.orgId, orgId),
-        sql`${creditTransactions.type} IN ('usage', 'refund')`,
+        sql`${creditTransactions.type} IN ('usage', 'refund', 'purchase', 'adjustment', 'rollover')`,
         gte(creditTransactions.createdAt, balance.periodStart),
         lte(creditTransactions.createdAt, balance.periodEnd),
       ),
     );
   const ledgerUsed = row?.ledgerUsed ?? 0;
+  const ledgerPurchased = row?.ledgerPurchased ?? 0;
   const drift = balance.used - ledgerUsed;
+  const purchasedDrift = balance.purchased - ledgerPurchased;
   return {
     orgId,
     balanceUsed: balance.used,
     ledgerUsed,
     drift,
-    balanced: drift === 0,
+    balanced: drift === 0 && purchasedDrift === 0,
     usageRows: row?.usageRows ?? 0,
+    ledgerPurchased,
+    balancePurchased: balance.purchased,
+    purchasedDrift,
   };
 }
 
@@ -701,10 +733,20 @@ export async function getUsageSummary(
     )
     .orderBy(desc(creditTransactions.createdAt));
 
-  // Aggregate by operation type
+  // Aggregate by what the spend WAS, from the attribution columns written at
+  // settlement (migrations 0015/0039) — not by parsing the free-text
+  // description with a regex. A description is prose; the columns are the
+  // record. The description prefix survives only as the last fallback for
+  // legacy rows that predate the columns.
   const byOperationMap = new Map<string, { count: number; totalCost: number }>();
   for (const tx of transactions) {
-    const key = tx.description?.split(':')[0] ?? 'unknown';
+    const key: string = tx.taskId
+      ? 'task'
+      : tx.jobId
+        ? 'job'
+        : tx.agentId
+          ? 'agent'
+          : tx.referenceType ?? tx.description?.split(':')[0] ?? 'other';
     const existing = byOperationMap.get(key) ?? { count: 0, totalCost: 0 };
     existing.count += 1;
     existing.totalCost += Math.abs(tx.amount);
@@ -727,13 +769,11 @@ export async function getUsageSummary(
     .map(([date, cost]) => ({ date, cost }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Spend per goal for this period, from the tasks that consumed it: a credit
-  // transaction carries no goal, but its usage line names the task that ran
-  // (`description: "task:<id>"`), and the task knows its goal.
+  // Spend per goal for this period, from the rows' own task attribution —
+  // the `task_id` column written at settlement, not a regex over prose.
   const goalTaskIds = new Set<string>();
   for (const tx of transactions) {
-    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
-    if (taskId) goalTaskIds.add(taskId);
+    if (tx.taskId) goalTaskIds.add(tx.taskId);
   }
   const goalTasks = goalTaskIds.size
     ? await db
@@ -751,8 +791,7 @@ export async function getUsageSummary(
 
   const byGoalMap = new Map<string, { title: string; count: number; totalCost: number; taskCount: number }>();
   for (const tx of transactions) {
-    const taskId = tx.description?.match(/^task:([0-9a-f-]{36})/i)?.[1];
-    const task = taskId ? goalIdByTask.get(taskId) : undefined;
+    const task = tx.taskId ? goalIdByTask.get(tx.taskId) : undefined;
     const goalId = task?.goalId;
     if (!goalId) continue;
     const entry = byGoalMap.get(goalId) ?? {
@@ -763,19 +802,19 @@ export async function getUsageSummary(
     };
     entry.count += 1;
     entry.totalCost += Math.abs(tx.amount);
-    if (taskId) entry.taskCount += 1;
+    if (tx.taskId) entry.taskCount += 1;
     byGoalMap.set(goalId, entry);
   }
   const byGoal = Array.from(byGoalMap.entries())
     .map(([goalId, data]) => ({ goalId, ...data }))
     .sort((a, b) => b.totalCost - a.totalCost);
 
-  // Spend per employee for this period. Most usage lines do not name an agent,
-  // so fall back to the org's agents' own period spend (agents.cost is their
-  // lifetime total); both are real records, and the page shows which is which.
+  // Spend per employee for this period: the `agent_id` attribution column
+  // first (what the spend actually was), the `reference_type: 'agent'` rows
+  // second, so a legacy line still lands.
   const byAgentMap = new Map<string, { agentName: string; totalCost: number }>();
   for (const tx of transactions) {
-    const agentId = tx.referenceType === 'agent' ? tx.referenceId : null;
+    const agentId = tx.agentId ?? (tx.referenceType === 'agent' ? tx.referenceId : null);
     if (!agentId) continue;
     byAgentMap.set(agentId, {
       agentName: byAgentMap.get(agentId)?.agentName ?? '',
@@ -1290,21 +1329,24 @@ export async function refundCredits(
         ),
       );
 
+    // Audit inside the transaction: money that moves without its audit row is
+    // invisible. The old post-transaction `.catch(() => undefined)` audit could
+    // vanish while the ledger row and the debit survived.
+    await appendAudit(tx, {
+      orgId,
+      actorType: 'system',
+      action: 'credits.refunded',
+      outcome: 'success',
+      cost: credits,
+      resultRef: options.reason.slice(0, 200),
+    });
+
     return true;
   });
 
   if (!applied) {
     return { balance: await getOrCreateBalance(db, orgId), refunded: 0, duplicate: true };
   }
-
-  await appendAudit(db, {
-    orgId,
-    actorType: 'system',
-    action: 'credits.refunded',
-    outcome: 'success',
-    cost: credits,
-    resultRef: options.reason.slice(0, 200),
-  }).catch(() => undefined);
 
   return { balance: await getOrCreateBalance(db, orgId), refunded: credits };
 }

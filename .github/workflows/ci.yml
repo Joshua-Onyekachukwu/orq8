@@ -148,6 +148,43 @@ jobs:
             echo "No obvious secrets found in tracked files"
           fi
 
+  audits:
+    name: UI audits (contrast, RSC boundary, routes, theme)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The founder-loop design audits were advisory in local runs and silent in
+      # CI — which is how a regression ships. They are dependency-light and
+      # fast, so they run as one blocking job: a red audit blocks merge, the
+      # same way a red typecheck does.
+      - name: Contrast audit
+        run: pnpm run audit:contrast
+
+      - name: RSC boundary scan
+        run: node scripts/scan-rsc-boundary.mjs
+
+      - name: Route sweep (375px viewport)
+        run: node scripts/route-sweep.mjs --width 375
+
+      - name: Theme walk
+        run: node scripts/theme-walk.mjs
+
   brand:
     name: Brand surface audit
     runs-on: ubuntu-latest
@@ -233,14 +270,10 @@ jobs:
       #           activated one (MVP-021, MVP-034) — the same script that gates
       #           a real release, proven to fail and to pass
       #
-      # Non-blocking on purpose for now: these are the only proofs that need a
-      # full Next.js build plus a live stack, and they have never run on a
-      # GitHub runner. A gate that goes red for environmental reasons gets
-      # ignored, which is worse than a gate that starts advisory. Flip this to
-      # false once it has held on a few runs; the four proofs in the `proofs`
-      # job are blocking from the start.
+      # Blocking: it held green across the hardening cycles (docs/82), and an
+      # advisory founder-loop is a founder-loop nobody reads.
       - name: Route sweep and release gate on the review stack
-        continue-on-error: true
+        continue-on-error: false
         run: node scripts/proofs.mjs --only routes,gate --with-stack
 
   docker:

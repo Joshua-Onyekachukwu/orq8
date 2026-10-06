@@ -1,5 +1,7 @@
 // docs/35.1 — Idempotency-Key header on mutating endpoints; responses replayed on retry.
 // Phase 1 uses an in-memory store with TTL; a DB-backed store lands with the outbox (Phase 2+).
+import { canonicalJson } from './decision-token.js';
+
 export interface IdempotencyEntry {
   payloadHash: string;
   status: number;
@@ -42,6 +44,13 @@ export class InMemoryIdempotencyStore implements IdempotencyStore {
   }
 }
 
+/**
+ * Hash a request payload for replay comparison — canonical (sorted-key) JSON,
+ * so the same logical payload hashes identically no matter the key order it
+ * was serialized with. `JSON.stringify` emits insertion order, which meant a
+ * key-reordered retry of an identical request was answered 409 "different
+ * payload" AFTER the first had already succeeded.
+ */
 export function stablePayloadHash(payload: unknown): string {
-  return JSON.stringify(payload); // deterministic via stable JSON.stringify below
+  return canonicalJson(payload ?? null);
 }

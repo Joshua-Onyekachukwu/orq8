@@ -448,18 +448,27 @@ describe.skipIf(!dbUp)('Abuse: layered rate limits', () => {
       .insert(agents)
       .values({ orgId: session.orgId, name: 'Loop Probe', role: 'software_engineer', status: 'active' })
       .returning({ id: agents.id });
+    // Two tasks for the same employee. (The fixture used to insert both jobs
+    // against ONE task, which the schema now forbids by construction — one
+    // open job per (org, type, task), `agent_jobs_open_task_uniq`.)
     const taskId = await createTask(session, 'Loop probe task');
+    const taskId2 = await createTask(session, 'Loop probe task 2');
     await deps.db.update(tasks).set({ agentId: agent!.id }).where(eq(tasks.id, taskId));
+    await deps.db.update(tasks).set({ agentId: agent!.id }).where(eq(tasks.id, taskId2));
 
     // Two jobs is this employee's whole hourly budget (agent cap = 2).
-    for (let i = 0; i < 2; i++) {
-      await deps.db.insert(agentJobs).values({
-        orgId: session.orgId,
-        type: 'task.execute',
-        payload: { taskId },
-        taskId,
-      });
-    }
+    await deps.db.insert(agentJobs).values({
+      orgId: session.orgId,
+      type: 'task.execute',
+      payload: { taskId },
+      taskId,
+    });
+    await deps.db.insert(agentJobs).values({
+      orgId: session.orgId,
+      type: 'task.execute',
+      payload: { taskId: taskId2 },
+      taskId: taskId2,
+    });
 
     const single = await limitedApp.inject({
       method: 'POST',

@@ -244,10 +244,32 @@ run('an approval gates real work, and deciding it moves that work', () => {
     });
     expect(decide.statusCode).toBe(200);
 
-    // The decision carried the work with it — this is what used to not happen.
+    // The decision releases the work through the queue — never inline (the
+    // gateway does not run model calls on the request path). The PATCH answers
+    // with the enqueue; the worker, shared with every other release path, does
+    // the run and consumes the grant single-use against its decision token.
     const body = JSON.parse(decide.payload) as { resumed: { taskId: string; status: string } | null };
     expect(body.resumed?.taskId, decide.payload).toBe(taskId);
-    expect(body.resumed?.status, decide.payload).toBe('completed');
+    expect(body.resumed?.status, decide.payload).toBe('queued');
+
+    // The PATCH enqueues the release and fires one immediate drain of its own,
+    // so the run belongs to whichever runner claims the job. Await the JOB row
+    // until it settles — never polling the task against a runner that may still
+    // legitimately be mid-flight, and never re-running the work from the test.
+    const { agentJobs } = await import('@orq8/db');
+    let jobStatus: string | undefined;
+    const settledBy = Date.now() + 15_000;
+    while (Date.now() < settledBy) {
+      const [job] = await db
+        .select({ status: agentJobs.status })
+        .from(agentJobs)
+        .where(eq(agentJobs.taskId, taskId))
+        .limit(1);
+      jobStatus = job?.status;
+      if (jobStatus === 'done' || jobStatus === 'dead') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(jobStatus).toBe('done');
 
     const task = await taskRow(taskId);
     expect(task?.status).toBe('completed');

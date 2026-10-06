@@ -31,11 +31,12 @@ import { estimateCredits } from './credit-estimator.js';
 import { taskProviderCost } from './llm-pricing.js';
 import { broadcastToOrg } from './realtime.js';
 import { notifyAttentionChanged } from './attention.js';
-import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
+import { findGrantedGate, findOpenGate, markGateReleased, GATE_TTL_MS } from './approvals.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import { getCalibrationAdvice } from './calibration-routing.js';
 import type { AppConfig } from '@orq8/core';
+import { taskDecisionToken } from '@orq8/core';
 
 /**
  * Task Executor — runs individual tasks through the LLM.
@@ -244,6 +245,11 @@ async function gateTaskOnApproval(
         description: `Agent "${agentName}" is ready to work on "${task.title}" and needs your decision first. ${reason}`,
         riskLevel: 'medium',
         status: 'pending',
+        // Bind the decision to "execute THIS task" (docs/82 §decision-token)
+        // and bound how long the question stays open — the expiry sweeper
+        // pauses the task when it passes; silence never approves.
+        callHash: taskDecisionToken(task.id),
+        gateExpiresAt: new Date(Date.now() + GATE_TTL_MS),
       })
       .returning();
 
@@ -406,6 +412,26 @@ export async function executeTask(
     if (decision.requiresApproval) {
       const grant = await findGrantedGate(db, orgId, taskId);
       if (grant) {
+        // Decision token (docs/82 §decision-token): the founder authorized
+        // "run THIS task"; the token recomputes and compares before the grant
+        // is spent. A mismatched gate is a denial, audited, and the work asks
+        // again rather than riding an approval meant for something else.
+        if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+          await appendAudit(db, {
+            orgId,
+            actorType: 'agent',
+            actorId: task.agentId ?? orgId,
+            approvalId: grant.id,
+            action: 'task.execution_denied',
+            outcome: 'denied',
+            inputRef: JSON.stringify({
+              reason: 'decision_token_mismatch',
+              expectedCallHash: grant.callHash,
+              actualCallHash: taskDecisionToken(taskId),
+            }),
+          });
+          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required');
+        }
         await markGateReleased(db, grant.id);
         await appendAudit(db, {
           orgId,
@@ -441,6 +467,24 @@ export async function executeTask(
   if (estimate.approvalRequired) {
     const grant = await findGrantedGate(db, orgId, taskId);
     if (grant) {
+      if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+        // Same decision-token discipline as the autonomy gate above: a grant
+        // bound to a different call is not spendable here.
+        await appendAudit(db, {
+          orgId,
+          actorType: 'agent',
+          actorId: task.agentId ?? orgId,
+          approvalId: grant.id,
+          action: 'task.execution_denied',
+          outcome: 'denied',
+          inputRef: JSON.stringify({
+            reason: 'decision_token_mismatch',
+            expectedCallHash: grant.callHash,
+            actualCallHash: taskDecisionToken(taskId),
+          }),
+        });
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
+      }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {
         orgId,
@@ -475,6 +519,24 @@ export async function executeTask(
       const grant = await findGrantedGate(db, orgId, taskId);
       if (!grant) {
         return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail);
+      }
+      if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+        // A budget-approval grant bound to another call is not spendable for
+        // this task either.
+        await appendAudit(db, {
+          orgId,
+          actorType: 'agent',
+          actorId: task.agentId ?? orgId,
+          approvalId: grant.id,
+          action: 'task.execution_denied',
+          outcome: 'denied',
+          inputRef: JSON.stringify({
+            reason: 'decision_token_mismatch',
+            expectedCallHash: grant.callHash,
+            actualCallHash: taskDecisionToken(taskId),
+          }),
+        });
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
       }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {

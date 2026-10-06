@@ -20,12 +20,13 @@
 
 import type { AppConfig } from '@orq8/core';
 import { appendAudit } from './audit.js';
-import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
+import { consumeCredits, getOrCreateBalance, CreditExhaustedError } from './credits.js';
+import { canonicalSha256, decisionToken } from '@orq8/core';
 import { broadcastToOrg } from './realtime.js';
-import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
+import { findGrantedGate, findOpenGate, markGateReleased, GATE_TTL_MS } from './approvals.js';
 import type { Db } from '@orq8/db';
-import { eq, and, sql } from 'drizzle-orm';
-import { agents, auditEvents } from '@orq8/db';
+import { eq, sql } from 'drizzle-orm';
+import { agents } from '@orq8/db';
 
 // ─── Tool Definition Types ──────────────────────────────────────────────────
 
@@ -246,11 +247,16 @@ export async function executeTool(
 ): Promise<ToolExecutionResult> {
   const startTime = Date.now();
 
-  // 0. Generate idempotency key from tool + agent + params
+  // 0. Generate idempotency key from tool + agent + params, and the decision
+  // token for the exact call (docs/82 §decision-token). Both use the same
+  // canonical serialization, so the call the founder is shown, the hash bound
+  // into the approval row, and the reference the audit carries are one and the
+  // same call — not three loosely related descriptions of it.
   const idempotencyKey = generateIdempotencyKey(toolId, ctx.agentId, params);
+  const callHash = decisionToken(toolId, params);
 
   // Check if this exact call was already executed (idempotency)
-  const existingResult = await checkIdempotency(db, ctx.orgId, idempotencyKey);
+  const existingResult = checkIdempotency(ctx.orgId, idempotencyKey);
   if (existingResult) {
     return existingResult;
   }
@@ -312,14 +318,18 @@ export async function executeTool(
     };
   }
 
-  // 4. Check credits
+  // 4. Check credits — against the tool's own price, the same number the
+  // authority check bounded, the approval card quoted, and step 7 charges.
+  // This used to look up OPERATION_COSTS[`tool.${toolId}`], a key that does
+  // not exist in that table, so every tool fell through to the default price
+  // and pre-flight could green-light a call the charge step then refused.
   if (tool.creditCost > 0) {
-    const creditCheck = await hasEnoughCredits(db, ctx.orgId, `tool.${toolId}`);
-    if (!creditCheck.allowed) {
+    const balance = await getOrCreateBalance(db, ctx.orgId);
+    if (balance.remaining < tool.creditCost) {
       return {
         success: false,
         output: null,
-        error: `Insufficient credits. ${tool.creditCost} required, ${creditCheck.balance.remaining} remaining.`,
+        error: `Insufficient credits. ${tool.creditCost} required, ${balance.remaining} remaining.`,
         creditsConsumed: 0,
         durationMs: Date.now() - startTime,
         toolId,
@@ -336,6 +346,40 @@ export async function executeTool(
     // forever — the grant is single-use, so consume it and get on with the call.
     const grant = ctx.taskId ? await findGrantedGate(db, ctx.orgId, ctx.taskId) : undefined;
     if (grant) {
+      // Decision token (docs/82 §decision-token): the founder authorized an
+      // exact call, hashed into the approval row when the gate opened. If the
+      // call coming back after the decision is not that call — different tool,
+      // different arguments, swapped recipient — the grant is NOT spent and
+      // the attempt is a denial, audited. Silence or approval of call A can
+      // never execute call B.
+      if (grant.callHash && grant.callHash !== callHash) {
+        await appendAudit(db, {
+          orgId: ctx.orgId,
+          actorType: 'agent',
+          actorId: ctx.agentId,
+          taskId: ctx.taskId ?? null,
+          approvalId: grant.id,
+          action: 'tool.denied',
+          tool: toolId,
+          cost: 0,
+          outcome: 'denied',
+          inputRef: JSON.stringify({
+            reason: 'decision_token_mismatch',
+            expectedCallHash: grant.callHash,
+            actualCallHash: callHash,
+            params,
+          }),
+        }).catch(() => {});
+        return {
+          success: false,
+          output: { message: 'Decision token mismatch: the approved call differs from this one. Re-requesting approval.', approvalId: grant.id },
+          error: 'Decision token mismatch — the founder approved a different call. A new approval has been requested.',
+          creditsConsumed: 0,
+          durationMs: Date.now() - startTime,
+          toolId,
+          approvalRequired: false,
+        };
+      }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {
         orgId: ctx.orgId,
@@ -368,6 +412,11 @@ export async function executeTool(
           cost: tool.creditCost,
           riskLevel: tool.riskLevel === 'critical' ? 'high' : tool.riskLevel === 'high' ? 'high' : 'medium',
           status: 'pending',
+          // Bind the decision to THIS call (docs/82 §decision-token) and put a
+          // hard limit on how long the question stays open — the expiry sweep
+          // pauses the task when it passes; silence never approves.
+          callHash,
+          gateExpiresAt: new Date(Date.now() + GATE_TTL_MS),
         }).returning()
       )[0];
 
@@ -1275,16 +1324,12 @@ function generateIdempotencyKey(
   agentId: string,
   params: Record<string, unknown>,
 ): string {
-  const paramStr = JSON.stringify(params, Object.keys(params).sort());
-  // Simple hash — not cryptographic, just for dedup
-  let hash = 0;
-  const str = `${toolId}:${agentId}:${paramStr}`;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return `tool_${toolId}_${Math.abs(hash).toString(36)}`;
+  // Canonical (sorted-key) JSON, not a key-order-sensitive stringify: the same
+  // logical call must dedup no matter how the model ordered the arguments. A
+  // real hash, not a 32-bit toy — collisions here silently returned a
+  // fabricated "already executed" success for work that never ran.
+  const paramStr = canonicalSha256(params ?? {});
+  return `tool_${toolId}_${agentId}_${paramStr.slice(0, 32)}`;
 }
 
 // In-memory idempotency cache (bounded, TTL-based)
@@ -1293,49 +1338,25 @@ const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_IDEMPOTENCY_ENTRIES = 1000;
 
 /**
- * Check if this tool execution was already performed (idempotency).
- * Returns the cached result if found and not expired, null otherwise.
+ * Check the in-memory cache for an exact recent execution.
+ *
+ * This used to fall through to a LIKE-scan over audit_events for the key and,
+ * on any hit, fabricate a success for work whose result nobody has — the scan
+ * could only miss or mislead (the key was not even persisted reliably), it
+ * full-scanned the audit table per call, and it reported success for work that
+ * never ran. The bounded cache alone is the replay guard now: durability comes
+ * from the database-backed dedup that matters per operation (credit ledger
+ * idempotency keys, approval call hashes, the job queue's task dedup).
  */
-async function checkIdempotency(
-  db: Db,
+function checkIdempotency(
   orgId: string,
   key: string,
-): Promise<ToolExecutionResult | null> {
+): ToolExecutionResult | null {
   const cacheKey = `${orgId}:${key}`;
   const cached = idempotencyCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL_MS) {
     return cached.result;
-  }
-
-  // Also check audit trail for recently completed executions
-  try {
-    const recentAudit = await db
-      .select()
-      .from(auditEvents)
-      .where(
-        and(
-          eq(auditEvents.orgId, orgId),
-          eq(auditEvents.action, 'tool.executed'),
-          sql`${auditEvents.inputRef}::text LIKE ${'%' + key + '%'}`,
-        ),
-      )
-      .orderBy(auditEvents.occurredAt)
-      .limit(1);
-
-    if (recentAudit.length > 0) {
-      const result: ToolExecutionResult = {
-        success: true,
-        output: { idempotent: true, message: 'Tool was already executed (idempotent replay)' },
-        creditsConsumed: 0,
-        durationMs: 0,
-        toolId: key.split('_')[1] ?? '',
-        approvalRequired: false,
-      };
-      return result;
-    }
-  } catch {
-    // Audit check failure is non-fatal
   }
 
   return null;

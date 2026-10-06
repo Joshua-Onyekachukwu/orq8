@@ -603,12 +603,24 @@ export const approvals = pgTable(
     toolParams: jsonb('tool_params'), // the exact call, so the founder authorises something specific
     // Set when the gate opened AND the work resumed — makes the grant single-use.
     releasedAt: timestamp('released_at', { withTimezone: true }),
+    // docs/82 §decision-token (migration 0047): the exact authorized call,
+    // hashed. sha256(tool_id + canonical_json(tool_params)) for tool gates,
+    // sha256("task.execute:" + taskId) for task gates. Recomputed when the
+    // gate is consumed; a mismatch is a denial, audited — the founder approved
+    // THAT call, and nothing else may spend the decision. NULL = legacy row or
+    // an approval shape with no exact call to bind.
+    callHash: text('call_hash'),
+    // When an unanswered gate stops being open: the expiry sweeper turns it
+    // into an `expired` pause (silence never approves); a founder may still
+    // re-decide explicitly while it waits.
+    gateExpiresAt: timestamp('gate_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('approvals_org_idx').on(t.orgId),
     index('approvals_status_idx').on(t.orgId, t.status),
     index('approvals_task_idx').on(t.taskId, t.status),
+    index('approvals_pending_created_idx').on(t.orgId, t.createdAt).where(sql`status = 'pending'`),
   ],
 );
 

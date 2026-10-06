@@ -26,6 +26,12 @@ import {
   llmPerformance,
   sessions,
   waitlistSignups,
+  departments,
+  tasks,
+  goals,
+  companyMemory,
+  decisions,
+  auditEvents,
   type Db,
 } from '@orq8/db';
 import { computeMargin, CREDIT_RATE_BASIS, USD_PER_CREDIT_REFERENCE } from '../services/economics.js';
@@ -161,6 +167,140 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
+  /**
+   * GET /v1/admin/users/:id/detail — everything the platform knows about one
+   * account, for support and trust-and-safety work (docs/82 §admin-accounts):
+   * profile and status, org memberships, session footprint, credit balance,
+   * agent/task/goal counts per company they belong to, and their most recent
+   * audit events.
+   *
+   * Privacy posture: account-level metadata and operational records only.
+   * Company memory CONTENT is deliberately not exposed here — it is business
+   * data owned by the org, readable by the org-intel endpoint under its own
+   * audit trail when there is a specific, logged reason. This endpoint answers
+   * "who is this account and what are they doing", not "read their company's
+   * knowledge". Every view is audited (admin.user_detail_viewed).
+   */
+  app.get<{ Params: { id: string } }>('/v1/admin/users/:id/detail', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const userId = (request.params as { id: string }).id;
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'User not found' } };
+    }
+
+    const userMemberships = await db
+      .select({
+        orgId: memberships.orgId,
+        role: memberships.role,
+        status: memberships.status,
+        createdAt: memberships.createdAt,
+        orgName: organizations.name,
+        orgPlan: organizations.plan,
+        orgStatus: organizations.status,
+      })
+      .from(memberships)
+      .innerJoin(organizations, eq(organizations.id, memberships.orgId))
+      .where(eq(memberships.userId, userId));
+
+    const orgIds = userMemberships.map((m) => m.orgId);
+
+    const [activeSessions, recentAudit] = await Promise.all([
+      db
+        .select({
+          id: sessions.id,
+          createdAt: sessions.createdAt,
+          expiresAt: sessions.expiresAt,
+          ip: sessions.ip,
+          userAgent: sessions.userAgent,
+        })
+        .from(sessions)
+        .where(and(eq(sessions.userId, userId), sql`${sessions.revokedAt} is null`))
+        .orderBy(desc(sessions.createdAt))
+        .limit(10),
+      db
+        .select({
+          action: auditEvents.action,
+          outcome: auditEvents.outcome,
+          occurredAt: auditEvents.occurredAt,
+        })
+        .from(auditEvents)
+        .where(eq(auditEvents.actorId, userId))
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(20),
+    ]);
+
+    // Per-org footprint: agents, task counts, goal counts — orientation on
+    // what each company this account belongs to is doing, per org.
+    const orgFootprint = await Promise.all(
+      orgIds.map(async (orgId) => {
+        const [agentCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(agents)
+          .where(eq(agents.orgId, orgId));
+        const [taskCount] = await db
+          .select({
+            total: sql<number>`count(*)::int`,
+            completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+          })
+          .from(tasks)
+          .where(eq(tasks.orgId, orgId));
+        const [goalCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(goals)
+          .where(eq(goals.orgId, orgId));
+        const [balance] = await db
+          .select({
+            included: creditBalances.includedCredits,
+            purchased: creditBalances.purchasedCredits,
+            used: creditBalances.usedCredits,
+          })
+          .from(creditBalances)
+          .where(eq(creditBalances.orgId, orgId))
+          .limit(1);
+        return {
+          orgId,
+          agents: agentCount?.count ?? 0,
+          tasks: taskCount ?? { total: 0, completed: 0 },
+          goals: goalCount?.count ?? 0,
+          credits: balance ?? null,
+        };
+      }),
+    );
+
+    await appendAudit(deps.db, {
+      orgId: userMemberships[0]?.orgId ?? admin.orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.user_detail_viewed',
+      outcome: 'success',
+      resultRef: `admin:${admin.email} → user:${userId}`,
+    });
+
+    return {
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          status: user.status,
+          platformRole: user.platformRole,
+          jobTitle: user.jobTitle,
+          timezone: user.timezone,
+          emailVerifiedAt: user.emailVerifiedAt,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        memberships: userMemberships,
+        orgFootprint,
+        activeSessions,
+        recentAudit,
+      },
+    };
+  });
+
   /** GET /v1/admin/organizations — List all orgs with member counts, paginated. */
   app.get('/v1/admin/organizations', async (request) => {
     await requirePlatformAdmin(request, deps);
@@ -225,6 +365,212 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return {
       data: enriched,
       meta: { limit, offset, total: totalRow?.count ?? 0 },
+    };
+  });
+
+  /**
+   * GET /v1/admin/organizations/:id/intel — Organization intelligence snapshot.
+   *
+   * What the platform operator needs to understand one customer: who they are,
+   * what they are building (departments, employees, goals, work volumes), how
+   * much of the platform they use (credits, LLM spend), and their recent
+   * lifecycle. Counts, structures and metadata only — NEVER memory content,
+   * task results or other tenant work product: the operator must be able to
+   * operate the platform without reading customers' private material (privacy
+   * by design; access is audited either way).
+   */
+  app.get('/v1/admin/organizations/:id/intel', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const orgId = (request.params as { id: string }).id;
+
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+    if (!org) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Organization not found' } };
+    }
+
+    const [
+      members,
+      orgAgents,
+      departmentsCount,
+      taskStats,
+      recentTasks,
+      orgGoals,
+      activitySamples,
+      memoryCounts,
+      [credits],
+      llmUsage,
+      recentAudit,
+      decisionsCount,
+      sessionsCount,
+    ] = await Promise.all([
+      db
+        .select({
+          userId: memberships.userId,
+          email: users.email,
+          name: users.name,
+          role: memberships.role,
+          joinedAt: memberships.createdAt,
+        })
+        .from(memberships)
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(eq(memberships.orgId, orgId)),
+      db
+        .select({
+          id: agents.id,
+          name: agents.name,
+          role: agents.role,
+          status: agents.status,
+          autonomyLevel: agents.autonomyLevel,
+          tasksCompleted: agents.tasksCompleted,
+          tasksFailed: agents.tasksFailed,
+          creditsUsed: agents.creditsUsed,
+        })
+        .from(agents)
+        .where(eq(agents.orgId, orgId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(departments)
+        .where(eq(departments.orgId, orgId)),
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+          failed: sql<number>`count(*) filter (where ${tasks.status} = 'failed')::int`,
+          active: sql<number>`count(*) filter (where ${tasks.status} in ('pending','in_progress','awaiting_approval'))::int`,
+        })
+        .from(tasks)
+        .where(eq(tasks.orgId, orgId)),
+      // What this company is actually building: the newest task titles.
+      // Titles only — descriptions/results can carry private content, and the
+      // admin surface needs orientation, not surveillance.
+      db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          updatedAt: tasks.updatedAt,
+        })
+        .from(tasks)
+        .where(eq(tasks.orgId, orgId))
+        .orderBy(desc(tasks.updatedAt))
+        .limit(10),
+      // The founder's stated direction: active goals with progress.
+      db
+        .select({
+          id: goals.id,
+          title: goals.title,
+          status: goals.status,
+          progress: goals.progress,
+          updatedAt: goals.updatedAt,
+        })
+        .from(goals)
+        .where(eq(goals.orgId, orgId))
+        .orderBy(desc(goals.updatedAt))
+        .limit(10),
+      // How work actually moves: the newest activity-event summaries. These
+      // are the system's own one-line records of what agents did.
+      db
+        .select({
+          id: activityEvents.id,
+          type: activityEvents.type,
+          summary: activityEvents.summary,
+          occurredAt: activityEvents.occurredAt,
+        })
+        .from(activityEvents)
+        .where(eq(activityEvents.orgId, orgId))
+        .orderBy(desc(activityEvents.occurredAt))
+        .limit(10),
+      // Category counts only — never content.
+      db
+        .select({
+          category: companyMemory.category,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(companyMemory)
+        .where(eq(companyMemory.orgId, orgId))
+        .groupBy(companyMemory.category),
+      db
+        .select()
+        .from(creditBalances)
+        .where(eq(creditBalances.orgId, orgId))
+        .limit(1),
+      db
+        .select({
+          calls: sql<number>`count(*)::int`,
+          tokens: sql<number>`coalesce(sum(${llmPerformance.totalTokens}),0)::int`,
+          costUsd: sql<number>`coalesce(sum(${llmPerformance.providerCostUsd}),0)::float`,
+        })
+        .from(llmPerformance)
+        .where(eq(llmPerformance.orgId, orgId)),
+      db
+        .select({
+          action: auditEvents.action,
+          occurredAt: auditEvents.occurredAt,
+          outcome: auditEvents.outcome,
+        })
+        .from(auditEvents)
+        .where(eq(auditEvents.orgId, orgId))
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(15),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(decisions)
+        .where(eq(decisions.orgId, orgId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(sessions)
+        .where(and(eq(sessions.orgId, orgId), sql`${sessions.revokedAt} is null`)),
+    ]);
+
+    await appendAudit(deps.db, {
+      orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.org_intel_viewed',
+      outcome: 'success',
+      resultRef: `admin:${admin.email} → org:${orgId}`,
+    });
+
+    return {
+      data: {
+        organization: {
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          plan: org.plan,
+          status: org.status,
+          createdAt: org.createdAt,
+        },
+        members,
+        agents: orgAgents,
+        departments: departmentsCount[0]?.count ?? 0,
+        tasks: taskStats[0] ?? { total: 0, completed: 0, failed: 0, active: 0 },
+        recentTasks: recentTasks,
+        goals: orgGoals,
+        activity: activitySamples,
+        memory: {
+          byCategory: memoryCounts,
+          total: memoryCounts.reduce((a, m) => a + m.count, 0),
+        },
+        credits: credits
+          ? {
+              included: credits.includedCredits,
+              purchased: credits.purchasedCredits,
+              used: credits.usedCredits,
+              reserved: credits.reservedCredits,
+              remaining: Math.max(0, credits.includedCredits + credits.purchasedCredits - credits.usedCredits),
+            }
+          : null,
+        aiUsage: llmUsage[0] ?? { calls: 0, tokens: 0, costUsd: 0 },
+        decisions: decisionsCount[0]?.count ?? 0,
+        activeSessions: sessionsCount[0]?.count ?? 0,
+        recentAudit: recentAudit,
+      },
     };
   });
 
