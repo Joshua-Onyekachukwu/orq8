@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
@@ -32,6 +33,8 @@ import {
   companyMemory,
   decisions,
   auditEvents,
+  onboardingStates,
+  businessImports,
   type Db,
 } from '@orq8/db';
 import { computeMargin, CREDIT_RATE_BASIS, USD_PER_CREDIT_REFERENCE } from '../services/economics.js';
@@ -234,6 +237,10 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     // Per-org footprint: agents, task counts, goal counts — orientation on
     // what each company this account belongs to is doing, per org.
+    // The `building` block adds the business's OWN declared profile (onboarding
+    // answers, constitution, imports) and memory composition as COUNTS — the
+    // things the business told the platform about itself. Raw company-memory
+    // content, task descriptions/results and message bodies stay org-owned.
     const orgFootprint = await Promise.all(
       orgIds.map(async (orgId) => {
         const [agentCount] = await db
@@ -270,6 +277,53 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
       }),
     );
 
+    // What they're building, in the business's own declared words.
+    const building = await Promise.all(
+      orgIds.map(async (orgId) => {
+        const [onboarding] = await db
+          .select({
+            step: onboardingStates.step,
+            organization: onboardingStates.organization,
+            constitution: onboardingStates.constitution,
+            completedAt: onboardingStates.completedAt,
+          })
+          .from(onboardingStates)
+          .where(and(eq(onboardingStates.orgId, orgId), eq(onboardingStates.userId, userId)))
+          .limit(1);
+
+        const imports = await db
+          .select({
+            id: businessImports.id,
+            websiteUrl: businessImports.websiteUrl,
+            websiteTitle: businessImports.websiteTitle,
+            websiteSummary: businessImports.websiteSummary,
+            description: businessImports.description,
+            status: businessImports.status,
+            createdAt: businessImports.createdAt,
+          })
+          .from(businessImports)
+          .where(eq(businessImports.orgId, orgId))
+          .orderBy(desc(businessImports.createdAt))
+          .limit(5);
+
+        const byCategory = await db
+          .select({
+            category: companyMemory.category,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(companyMemory)
+          .where(eq(companyMemory.orgId, orgId))
+          .groupBy(companyMemory.category);
+
+        return {
+          orgId,
+          onboarding: onboarding ?? null,
+          imports,
+          memory: { byCategory, total: byCategory.reduce((a, m) => a + m.count, 0) },
+        };
+      }),
+    );
+
     await appendAudit(deps.db, {
       orgId: userMemberships[0]?.orgId ?? admin.orgId,
       actorType: 'user',
@@ -295,6 +349,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
         },
         memberships: userMemberships,
         orgFootprint,
+        building,
         activeSessions,
         recentAudit,
       },
@@ -1457,5 +1512,202 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
         requeued: true,
       },
     };
+  });
+
+  // ── ADMIN EXECUTIVE AGENT (read-only) ──
+  //
+  // The founder's admin console needs its own Executive Agent: it answers
+  // questions about the platform and its customers from live platform data —
+  // account metadata, declared business profile, operational counters, audit
+  // trail. Design boundary: it is STRICTLY read-only, every intent is
+  // deterministic (explainable, testable, no model in the loop, no cost), and
+  // it never exposes customer memory content, task results or message bodies.
+  // Every command is audited.
+
+  /** Shared platform snapshot for both the brief endpoint and the `stats` intent. */
+  async function adminPlatformSnapshot() {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [
+      [usersTotal],
+      [usersActive],
+      [orgsTotal],
+      [agentsTotal],
+      [agentsActive],
+      [pendingApprovals],
+      [sessionsActive],
+      [aiCalls24h],
+      [cost24h],
+      [denied24h],
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(users),
+      db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(organizations),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(approvals).where(eq(approvals.status, 'pending')),
+      db.select({ count: sql<number>`count(*)::int` }).from(sessions).where(sql`${sessions.revokedAt} IS NULL AND ${sessions.expiresAt} > NOW()`),
+      db.select({ count: sql<number>`count(*)::int` }).from(llmPerformance).where(sql`${llmPerformance.createdAt} >= ${dayAgo}`),
+      db.select({ cost: sql<number>`coalesce(sum(${llmPerformance.providerCostUsd}),0)::float` }).from(llmPerformance).where(sql`${llmPerformance.createdAt} >= ${dayAgo}`),
+      db.select({ count: sql<number>`count(*)::int` }).from(auditEvents).where(sql`${auditEvents.outcome} = 'denied' AND ${auditEvents.occurredAt} >= ${dayAgo}`),
+    ]);
+    return {
+      users: { total: usersTotal?.count ?? 0, active: usersActive?.count ?? 0 },
+      orgs: orgsTotal?.count ?? 0,
+      agents: { total: agentsTotal?.count ?? 0, active: agentsActive?.count ?? 0 },
+      pendingApprovals: pendingApprovals?.count ?? 0,
+      activeSessions: sessionsActive?.count ?? 0,
+      last24h: { aiCalls: aiCalls24h?.count ?? 0, providerCostUsd: cost24h?.cost ?? 0, deniedEvents: denied24h?.count ?? 0 },
+    };
+  }
+
+  /** GET /v1/admin/ea/brief — the admin EA's one-call platform snapshot. */
+  app.get('/v1/admin/ea/brief', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    return { data: await adminPlatformSnapshot() };
+  });
+
+  /**
+   * POST /v1/admin/ea/command — the admin EA. Deterministic, read-only intents:
+   *   `stats` — platform totals + last-24h activity
+   *   `user <email or name fragment>` — account summary
+   *   `org <name or slug fragment>` — organization summary
+   *   `recent` — the latest audit actions across tenants
+   * Anything else returns the capability list.
+   */
+  app.post('/v1/admin/ea/command', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const parsed = z.object({ command: z.string().trim().min(1).max(300) }).safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: { code: 'validation', message: 'command is required (max 300 chars)' } };
+    }
+    const command = parsed.data.command;
+
+    let intent = 'help';
+    let answer = '';
+    const facts: Record<string, string | number> = {};
+
+    const lower = command.toLowerCase();
+    if (/^(stats|brief|platform stats|overview)\b/.test(lower)) {
+      intent = 'stats';
+      const s = await adminPlatformSnapshot();
+      answer =
+        `${s.users.total} account(s) (${s.users.active} active), ${s.orgs} organization(s), ` +
+        `${s.agents.total} AI employee(s) (${s.agents.active} active). ` +
+        `${s.pendingApprovals} approval(s) waiting, ${s.activeSessions} active session(s). ` +
+        `Last 24h: ${s.last24h.aiCalls} AI calls ($${s.last24h.providerCostUsd.toFixed(4)} provider cost), ` +
+        `${s.last24h.deniedEvents} denied events.`;
+      facts.usersTotal = s.users.total;
+      facts.usersActive = s.users.active;
+      facts.orgs = s.orgs;
+      facts.agentsTotal = s.agents.total;
+      facts.agentsActive = s.agents.active;
+      facts.pendingApprovals = s.pendingApprovals;
+      facts.aiCalls24h = s.last24h.aiCalls;
+      facts.providerCost24h = Number(s.last24h.providerCostUsd.toFixed(4));
+      facts.deniedEvents24h = s.last24h.deniedEvents;
+    } else if (/^user\b/.test(lower)) {
+      intent = 'user';
+      const q = command.replace(/^user\s*/i, '').trim();
+      if (q.length === 0) {
+        answer = 'Give me an email or a name fragment: "user demo@orq8.test".';
+      } else {
+        const frag = `%${q}%`;
+        const [user] = await db
+          .select({ id: users.id, email: users.email, name: users.name, status: users.status, platformRole: users.platformRole, createdAt: users.createdAt })
+          .from(users)
+          .where(sql`${users.email} ILIKE ${frag} OR ${users.name} ILIKE ${frag}`)
+          .orderBy(desc(users.createdAt))
+          .limit(1);
+        if (!user) {
+          answer = `No account matches "${q}".`;
+        } else {
+          const mems = await db
+            .select({ orgName: organizations.name, role: memberships.role, orgPlan: organizations.plan })
+            .from(memberships)
+            .innerJoin(organizations, eq(organizations.id, memberships.orgId))
+            .where(eq(memberships.userId, user.id));
+          answer =
+            `${user.name || user.email} (${user.email}) — status ${user.status}, ` +
+            `platform role ${user.platformRole ?? 'user'}, registered ${user.createdAt.toISOString().slice(0, 10)}. ` +
+            (mems.length > 0
+              ? `Organizations: ${mems.map((m) => `${m.orgName} (${m.role}, ${m.orgPlan})`).join('; ')}.`
+              : 'No organization memberships.');
+          facts.email = user.email;
+          facts.status = user.status;
+          facts.platformRole = user.platformRole ?? 'user';
+          facts.orgs = mems.length;
+        }
+      }
+    } else if (/^org(anization)?\b/.test(lower)) {
+      intent = 'org';
+      const q = command.replace(/^organization?\s*/i, '').trim();
+      if (q.length === 0) {
+        answer = 'Give me an organization name or slug: "org oddly".';
+      } else {
+        const frag = `%${q}%`;
+        const [org] = await db
+          .select({ id: organizations.id, name: organizations.name, slug: organizations.slug, plan: organizations.plan, status: organizations.status, createdAt: organizations.createdAt })
+          .from(organizations)
+          .where(sql`${organizations.name} ILIKE ${frag} OR ${organizations.slug} ILIKE ${frag}`)
+          .orderBy(desc(organizations.createdAt))
+          .limit(1);
+        if (!org) {
+          answer = `No organization matches "${q}".`;
+        } else {
+          const [agentCount] = await db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.orgId, org.id));
+          const [taskStats] = await db
+            .select({
+              total: sql<number>`count(*)::int`,
+              completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+            })
+            .from(tasks)
+            .where(eq(tasks.orgId, org.id));
+          const [credits] = await db
+            .select({ used: creditBalances.usedCredits })
+            .from(creditBalances)
+            .where(eq(creditBalances.orgId, org.id))
+            .limit(1);
+          answer =
+            `${org.name} (${org.slug}) — plan ${org.plan}, status ${org.status}, created ${org.createdAt.toISOString().slice(0, 10)}. ` +
+            `${agentCount?.count ?? 0} AI employee(s); ${taskStats?.total ?? 0} tasks (${taskStats?.completed ?? 0} completed); ` +
+            `${credits?.used ?? 0} credits used.`;
+          facts.name = org.name;
+          facts.plan = org.plan;
+          facts.agents = agentCount?.count ?? 0;
+          facts.tasks = taskStats?.total ?? 0;
+          facts.creditsUsed = credits?.used ?? 0;
+        }
+      }
+    } else if (/^recent\b/.test(lower)) {
+      intent = 'recent';
+      const rows = await db
+        .select({ action: auditEvents.action, outcome: auditEvents.outcome, occurredAt: auditEvents.occurredAt, orgId: auditEvents.orgId })
+        .from(auditEvents)
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(15);
+      answer = rows.length > 0
+        ? `Latest ${rows.length} audit actions: ${rows.map((r) => `${r.action} (${r.outcome})`).join(', ')}.`
+        : 'No audit events yet.';
+      facts.count = rows.length;
+    } else {
+      answer =
+        'I can answer from live platform data: "stats" (platform snapshot), ' +
+        '"user <email or name>" (account summary), "org <name or slug>" (organization summary), ' +
+        '"recent" (latest audit actions). I am read-only and every command is audited.';
+    }
+
+    await appendAudit(deps.db, {
+      orgId: admin.orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.ea_command',
+      tool: 'admin-assistant',
+      outcome: 'success',
+      inputRef: command.slice(0, 300),
+      resultRef: `intent:${intent}`,
+    }).catch(() => undefined);
+
+    return { data: { intent, answer, facts } };
   });
 }
