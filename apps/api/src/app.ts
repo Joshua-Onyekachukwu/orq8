@@ -11,6 +11,7 @@ import {
   type IdempotencyStore,
 } from '@orq8/core';
 import { getRedis } from './services/redis.js';
+import { formatRetryAfter } from './services/rate-limit-service.js';
 import { rateLimitHookRedis, rateLimitLoginRedis, rateLimitRouteRedis, sessionOrIpKey } from './plugins/rate-limit-redis.js';
 import { RedisIdempotencyStore } from '@orq8/core';
 import { randomUUID } from 'node:crypto';
@@ -197,9 +198,9 @@ export async function buildApp(
       }
       entry.count++;
       if (entry.count > 60) {
-        const retryAfter = Math.ceil((entry.windowStart + 60_000 - now) / 1000);
+        const retryAfter = Math.max(1, Math.ceil((entry.windowStart + 60_000 - now) / 1000));
         reply.header('Retry-After', String(retryAfter));
-        reply.code(429).send({ error: { code: 'rate_limited', message: `Too many requests. Try again in ${retryAfter}s.` } });
+        reply.code(429).send({ error: { code: 'rate_limited', message: `Too many requests. Try again in ${formatRetryAfter(retryAfter)}.` } });
         return reply;
       }
     });

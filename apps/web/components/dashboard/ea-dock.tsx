@@ -71,7 +71,7 @@ function DockBody({
   pendingRevision,
   eventsThisHour,
 }: EADockProps & { variant: "dock" | "sheet"; onClose?: () => void }) {
-  const { messages, sendMessage, loading, stages, error, openPanel } =
+  const { messages, sendMessage, loading, error, openPanel } =
     useExecutiveAgent();
   const EA_NAME = useEaName();
   const router = useRouter();
@@ -301,7 +301,7 @@ function DockBody({
       <div className="border-t border-hairline px-3 py-2.5">
         <div className="rounded-md border border-hairline bg-canvas px-2.5 py-2 focus-within:border-hairline-strong">
           <textarea
-            rows={5}
+            rows={3}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -312,7 +312,7 @@ function DockBody({
             }}
             placeholder={`Message ${EA_NAME} — give direction, ask anything`}
             aria-label={`Message ${EA_NAME}`}
-            className="min-h-[5.5rem] w-full resize-none bg-transparent text-sm leading-relaxed text-ink outline-none placeholder:text-muted/70"
+            className="min-h-[4rem] w-full resize-none bg-transparent text-sm leading-relaxed text-ink outline-none placeholder:text-muted/70"
           />
           <div className="mt-1 flex items-center gap-1.5">
             {["/hire ", "/budget ", "/pause "].map((cmd) => (
@@ -421,7 +421,7 @@ function EAMobileDock(props: EADockProps) {
               className="absolute inset-0 bg-black/55"
               tabIndex={-1}
             />
-            <div className="absolute inset-x-0 bottom-0 top-[6dvh]">
+            <div className="absolute inset-x-0 bottom-0 top-[4dvh]">
               <DockBody variant="sheet" onClose={() => setOpen(false)} {...props} />
             </div>
           </div>,

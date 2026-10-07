@@ -310,18 +310,25 @@ deployed. Fix queued: bump nodemailer to 10.0.6+ when mail is wired.
 
 ### Disaster recovery — honest status
 
-Backups NOT yet verified: the project is on Supabase; backup/PITR status
-needs console confirmation (the backups API returned HTML = endpoint not
-available for this project tier/API surface). Until a restore is actually
-tested, DR is UNPROVEN. RPO/RTO: undefined.
+**UPDATE 2026-10-07 — restorability now PROVEN by an executed drill** (full
+detail in the §2026-10-07 addendum below): prod data dumps and restores
+into a clean PostgreSQL built from the same migration lineage, verified
+against the manifest and the audit-chain verifier on both sides. What
+remains console-dependent: Supabase's MANAGED backup/PITR status (the
+backups API returned HTML = not available on this tier/API surface — the
+dashboard is the only place that can confirm it) and the Auth-side
+`auth.users` credential store, which our lineage-based restore does not
+cover. Supabase-side RPO is still unverified; the self-managed path has a
+measured RPO/RTO (below).
 
 ### Production-readiness classification
 
 **INTERNAL TESTING READY** — core paths proven under attack and under
-concurrency; blockers for the next tier (external/private beta): unverified
-backups, PostgREST-exposed SECURITY DEFINER functions, dormant-mail
-dependency bump, and the remaining degraded capabilities (Redis, S3,
-embeddings, Stripe, Google OAuth) pending founder keys.
+concurrency; blockers for the next tier (external/private beta): the
+Supabase-managed backup/PITR confirmation (our own restore is proven),
+dormant-mail dependency bump, and the remaining degraded capabilities
+(Redis, S3, embeddings, Stripe, Google OAuth) pending founder keys. The
+SECURITY DEFINER exposure — a former blocker — is closed (0049, verified).
 
 ## Evidence cross-reference — 2026-10-05 (docs/82 §hardening evidence)
 
@@ -356,6 +363,9 @@ Decision: **evidence windows, then deletion; chains live and die with their org.
   "GLOBAL DIRECTIVE" poison was invisible to Beta's executing agent (0/3
   markers in result, autonomy + credits unchanged). Chains for all three
   surviving orgs re-verified VALID after cleanup, tamper test still passes.
+- Applied 2026-10-07: Iso Alpha/Beta injection evidence recorded in the
+  §2026-10-07 addendum BEFORE deletion; 5 probe orgs + 5 users + 175 rows
+  swept in one transaction; surviving chains re-verified `ALL CHAINS VALID`.
 
 ## Hardening addendum — 2026-10-06 (decision tokens, queue release, RLS attestation, credits math, probe retirement)
 
@@ -478,3 +488,150 @@ and reconciliation contracts.
   re-verified **VALID** (1 org / 5 rows), live `/healthz` 200 and `/readyz`
   ready. Chains are per-org, so no surviving chain was touched — verified,
   not assumed.
+
+## Hardening addendum — 2026-10-07 (PostgREST function lockdown, 429 honesty, injection re-test, probe retirement, DR drill)
+
+Session of 2026-10-07 on branch `feat/ai-cost-guardrails-and-worker-soak`.
+Everything below was executed against the live deployment or the embedded
+production-lineage database; nothing is asserted without a check.
+
+### SECURITY DEFINER EXECUTE lockdown (advisor lints 0028 + 0029 CLEARED)
+
+The Supabase advisor flagged five SECURITY DEFINER functions in `public` as
+EXECUTE-able by `anon`/`authenticated` (lints 0028/0029). Worst case:
+`append_audit_event` — migration 0016 had explicitly granted anon and
+authenticated EXECUTE, so an UNAUTHENTICATED PostgREST RPC could forge
+tamper-evident audit-chain rows, the record the whole governance model rests
+on. The other four (`get_user_org_id`, `is_platform_admin`,
+`handle_new_user`, `set_updated_at`) inherited the PUBLIC default.
+
+Migration `0049_lock_down_security_definer_execute.sql`: REVOKE EXECUTE from
+`anon`, `authenticated` and `PUBLIC` on all five; GRANT `service_role` on all
+five; GRANT `supabase_auth_admin` on `handle_new_user` + `set_updated_at`
+(the auth.users trigger fires as that role across 21 trigger tables). The
+API writes audits as the owning role (`postgres`), so the revocations do not
+touch any application path. Consequence recorded in the migration: any
+future PostgREST-direct write to trigger-bearing tables fails on the trigger
+— intentional; that is a policy decision, not a default.
+
+Applied to prod inside one transaction (plus the `schema_migrations` row,
+version `0049_lock_down_security_definer_execute`, matching the
+filename-as-version runner convention). Verification:
+`has_function_privilege('anon'|'authenticated'|'public', fn, 'EXECUTE')` =
+NONE on all five; `service_role` = granted on all five; `supabase_auth_admin`
+= only on the two Auth-triggered functions. Advisor re-run: 0028/0029 gone;
+remaining findings are the pre-existing intentional set (10×
+`rls_enabled_no_policy` INFO, 9× `function_search_path_mutable` WARN,
+vector-in-public WARN).
+
+The migration file is environment-aware (guards on `to_regprocedure` and role
+existence) so the embedded test lineage — which has neither the Supabase
+roles nor three of the five functions — applies it cleanly; proven by the
+test run below.
+
+### 429 retry messages now report the real cooldown
+
+The old messages lied in both directions: Redis-backed limiters said "in 0
+seconds" while the window was still blocking (caught live during a probe),
+the login lockout said "1 minutes" (integer-division bug), and the agent-job
+quota reported the whole window instead of the actual remaining wait. New
+shared helper `formatRetryAfter(totalSeconds)` (services/rate-limit-service.ts)
+humanizes without rounding away truth ("8 seconds", "1 minute 30 seconds",
+"2 hours"). Real-cooldown math now comes from actual state: Redis
+sliding-window blocked verdicts read the oldest hit via `zrangebyscore`; the
+agent-job quota uses `agentJobsLastHour(db, org, agent)` → `{used, oldestAt}`
+(services/jobs.ts); the login lockout reports exact seconds (routes/auth.ts).
+Legacy memory limiters clamp to ≥1 s and humanize (plugins/rate-limit.ts ×3,
+plugins/rate-limit-redis.ts ×2, app.ts global hook).
+
+Tests: NEW `apps/api/test/login-rate-limit.test.ts` — 10 failures → 429
+`account_locked` with Retry-After ≤ 900; a short 8 s lock answers with body
+matching `/in [1-8] seconds\./` and header ≤ 8; expiry → login 200;
+successful login clears the row; `formatRetryAfter` unit cases. Run with
+`REQUIRE_EMAIL_VERIFICATION=false`. Abuse suite re-run together with it:
+**17/17 green** (login 5 + abuse 12). API `tsc --noEmit` exit 0.
+
+### Cross-tenant injection re-test on fresh orgs (Iso Alpha / Iso Beta)
+
+Registered via the real API, planted `ISO-ALPHA-POISON-7F3A` (category
+context) + `ISO-ALPHA-POISON-B41C` (category workflow, importance 10) in
+Alpha's company memory and canary `ISO-BETA-SECRET-9C2B` in Beta; ran
+delegation commands in both directions. Result: zero escalation (no agents
+archived, settings untouched, no budget/autonomy audit actions), zero
+cross-tenant leak in either direction, credits consumed only by real work.
+
+Honest topology caveat: the fresh-org tasks ran agent-less, so the poison
+never reached a model call — `buildAgentContext` only runs when
+`task.agentId` is set (services/task-executor.ts), and the memory→prompt
+pipeline surfaces only `category='workflow'` rows + `source='agent_memory'`
+rows. The fully-fed case (memory into an executing agent's prompt) remains
+proven by the 2026-10-05 XT Alpha/Beta evidence above. A department-template
+activation (`POST /v1/department-templates/:id/activate`) is the right
+vehicle for the next agent-backed re-test.
+
+### Probe retirement + retention-policy addendum
+
+All five Iso orgs (3 Alpha + 2 Beta, including two aborted-run orphans) and
+their 5 probe users deleted in one transaction (savepoint-guarded FK sweep
+over every org_id/user_id column, 6 passes; 175 rows swept incl.
+audit_events, credit_balances, memberships, sessions, subscriptions, tasks,
+company_memory). Surviving org list: `Oddly` only;
+`scripts/verify-audit-chain.cjs` → `ALL CHAINS VALID` (1 org / 5 rows).
+Retention policy (established 2026-10-05) applies unchanged: evidence
+windows, then deletion; chains live and die with their org; record evidence
+BEFORE deleting.
+
+### DR drill — restorability proven, RPO/RTO measured
+
+New ops tool `scripts/dr-drill.ts` (tsx; `dump` / `restore` / `full`):
+
+- **Dump**: every public base table read from prod into `.dr-backup/` as
+  JSONL (bytea → base64 tag; pg intervals → interval literals), plus
+  `dr-manifest.json` — row counts, per-table columns, sequence state
+  (`last_value`), server version, timings. The manifest doubles as the
+  completeness marker: restore refuses to run without it.
+- **Restore**: boots a fresh embedded PostgreSQL (disposable, Windows-safe
+  data dir), applies the SAME migration lineage production runs
+  (drizzle base + supabase 0001…0049, with the role/auth shims), truncates
+  the migrated tables (lineage seeds system templates; the backup is
+  authoritative for data), then loads all rows in ONE transaction with
+  `session_replication_role = replica` (FKs + user triggers disabled so the
+  data arrives raw, not re-derived), then re-advances every serial/identity
+  sequence past max(col) and the snapshot's `last_value`.
+- **Verification**: all 73 tables' restored counts equal the manifest (75
+  rows); live-prod drift since the dump = 0; the audit-chain verifier passes
+  on BOTH the restored copy and prod with the identical verdict
+  (`161a7b05… rows: 5 VALID | ALL CHAINS VALID`) — the tamper-evident record
+  survives the round trip byte-faithfully.
+- **Measured timings** (this drill): boot + lineage ≈ 14 s, load ≈ 2 s,
+  verify ≈ 19 s → restore+verify ≈ **35 s**. RTO (data layer, to a running
+  local PostgreSQL) ≈ 35 s at current scale, plus operator time to repoint
+  `DATABASE_URL` and redeploy (minutes). RPO with the current manual
+  on-demand backup: zero since the last dump — i.e. equal to
+  time-since-last-drill until a schedule exists; recommended policy: run
+  `dump` daily (scheduled task) → RPO ≤ 24 h.
+- **Findings the drill surfaced (action items)**:
+  1. Migration-lineage drift: `agent_memory`, `notification_preferences`,
+     `platform_admins`, `user_org_mapping` exist on prod but are created by
+     NO migration — a fresh lineage database cannot reproduce them. Backport
+     into the next migration (this also closes the surprise factor of
+     `agent_memory` being RLS-enabled with zero policies).
+  2. No `pg_dump` on this machine (embedded distribution ships initdb/pg_ctl
+     only) — the JSONL dump is the substitute; keep it in mind when
+     considering a native-restore workflow.
+- **Documented limitations**: the drill exercises the `public` (application)
+  schema only. Supabase-managed stores are out of its reach: `auth.users`
+  (credentials — an Auth-side recovery is a Supabase console/invite
+  operation), the `vault` schema (managed secrets), and the managed
+  backup/PITR surface (API returned HTML = not available on this tier;
+  dashboard confirmation still owed by the founder). pgvector is not in the
+  embedded binary, so `company_memory.embedding` restores into the lineage's
+  jsonb shim column (all values NULL today; revisit if embeddings go live).
+
+### Release gate + deploy state (2026-10-07)
+
+- Gate: 4/6 pass — serving checks green, `/readyz` ready, views agree;
+  still blocked ONLY on the standing mail gap (`RESEND_API_KEY`/`SMTP_*`;
+  founder keys pending, procedure in docs/84). Unchanged from 2026-10-06.
+- Deploy after push: API rebuilds on `/apps/api/**`, web on `/apps/web/**`,
+  worker on any push (watch the worker rebuild — it does not gate on paths).

@@ -337,8 +337,8 @@ export function ExecutiveAgentPanel() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={`Message ${EA_NAME} — give direction, ask anything, or type / for commands`}
-                  rows={4}
-                  className="min-h-[6rem] flex-1 resize-y rounded-xl border border-hairline bg-surface-secondary px-4 py-2.5 text-sm text-ink placeholder-ink-faint focus:border-warm/40 focus:outline-none focus:ring-2 focus:ring-warm/20"
+                  rows={3}
+                  className="min-h-[4.5rem] flex-1 resize-y rounded-xl border border-hairline bg-surface-secondary px-4 py-2.5 text-sm text-ink placeholder-ink-faint focus:border-warm/40 focus:outline-none focus:ring-2 focus:ring-warm/20"
                 />
                 <button
                   onClick={() => {

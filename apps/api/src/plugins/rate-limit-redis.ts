@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { RedisClient } from '../services/redis.js';
+import { formatRetryAfter } from '../services/rate-limit-service.js';
 
 /**
  * Rate-limit key: the authenticated session identity when the request carries
@@ -86,7 +87,7 @@ export function rateLimitHookRedis(
       await redis.expire(key, Math.ceil(windowMs / 1000) + 1);
 
       if (count > max) {
-        const retryAfter = Math.ceil((windowMs - (now - windowStart)) / 1000);
+        const retryAfter = Math.max(1, Math.ceil((windowMs - (now - windowStart)) / 1000));
         reply.header('Retry-After', String(retryAfter));
         reply.header('X-RateLimit-Limit', String(max));
         reply.header('X-RateLimit-Remaining', '0');
@@ -94,7 +95,7 @@ export function rateLimitHookRedis(
         reply.code(429).send({
           error: {
             code: 'rate_limited',
-            message: `Too many requests. Please try again in ${retryAfter} seconds.`,
+            message: `Too many requests. Please try again in ${formatRetryAfter(retryAfter)}.`,
             policy_ref: 'docs/37',
           },
         });
@@ -141,14 +142,14 @@ export function rateLimitRouteRedis(
       await redis.expire(key, Math.ceil(windowMs / 1000) + 1);
 
       if (count > max) {
-        const retryAfter = Math.ceil((windowMs - (now - windowStart)) / 1000);
+        const retryAfter = Math.max(1, Math.ceil((windowMs - (now - windowStart)) / 1000));
         reply.header('Retry-After', String(retryAfter));
         reply.header('X-RateLimit-Limit', String(max));
         reply.header('X-RateLimit-Remaining', '0');
         reply.code(429).send({
           error: {
             code: 'rate_limited',
-            message: `Too many ${label} attempts. Please try again in ${retryAfter} seconds.`,
+            message: `Too many ${label} attempts. Please try again in ${formatRetryAfter(retryAfter)}.`,
             policy_ref: 'docs/37',
           },
         });

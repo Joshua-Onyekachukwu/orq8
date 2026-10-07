@@ -3,7 +3,11 @@
 // never trusting the stored hash for anything but the chain link.
 const pg = require('pg');
 (async () => {
-  const pool = new pg.Pool({ connectionString: process.argv[2], ssl: { rejectUnauthorized: false }, max: 1 });
+  // SSL for the cloud source; plain TCP for a local restore target (the DR drill
+  // verifies chains on the restored copy, which has no TLS endpoint).
+  const target = process.argv[2];
+  const isLocal = /(^|@|\/\/)(localhost|127\.0\.0\.1|::1)/.test(target);
+  const pool = new pg.Pool({ connectionString: target, ssl: isLocal ? false : { rejectUnauthorized: false }, max: 1 });
   const crypto = require('node:crypto');
   const sha256 = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
   const { rows: orgs } = await pool.query('select id from organizations order by created_at');

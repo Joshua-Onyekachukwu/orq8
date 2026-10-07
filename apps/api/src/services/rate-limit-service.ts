@@ -44,6 +44,26 @@ const MINUTE = 60_000;
 const HOUR = 3_600_000;
 
 /**
+ * Humanize a retry-after duration the way the 429 bodies report it. Always the
+ * REAL remaining time (never a rounded-up whole window): "42 seconds",
+ * "2 minutes 30 seconds", "1 hour 5 minutes".
+ */
+export function formatRetryAfter(totalSeconds: number): string {
+  const s = Math.max(1, Math.ceil(totalSeconds));
+  if (s < 60) return s === 1 ? "1 second" : `${s} seconds`;
+  if (s < HOUR / 1000) {
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    if (rem === 0) return m === 1 ? "1 minute" : `${m} minutes`;
+    return `${m} minute${m === 1 ? "" : "s"} ${rem} second${rem === 1 ? "" : "s"}`;
+  }
+  const h = Math.floor(s / (HOUR / 1000));
+  const m = Math.floor((s % (HOUR / 1000)) / 60);
+  if (m === 0) return h === 1 ? "1 hour" : `${h} hours`;
+  return `${h} hour${h === 1 ? "" : "s"} ${m} minute${m === 1 ? "" : "s"}`;
+}
+
+/**
  * Sliding-window limiter over Redis (zset) or a local Map. One instance is
  * shared per process via `getRateLimiter`.
  */
@@ -91,12 +111,25 @@ export class RateLimiter {
       }
 
       if (count > rule.max) {
-        return {
-          allowed: false,
-          remaining: 0,
-          retryAfterSec: Math.max(1, Math.ceil(rule.windowMs / 1000)),
-          degraded: false,
-        };
+        // The honest cooldown is when the OLDEST hit inside the sliding window
+        // drops out — not the whole window. A client told "try again in 60
+        // seconds" when the reset is in 8 seconds is exactly the lie that
+        // makes clients distrust the header and hammer anyway.
+        let retryAfterSec = Math.max(1, Math.ceil(rule.windowMs / 1000));
+        try {
+          const members = await this.redis.zrangebyscore(key, windowStart, now);
+          const oldestMember = members[0];
+          if (oldestMember) {
+            // Members are `${hitTimeMs}:${rand}` — the timestamp is the prefix.
+            const oldestAt = Number(oldestMember.split(":")[0]);
+            if (Number.isFinite(oldestAt)) {
+              retryAfterSec = Math.max(1, Math.ceil((oldestAt + rule.windowMs - now) / 1000));
+            }
+          }
+        } catch {
+          // Fall back to the whole window; the block itself still stands.
+        }
+        return { allowed: false, remaining: 0, retryAfterSec, degraded: false };
       }
       return { allowed: true, remaining: Math.max(0, rule.max - count), retryAfterSec: 0, degraded: false };
     } catch (err) {

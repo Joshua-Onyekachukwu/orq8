@@ -90,17 +90,29 @@ export async function enqueueJob(
 }
 
 /**
- * How many jobs one agent has generated in the last hour (docs/80 §3.3,
- * per-agent layer). Counted from the durable queue rather than a volatile
- * counter: a restart or a Redis flush must not forget a loop already running.
+ * One agent's durable-queue usage in the last hour (docs/80 §3.3, per-agent
+ * layer). Counted from the durable queue rather than a volatile counter: a
+ * restart or a Redis flush must not forget a loop already running.
+ *
+ * `oldestAt` travels with the count so a blocked agent can be told when its
+ * window actually frees up (the oldest job leaving the hour), instead of a
+ * blanket "3600 seconds".
  */
-export async function countAgentJobsLastHour(
+export interface AgentJobQuotaUsage {
+  used: number;
+  oldestAt: Date | null;
+}
+
+export async function agentJobsLastHour(
   db: Db,
   orgId: string,
   agentId: string,
-): Promise<number> {
+): Promise<AgentJobQuotaUsage> {
   const [row] = await db
-    .select({ n: sql<number>`count(*)::int` })
+    .select({
+      n: sql<number>`count(*)::int`,
+      oldestAt: sql<Date | null>`min(${agentJobs.createdAt})`,
+    })
     .from(agentJobs)
     .innerJoin(tasks, eq(tasks.id, agentJobs.taskId))
     .where(
@@ -110,7 +122,10 @@ export async function countAgentJobsLastHour(
         sql`${agentJobs.createdAt} > now() - interval '1 hour'`,
       ),
     );
-  return row?.n ?? 0;
+  return {
+    used: row?.n ?? 0,
+    oldestAt: row?.oldestAt ? new Date(row.oldestAt) : null,
+  };
 }
 
 /** Must match the worker's stale-lock reaper window (job-worker.ts). */

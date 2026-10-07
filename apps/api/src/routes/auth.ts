@@ -14,6 +14,7 @@ import * as orgs from '../services/orgs.js';
 import * as sessions from '../services/sessions.js';
 import * as users from '../services/users.js';
 import { checkLoginAllowed, recordFailedLogin, resetFailedLogins } from '../plugins/brute-force.js';
+import { formatRetryAfter } from '../services/rate-limit-service.js';
 import type { AppDeps } from '../types.js';
 
 function sha256hex(value: string): string {
@@ -112,12 +113,16 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const redis = (deps as { redis?: { isConnected(): boolean } }).redis;
     const lockCheck = await checkLoginAllowed(redis as any, email, db);
     if (!lockCheck.allowed) {
-      const retryAfterMs = lockCheck.lockedUntil ? Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000) : 900;
-      reply.header('Retry-After', String(retryAfterMs));
+      // Report the REAL cooldown — the exact seconds until the lock lifts,
+      // not a rounded-up "1 minutes" for a lock expiring in 8 seconds.
+      const retryAfterSec = lockCheck.lockedUntil
+        ? Math.max(1, Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000))
+        : 900;
+      reply.header('Retry-After', String(retryAfterSec));
       reply.code(429).send({
         error: {
           code: 'account_locked',
-          message: `Too many failed login attempts. Please try again in ${Math.ceil(retryAfterMs / 60)} minutes.`,
+          message: `Too many failed login attempts. Please try again in ${formatRetryAfter(retryAfterSec)}.`,
           policy_ref: 'docs/37',
         },
       });

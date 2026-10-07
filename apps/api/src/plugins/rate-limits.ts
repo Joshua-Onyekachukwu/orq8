@@ -23,6 +23,7 @@ import type { AppDeps } from '../types.js';
 import { sessionOrIpKey } from './rate-limit-redis.js';
 import {
   endpointClassByName,
+  formatRetryAfter,
   getRateLimiter,
   matchEndpointClass,
   orgLimitKey,
@@ -31,7 +32,7 @@ import {
   type EndpointClassName,
   type RateLimitVerdict,
 } from '../services/rate-limit-service.js';
-import { countAgentJobsLastHour } from '../services/jobs.js';
+import { agentJobsLastHour } from '../services/jobs.js';
 
 const ALWAYS_ALLOW: RateLimitVerdict = {
   allowed: true,
@@ -59,7 +60,7 @@ export function sendRateLimited(
   return {
     error: {
       code: 'rate_limited',
-      message: `Too many ${label} requests. Please try again in ${verdict.retryAfterSec} seconds.`,
+      message: `Too many ${label} requests. Please try again in ${formatRetryAfter(verdict.retryAfterSec)}.`,
       policy_ref: 'docs/80 §3.3',
     },
   };
@@ -130,10 +131,15 @@ export async function enforceAgentJobQuota(
   const cap = deps.config.RATE_LIMIT_AGENT_JOBS_PER_HOUR;
   if (cap <= 0 || !agentId) return ALWAYS_ALLOW;
 
-  const used = await countAgentJobsLastHour(deps.db, orgId, agentId);
+  const { used, oldestAt } = await agentJobsLastHour(deps.db, orgId, agentId);
   if (used < cap) {
     return { allowed: true, remaining: cap - used, retryAfterSec: 0, degraded: false };
   }
   deps.logger.warn({ orgId, agentId, used, cap }, 'rate limit: agent job quota exceeded');
-  return { allowed: false, remaining: 0, retryAfterSec: 3600, degraded: false };
+  // The real cooldown: when the OLDEST job inside the hour leaves the window,
+  // not a blanket 3600s. A job created 55 minutes ago frees the slot in 5.
+  const retryAfterSec = oldestAt
+    ? Math.max(1, Math.ceil((oldestAt.getTime() + 3_600_000 - Date.now()) / 1000))
+    : 3600;
+  return { allowed: false, remaining: 0, retryAfterSec, degraded: false };
 }

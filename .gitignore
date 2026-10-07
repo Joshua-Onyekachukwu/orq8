@@ -37,6 +37,7 @@ pgdata/
 .integration-suite-data/
 .vertical-slice-data/
 .worker-soak-data/
+.ci-lineage-data/
 
 # Logs
 *.log
@@ -77,3 +78,7 @@ secrets.env
 .review-stack*.log
 .review-stack*.err
 .supabase-setup.json
+
+# DR drill artifacts (prod data snapshot + restore scratch)
+.dr-backup/
+.dr-restore-data/

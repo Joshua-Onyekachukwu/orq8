@@ -20,7 +20,6 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
-import type { EAProgressStage } from "./ea-progress";
 import { runCommandStream, CommandStreamError } from "../lib/command-stream";
 import { EA_NAME } from "../lib/ea";
 
@@ -105,8 +104,6 @@ export interface ExecutiveAgentContextValue {
   sendMessage: (text: string) => Promise<void>;
   /** True while the EA is working on the latest message. */
   loading: boolean;
-  /** Live pipeline stages for the in-flight request. */
-  stages: EAProgressStage[];
   /** Transport/processing error for the latest request. */
   error: string | null;
 }
@@ -132,7 +129,6 @@ export function ExecutiveAgentProvider({
   // ── Shared thread state ──────────────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stages, setStages] = useState<EAProgressStage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const loadingRef = useRef(false);
   // The rename lands here first (the settings page calls setEaName after a
@@ -221,7 +217,6 @@ export function ExecutiveAgentProvider({
       setMessages((prev) => [...prev, userMsg]);
       setLoading(true);
       setError(null);
-      setStages([]);
 
       try {
         // Streaming first: live pipeline progress while the Executive Agent
@@ -234,12 +229,10 @@ export function ExecutiveAgentProvider({
           data = await runCommandStream({
             command: text.trim(),
             context: { page: pageContext?.route, contextNote },
-            onStage: (ev) =>
-              setStages((prev) => {
-                const next = prev.filter((s) => s.stage !== ev.stage);
-                next.push({ stage: ev.stage, label: ev.label, status: ev.status });
-                return next;
-              }),
+            // Stage events are deliberately not rendered anywhere: the
+            // founder asked for execute-and-report, not a play-by-play of
+            // "reading the organization…". The stream still emits them for
+            // logs and future tooling.
           });
         } catch (err) {
           if (err instanceof CommandStreamError && !err.pipelineStarted) {
@@ -313,7 +306,6 @@ export function ExecutiveAgentProvider({
         messages,
         sendMessage,
         loading,
-        stages,
         error,
       }}
     >
