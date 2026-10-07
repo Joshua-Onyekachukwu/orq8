@@ -3,9 +3,10 @@
 **Purpose:** the single list of what must be true before the first outside
 user signs up on the production deployment, with the status as verified.
 Evidence lives in docs/82 (runbook) and docs/83 (system audit); this doc is
-the decision list. Statuses re-verified 2026-10-06 against the live
+the decision list. Statuses re-verified 2026-10-07 against the live
 deployment (`orq8api-production-062a.up.railway.app` /
-`orq8web-production.up.railway.app`).
+`orq8web-production.up.railway.app`) — including after recovering the web
+service from the deploy incident below.
 
 Decision rule: **🔴 blocking** items must be green before any external
 signup; **🟡** items can ship later but must be consciously accepted by the
@@ -21,8 +22,8 @@ founder; **✅** items are proven and pinned by tests/scripts.
 | 2 | `REQUIRE_EMAIL_VERIFICATION=true` (outside users must confirm) | 🔴 **false today** (the escape hatch, commit `9065189`) | Step 3 of the flip procedure; the flip is **test-proven safe**: signup → real transport → confirm → login is pinned by `apps/api/test/verification-email-end-to-end.test.ts` (provider HTTP boundary stubbed; everything else production code) |
 | 3 | Rate limiting ON | 🔴 **`RATE_LIMIT_ENABLED=false` on Railway** (kept from bring-up) | Flip to `true` — all layers (per-user, per-endpoint-class, per-org shared bucket, per-agent hourly job quota) are integration-proven in `test/abuse-suite.integration.test.ts` (12/12) |
 | 4 | Release gate fully green | 🔴 blocked by #1 (4/6: serving ✓, ready ✓, activation ✓, public/named views agree ✓) | `node scripts/release-gate.mjs --api-url … --web-url … --internal-token …` exits 0 after #1 |
-| 5 | Registration actually open in the UI | ✅ `REGISTRATION_OPEN=true` live — the register page serves the full form (verified against prod) | — |
-| 6 | Signup flow works end-to-end in a real browser | ✅ after the 2026-10-06 checkbox fix (terms/privacy links can no longer trigger the checkbox; verified live) | re-run after every auth-surface change |
+| 5 | Registration actually open in the UI | ✅ `REGISTRATION_OPEN=true` live — the register page serves the full form (re-verified against prod 2026-10-07 on build `72bc142`) | — |
+| 6 | Signup flow works end-to-end in a real browser | ✅ re-verified 2026-10-07 on the live build after the deploy fix: checkbox not inside any label, links `target=_blank rel=noopener noreferrer`, label click toggles while link clicks don't, and a full signup probe reached `/app` (probe then deleted per docs/83; survivor chain re-hashed VALID) | re-run after every auth-surface change |
 
 ## ✅ Proven & pinned (no action needed)
 
@@ -91,3 +92,37 @@ When the Resend key arrives (recommended; SMTP equivalent below):
 
 Steps 1–5 are the whole change; every behaviour they enable already has a
 green test, so the flip is configuration, not code.
+
+---
+
+## Deploy incident — web service failing since 2026-10-05 (resolved 2026-10-07)
+
+**Symptom.** Every Railway web deploy since commit `0f48eac` (2026-10-05)
+FAILED while the API and worker services built fine, so prod web served a
+stale build from 10-05 13:24 and none of the auth-form/EA-dock fixes were
+live. Local `pnpm --filter @orq8/web build` passed, which delayed diagnosis —
+the working tree was fine; Railway builds the **commit**.
+
+**Root cause.** Commit `0f48eac` made `components/dashboard/ea-dock.tsx` import
+`useEaName` from `components/executive-agent-context`, and `d213da1` added the
+same import to `components/executive-agent-panel.tsx` — but the export (plus
+the `eaName`/`setEaName` context plumbing it reads) existed only as an
+**uncommitted working-tree edit**. `next build`'s type-check on the committed
+tree failed on every push with `Module '"../executive-agent-context"' has no
+exported member 'useEaName'` (found via GraphQL `buildLogs(deploymentId)`;
+`deploymentLogs` is runtime-only and returns nothing for failed builds).
+
+**Fix.** Commit the missing file — `72bc142` (2026-10-07). Before pushing, the
+committed tree + that one file was proven in a clean `git worktree` (fresh
+checkout of HEAD, the file copied in, `next build` green with the full route
+table). The web deploy then went SUCCESS (`a0aa24e3`, image
+`sha256:e074cbf9…`), putting the checkbox fix and the taller EA dock live
+together; browser re-verification and the signup probe above followed, and the
+probe data was deleted with the survivor chain re-hashed VALID.
+
+**Lesson for the checklist.** "Local build passes" only covers the working
+tree. Before pushing web changes, build the committed tree (a throwaway
+worktree at HEAD is enough), or at minimum confirm every new import resolves
+from a *committed* export. Railway build failures are diagnosable via
+`buildLogs(deploymentId) { message timestamp }` on
+`backboard.railway.com/graphql/v2` — not via `deploymentLogs`.
