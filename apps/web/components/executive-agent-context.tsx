@@ -22,6 +22,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import type { EAProgressStage } from "./ea-progress";
 import { runCommandStream, CommandStreamError } from "../lib/command-stream";
+import { EA_NAME } from "../lib/ea";
 
 /** What the Executive Agent receives about the current page. */
 export interface PageContext {
@@ -82,6 +83,14 @@ export interface ExecutiveAgentContextValue {
   togglePanel: () => void;
   /** Authenticated user id — keys the persisted conversation thread. */
   userId: string | null;
+  /**
+   * The organization's Executive Agent name (settings.eaName), or the
+   * deployment default when the org never renamed it. Every EA surface reads
+   * this so a rename shows up everywhere at once.
+   */
+  eaName: string;
+  /** Update the displayed EA name after a successful rename (settings page). */
+  setEaName: (name: string) => void;
   /** Onboarding stage from the dashboard (null on pages that don't report it). */
   founderStage: FounderStage | null;
   setFounderStage: (stage: FounderStage | null) => void;
@@ -109,9 +118,11 @@ const THREAD_LIMIT = 40;
 
 export function ExecutiveAgentProvider({
   userId,
+  eaName,
   children,
 }: {
   userId: string | null;
+  eaName?: string | null;
   children: ReactNode;
 }) {
   const [pageContext, setPageContext] = useState<PageContext | null>(null);
@@ -124,6 +135,13 @@ export function ExecutiveAgentProvider({
   const [stages, setStages] = useState<EAProgressStage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const loadingRef = useRef(false);
+  // The rename lands here first (the settings page calls setEaName after a
+  // successful PATCH) so every EA surface updates without a page reload.
+  const [eaNameState, setEaNameState] = useState<string | null>(eaName ?? null);
+  useEffect(() => {
+    if (eaName) setEaNameState(eaName);
+  }, [eaName]);
+  const resolvedEaName = (eaNameState ?? "").trim() || EA_NAME;
 
   const togglePanel = useCallback(() => {
     setPendingPrompt(null);
@@ -285,6 +303,8 @@ export function ExecutiveAgentProvider({
         setPanelOpen,
         togglePanel,
         userId,
+        eaName: resolvedEaName,
+        setEaName: setEaNameState,
         founderStage,
         setFounderStage,
         pendingPrompt,
@@ -300,6 +320,16 @@ export function ExecutiveAgentProvider({
       {children}
     </ExecutiveAgentCtx.Provider>
   );
+}
+
+/**
+ * The organization's Executive Agent name, with the deployment default as a
+ * fallback. Separate from `useExecutiveAgent` so leaf components (dock, panel)
+ * can read the name without depending on the whole context shape.
+ */
+export function useEaName(): string {
+  const ctx = useContext(ExecutiveAgentCtx);
+  return ctx?.eaName ?? EA_NAME;
 }
 
 /** Hook for the Executive Agent panel to read context and control open/close. */
