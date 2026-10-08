@@ -142,21 +142,61 @@ had an equal-or-better implementation — extend, do not replace).
 - **Decorative stats, trends and fake activity.** docs/85 §11 and the user's own
   §16 both forbid it; nothing in `structure.tsx` invents a number.
 
-## 6. Not done (honest remainder)
+## 6. Status of the remainder
 
-- **Employee page** still uses `components/work/employee-workspace.tsx`'s own
-  chrome rather than `structure.tsx`. Migrating it is the next highest-value
-  step (Phase 8).
-- **`app/app/engineering/page.tsx`** (840 lines) is a bespoke engineering
-  surface with its own markup — the clearest remaining instance of the
-  "unrelated visual languages" problem. It should be rebased onto
-  `structure.tsx` and/or folded into the department page via
-  `pageConfig.sections` (Phase 5).
-- **Focus modules per department** (engineering → repos/PRs/sandbox; marketing →
-  campaigns/experiments; sales → pipeline; finance → budgets/invoices) need
-  backend read-models that do not exist yet — repos, PRs and sandbox runs are
-  only surfaced by the standalone engineering page today. Wiring those into
-  `pageConfig` sections is the next backend change.
+Landed after the first pass (this session):
+
+- **Department focus read-model (engineering)** —
+  `apps/api/src/services/department-focus.ts` scopes the *existing* engineering
+  tables (repositories, engineering_tasks, repository_prs, sandbox_runs) to a
+  department's members and is attached to `findDetail` as `focus.engineering`
+  only when the department's `settings.templateSlug === 'engineering'`. Absent,
+  never empty, for other templates. `PAGE_CONFIGS.engineering.sections` now
+  leads with `focus`.
+  Scope is recorded in the shape and shown in the UI, because it is not uniform:
+  `work`/`reviews` are member-scoped, while `repositories`/`sandbox` are
+  workspace-wide (ORQ8 records no owning employee for them, so the panel says so
+  rather than implying the department owns them).
+- **Employee workspace migrated onto the shared layer** — its eleven hand-copied
+  zone headings are now `OsZoneTitle`, its tab strip is `OsTabs`, five inline
+  dashed empty states are `OsEmptyPanel`, and its private `formatCost` /
+  `taskDot` / `DotState` copies were deleted in favour of `os/primitives`. That
+  last one was a real bug: this file still mapped `failed` → `blocked`, so the
+  employee page disagreed with the department page about the same task.
+- **The department roster links to the employee workspace** (`/app/agents/:id`),
+  which is what makes Department → employee → work navigable.
+- **`app/app/engineering/page.tsx` rebased onto the shared layer.** The last
+  surface still written in a foreign visual language. It used `bg-white`,
+  `text-muted-foreground` and `rounded-xl … shadow-sm` — a palette that does not
+  respond to the ink theme, so those cards stayed white in dark mode — and it
+  carried its own status mapper, which is why a failed run read `failed` on the
+  department page and `blocked` here.
+  It is now `OsSection` / `OsMetricRow` / `OsDataTable` / `OsDrawer` / `OsPanel` /
+  `OsToolbar` / `OsEmptyPanel` / `OsErrorPanel` / `OsLoadingRows` / `OsFacts`,
+  and the three status mappers (`workState`, `prState`, `runState`) are exported
+  from `department-focus-panel.tsx` so the page and the department focus section
+  cannot disagree again. It is also the first consumer of `OsDataTable` and
+  `OsDrawer`, so those two stops being untested invention.
+  The page keeps its own route on purpose: it is the *workspace-wide* view
+  (repositories, sandbox runs, capability registry, MCP catalogs — none of which
+  have an owning employee), whereas `focus.engineering` is the
+  *department-scoped* view. Both reads are real and neither substitutes for the
+  other.
+
+Still open:
+
+- **No back-link from employee → department.** `GET /v1/agents/:id` does not
+  expose `departmentId`, only the department *name*, so the employee header can
+  render the department as text but cannot link to it. Adding `departmentId` to
+  that read is the one-line API change that closes the loop.
+- **Focus models for the other departments** (marketing → campaigns/experiments;
+  sales → pipeline; finance → budgets/invoices; customer success → tickets) do
+  not exist yet. Engineering is the reference implementation, and the
+  template-gated wiring it uses is the pattern to repeat.
 - **Charts** deferred until a real series is exposed (§3).
-- **Responsive verification** at 375/768/1280 across the department and employee
-  pages is still owed (docs/85 §11 lists it).
+- **Responsive verification** at 375/768/1280 across the department, employee
+  and engineering pages is still owed (docs/85 §11 lists it).
+- **Turning the engineering page into the department page's `focus` section is
+  the shipped pattern, not a redirect.** The standalone route remains; nothing
+  about it is duplicated in the department page, because the two reads have
+  different scopes.

@@ -133,6 +133,35 @@ export function OsPageHeader({
   );
 }
 
+// ── Zone title (the micro-label above every block) ────────────────────────
+
+/**
+ * The canonical zone heading. It exists because this exact markup was copied
+ * into every page by hand (the employee workspace alone had eleven copies), so
+ * restyling a heading meant finding all of them. Any surface that renders its
+ * own container but still needs the house heading uses this.
+ */
+export function OsZoneTitle({
+  children,
+  as: As = "h2",
+  className,
+}: {
+  children: React.ReactNode;
+  as?: "h2" | "h3";
+  className?: string;
+}) {
+  return (
+    <As
+      className={cn(
+        "font-mono text-2xs font-semibold tracking-wider text-muted uppercase",
+        className,
+      )}
+    >
+      {children}
+    </As>
+  );
+}
+
 // ── Section (the repeated titled panel) ───────────────────────────────────
 
 /**
@@ -164,12 +193,12 @@ export function OsSection({
     <section id={id} className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="font-mono text-2xs font-semibold tracking-wider text-muted uppercase">
+          <OsZoneTitle>
             {title}
             {typeof count === "number" ? (
               <span className="ml-1.5 text-ink">{count}</span>
             ) : null}
-          </h2>
+          </OsZoneTitle>
           {emphasis ? (
             <span
               aria-hidden="true"

@@ -15,6 +15,8 @@ import {
   Target,
 } from "lucide-react";
 import { useExecutiveAgent, usePageContext } from "../executive-agent-context";
+import { OsEmptyPanel, OsTabs, OsZoneTitle } from "../os/structure";
+import { formatCost, taskOsStatus, type DotState } from "../os/primitives";
 import {
   AuthorityPanel,
   authorityDirty,
@@ -108,11 +110,10 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-type DotState = "" | "working" | "waiting" | "blocked";
-
-function formatCost(cents: number): string {
-  return `$${((cents ?? 0) / 100).toFixed(2)}`;
-}
+// DotState, formatCost and the task state mapping live in the shared layer
+// (components/os/primitives) — this file used to carry its own copies, which is
+// how "failed" came to render as "blocked" here while the department page had
+// already learned the difference.
 
 function formatDate(iso?: string | null): string {
   if (!iso) return "—";
@@ -180,10 +181,8 @@ export function employeeState(
 }
 
 function taskDot(status: string): DotState {
-  if (status === "in_progress") return "working";
-  if (status === "awaiting_approval") return "waiting";
-  if (status === "failed") return "blocked";
-  return "";
+  // One mapping for the whole product: a failed run is `failed`, not `blocked`.
+  return taskOsStatus(status).state;
 }
 
 const RISK_TONE: Record<string, string> = {
@@ -454,42 +453,29 @@ export function EmployeeWorkspace({
         </dl>
       </header>
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const badge =
+      {/* ── Tabs — the shared bar (docs/86 §4), not a second pill row ────── */}
+      <OsTabs
+        active={tab}
+        onChange={(key) => setTab(key as TabKey)}
+        tabs={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          count:
             t.key === "memory" && memory.length > 0
               ? memory.length
               : t.key === "abilities" && tools.length > 0
                 ? tools.length
-                : null;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              aria-pressed={active}
-              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                active
-                  ? "border-hairline-strong bg-elevated text-ink"
-                  : "border-hairline text-muted hover:border-hairline-strong hover:text-ink"
-              }`}
-            >
-              {t.label}
-              {badge !== null && <span className="ml-1.5 font-mono text-2xs text-muted">{badge}</span>}
-            </button>
-          );
-        })}
-      </div>
+                : undefined,
+        }))}
+      />
 
       {/* ── Overview ─────────────────────────────────────────────────────── */}
       {tab === "overview" && (
         <div className="grid gap-3 lg:grid-cols-2">
           <section className="console-card p-4 lg:col-span-2">
-            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            <OsZoneTitle>
               Now
-            </h2>
+            </OsZoneTitle>
             {(() => {
               const running = tasks.filter((t) => t.status === "in_progress");
               const waiting = tasks.filter((t) => t.status === "awaiting_approval");
@@ -498,8 +484,8 @@ export function EmployeeWorkspace({
                   <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
                     <p className="text-sm text-ink">Nothing running.</p>
                     <p className="mt-1 text-xs text-muted">
-                      Ask Atlas to brief this employee, or queue work from the Tasks board — it picks
-                      up work through its department, never on its own schedule.
+                      Ask Atlas to brief this employee, or queue work from the Tasks board — it
+                      picks up work through its department, never on its own schedule.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
@@ -548,9 +534,9 @@ export function EmployeeWorkspace({
           </section>
 
           <section className="console-card p-4">
-            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            <OsZoneTitle>
               Model routing
-            </h2>
+            </OsZoneTitle>
             <p className="mt-2 text-sm text-ink">Auto Model</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">
               The router picks per task from the company&apos;s connected providers using the task&apos;s
@@ -584,9 +570,9 @@ export function EmployeeWorkspace({
           </section>
 
           <section className="console-card p-4">
-            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            <OsZoneTitle>
               Autonomy
-            </h2>
+            </OsZoneTitle>
             <p className="mt-2 text-sm text-ink">{titleize(autonomy)}</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">
               {autonomy === "observe"
@@ -638,18 +624,20 @@ export function EmployeeWorkspace({
         <div className="space-y-3">
           <section className="console-card p-4">
             <div className="flex items-baseline gap-2">
-              <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              <OsZoneTitle>
                 Skills
-              </h2>
+              </OsZoneTitle>
               <p className="ml-auto text-2xs text-muted">
                 written into this employee&apos;s working context
               </p>
             </div>
             {skills.length === 0 ? (
-              <p className="mt-2 rounded-md border border-dashed border-hairline px-3 py-3 text-xs text-muted">
-                No skills listed. Add the ones this role actually has — they decide which work the
-                company routes here.
-              </p>
+              <div className="mt-2">
+                <OsEmptyPanel
+                  title="No skills listed."
+                  hint="Add the ones this role actually has — they decide which work the company routes here."
+                />
+              </div>
             ) : (
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {skills.map((skill) => (
@@ -694,9 +682,9 @@ export function EmployeeWorkspace({
 
           <section className="console-card p-4">
             <div className="flex items-baseline gap-2">
-              <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              <OsZoneTitle>
                 Tools this role can run
-              </h2>
+              </OsZoneTitle>
               <p className="ml-auto text-2xs text-muted">
                 {tools.length} available to {agent.role.replace(/_/g, " ")}
               </p>
@@ -706,9 +694,9 @@ export function EmployeeWorkspace({
               a tool marked &ldquo;needs you&rdquo; stops for approval even when the role can run it.
             </p>
             {tools.length === 0 ? (
-              <p className="mt-3 rounded-md border border-dashed border-hairline px-3 py-3 text-xs text-muted">
-                This role has no tools registered.
-              </p>
+              <div className="mt-3">
+                <OsEmptyPanel title="This role has no tools registered." />
+              </div>
             ) : (
               <div className="mt-3 space-y-3">
                 {toolsByCategory.map(([category, group]) => (
@@ -760,15 +748,15 @@ export function EmployeeWorkspace({
         <div className="space-y-3">
           <section className="console-card p-4">
             <div className="flex items-baseline gap-2">
-              <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              <OsZoneTitle>
                 Tasks
-              </h2>
+              </OsZoneTitle>
               <p className="ml-auto text-2xs text-muted">{tasks.length} on record</p>
             </div>
             {tasks.length === 0 ? (
-              <p className="mt-3 rounded-md border border-dashed border-hairline px-3 py-6 text-center text-xs text-muted">
-                No work has been routed to this employee yet.
-              </p>
+              <div className="mt-3">
+                <OsEmptyPanel title="No work has been routed to this employee yet." />
+              </div>
             ) : (
               <div className="mt-3 overflow-x-auto rounded-lg border border-hairline">
                 <table className="w-full">
@@ -819,13 +807,13 @@ export function EmployeeWorkspace({
           </section>
 
           <section className="console-card p-4">
-            <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            <OsZoneTitle>
               Activity
-            </h2>
+            </OsZoneTitle>
             {activity.length === 0 ? (
-              <p className="mt-3 rounded-md border border-dashed border-hairline px-3 py-6 text-center text-xs text-muted">
-                Nothing recorded yet.
-              </p>
+              <div className="mt-3">
+                <OsEmptyPanel title="Nothing recorded yet." />
+              </div>
             ) : (
               <ol className="mt-3 space-y-1">
                 {activity.map((event) => (
@@ -946,9 +934,9 @@ function MemoryTab({
     <div className="space-y-3">
       <section className="console-card p-4">
         <div className="flex items-baseline gap-2">
-          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+          <OsZoneTitle>
             What {agentName} knows
-          </h2>
+          </OsZoneTitle>
           <p className="ml-auto text-2xs text-muted">{entries.length} remembered</p>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted">
@@ -957,9 +945,12 @@ function MemoryTab({
         </p>
 
         {entries.length === 0 ? (
-          <p className="mt-3 rounded-md border border-dashed border-hairline px-3 py-6 text-center text-xs text-muted">
-            Nothing remembered yet. It learns from its own tasks, or you can teach it below.
-          </p>
+          <div className="mt-3">
+            <OsEmptyPanel
+              title="Nothing remembered yet."
+              hint="It learns from its own tasks, or you can teach it below."
+            />
+          </div>
         ) : (
           <>
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1004,9 +995,9 @@ function MemoryTab({
       </section>
 
       <section className="console-card p-4">
-        <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+        <OsZoneTitle>
           Teach it something
-        </h2>
+        </OsZoneTitle>
         {error && (
           <p className="mt-2 flex items-center gap-2 text-xs text-error-ink">
             <AlertCircle aria-hidden="true" className="h-3.5 w-3.5" /> {error}

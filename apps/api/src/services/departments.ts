@@ -13,6 +13,7 @@ import {
   type Department,
   type Db,
 } from '@orq8/db';
+import { engineeringFocus, type EngineeringFocus } from './department-focus.js';
 
 /** One member of a department, as the workspace's Team zone reads them. */
 export interface DepartmentMember {
@@ -160,6 +161,16 @@ export interface DepartmentDetail {
   }>;
   /** docs/85 §3.3 — the member acting as department head (manager/router). */
   head: DepartmentMember | null;
+  /**
+   * docs/86 §6 — department-scoped focus read-model, present only for templates
+   * that have one. Engineering today: the department's real engineering work and
+   * reviews, plus the workspace repositories/sandbox it works against. Absent
+   * (not empty) for every other template, so a page can tell "no focus model"
+   * apart from "focus model with no rows".
+   */
+  focus?: {
+    engineering?: EngineeringFocus;
+  };
 }
 
 /** Check if the departments table exists in the database. */
@@ -703,6 +714,19 @@ export async function findDetail(
     metrics.avgApprovalHours = Math.round((totalMs / decided.length / 3_600_000) * 10) / 10;
   }
 
+  // Focus read-model (docs/86 §6) — only templates that have one. Wrapped so a
+  // department page can never fail because an optional engineering table was
+  // unavailable; the base department read stays authoritative.
+  let focus: DepartmentDetail['focus'];
+  try {
+    const templateSlug = (department.settings as { templateSlug?: string } | null)?.templateSlug;
+    if (templateSlug === 'engineering') {
+      focus = { engineering: await engineeringFocus(db, orgId, memberIds) };
+    }
+  } catch {
+    focus = undefined;
+  }
+
   return {
     department: {
       ...department,
@@ -717,6 +741,7 @@ export async function findDetail(
     metrics,
     workflows,
     head,
+    focus,
     needsFounder,
     recentApprovals,
     activity,
@@ -777,7 +802,9 @@ const PAGE_CONFIGS: Record<string, DepartmentPageConfig> = {
     metrics: ['tasksDone30d', 'creditsUsed30d', 'avgApprovalHours', 'failed30d'],
   },
   engineering: {
-    sections: ['now', 'needsFounder', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'resources', 'activity'],
+    // `focus` (docs/86 §6) leads this department: engineering is judged on the
+    // work and reviews in flight, not on a generic task list.
+    sections: ['now', 'needsFounder', 'focus', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'resources', 'activity'],
     metrics: ['failed30d', 'tasksDone30d', 'creditsUsed30d', 'budgetBurnPct'],
   },
   marketing: {

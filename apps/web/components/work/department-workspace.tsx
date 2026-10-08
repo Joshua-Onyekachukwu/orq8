@@ -20,6 +20,7 @@ import { titleize, type AgentAuthority } from "./authority-panel";
 import { WorkCard } from "../os/primitives";
 import { HirePanel } from "./hire-panel";
 import { WorkflowEditor } from "./workflow-editor";
+import { DepartmentFocusPanel, type EngineeringFocusData } from "./department-focus-panel";
 import { OsFacts, OsMetricRow, OsSection, OsTabs } from "../os/structure";
 import {
   blueprintLabels,
@@ -216,6 +217,9 @@ export interface DepartmentDetailData {
   }>;
   metrics?: DepartmentMetricsData;
   workflows?: DepartmentWorkflowData[];
+  /** docs/86 §6 — department-scoped focus read-model (present only for
+   *  templates that have one, e.g. engineering). */
+  focus?: { engineering?: EngineeringFocusData } | null;
   head?: {
     id: string;
     name: string;
@@ -539,6 +543,18 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
           )      )}
         </dl>
       </header>
+
+      {/* ── Focus (docs/86 §6) — the department's real work, when its
+          template ships a focus read-model. Rendered by pageConfig order when
+          the blueprint declares it, and immediately after the header
+          otherwise, so existing departments get it without re-activation. */}
+      {detail.focus?.engineering ? (
+        <DepartmentFocusPanel
+          focus={detail.focus.engineering}
+          departmentName={department.name}
+          agentNameById={memberNameById}
+        />
+      ) : null}
 
       {/* ── Charter (docs/86 §4) — the blueprint the template carried in ──
           This is the department's own content, written at activation, not a
