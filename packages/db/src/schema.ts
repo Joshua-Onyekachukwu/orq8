@@ -401,6 +401,10 @@ export const departments = pgTable(
     head: text('head'), // name of department head agent
     budget: integer('budget'), // credit budget for this department
     status: text('status').notNull().default('active'), // active | archived
+    // docs/85 §3.1 — the department's own blueprint + page config, written by
+    // department-template activation (templateSlug, kpis, typicalGoals, roles,
+    // pageConfig). Typed columns stay authoritative for name/head/budget.
+    settings: jsonb('settings').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

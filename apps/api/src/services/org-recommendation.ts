@@ -177,6 +177,17 @@ export async function activateDepartmentTemplate(
     activated.departments.push(template.name);
   }
 
+  // 1b. Blueprint (docs/85 §3.2) — stamp the template's KPIs, typical goals,
+  // role blueprint and page config onto the department (create AND reuse), so
+  // the department page knows what matters here. Previously this knowledge was
+  // dropped at activation, leaving every department page generic.
+  await deptService.setDepartmentBlueprint(db, ctx.orgId, departmentId, {
+    templateSlug: template.slug,
+    kpis: template.kpis,
+    typicalGoals: template.typicalGoals,
+    roles: template.roles,
+  });
+
   // 2. Teams from the template's embedded team definitions.
   const teamDefs = Array.isArray(template.teams)
     ? (template.teams as Array<{ name: string; description?: string }>)
