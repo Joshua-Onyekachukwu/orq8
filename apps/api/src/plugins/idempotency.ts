@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { AppError, stablePayloadHash, type IdempotencyStore } from '@orq8/core';
+import { extractBearer } from '@orq8/auth';
 
 // docs/35.1 — Idempotency-Key header on mutating endpoints; responses replayed on retry.
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -38,12 +40,28 @@ export function idempotencyPlugin(app: FastifyInstance, store: IdempotencyStore)
     if (!MUTATING.has(request.method)) return;
     const header = request.headers['idempotency-key'];
     if (typeof header !== 'string' || header.length === 0) return;
-    keys.set(request, header);
+
+    // Scope every key to the caller (docs/82 §idempotency-scope): a raw
+    // client-supplied key was a global namespace, so org A's "retry-1" could
+    // replay org B's stored response — a cross-tenant read and, worse, a way
+    // to make a replay LOOK legitimate. Keys are scoped to (session, route);
+    // the onSend below must stamp entries under the same scope.
+    const authz = extractBearer(request.headers.authorization) ?? request.cookies?.orq8_session ?? null;
+    if (!authz) {
+      throw new AppError(
+        400,
+        'idempotency.requires_auth',
+        'Idempotency-Key requires an authenticated request: keys are scoped per session and route.',
+      );
+    }
+    const scope = createHash('sha256').update(`${authz}|${request.method}|${request.url.split('?')[0] ?? ''}`).digest('hex').slice(0, 24);
+    const scopedKey = `${scope}:${header}`;
+    keys.set(request, scopedKey);
 
     // Use async store if available (Redis), fall back to sync (in-memory)
     const existing = useAsync
-      ? await (store as any).getAsync(header)
-      : store.get(header);
+      ? await (store as any).getAsync(scopedKey)
+      : store.get(scopedKey);
 
     if (!existing) return;
     if (existing.payloadHash !== stablePayloadHash(request.body)) {

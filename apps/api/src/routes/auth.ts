@@ -14,6 +14,7 @@ import * as orgs from '../services/orgs.js';
 import * as sessions from '../services/sessions.js';
 import * as users from '../services/users.js';
 import { checkLoginAllowed, recordFailedLogin, resetFailedLogins } from '../plugins/brute-force.js';
+import { formatRetryAfter } from '../services/rate-limit-service.js';
 import type { AppDeps } from '../types.js';
 
 function sha256hex(value: string): string {
@@ -33,10 +34,19 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (existing) throw conflict('An account with this email already exists');
 
     const passwordHash = await hashPassword(password);
+    // Email confirmation can be turned off for a launch where mail delivery is
+    // not yet wired: the account becomes active at signup and no verification
+    // mail is issued. The gate is applied consistently in login and requireAuth.
+    const requireVerification = deps.config.REQUIRE_EMAIL_VERIFICATION !== 'false';
 
     // All registration writes are atomic (docs/34.6): user + org + membership + session + audit
     const result = await db.transaction(async (tx) => {
-      const user = await users.createUser(tx, { email, passwordHash, name: name ?? null });
+      const user = await users.createUser(tx, {
+        email,
+        passwordHash,
+        name: name ?? null,
+        emailVerifiedAt: requireVerification ? null : new Date(),
+      });
       const org = await orgs.createOrg(tx, { name: org_name });
       await orgs.createMembership(tx, { orgId: org.id, userId: user.id, role: 'owner' });
       const { token, expiresAt } = await sessions.createSession(tx, {
@@ -50,7 +60,9 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       await appendAudit(tx, { orgId: org.id, actorType: 'user', actorId: user.id, action: 'member.joined', outcome: 'success' });
       // Verification token is issued inside the same transaction so a
       // partial signup can never leave a verify-able orphan (or vice versa).
-      const verification = await emailVerification.issueVerificationToken(tx as unknown as Parameters<typeof emailVerification.issueVerificationToken>[0], user.id, email);
+      const verification = requireVerification
+        ? await emailVerification.issueVerificationToken(tx as unknown as Parameters<typeof emailVerification.issueVerificationToken>[0], user.id, email)
+        : ({ ok: false, reason: 'verification_disabled' } as const);
       return { user, org, token, expiresAt, verification };
     });
 
@@ -80,6 +92,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         token: result.token,
         expires_at: result.expiresAt.toISOString(),
         user: { id: result.user.id, email: result.user.email, name: result.user.name },
+        email_verified: !!result.user.emailVerifiedAt,
         org: {
           id: result.org.id,
           name: result.org.name,
@@ -100,12 +113,16 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     const redis = (deps as { redis?: { isConnected(): boolean } }).redis;
     const lockCheck = await checkLoginAllowed(redis as any, email, db);
     if (!lockCheck.allowed) {
-      const retryAfterMs = lockCheck.lockedUntil ? Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000) : 900;
-      reply.header('Retry-After', String(retryAfterMs));
+      // Report the REAL cooldown — the exact seconds until the lock lifts,
+      // not a rounded-up "1 minutes" for a lock expiring in 8 seconds.
+      const retryAfterSec = lockCheck.lockedUntil
+        ? Math.max(1, Math.ceil((lockCheck.lockedUntil.getTime() - Date.now()) / 1000))
+        : 900;
+      reply.header('Retry-After', String(retryAfterSec));
       reply.code(429).send({
         error: {
           code: 'account_locked',
-          message: `Too many failed login attempts. Please try again in ${Math.ceil(retryAfterMs / 60)} minutes.`,
+          message: `Too many failed login attempts. Please try again in ${formatRetryAfter(retryAfterSec)}.`,
           policy_ref: 'docs/37',
         },
       });
@@ -134,7 +151,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
     // Email confirmation gate (docs: auth task STEP 5.3). Credentials may be
     // correct, but an unconfirmed email cannot open a session. The structured
     // code lets the web UI offer a resend instead of a dead end.
-    if (!user.emailVerifiedAt) {
+    if (deps.config.REQUIRE_EMAIL_VERIFICATION !== 'false' && !user.emailVerifiedAt) {
       logger.info({ userId: user.id }, 'login blocked: email not verified');
       throw new AppError(
         403,

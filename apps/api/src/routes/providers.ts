@@ -2,8 +2,10 @@ import { AesGcmCipher, conflict, notFound, validation } from '@orq8/core';
 import {
   rotateProviderKeyBody,
   saveProviderKeyBody,
+  updateProviderKeyBody,
   type ProviderKeyResponse,
 } from '@orq8/domain';
+import { monthToDateSpendByKey } from '../services/org-provider-keys.js';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
@@ -39,8 +41,13 @@ function toKeyResponse(row: {
     lastTestedAt: Date | null;
     lastUsedAt: Date | null;
     createdAt: Date;
+    /** docs/80 Phase 4: the per-key USD ceiling (null = uncapped). */
+    monthlySpendCeiling?: number | null;
   };
   provider: { slug: string; name: string; kind: string };
+  /** docs/80 Phase 4: month-to-date USD spend and whether the ceiling is reached. */
+  spendUsd?: number;
+  overCeiling?: boolean;
 }): ProviderKeyResponse {
   return {
     id: row.key.id,
@@ -57,6 +64,20 @@ function toKeyResponse(row: {
     last_tested_at: row.key.lastTestedAt?.toISOString() ?? null,
     last_used_at: row.key.lastUsedAt?.toISOString() ?? null,
     created_at: row.key.createdAt.toISOString(),
+    // Enforcement state (docs/80 Phase 4). The gateway prefers a key only when
+    // it is active, enabled, and within its ceiling; these three fields are the
+    // same decision rendered for the founder, not a second opinion.
+    monthly_spend_ceiling: row.key.monthlySpendCeiling ?? null,
+    month_to_date_spend_usd: row.spendUsd ?? 0,
+    active_for_routing: row.key.status === 'active' && row.key.enabled && !row.overCeiling,
+    routing_blocked_reason:
+      row.key.status !== 'active'
+        ? 'revoked'
+        : !row.key.enabled
+          ? 'disabled'
+          : row.overCeiling
+            ? 'over_ceiling'
+            : null,
   };
 }
 
@@ -154,11 +175,68 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
     };
   });
 
-  // docs/23.3 — list org keys (masked only; no decrypt, no secret ledger entry)
+  // docs/23.3 — list org keys (masked only; no decrypt, no secret ledger entry).
+  // docs/80 Phase 4: each key also carries its month-to-date spend, its ceiling
+  // and whether it is the one the gateway would route with, so the settings page
+  // shows enforcement rather than only configuration.
   app.get('/v1/providers/keys', async (request) => {
     const ctx = await requireAuth(request, deps);
-    const rows = await providersService.listKeysByOrg(db, ctx.orgId);
-    return { data: rows.map(toKeyResponse) };
+    const [rows, spendByKey] = await Promise.all([
+      providersService.listKeysByOrg(db, ctx.orgId),
+      monthToDateSpendByKey(db, ctx.orgId),
+    ]);
+    return {
+      data: rows.map((row) => {
+        const spendUsd = spendByKey.get(row.key.id) ?? 0;
+        const ceiling = row.key.monthlySpendCeiling ?? null;
+        return toKeyResponse({ ...row, spendUsd, overCeiling: ceiling !== null && spendUsd >= ceiling });
+      }),
+    };
+  });
+
+  // docs/80 Phase 4 — spending controls: monthly ceiling, enabled, allow-list.
+  // Secrets are never touched here (rotation has its own endpoint), so this can
+  // never accidentally replace a key.
+  app.patch('/v1/providers/keys/:id', async (request, reply) => {
+    const ctx = await requireAuth(request, deps);
+    const { id } = request.params as { id: string };
+    const parsed = updateProviderKeyBody.safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const row = await providersService.findKeyById(db, id, ctx.orgId);
+    if (!row) throw notFound('Provider key not found');
+    if (row.key.status === 'revoked') throw conflict('Revoked keys cannot be changed');
+
+    const updated = await providersService.updateKeyControls(db, id, ctx.orgId, {
+      ...(parsed.data.monthly_spend_ceiling !== undefined
+        ? { monthlySpendCeiling: parsed.data.monthly_spend_ceiling }
+        : {}),
+      ...(parsed.data.enabled !== undefined ? { enabled: parsed.data.enabled } : {}),
+      ...(parsed.data.allowed_models !== undefined ? { allowedModels: parsed.data.allowed_models } : {}),
+    });
+    if (!updated) throw notFound('Provider key not found');
+
+    await appendAudit(db, {
+      orgId: ctx.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'provider.key_controls_updated',
+      outcome: 'success',
+      resultRef: `key:${id}`,
+    });
+
+    const spendByKey = await monthToDateSpendByKey(db, ctx.orgId);
+    const spendUsd = spendByKey.get(id) ?? 0;
+    const ceiling = updated.monthlySpendCeiling ?? null;
+    reply.code(200);
+    return {
+      data: toKeyResponse({
+        ...row,
+        key: { ...row.key, ...updated },
+        spendUsd,
+        overCeiling: ceiling !== null && spendUsd >= ceiling,
+      }),
+    };
   });
 
   // Single key (masked)

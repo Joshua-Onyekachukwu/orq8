@@ -4,8 +4,9 @@ The map. Every document that is authoritative, active, or historical is listed
 here with what it is for and what to do with it. If a document is not in this
 index, it is either archived (`docs/archive/README.md`) or a dated log.
 
-Updated 2026-09-29 during the ecosystem reconciliation
-(`docs/69_ECOSYSTEM_RECONCILIATION_REPORT.md`).
+Updated 2026-10-03 during the AI cost / credit-economy work (`docs/80` Phases 0, 1 and 3 shipped, plus the BYOK slice of Phase 4) and the deployment recon (`docs/82`);
+the 2026-09-29 ecosystem reconciliation (`docs/69_ECOSYSTEM_RECONCILIATION_REPORT.md`) is the
+baseline this update extends.
 
 ---
 
@@ -45,6 +46,7 @@ document that states status is a snapshot; it belongs in `docs/archive/`.
 | Which requirements are done, and where is the evidence? | `68_REQUIREMENT_MATRIX.md` |
 | What should a founder see and do? | `67_ORQ8_PRODUCT_EXPERIENCE_SPEC.md` |
 | How do I run and deploy it? | `58_DEPLOYMENT.md`, `51_ENVIRONMENT_SETUP.md` |
+| What accounts/services do I still need to provision? | `81_SERVICE_SETUP_CHECKLIST.md` |
 | What is the state of the whole ecosystem right now? | `69_ECOSYSTEM_RECONCILIATION_REPORT.md` |
 | Why was a decision made? | `adr/` + `56_ADR_INDEX.md` |
 
@@ -137,6 +139,20 @@ document that states status is a snapshot; it belongs in `docs/archive/`.
 | `60_DOMAIN_RECOVERY_RUNBOOK.md` | Recovering the production domain | Active, conditional |
 | `50-posthog-setup.md` | PostHog setup | Active |
 | `54_COST_MODEL.md` | Cost model | Active |
+
+### AI cost, rate limits, worker and demo readiness (docs 73–81)
+
+| Document | Purpose | Status |
+| --- | --- | --- |
+| `73_ORQ8_CONSOLE_UI_SKILL.md` | Console UI implementation guardrail (tokens, state dots, card patterns) | Active |
+| `75_ORQ8_BACKEND_ARCHITECTURE.md` | Backend/worker architecture: queue, modes, phases | Active; the worker source of truth |
+| `76_ORQ8_APP_WIDE_AUDIT_AND_PLAN.md` | App-wide audit + plan (shell primitives, container widths) | Plan; Phase 3 primitives shipped, the rest awaits go-ahead |
+| `77_ORQ8_AI_COST_SECURITY_CREDIT_AUDIT.md` | AI cost / security / credit audit + remediation plan | P0, P1 §5 and P1 §8 shipped; P1 §6–7 and P2/P3 open |
+| `78_ORQ8_ADMIN_CONSOLE_AUDIT_AND_PLAN.md` | Platform admin console audit + working plan | Plan; the reconcile panel and commands dashboard have landed |
+| `79_ORQ8_UI_WORKER_DEMO_READINESS_PLAN.md` | UI, worker and demo-day readiness plan | In execution; phases 2–7 built in the working tree, 8–13 open |
+| `80_ORQ8_AI_COST_SECURITY_RATE_LIMIT_CREDIT_ECONOMY_PLAN.md` | The cost/rate-limit/credit economy plan executing docs/77 | **Approved; Phase 0 + Phase 1 (credit reservations) + Phase 2 (budgets/recursion guard/kill switch) + Phase 3 (layered rate limits) + Phase 4 (BYOK + plan tier caps + routing reason + dead ModelRouter removed) shipped** |
+| `81_SERVICE_SETUP_CHECKLIST.md` | What to provision (Supabase, API host, Vercel, mail, OpenRouter, Redis, Stripe) | Active |
+| `82_DEPLOYMENT_RUNBOOK.md` | Deployment runbook: the live Railway project + Supabase state, what is left, and how to move hosts later | Active (deployment authority) |
 
 ### Process, status and logs
 

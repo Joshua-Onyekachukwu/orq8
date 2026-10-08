@@ -4,6 +4,7 @@ import {
   agents as agentsTable,
   approvals as approvalsTable,
   auditEvents as auditEventsTable,
+  agentJobs as agentJobsTable,
   createDb,
   creditTransactions as creditTransactionsTable,
   tasks as tasksTable,
@@ -252,8 +253,10 @@ run('a task uses tools through the registry, with its gate', () => {
     expect(approval?.toolParams).toMatchObject({ recipient: 'pilot@orq8.test' });
     expect(await auditsFor(taskId, 'tool.executed')).toHaveLength(0);
 
-    // The founder approves: the decision resumes the task, which consumes the
-    // grant and really runs the call.
+    // The founder approves: the decision enqueues the release (the gateway
+    // never runs a model call on the request path), and the queue worker
+    // consumes the grant — single-use, against its decision token — when it
+    // really runs the call.
     const decided = await app.inject({
       method: 'PATCH',
       url: `/v1/approvals/${approval!.id}`,
@@ -261,9 +264,25 @@ run('a task uses tools through the registry, with its gate', () => {
       payload: { status: 'approved' },
     });
     expect(decided.statusCode, decided.payload).toBe(200);
+    expect(JSON.parse(decided.payload).resumed?.status, decided.payload).toBe('queued');    // The PATCH enqueues the release and fires one immediate drain of its own,
+    // so the run belongs to whichever runner claims the job. Await the JOB row
+    // until it settles: an async release finishes when its runner finishes,
+    // not when the PATCH answers.
+    let jobStatus: string | undefined;
+    const settledBy = Date.now() + 15_000;
+    while (Date.now() < settledBy) {
+      const [job] = await db
+        .select({ status: agentJobsTable.status })
+        .from(agentJobsTable)
+        .where(eq(agentJobsTable.taskId, taskId))
+        .limit(1);
+      jobStatus = job?.status;
+      if (jobStatus === 'done' || jobStatus === 'dead') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(jobStatus).toBe('done');
 
     const completed = await taskRow(taskId);
-    expect(completed?.status).toBe('completed');
     expect(completed?.result).toContain('Tools used: write_email: ran in');
 
     const executed = await auditsFor(taskId, 'tool.executed');

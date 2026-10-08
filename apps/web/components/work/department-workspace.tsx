@@ -17,6 +17,12 @@ import {
 } from "lucide-react";
 import { usePageContext } from "../executive-agent-context";
 import { titleize, type AgentAuthority } from "./authority-panel";
+import {
+  Stat,
+  WorkflowCard,
+  WorkCard,
+  type WorkflowItem,
+} from "../os/primitives";
 
 /**
  * The department workspace (docs/71 §G). The department owns one row; every
@@ -140,6 +146,26 @@ export interface DepartmentToolData {
   roles: string[];
 }
 
+export interface DepartmentWorkflowData {
+  id: string;
+  provider: string;
+  eventType: string;
+  action: string;
+  requiresApproval: boolean;
+  enabled: boolean;
+  agentId: string | null;
+  agentName: string | null;
+  taskTitleTemplate: string | null;
+}
+
+export interface DepartmentMetricsData {
+  creditsUsed30d: number;
+  tasksDone30d: number;
+  avgApprovalHours: number | null;
+  budgetBurnPct: number | null;
+  failed30d: number;
+}
+
 export interface DepartmentDetailData {
   department: {
     id: string;
@@ -151,6 +177,13 @@ export interface DepartmentDetailData {
     createdAt: string;
     agentCount: number;
     activeCount: number;
+    /** docs/85 — template blueprint written at activation. */
+    settings?: {
+      templateSlug?: string;
+      kpis?: unknown[];
+      typicalGoals?: unknown[];
+      roles?: unknown[];
+    } | null;
   };
   members: DepartmentMemberData[];
   teams: DepartmentTeamData[];
@@ -162,6 +195,28 @@ export interface DepartmentDetailData {
   memory: DepartmentMemoryData[];
   files: DepartmentFileData[];
   tools: DepartmentToolData[];
+  /** docs/85 §3.3 — accepted work not yet running. */
+  queued?: DepartmentTaskData[];
+  /** docs/85 §3.3 — recent outcomes. */
+  done?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    agentId: string | null;
+    cost: number;
+    result: string | null;
+    updatedAt: string;
+  }>;
+  metrics?: DepartmentMetricsData;
+  workflows?: DepartmentWorkflowData[];
+  head?: {
+    id: string;
+    name: string;
+    role: string;
+    status: string;
+    currentTask: string | null;
+    autonomyLevel: string;
+  } | null;
 }
 
 const TABS = [
@@ -172,6 +227,8 @@ const TABS = [
   { key: "memory", label: "Memory" },
   { key: "authority", label: "Authority" },
   { key: "activity", label: "Activity" },
+  { key: "queued", label: "Queued" },
+  { key: "done", label: "Completed" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -238,7 +295,7 @@ function memberState(member: DepartmentMemberData): { label: string; state: DotS
   return { label: "Idle", state: "" };
 }
 
-/** Header state: the loudest true thing about the department right now. */
+/** Header state: the loudest true thing about the department right now (docs/85 §4 — needs you > blocked > working > queued > idle). */
 function departmentState(detail: DepartmentDetailData): { label: string; state: DotState; hint: string } {
   if (detail.department.status !== "active") {
     return { label: "Archived", state: "", hint: "Archived — kept for history, not operating." };
@@ -257,13 +314,21 @@ function departmentState(detail: DepartmentDetailData): { label: string; state: 
       hint: `${detail.needsFounder.length} decision${detail.needsFounder.length === 1 ? "" : "s"} waiting on you.`,
     };
   }
+  const failed = (detail.done ?? []).filter((t) => t.status === "failed");
   const running = detail.now.filter((t) => t.status === "in_progress");
+  if (failed.length > 0 && running.length === 0) {
+    return {
+      label: "Blocked",
+      state: "blocked",
+      hint: `Last outcome failed (“${failed[0]!.title}”) and nothing is progressing.`,
+    };
+  }
   if (running.length > 0) {
     return { label: "Working", state: "working", hint: `Running “${running[0]!.title}”.` };
   }
-  const queued = detail.now.filter((t) => t.status === "pending");
-  if (queued.length > 0) {
-    return { label: "Queued", state: "", hint: `${queued.length} task${queued.length === 1 ? "" : "s"} waiting for a run.` };
+  const queuedCount = (detail.queued ?? []).length;
+  if (queuedCount > 0) {
+    return { label: "Queued", state: "", hint: `${queuedCount} task${queuedCount === 1 ? "" : "s"} waiting for a run.` };
   }
   return { label: "Idle", state: "", hint: "Active and available; nothing is running." };
 }
@@ -377,16 +442,41 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
               {department.description && (
                 <p className="mt-1 max-w-2xl text-sm text-muted">{department.description}</p>
               )}
+              {(department.settings?.kpis?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(department.settings!.kpis as unknown[]).slice(0, 4).map((k, i) => {
+                    const label =
+                      typeof k === "string"
+                        ? k
+                        : k && typeof k === "object" && "name" in (k as Record<string, unknown>)
+                          ? String((k as Record<string, unknown>).name)
+                          : null;
+                    return label ? (
+                      <span key={i} className="rounded-md bg-elevated px-1.5 py-0.5 text-3xs text-muted">
+                        KPI · {label}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-2xs text-ink">
                   <span className="state-dot" data-state={state.state} />
                   {state.label}
                 </span>
-                {department.head && (
-                  <span className="rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted">
-                    Lead · {department.head}
-                  </span>
-                )}
+                {department.head &&
+                  (detail.head ? (
+                    <Link
+                      href={`/app/agents/${detail.head.id}`}
+                      className="rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted transition-colors hover:text-ink"
+                    >
+                      Lead · {department.head}
+                    </Link>
+                  ) : (
+                    <span className="rounded-full border border-hairline px-2.5 py-1 text-2xs text-muted">
+                      Lead · {department.head}
+                    </span>
+                  ))}
                 <span className="font-mono text-2xs text-muted">
                   {department.agentCount} employee{department.agentCount === 1 ? "" : "s"} ·{" "}
                   {department.activeCount} active
@@ -503,7 +593,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
             <p className="mt-1 text-xs text-muted">
               {detail.members.length === 0
                 ? "This department has no employees yet. Hire one into it, or ask the Executive Agent to brief it."
-                : "Queued work, running work and anything waiting on your decision would appear here."}
+                : "Running work and anything waiting on your decision appears here; accepted-but-idle tasks live under Queued."}
             </p>
           </div>
         ) : (
@@ -536,6 +626,44 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
           </ul>
         )}
       </section>
+
+      {/* ── Workflows (docs/85 §5 workflow-card) ─────────────────────────── */}
+      {(detail.workflows?.length ?? 0) > 0 && (
+        <section className="console-card p-4">
+          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            Workflows — triggers this department responds to
+          </h2>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {detail.workflows!.map((wf) => (
+              <WorkflowCard key={wf.id} wf={wf as WorkflowItem} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Metrics (docs/85 §3.3) ──────────────────────────────────────── */}
+      {detail.metrics && (
+        <section className="console-card p-4">
+          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+            Last 30 days
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <Stat label="Tasks done" value={detail.metrics.tasksDone30d} />
+            <Stat label="Failed" value={detail.metrics.failed30d} />
+            <Stat label="Credits spent" value={detail.metrics.creditsUsed30d} />
+            <Stat
+              label="Avg approval wait"
+              value={detail.metrics.avgApprovalHours != null ? `${detail.metrics.avgApprovalHours}h` : "—"}
+              sub="request → founder decision"
+            />
+            <Stat
+              label="Budget burn"
+              value={detail.metrics.budgetBurnPct != null ? `${detail.metrics.budgetBurnPct}%` : "—"}
+              sub={department.budget ? `of ${department.budget.toLocaleString()} credits` : "no budget set"}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── Team ─────────────────────────────────────────────────────────── */}
       <section className="console-card p-4">
@@ -1031,6 +1159,68 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+      )}
+
+      {/* Queued — accepted work waiting for a run (docs/85 §3.3) */}
+      {tab === "queued" && (
+        <section className="console-card p-4">
+          <div className="flex items-center gap-2">
+            <Clock aria-hidden="true" className="h-3.5 w-3.5 text-muted" />
+            <h3 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Queued — accepted, waiting for a run
+            </h3>
+          </div>
+          {(detail.queued?.length ?? 0) === 0 ? (
+            <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
+              <p className="text-sm text-ink">Queue is empty.</p>
+              <p className="mt-1 text-xs text-muted">
+                New tasks assigned to this department&apos;s employees wait here until a worker picks them up.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              {detail.queued!.map((task) => (
+                <WorkCard
+                  key={task.id}
+                  task={task}
+                  agentName={task.agentId ? (memberNameById.get(task.agentId) ?? null) : null}
+                  href={`/app/tasks/${task.id}`}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Completed — outcomes (docs/85 §3.3) */}
+      {tab === "done" && (
+        <section className="console-card p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-muted" />
+            <h3 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+              Completed — recent outcomes
+            </h3>
+          </div>
+          {(detail.done?.length ?? 0) === 0 ? (
+            <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
+              <p className="text-sm text-ink">Nothing finished yet.</p>
+              <p className="mt-1 text-xs text-muted">
+                Completed and failed tasks land here with their results — the record of what this department produced.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              {detail.done!.map((task) => (
+                <WorkCard
+                  key={task.id}
+                  task={task}
+                  agentName={task.agentId ? (memberNameById.get(task.agentId) ?? null) : null}
+                  href={`/app/tasks/${task.id}`}
+                />
+              ))}
+            </div>
           )}
         </section>
       )}

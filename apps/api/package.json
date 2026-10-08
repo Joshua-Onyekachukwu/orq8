@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Fastify API — module-per-domain (docs/06 apps/api, 35)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./worker": "./src/services/job-worker.ts",
+    "./jobs": "./src/services/jobs.ts"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",

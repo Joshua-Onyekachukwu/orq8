@@ -17,9 +17,9 @@
  */
 
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { llmPerformance } from '@orq8/db';
+import { llmPerformance, organizations } from '@orq8/db';
 import type { Db } from '@orq8/db';
-import { modelsByTier, type ModelTier } from './model-intelligence.js';
+import { modelsByTier, planTierCap, type ModelTier } from './model-intelligence.js';
 import { calibrationRoutingAdvice, type CalibrationRoutingAdvice } from './calibration-routing.js';
 
 /** Minimum successful calls before a model may be preferred over the default. */
@@ -79,10 +79,26 @@ export async function getRoutingPerformance(db: Db, orgId: string): Promise<Rout
   return { stats, sufficientData: totalCalls >= MIN_CALLS_FOR_ROUTING_SUCCESS };
 }
 
+/** The org's plan, used to bound routing when a caller does not pass an explicit cap. */
+async function getOrgPlan(db: Db, orgId: string): Promise<string> {
+  const [row] = await db
+    .select({ plan: organizations.plan })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  return row?.plan ?? 'trial';
+}
+
 /**
  * Pick the execution model for a task: the cheapest tier-sufficient registry
  * model, unless measured history in this org says a sibling model in the same
  * tier is the reliable one. Deterministic given the same DB rows.
+ *
+ * docs/80 Phase 4: selection is bounded by the org's **plan tier cap**
+ * (decision 5). The cap is a ceiling on quality: when a task's own risk/
+ * complexity floor is higher than the plan allows, the cap wins, so a
+ * low-revenue plan cannot burn a flagship model. The choice is always explained
+ * in `reason`, and a cap-bound pick reports `source: 'plan_cap'`.
  */
 export async function selectMeasuredModel(
   db: Db,
@@ -92,32 +108,53 @@ export async function selectMeasuredModel(
    * calibration is inverted/weak, consequential routing is floored to the
    * strongest tier. Optional — callers without DB-decision access omit it. */
   calibration?: CalibrationRoutingAdvice | null,
-): Promise<{ modelId: string | undefined; source: 'measured' | 'static'; reason?: string }> {
+  /** Optional explicit cap; otherwise the org's plan decides. */
+  options?: { maxTier?: ModelTier },
+): Promise<{ modelId: string | undefined; source: 'measured' | 'static' | 'plan_cap'; reason?: string }> {
   const tiers = modelsByTier();
 
-  let minTier: ModelTier =
+  const plan = await getOrgPlan(db, orgId);
+  const maxTier = options?.maxTier ?? planTierCap(plan);
+
+  const requiredTier: ModelTier =
     routing.risk === 'critical' || routing.complexity >= 4 ? 2 : routing.complexity >= 3 || routing.reasoning !== 'low' ? 1 : 0;
+
   // Calibration consequence: a consequential (consequential-risk or complex)
   // task never routes below the advice's floor. Pure cost/complexity tasks
   // are untouched — the consequence targets decisions, not busywork.
+  let floorTier: ModelTier = requiredTier;
   const consequential = routing.risk === 'critical' || routing.complexity >= 3;
-  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && minTier < calibration.minConsequentialTier) {
-    minTier = calibration.minConsequentialTier;
+  if (calibration?.active && consequential && calibration.minConsequentialTier !== null && floorTier < calibration.minConsequentialTier) {
+    floorTier = calibration.minConsequentialTier;
   }
 
-  // Static order of tier-sufficient candidates (cheapest first).
+  // Plan cap wins over the quality floor (docs/80 decision 5): route down, never up.
+  const cappedByPlan = floorTier > maxTier;
+  const minTier = (cappedByPlan ? maxTier : floorTier) as ModelTier;
+  const planDetail = cappedByPlan
+    ? `Plan cap: the ${plan} plan allows model tier ${maxTier} at most, so a tier-${floorTier} task was clamped down`
+    : undefined;
+
+  // Static order of candidates (cheapest first), within the cap. When the cap
+  // binds, the quality floor is relaxed, so every tier up to the cap is fair
+  // game (a plan capped at tier 1 whose tier 1 has no registry model still gets
+  // the cheapest tier-0 model rather than nothing).
   const candidates: string[] = [];
-  for (let tier = minTier as number; tier <= 3; tier++) {
+  for (let tier = cappedByPlan ? 0 : (minTier as number); tier <= maxTier; tier++) {
     for (const m of tiers[tier as ModelTier]) candidates.push(m.id);
   }
   const staticPick = candidates[0];
 
   const perf = await getRoutingPerformance(db, orgId);
   if (candidates.length <= 1) {
-    return { modelId: staticPick, source: 'static' };
+    return { modelId: staticPick, source: cappedByPlan ? 'plan_cap' : 'static', reason: planDetail };
   }
   if (perf.stats.size === 0) {
-    return { modelId: staticPick, source: 'static', reason: 'insufficient measured history' };
+    return {
+      modelId: staticPick,
+      source: cappedByPlan ? 'plan_cap' : 'static',
+      reason: cappedByPlan ? planDetail : 'insufficient measured history',
+    };
   }
 
   // 1. Demote any candidate that is measured-degraded in this org. This path
@@ -141,12 +178,12 @@ export async function selectMeasuredModel(
       s.successRate >= SUCCESS_RATE_FLOOR
     ) {
       if (id === staticPick) {
-        return { modelId: id, source: 'static', reason: undefined };
+        return { modelId: id, source: cappedByPlan ? 'plan_cap' : 'static', reason: planDetail };
       }
       return {
         modelId: id,
         source: 'measured',
-        reason: `${id} has ${s.successes} measured successes at ${Math.round(s.successRate * 100)}% over ${ROUTING_WINDOW_DAYS}d — preferred over the static default`,
+        reason: `${id} has ${s.successes} measured successes at ${Math.round(s.successRate * 100)}% over ${ROUTING_WINDOW_DAYS}d — preferred over the static default${cappedByPlan ? ` (${planDetail})` : ''}`,
       };
     }
   }
@@ -157,9 +194,13 @@ export async function selectMeasuredModel(
     return {
       modelId: firstHealthy,
       source: 'measured',
-      reason: `static default is measured-degraded in this org (${[...degraded].join(', ')})`,
+      reason: `static default is measured-degraded in this org (${[...degraded].join(', ')})${cappedByPlan ? ` (${planDetail})` : ''}`,
     };
   }
 
-  return { modelId: staticPick, source: 'static', reason: degraded.size > 0 ? 'degraded candidate not present in registry candidates' : undefined };
+  return {
+    modelId: staticPick,
+    source: cappedByPlan ? 'plan_cap' : 'static',
+    reason: planDetail ?? (degraded.size > 0 ? 'degraded candidate not present in registry candidates' : undefined),
+  };
 }

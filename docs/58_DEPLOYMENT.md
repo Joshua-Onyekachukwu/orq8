@@ -327,6 +327,11 @@ separate migrate step is needed on deploy.
 
 ### Railway API service — environment variables
 
+> **Worker:** a hosted API should run `JOB_QUEUE_MODE=enqueue` and a second service run
+> `apps/worker` (`pnpm --filter @orq8/worker start`) with the same env — Vercel's serverless
+> function cannot run a loop, and Railway's long-running container is the natural worker home
+> (`infra/docker-compose.yml` `orq8-worker` is the local equivalent). See `docs/81` §1.
+
 | Var | Value | Notes |
 |---|---|---|
 | `DATABASE_URL` | managed Postgres (Railway or Supabase) | required; must be `postgres://` with password |
@@ -385,5 +390,5 @@ service once the keys are verified:
 - **No auth on Vercel** — we use our own session auth (ADR-007); Supabase Auth is not used.
 - **No custom domain / DNS** — **decision (2026-09-12): we run on the Vercel domain `https://orq8.vercel.app` for now.** The previously registered `orq8.app` remains unrecoverable at the registry (see `60_DOMAIN_RECOVERY_RUNBOOK.md`); when the founder secures a new domain, add it in Vercel → Project → Settings → Domains, set `ALLOWED_ORIGINS` on the API to include it, and update the references below — until then `orq8.vercel.app` is the single production origin.
 - **No staging DB** — beta scale doesn't need it; the PR-preview Vercel apps share the same API. When the first paying tier lands, add a `staging` Supabase project + a `staging` branch protection rule.
-- **No rate limiting / abuse protection** on the public waitlist endpoint — the waitlist is Phase 1 bait; add honeypot + simple IP throttle when the beta opens (docs/37).
+- **No rate limiting / abuse protection** on the public waitlist endpoint — the waitlist is Phase 1 bait; add honeypot + simple IP throttle when the beta opens (docs/37). The **API's AI-bearing routes** are now covered: per-user/per-org/per-endpoint-class sliding windows, per-agent job quotas, global + per-provider model concurrency and a per-org job-claim cap (docs/80 Appendix C). In production these are only correct across replicas with `REDIS_URL` set; without it each instance keeps its own windows.
 - **No observability SaaS** — pino logs to Vercel's function logs; OTel collector stays local (docs/39) until paid tier.

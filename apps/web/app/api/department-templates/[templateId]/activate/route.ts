@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { API_URL, proxyApiJson } from "../../../../../lib/api";
+import { proxyApiJson } from "../../../../../lib/api";
 
 /**
  * POST /api/department-templates/:templateId/activate — one-click activation:
@@ -11,7 +11,10 @@ export async function POST(
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   const { templateId } = await params;
-  return proxyApiJson(request, `${API_URL}/v1/department-templates/${templateId}/activate`, {
+  // proxyApiJson prefixes API_URL itself — pass the bare v1 path (the
+  // double-prefixed form produced an unresolvable URL and a 502 for the
+  // founder's one-click department activation; docs/83 §route-proxy).
+  return proxyApiJson(request, `/v1/department-templates/${templateId}/activate`, {
     method: "POST",
     body: {},
   });

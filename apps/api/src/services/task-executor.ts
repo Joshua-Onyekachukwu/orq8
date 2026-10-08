@@ -16,15 +16,27 @@ import {
 } from './tool-registry.js';
 import { appendAudit } from './audit.js';
 import { enforceAutonomy, normalizeAutonomyLevel } from './autonomy.js';
-import { consumeCredits, hasEnoughCredits } from './credits.js';
+import {
+  consumeCredits,
+  reserveCredits,
+  settleReservation,
+  releaseReservation,
+  getOrCreateBalance,
+  CreditExhaustedError,
+  BudgetExceededError,
+  BudgetApprovalRequiredError,
+  type CreditReservationInfo,
+} from './credits.js';
+import { estimateCredits } from './credit-estimator.js';
 import { taskProviderCost } from './llm-pricing.js';
 import { broadcastToOrg } from './realtime.js';
 import { notifyAttentionChanged } from './attention.js';
-import { findGrantedGate, findOpenGate, markGateReleased } from './approvals.js';
+import { findGrantedGate, findOpenGate, markGateReleased, GATE_TTL_MS } from './approvals.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import { getCalibrationAdvice } from './calibration-routing.js';
 import type { AppConfig } from '@orq8/core';
+import { taskDecisionToken } from '@orq8/core';
 
 /**
  * Task Executor — runs individual tasks through the LLM.
@@ -233,6 +245,11 @@ async function gateTaskOnApproval(
         description: `Agent "${agentName}" is ready to work on "${task.title}" and needs your decision first. ${reason}`,
         riskLevel: 'medium',
         status: 'pending',
+        // Bind the decision to "execute THIS task" (docs/82 §decision-token)
+        // and bound how long the question stays open — the expiry sweeper
+        // pauses the task when it passes; silence never approves.
+        callHash: taskDecisionToken(task.id),
+        gateExpiresAt: new Date(Date.now() + GATE_TTL_MS),
       })
       .returning();
 
@@ -395,6 +412,26 @@ export async function executeTask(
     if (decision.requiresApproval) {
       const grant = await findGrantedGate(db, orgId, taskId);
       if (grant) {
+        // Decision token (docs/82 §decision-token): the founder authorized
+        // "run THIS task"; the token recomputes and compares before the grant
+        // is spent. A mismatched gate is a denial, audited, and the work asks
+        // again rather than riding an approval meant for something else.
+        if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+          await appendAudit(db, {
+            orgId,
+            actorType: 'agent',
+            actorId: task.agentId ?? orgId,
+            approvalId: grant.id,
+            action: 'task.execution_denied',
+            outcome: 'denied',
+            inputRef: JSON.stringify({
+              reason: 'decision_token_mismatch',
+              expectedCallHash: grant.callHash,
+              actualCallHash: taskDecisionToken(taskId),
+            }),
+          });
+          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required');
+        }
         await markGateReleased(db, grant.id);
         await appendAudit(db, {
           orgId,
@@ -411,17 +448,137 @@ export async function executeTask(
   }
 
   // 2d. Enforce credits: no free work. An exhausted balance pauses every AI
-  //     employee action, which is exactly what the credit alert copy promises.
-  //     The balance is read here, server-side; the client cannot assert it.
-  const creditCheck = await hasEnoughCredits(db, orgId, 'task.executed');
-  if (creditCheck.balance.remaining <= 0) {
-    return persistPreExecutionBlock(
-      db, orgId, task,
-      `Execution blocked: Work Credits exhausted (${creditCheck.balance.used} of ${creditCheck.balance.total} used this period). Top up or change plan to resume work.`,
-      assignee?.name ?? 'Unassigned',
-      'Pre-execution credit check',
-    );
+  //     employee action. docs/80 Phase 1: this takes a *reservation* for the
+  //     estimated cost of the task rather than only checking the balance — the
+  //     hold is what keeps concurrent work from over-committing the same
+  //     credits. Settlement charges the measured actual, capped at the estimate;
+  //     anything left, or a failed task, releases back to available.
+  let taskReservation: CreditReservationInfo | null = null;
+  const estimate = await estimateCredits(db, config, {
+    orgId,
+    operationClass: 'task.execute',
+    agentId: task.agentId ?? undefined,
+  });
+
+  // docs/80 Phase 2: the estimator's own ceiling and the constitution's approval
+  // threshold both stop the work for a founder's decision. A grant already given
+  // for this task is consumed once and the work proceeds; otherwise the task goes
+  // to `awaiting_approval` and nothing runs.
+  if (estimate.approvalRequired) {
+    const grant = await findGrantedGate(db, orgId, taskId);
+    if (grant) {
+      if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+        // Same decision-token discipline as the autonomy gate above: a grant
+        // bound to a different call is not spendable here.
+        await appendAudit(db, {
+          orgId,
+          actorType: 'agent',
+          actorId: task.agentId ?? orgId,
+          approvalId: grant.id,
+          action: 'task.execution_denied',
+          outcome: 'denied',
+          inputRef: JSON.stringify({
+            reason: 'decision_token_mismatch',
+            expectedCallHash: grant.callHash,
+            actualCallHash: taskDecisionToken(taskId),
+          }),
+        });
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
+      }
+      await markGateReleased(db, grant.id);
+      await appendAudit(db, {
+        orgId,
+        actorType: 'agent',
+        actorId: task.agentId ?? orgId,
+        action: 'approval.grant_consumed',
+        outcome: 'success',
+        resultRef: `task:${taskId} → approval:${grant.id}`,
+      });
+    } else {
+      return gateTaskOnApproval(
+        db, orgId, task,
+        assignee?.name ?? 'Unassigned',
+        `The estimated cost (${estimate.estimate} credits) is above the task ceiling (${estimate.ceiling} credits). Approve it to run.`,
+      );
+    }
   }
+
+  try {
+    taskReservation = await reserveCredits(db, orgId, {
+      estimate: estimate.estimate,
+      taskId,
+      agentId: task.agentId ?? undefined,
+      ttlMs: config.CREDIT_RESERVATION_TTL_MS,
+      dailyCap: config.CREDIT_TRIAL_DAILY_CAP,
+      reason: 'task.execute',
+    });
+  } catch (err) {
+    if (err instanceof BudgetApprovalRequiredError) {
+      // Over the org's approval threshold. A waiting grant is the founder saying
+      // yes: consume it once, then take the hold with `approved` set.
+      const grant = await findGrantedGate(db, orgId, taskId);
+      if (!grant) {
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail);
+      }
+      if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
+        // A budget-approval grant bound to another call is not spendable for
+        // this task either.
+        await appendAudit(db, {
+          orgId,
+          actorType: 'agent',
+          actorId: task.agentId ?? orgId,
+          approvalId: grant.id,
+          action: 'task.execution_denied',
+          outcome: 'denied',
+          inputRef: JSON.stringify({
+            reason: 'decision_token_mismatch',
+            expectedCallHash: grant.callHash,
+            actualCallHash: taskDecisionToken(taskId),
+          }),
+        });
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
+      }
+      await markGateReleased(db, grant.id);
+      await appendAudit(db, {
+        orgId,
+        actorType: 'agent',
+        actorId: task.agentId ?? orgId,
+        action: 'approval.grant_consumed',
+        outcome: 'success',
+        resultRef: `task:${taskId} → approval:${grant.id}`,
+      });
+      taskReservation = await reserveCredits(db, orgId, {
+        estimate: estimate.estimate,
+        taskId,
+        agentId: task.agentId ?? undefined,
+        ttlMs: config.CREDIT_RESERVATION_TTL_MS,
+        dailyCap: config.CREDIT_TRIAL_DAILY_CAP,
+        reason: 'task.execute',
+        approved: true,
+      });
+    } else if (err instanceof BudgetExceededError) {
+      return persistPreExecutionBlock(
+        db, orgId, task,
+        `Execution blocked by budget: ${err.detail}`,
+        assignee?.name ?? 'Unassigned',
+        'Pre-execution budget check (docs/80 Phase 2)',
+      );
+    } else if (err instanceof CreditExhaustedError) {
+      return persistPreExecutionBlock(
+        db, orgId, task,
+        `Execution blocked: Work Credits exhausted (${err.remaining} available, ${err.required} required). Top up or change plan to resume work.`,
+        assignee?.name ?? 'Unassigned',
+        'Pre-execution credit check',
+      );
+    } else {
+      throw err;
+    }
+  }
+  // Record the estimate on the task row so it can show estimate vs actual.
+  await db
+    .update(tasks)
+    .set({ estimatedCredits: taskReservation.estimateCredits, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId));
 
   // 3. Mark as in_progress
   await db
@@ -514,7 +671,7 @@ export async function executeTask(
         priority: task.priority ?? null,
       });
       const advice = await getCalibrationAdvice(db, orgId);
-      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, advice);
+      const { modelId: routedModel, source: routingSource, reason: routingReason } = await selectMeasuredModel(db, orgId, routing, advice);
       return await chat(config, systemPromptWithTools, `${taskPrompt}\n\n${extra}`, {
         model: routedModel,
         temperature: 0.7,
@@ -526,6 +683,8 @@ export async function executeTask(
           taskId: task.id,
           agentId: task.agentId ?? undefined,
           db,
+          routingSource,
+          routingReason,
         },
       });
     } catch (err) {
@@ -566,7 +725,7 @@ export async function executeTask(
         priority: task.priority ?? null,
       });
       const calibrationAdvice = await getCalibrationAdvice(db, orgId);
-      const { modelId: routedModel } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
+      const { modelId: routedModel, source: routingSource, reason: routingReason } = await selectMeasuredModel(db, orgId, routing, calibrationAdvice);
 
       const llmResponse = await chat(config, systemPromptWithTools, taskPrompt, {
         model: routedModel,
@@ -583,6 +742,8 @@ export async function executeTask(
           taskId: task.id,
           agentId: task.agentId ?? undefined,
           db,
+          routingSource,
+          routingReason,
         },
       });
 
@@ -716,51 +877,71 @@ export async function executeTask(
   //     the activity event, the audit row and the SSE event all carry the same
   //     number. A billing failure is recorded, never swallowed: the work is
   //     already done, so the honest outcome is visible unbilled spend.
-  if (modelCost > 0) {
+  if (taskReservation) {
     try {
       // Attribution (docs/77 P1 §5): the ledger row records what the spend
       // actually was — the provider/model that carried it, the provider's own
-      // token counts, and the real USD cost summed from this task's calls. The
-      // columns existed since docs/77 P0 but nothing filled them, so a usage row
-      // knew a credits number and nothing about the margin.
+      // token counts, and the real USD cost summed from this task's calls.
       //
-      // No idempotency key is set here on purpose: settlement happens once per
-      // execution, and a task can legitimately execute twice (approval resume, a
-      // retry after failure). Keying on the task id would silently skip the
-      // second, honest charge — a replay guard belongs on the caller that knows
-      // whether this is a replay, not on the writer.
+      // Settlement (docs/80 Phase 1): the hold taken before execution settles
+      // the measured actual, capped at the estimate; the remainder releases. A
+      // failed task measured no model work, so its whole hold is released
+      // (§3.8 — no charge for work that did not happen). No idempotency key is
+      // set on purpose: a task can legitimately execute twice (approval resume,
+      // a retry after failure) and both are honest charges.
       const attribution = await taskProviderCost(db, taskId);
-      const charge = await consumeCredits(
-        db,
-        orgId,
-        'task.executed',
-        `Task: ${task.title}`.slice(0, 200),
-        task.id,
-        'task',
-        {
-          amount: modelCost,
-          attribution: {
-            provider: attribution.provider ?? undefined,
-            model: attribution.model ?? undefined,
-            inputTokens: attribution.inputTokens,
-            outputTokens: attribution.outputTokens,
-            providerCostUsd: attribution.providerCostUsd,
-            agentId: task.agentId ?? undefined,
-            taskId,
-            metadata: {
-              llmCalls: attribution.calls,
-              pricingSources: attribution.pricingSources,
-              tokensUsed,
-            },
-          },
+      const chargeAttribution = {
+        provider: attribution.provider ?? undefined,
+        model: attribution.model ?? undefined,
+        inputTokens: attribution.inputTokens,
+        outputTokens: attribution.outputTokens,
+        providerCostUsd: attribution.providerCostUsd,
+        agentId: task.agentId ?? undefined,
+        taskId,
+        metadata: {
+          llmCalls: attribution.calls,
+          pricingSources: attribution.pricingSources,
+          tokensUsed,
         },
-      );
-      broadcastToOrg(orgId, {
-        type: 'credits.consumed',
-        amount: charge.consumed,
-        remaining: charge.balance.remaining,
-        operationType: 'task.executed',
-      });
+      };
+
+      if (modelCost > 0) {
+        const outcome = await settleReservation(db, taskReservation.id, {
+          actualCredits: modelCost,
+          description: `Task: ${task.title}`.slice(0, 200),
+          referenceId: task.id,
+          referenceType: 'task',
+          attribution: chargeAttribution,
+        });
+        // The hold had already been swept or released (e.g. the expiry sweep
+        // ran mid-task): charge the measured actual directly so real work is
+        // never left unbilled. A hold already *settled* is a replay — no charge.
+        if (outcome.duplicate && (outcome.status === 'released' || outcome.status === 'expired')) {
+          await consumeCredits(
+            db,
+            orgId,
+            'task.executed',
+            `Task: ${task.title}`.slice(0, 200),
+            task.id,
+            'task',
+            { amount: modelCost, attribution: chargeAttribution },
+          );
+        }
+        const post = await getOrCreateBalance(db, orgId);
+        broadcastToOrg(orgId, {
+          type: 'credits.consumed',
+          amount: modelCost,
+          remaining: post.remaining,
+          operationType: 'task.executed',
+        });
+      } else {
+        // No model work to charge: release the whole hold.
+        await releaseReservation(
+          db,
+          taskReservation.id,
+          taskSucceeded ? 'no_measured_model_cost' : 'task_failed_before_charge',
+        );
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown credit error';
       await appendAudit(db, {
@@ -777,10 +958,18 @@ export async function executeTask(
     }
   }
 
-  // 7. Update agent stats
+  // 7. Update agent stats — including the agent's own credit rollup. The org
+  //    ledger (6b) carries the spend, but the agent row was never told, so a
+  //    founder reading an employee's creditsUsed saw 0 while the company
+  //    balance moved. Same measured `cost` the task row and ledger carry:
+  //    model credits + tool credits, zero when no work was consumed.
   if (task.agentId) {
     const [agent] = await db
-      .select({ tasksCompleted: agents.tasksCompleted, tasksFailed: agents.tasksFailed })
+      .select({
+        tasksCompleted: agents.tasksCompleted,
+        tasksFailed: agents.tasksFailed,
+        creditsUsed: agents.creditsUsed,
+      })
       .from(agents)
       .where(eq(agents.id, task.agentId))
       .limit(1);
@@ -790,6 +979,7 @@ export async function executeTask(
         .update(agents)
         .set({
           tasksCompleted: (agent?.tasksCompleted ?? 0) + 1,
+          creditsUsed: (agent?.creditsUsed ?? 0) + cost,
           currentTask: null,
           lastActiveAt: new Date(),
           updatedAt: new Date(),
@@ -800,6 +990,7 @@ export async function executeTask(
         .update(agents)
         .set({
           tasksFailed: (agent?.tasksFailed ?? 0) + 1,
+          creditsUsed: (agent?.creditsUsed ?? 0) + cost,
           currentTask: null,
           lastActiveAt: new Date(),
           updatedAt: new Date(),

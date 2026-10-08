@@ -22,6 +22,7 @@ import { decisions } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { requireAuth } from '../plugins/auth.js';
+import { enforceOrgLimit, sendRateLimited } from '../plugins/rate-limits.js';
 import { runDeliberation } from '../services/deliberation.js';
 import {
   createPendingCouncilSession,
@@ -36,6 +37,12 @@ export function registerDeliberationRoutes(app: FastifyInstance, deps: AppDeps):
   /** Start a deliberation; returns the session id immediately. */
   app.post('/v1/deliberations', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+
+    // Per-org ceiling on multi-agent analysis (docs/80 §3.3) before any
+    // context building or model call.
+    const orgVerdict = await enforceOrgLimit(deps, ctx.orgId, 'ai.analyze');
+    if (!orgVerdict.allowed) return sendRateLimited(reply, orgVerdict, 'analysis');
+
     const parsed = z
       .object({
         question: z.string().min(8).max(1000),

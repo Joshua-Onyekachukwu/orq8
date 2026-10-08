@@ -1,5 +1,14 @@
-import { eq, and, sql } from 'drizzle-orm';
-import { agents as agentsTable, type NewAgent } from '@orq8/db';
+import { eq, and, sql, desc } from 'drizzle-orm';
+import {
+  agents as agentsTable,
+  agentTemplates,
+  tasks as tasksTable,
+  activityEvents,
+  eventRules,
+  companyMemory,
+  approvals,
+  type NewAgent,
+} from '@orq8/db';
 import { z } from 'zod';
 import { validation, forbidden } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
@@ -131,7 +140,99 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(404);
       return { error: { code: 'not_found', message: 'Agent not found' } };
     }
-    return { data: agent };
+
+    // Employee workspace read-model (docs/85 §3.5) — additive fields on the
+    // same top-level object, so existing consumers (the drawer) keep reading
+    // the agent row exactly as before.
+    let mission: string | null = null;
+    let responsibilities: string[] = [];
+    let tasks: unknown[] = [];
+    let activity: unknown[] = [];
+    let workflows: unknown[] = [];
+    let memory: unknown[] = [];
+    let pendingApprovals: unknown[] = [];
+    try {
+      const [tpl] = await db
+        .select({ description: agentTemplates.description, typicalTasks: agentTemplates.typicalTasks, name: agentTemplates.name })
+        .from(agentTemplates)
+        .where(sql`${agentTemplates.role} = ${agent.role}`)
+        .limit(1);
+      if (tpl) {
+        mission = tpl.description ?? null;
+        responsibilities = Array.isArray(tpl.typicalTasks) ? (tpl.typicalTasks as string[]) : [];
+      }
+      tasks = await db
+        .select({
+          id: tasksTable.id,
+          title: tasksTable.title,
+          status: tasksTable.status,
+          priority: tasksTable.priority,
+          cost: tasksTable.cost,
+          result: tasksTable.result,
+          parentTaskId: tasksTable.parentTaskId,
+          goalId: tasksTable.goalId,
+          createdAt: tasksTable.createdAt,
+          updatedAt: tasksTable.updatedAt,
+        })
+        .from(tasksTable)
+        .where(and(eq(tasksTable.orgId, ctx.orgId), eq(tasksTable.agentId, agent.id)))
+        .orderBy(desc(tasksTable.updatedAt))
+        .limit(15);
+      activity = await db
+        .select({
+          id: activityEvents.id,
+          type: activityEvents.type,
+          summary: activityEvents.summary,
+          reason: activityEvents.reason,
+          cost: activityEvents.cost,
+          occurredAt: activityEvents.occurredAt,
+        })
+        .from(activityEvents)
+        .where(and(eq(activityEvents.orgId, ctx.orgId), eq(activityEvents.agentId, agent.id)))
+        .orderBy(desc(activityEvents.occurredAt))
+        .limit(15);
+      workflows = await db
+        .select({
+          id: eventRules.id,
+          provider: eventRules.provider,
+          eventType: eventRules.eventType,
+          action: eventRules.action,
+          requiresApproval: eventRules.requiresApproval,
+          enabled: eventRules.enabled,
+          taskTitleTemplate: eventRules.taskTitleTemplate,
+        })
+        .from(eventRules)
+        .where(and(eq(eventRules.orgId, ctx.orgId), eq(eventRules.agentId, agent.id)));
+      memory = await db
+        .select({
+          id: companyMemory.id,
+          category: companyMemory.category,
+          content: companyMemory.content,
+          importance: companyMemory.importance,
+          source: companyMemory.source,
+          createdAt: companyMemory.createdAt,
+        })
+        .from(companyMemory)
+        .where(and(eq(companyMemory.orgId, ctx.orgId), eq(companyMemory.agentId, agent.id)))
+        .orderBy(desc(companyMemory.importance))
+        .limit(10);
+      pendingApprovals = await db
+        .select({
+          id: approvals.id,
+          action: approvals.action,
+          description: approvals.description,
+          cost: approvals.cost,
+          riskLevel: approvals.riskLevel,
+          createdAt: approvals.createdAt,
+        })
+        .from(approvals)
+        .where(and(eq(approvals.orgId, ctx.orgId), eq(approvals.agentId, agent.id), eq(approvals.status, 'pending')))
+        .orderBy(desc(approvals.createdAt))
+        .limit(5);
+    } catch {
+      // workspace extras are additive — never fail the base read
+    }
+    return { data: { ...agent, mission, responsibilities, tasks, activity, workflows, memory, pendingApprovals } };
   });
 
   /** Hire a new agent. */

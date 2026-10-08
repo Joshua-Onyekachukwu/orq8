@@ -63,7 +63,7 @@ const navGroups: NavGroup[] = [
     title: "Operations",
     items: [
       { label: "Approval Queue", href: "/admin/approvals", icon: ShieldCheck },
-      { label: "Background Jobs", href: "/admin/jobs", icon: Timer },
+      { label: "Commands", href: "/admin/commands", icon: Timer },
       { label: "Activity Log", href: "/admin/activity", icon: Activity },
       { label: "Errors & Audit", href: "/admin/errors", icon: FileWarning },
     ],

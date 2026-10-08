@@ -290,6 +290,10 @@ export const creditBalances = pgTable(
     includedCredits: integer('included_credits').notNull().default(0), // monthly allocation
     purchasedCredits: integer('purchased_credits').notNull().default(0), // additional bought credits
     usedCredits: integer('used_credits').notNull().default(0), // consumed this period
+    // docs/80 Phase 1: credits held by active reservations. `available` is
+    // included + purchased − used − reserved; settling converts reserved into
+    // used, releasing returns it to available.
+    reservedCredits: integer('reserved_credits').notNull().default(0),
     periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
     periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -342,6 +346,41 @@ export const creditTransactions = pgTable(
   ],
 );
 
+// docs/80 Phase 1 — credit reservations.
+//
+// A reservation is state, not money movement: no ledger row is written when it
+// is taken (that would double-count under expiry). It holds `estimate_credits`
+// of the balance out of `available` until it is settled (the work ran, the
+// measured charge lands as a `usage` row), released (no charge), or expired by
+// the stale sweep. `settled_credits` records what actually settled so an
+// estimate-vs-actual report needs no join to the ledger.
+export const creditReservations = pgTable(
+  'credit_reservations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    taskId: uuid('task_id'),
+    jobId: uuid('job_id'),
+    agentId: uuid('agent_id'),
+    estimateCredits: integer('estimate_credits').notNull(),
+    settledCredits: integer('settled_credits'),
+    status: text('status').notNull().default('active'), // active | settled | released | expired
+    reason: text('reason'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('credit_reservations_org_status_idx').on(t.orgId, t.status),
+    index('credit_reservations_task_idx').on(t.taskId),
+    index('credit_reservations_expires_idx')
+      .on(t.expiresAt)
+      .where(sql`${t.status} = 'active'`),
+  ],
+);
+
 // ---- ORQ8 Work Domain (Phase 2+) ----
 // Agents, approvals, goals, tasks, activity events.
 // All tables follow docs/34.1 conventions: uuid PKs, org_id on every table,
@@ -362,6 +401,10 @@ export const departments = pgTable(
     head: text('head'), // name of department head agent
     budget: integer('budget'), // credit budget for this department
     status: text('status').notNull().default('active'), // active | archived
+    // docs/85 §3.1 — the department's own blueprint + page config, written by
+    // department-template activation (templateSlug, kpis, typicalGoals, roles,
+    // pageConfig). Typed columns stay authoritative for name/head/budget.
+    settings: jsonb('settings').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -519,6 +562,12 @@ export const tasks = pgTable(
     teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
     initiativeId: uuid('initiative_id').references(() => initiatives.id, { onDelete: 'set null' }), // strategy lineage link
     cost: integer('cost').notNull().default(0), // cost in cents
+    // docs/80 Phase 1: the reservation estimate shown to the user before the
+    // task runs, so a task row can present estimate vs settled actual.
+    estimatedCredits: integer('estimated_credits'),
+    // docs/80 Phase 2: delegation parent (plain uuid — no FK cycle), so the
+    // recursion guard can bound how deep and how wide a delegation tree grows.
+    parentTaskId: uuid('parent_task_id'),
     result: text('result'), // execution result when completed
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -530,6 +579,7 @@ export const tasks = pgTable(
     index('tasks_team_idx').on(t.teamId),
     index('tasks_priority_idx').on(t.orgId, t.priority),
     index('tasks_due_date_idx').on(t.dueDate),
+    index('tasks_parent_idx').on(t.parentTaskId),
   ],
 );
 
@@ -557,12 +607,24 @@ export const approvals = pgTable(
     toolParams: jsonb('tool_params'), // the exact call, so the founder authorises something specific
     // Set when the gate opened AND the work resumed — makes the grant single-use.
     releasedAt: timestamp('released_at', { withTimezone: true }),
+    // docs/82 §decision-token (migration 0047): the exact authorized call,
+    // hashed. sha256(tool_id + canonical_json(tool_params)) for tool gates,
+    // sha256("task.execute:" + taskId) for task gates. Recomputed when the
+    // gate is consumed; a mismatch is a denial, audited — the founder approved
+    // THAT call, and nothing else may spend the decision. NULL = legacy row or
+    // an approval shape with no exact call to bind.
+    callHash: text('call_hash'),
+    // When an unanswered gate stops being open: the expiry sweeper turns it
+    // into an `expired` pause (silence never approves); a founder may still
+    // re-decide explicitly while it waits.
+    gateExpiresAt: timestamp('gate_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('approvals_org_idx').on(t.orgId),
     index('approvals_status_idx').on(t.orgId, t.status),
     index('approvals_task_idx').on(t.taskId, t.status),
+    index('approvals_pending_created_idx').on(t.orgId, t.createdAt).where(sql`status = 'pending'`),
   ],
 );
 
@@ -595,6 +657,12 @@ export const agentJobs = pgTable(
     index('agent_jobs_claim_idx').on(t.status, t.runAt, t.priority),
     index('agent_jobs_org_created_idx').on(t.orgId, t.createdAt),
     index('agent_jobs_task_idx').on(t.taskId),
+    // Enqueue dedup is check-then-insert in application code, which races: two
+    // concurrent executes can both see "no open job" and both insert. The
+    // database now owns the invariant — one open job per (org, type, task).
+    uniqueIndex('agent_jobs_open_task_uniq')
+      .on(t.orgId, t.type, t.taskId)
+      .where(sql`${t.status} in ('pending', 'running') and ${t.taskId} is not null`),
   ],
 );
 
@@ -641,8 +709,16 @@ export const llmPerformance = pgTable(
     completionTokens: integer('completion_tokens').notNull().default(0),
     totalTokens: integer('total_tokens').notNull().default(0),
     retryAttempt: integer('retry_attempt').notNull().default(0),
-    /** §31: which selection path chose the model — 'static' | 'measured' | 'default'. */
+    /**
+     * §31 / docs/80 Phase 4: which selection path chose the model —
+     * 'static' | 'measured' | 'default' | 'calibration' | 'plan_cap'.
+     */
     routingSource: text('routing_source').notNull().default('default'),
+    /**
+     * docs/80 Phase 4: the human-readable why behind the pick — a veto (a
+     * preference ignored, a plan cap applied) must always be explainable.
+     */
+    routingReason: text('routing_reason'),
     /**
      * docs/77 P1 §5 — real provider spend for this call, in USD. Derived from the
      * provider's reported cost when it sends one, else from MODEL_REGISTRY rates;
@@ -660,12 +736,22 @@ export const llmPerformance = pgTable(
     creditsAttributed: integer('credits_attributed').notNull().default(0),
     /** 'provider_reported' | 'registry' | 'unknown' — see services/llm-pricing.ts. */
     pricingSource: text('pricing_source').notNull().default('unknown'),
+    /**
+     * docs/80 Phase 4 (BYOK): 'org' when the call ran on the company's own
+     * provider key, 'platform' when it ran on the platform's env keys. Pairs with
+     * `providerKeyId`, which names the org key row for per-key spend ceilings.
+     */
+    keySource: text('key_source').notNull().default('platform'),
+    providerKeyId: uuid('provider_key_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('llm_performance_org_model_idx').on(t.orgId, t.model, t.createdAt),
     index('llm_performance_org_created_idx').on(t.orgId, t.createdAt),
     index('llm_performance_routing_idx').on(t.orgId, t.routingSource, t.createdAt),
+    // docs/80 Phase 4 (BYOK): per-key month-to-date spend, and by-agent margin.
+    index('llm_performance_provider_key_idx').on(t.providerKeyId, t.createdAt),
+    index('llm_performance_org_agent_created_idx').on(t.orgId, t.agentId, t.createdAt),
   ],
 );
 
@@ -721,6 +807,8 @@ export type CreditBalance = typeof creditBalances.$inferSelect;
 export type NewCreditBalance = typeof creditBalances.$inferInsert;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
+export type CreditReservation = typeof creditReservations.$inferSelect;
+export type NewCreditReservation = typeof creditReservations.$inferInsert;
 
 // ---- ORQ8 Credit Alerts ----
 // Tracks usage threshold alerts sent to organizations.

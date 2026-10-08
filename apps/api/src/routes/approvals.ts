@@ -15,6 +15,8 @@ import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { broadcastToOrg } from '../services/realtime.js';
 import * as approvals from '../services/approvals.js';
+import { enqueueJob } from '../services/jobs.js';
+import { claimAndRunOne } from '../services/job-worker.js';
 import { createNotification } from '../routes/notifications.js';
 import { notifyAttentionChanged } from '../services/attention.js';
 import type { AppDeps } from '../types.js';
@@ -191,6 +193,21 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
     '/v1/approvals/:id',
     async (request, reply) => {
       const ctx = await requireAuth(request, deps);
+
+      // Deciding a gate is an authority act, not a member convenience: a
+      // viewer could otherwise approve the organization's own external sends
+      // and spends. Owner or admin only — members and viewers can see the
+      // queue and ask, but only authority can answer it.
+      if (!['owner', 'admin'].includes(ctx.role)) {
+        reply.code(403);
+        return {
+          error: {
+            code: 'forbidden',
+            message: 'Only the organization owner or an admin can decide an approval gate.',
+          },
+        };
+      }
+
       const parsed = decideBody.safeParse(request.body);
       if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -282,12 +299,36 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
             resultRef: `approval:${decided.id} → task:${decided.taskId} (cancelled)`,
           });
         } else {
-          // Resume the stopped task. The executor consumes this same approval as
-          // it proceeds (single-use), so an autonomy gate cannot re-block it.
+          // Release through the queue, never inline (docs/75: the gateway must
+          // never run a model call on the request path — an approval PATCH
+          // used to run the entire task, model + QA, inside the handler).
+          // The decision is durable; the worker runs the same quality pipeline
+          // a manual execute does, and the executor consumes this grant
+          // single-use — against its decision token — as it proceeds.
           try {
-            const { executeTask } = await import('../services/task-executor.js');
-            const outcome = await executeTask(deps.config, db, ctx.orgId, decided.taskId);
-            resumed = { taskId: decided.taskId, status: outcome.status };
+            const job = await enqueueJob(db, {
+              orgId: ctx.orgId,
+              type: 'task.execute',
+              payload: { taskId: decided.taskId },
+              taskId: decided.taskId,
+            });
+            resumed = { taskId: decided.taskId, status: 'queued' };
+            // Fire the queue once, immediately: a founder's yes starts the work
+            // now, not on the next worker tick. Fire-and-forget with a full
+            // log — the job is durable, so a crash here loses nothing; a slow
+            // model call must never stretch the PATCH (docs/75 request path).
+            void claimAndRunOne(deps.config, db, deps.logger, `approval-release-${job.id.slice(0, 8)}`)
+              .then((outcome) => {
+                if (outcome.kind === 'failed') {
+                  request.log.error(
+                    { jobId: job.id, taskId: decided.taskId, error: outcome.error },
+                    'approval-released job failed immediately after enqueue',
+                  );
+                }
+              })
+              .catch((err) => {
+                request.log.error({ err, jobId: job.id }, 'approval-released queue drain crashed');
+              });
             await appendAudit(db, {
               orgId: ctx.orgId,
               actorType: 'user',
@@ -296,12 +337,12 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
               outcome: 'success',
               approvalId: decided.id,
               taskId: decided.taskId,
-              resultRef: `approval:${decided.id} → task:${decided.taskId} (${outcome.status})`,
+              resultRef: `approval:${decided.id} → job:${job.id} (task:${decided.taskId} ${job.reused ? 'already queued' : 'queued'})`,
             });
           } catch (error) {
             // The decision is already persisted and the task stays awaiting —
             // the founder can retry the work without re-deciding the question.
-            request.log.error({ err: error }, 'resuming approved work failed');
+            request.log.error({ err: error }, 'releasing approved work to the queue failed');
           }
         }
       }

@@ -5,7 +5,17 @@ import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
 import { appendAudit } from './audit.js';
 import { retrieveSemanticForContext } from './memory.js';
-import { consumeCredits, hasEnoughCredits, CreditExhaustedError } from './credits.js';
+import {
+  consumeCredits,
+  hasEnoughCredits,
+  reserveCredits,
+  settleReservation,
+  getOrCreateBalance,
+  CreditExhaustedError,
+  BudgetExceededError,
+  BudgetApprovalRequiredError,
+  type CreditReservationInfo,
+} from './credits.js';
 import { executeTask, type TaskExecutionResult } from './task-executor.js';
 import { executeWithQuality, type QualityPipelineResult } from './quality-pipeline.js';
 import { executeTasksWithBudget, type BudgetedExecution } from './ea-execution-budget.js';
@@ -949,9 +959,9 @@ export async function analyzeIntent(
   // from intent traffic too — previously intent calls were invisible to the
   // llm_performance feedback loop.
   const routing = classifyTask({ title: 'Executive Agent intent analysis', description: command.slice(0, 500), agentRole: 'executive' });
-  const { modelId, source } = db
+  const { modelId, source, reason } = db
     ? await selectMeasuredModel(db, ctx.orgId, routing)
-    : { modelId: undefined, source: 'default' as const };
+    : { modelId: undefined, source: 'default' as const, reason: undefined };
 
   // Try LLM with tracing + routing + persistence
   const llmResult = await chatJson<IntentAnalysis>(config, fullSystemPrompt, userMessage, {
@@ -963,6 +973,7 @@ export async function analyzeIntent(
       phase: 'intent_analysis',
       commandId,
       routingSource: source,
+      routingReason: reason,
       ...(db ? { db } : {}),
     },
   });
@@ -1675,6 +1686,70 @@ export async function executeCommand(
     };
   }
 
+  // Take the command's reservation (docs/80 Phase 1) now that the balance is
+  // known to cover it: the hold is what stops two concurrent commands from
+  // committing the same credits. Settled at Step 7; a command that fails before
+  // then is returned by the stale-reservation sweep.
+  let commandReservation: CreditReservationInfo | null = null;
+  try {
+    commandReservation = await reserveCredits(db, orgId, {
+      estimate: creditCheck.required,
+      ttlMs: config.CREDIT_RESERVATION_TTL_MS,
+      dailyCap: config.CREDIT_TRIAL_DAILY_CAP,
+      reason: operationType,
+    });
+  } catch (err) {
+    // docs/80 Phase 2: the constitution's budget policy is enforced inside
+    // `reserveCredits`. A hard ceiling or the org kill switch refuses the command
+    // outright; spend above the approval threshold is surfaced as awaiting a
+    // founder decision rather than silently running.
+    if (err instanceof BudgetExceededError) {
+      trace.status = 'failed';
+      completeStep(creditStep, undefined, err.budgetReason);
+      return {
+        commandId,
+        intent,
+        taskIds: [],
+        status: 'error',
+        message: `Budget blocked this command: ${err.detail}`,
+        agentResults: [],
+        creditsConsumed: 0,
+        creditsRemaining: creditCheck.balance.remaining,
+        workflowTrace: finalizeTrace(trace, startTime),
+      };
+    }
+    if (err instanceof BudgetApprovalRequiredError) {
+      trace.status = 'failed';
+      completeStep(creditStep, undefined, 'approval_required');
+      return {
+        commandId,
+        intent,
+        taskIds: [],
+        status: 'awaiting_approval',
+        message: err.detail,
+        agentResults: [],
+        creditsConsumed: 0,
+        creditsRemaining: creditCheck.balance.remaining,
+        workflowTrace: finalizeTrace(trace, startTime),
+      };
+    }
+    if (err instanceof CreditExhaustedError) {
+      trace.status = 'failed';
+      return {
+        commandId,
+        intent,
+        taskIds: [],
+        status: 'error',
+        message: `Work Credits exhausted. ${err.message}`,
+        agentResults: [],
+        creditsConsumed: 0,
+        creditsRemaining: err.remaining,
+        workflowTrace: finalizeTrace(trace, startTime),
+      };
+    }
+    throw err;
+  }
+
   // ── Step 3.5: Execute Tool Calls ──
   // If the LLM decided to use organizational tools (rename, create, etc.),
   // execute them here before creating tasks.
@@ -1875,20 +1950,37 @@ export async function executeCommand(
   let creditsConsumed = 0;
   let creditsRemaining = creditCheck.balance.remaining;
   try {
-    const creditResult = await consumeCredits(
-      db,
-      orgId,
-      operationType,
-      `Command: ${command.slice(0, 100)}`,
-      taskIds[0],
-      'task',
-    );
-    creditsConsumed = creditResult.consumed;
-    creditsRemaining = creditResult.balance.remaining;
+    if (commandReservation) {
+      // Settle the hold with the command's class price (the amount the founder
+      // was quoted at credit check), releasing any remainder.
+      const outcome = await settleReservation(db, commandReservation.id, {
+        actualCredits: creditCheck.required,
+        description: `Command: ${command.slice(0, 100)}`,
+        referenceId: taskIds[0],
+        referenceType: 'task',
+      });
+      creditsConsumed = outcome.settled;
+      // The hold was swept or released mid-command: charge the class price
+      // directly so the command is never left unbilled. A hold that was already
+      // settled by this same command is a replay — no charge.
+      if (outcome.duplicate && (outcome.status === 'released' || outcome.status === 'expired')) {
+        const fallback = await consumeCredits(
+          db, orgId, operationType, `Command: ${command.slice(0, 100)}`, taskIds[0], 'task',
+        );
+        creditsConsumed = fallback.consumed;
+      }
+    } else {
+      const fallback = await consumeCredits(
+        db, orgId, operationType, `Command: ${command.slice(0, 100)}`, taskIds[0], 'task',
+      );
+      creditsConsumed = fallback.consumed;
+    }
+    const post = await getOrCreateBalance(db, orgId);
+    creditsRemaining = post.remaining;
     completeStep(consumeStep, { consumed: creditsConsumed, remaining: creditsRemaining });
 
     // Broadcast credit consumption
-    broadcastToOrg(orgId, { type: 'credits.consumed', amount: creditResult.consumed, remaining: creditResult.balance.remaining, operationType });
+    broadcastToOrg(orgId, { type: 'credits.consumed', amount: creditsConsumed, remaining: creditsRemaining, operationType });
   } catch (error) {
     if (error instanceof CreditExhaustedError) {
       completeStep(consumeStep, undefined, 'credits exhausted during consumption');

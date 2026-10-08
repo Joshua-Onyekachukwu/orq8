@@ -1,0 +1,11 @@
+-- 0022 — enqueue dedup moved into the database: one open job per
+-- (org, type, task). Enqueue-level dedup is check-then-insert, which races —
+-- two concurrent executes could both see "no open job" and both insert. The
+-- claim guard still prevents double EXECUTION; this partial unique index owns
+-- the invariant (mirrors supabase/migrations/0046_agent_jobs_open_task_uniq).
+--
+-- Note: this file originally contained a full 48-table schema replay instead
+-- of the incremental diff (generated against the wrong base snapshot), which
+-- collided with tables already created by migrations 0001-0021 and broke every
+-- fresh-database boot. Rewritten to the real diff.
+CREATE UNIQUE INDEX IF NOT EXISTS "agent_jobs_open_task_uniq" ON "agent_jobs" USING btree ("org_id","type","task_id") WHERE "agent_jobs"."status" in ('pending', 'running') and "agent_jobs"."task_id" is not null;

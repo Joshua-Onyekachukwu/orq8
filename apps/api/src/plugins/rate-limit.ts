@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { formatRetryAfter } from '../services/rate-limit-service.js';
 
 /**
  * Simple in-memory sliding-window rate limiter.
@@ -71,12 +72,12 @@ export function rateLimitHook(
     entry.count++;
 
     if (entry.count > max) {
-      const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000);
+      const retryAfter = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
       reply.header('Retry-After', String(retryAfter));
       reply.code(429).send({
         error: {
           code: 'rate_limited',
-          message: `Too many requests. Please try again in ${retryAfter} seconds.`,
+          message: `Too many requests. Please try again in ${formatRetryAfter(retryAfter)}.`,
           policy_ref: 'docs/37',
         },
       });
@@ -120,12 +121,12 @@ export function rateLimitRoute(
     entry.count++;
 
     if (entry.count > max) {
-      const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000);
+      const retryAfter = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
       reply.header('Retry-After', String(retryAfter));
       reply.code(429).send({
         error: {
           code: 'rate_limited',
-          message: `Too many ${label} attempts. Please try again in ${retryAfter} seconds.`,
+          message: `Too many ${label} attempts. Please try again in ${formatRetryAfter(retryAfter)}.`,
           policy_ref: 'docs/37',
         },
       });
@@ -169,12 +170,12 @@ export function rateLimitLogin(app: FastifyInstance): void {
     entry.count++;
 
     if (entry.count > max) {
-      const retryAfter = Math.ceil((entry.windowStart + windowMs - now) / 1000);
+      const retryAfter = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
       reply.header('Retry-After', String(retryAfter));
       reply.code(429).send({
         error: {
           code: 'rate_limited',
-          message: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+          message: `Too many login attempts. Please try again in ${formatRetryAfter(retryAfter)}.`,
           policy_ref: 'docs/37',
         },
       });

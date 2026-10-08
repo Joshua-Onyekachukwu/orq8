@@ -37,6 +37,11 @@ const INTERNAL_TOKEN = process.env.REVIEW_INTERNAL_TOKEN ?? "review-stack-intern
 // release gate must refuse. Turn it on to review (or prove) the activated path:
 //   REVIEW_MAIL=1 nohup pnpm exec tsx scripts/review-stack.ts &
 const WITH_MAIL = process.env.REVIEW_MAIL === "1";
+// Run the real queue in the review stack: the API only enqueues, and a real
+// `apps/worker` child drains `agent_jobs`. Off (REVIEW_JOBS=0) means inline
+// execution and an empty queue — useful only when reviewing UI that never
+// touches work.
+const WITH_JOBS = process.env.REVIEW_JOBS !== "0";
 // This harness's own data root: it is what scopes the stale-postmaster cleanup
 // so booting the stack (or running the tests) never stops another one.
 //
@@ -310,12 +315,29 @@ async function main(): Promise<void> {
   const { createDb } = await import("@orq8/db");
   const { buildApp } = await import("../apps/api/src/app.js");
 
-  const config = loadConfig({
+  // One env object decides what the API uses AND what the worker child gets.
+  // They must agree: if the worker could not see the same provider config, the
+  // work the API queued would run somewhere the review is not looking at.
+  const runtimeEnv = {
     NODE_ENV: "test",
     DATABASE_URL: pg.databaseUrl,
     SESSION_SECRET: "review-stack-session-secret-32-bytes!!",
     ENCRYPTION_KEY: "review-stack-encryption-key-32-bytes!",
     LOG_LEVEL: "warn",
+    // NODE_ENV=test normally leaves the layered rate limits off so test suites
+    // are not rewritten by a new ceiling; the review stack forces them on so
+    // the demo shows the real production limits (docs/80 §3.3).
+    RATE_LIMIT_FORCE: "true",
+    // The review stack has no real inbox: with verification on, every new
+    // account would strand at /check-email (the SMTP sink swallows the
+    // link). Accounts are active at signup here by design; production keeps
+    // the default 'true' with a real mail provider.
+    REQUIRE_EMAIL_VERIFICATION: "false",
+    // docs/75: the API stops executing agent work on the request path; the
+    // worker process below drains it. REVIEW_JOBS=0 keeps the old inline path
+    // for pure-UI review sessions.
+    JOB_QUEUE_MODE: WITH_JOBS ? "enqueue" : "inline",
+    JOB_WORKER_INTERVAL_MS: "1000",
     PORT: String(API_PORT),
     ALLOWED_ORIGINS: `http://localhost:${WEB_PORT}`,
     APP_URL: `http://localhost:${WEB_PORT}`,
@@ -352,7 +374,9 @@ async function main(): Promise<void> {
           EMAIL_FROM: "ORQ8 Review <review@orq8.test>",
         }
       : {}),
-  } as NodeJS.ProcessEnv);
+  } as NodeJS.ProcessEnv;
+
+  const config = loadConfig(runtimeEnv);
 
   const logger = createLogger(config);
   const created = createDb(pg.databaseUrl);
@@ -366,6 +390,38 @@ async function main(): Promise<void> {
       ? `[review] LLM: LIVE — openrouter primary (${API_ENV.OPENROUTER_MODEL || "openai/gpt-4o-mini"})${NVIDIA_KEY ? ` → nvidia fallback (${API_ENV.NVIDIA_MODEL || "nvidia/llama-3.1-nemotron-70b-instruct"})` : ""}`
       : "[review] LLM: stub gateway — no live keys found in apps/api/.env (REVIEW_LLM=stub forces this)",
   );
+
+  // ── The worker process (docs/75 phase 2) ─────────────────────────────────
+  // A real second process, started exactly the way production starts it: the
+  // API above only enqueues, this child claims with SKIP LOCKED and runs the
+  // same quality pipeline. That is what makes the Commands tab and any queue
+  // behaviour in the review stack real rather than staged.
+  let workerChild: ReturnType<typeof spawn> | null = null;
+  if (WITH_JOBS) {
+    workerChild = spawn("pnpm", ["--filter", "@orq8/worker", "start"], {
+      cwd: process.cwd(),
+      // runtimeEnv carries the same provider configuration the API got, so the
+      // worker talks to the same model gateway (stub or live) the stack uses.
+      env: {
+        ...process.env,
+        ...runtimeEnv,
+        JOB_QUEUE_MODE: "workers",
+        WORKER_ID: "review-worker",
+      },
+      shell: true,
+      stdio: "inherit",
+    });
+    workerChild.on("exit", (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`[review] the worker exited with code ${code} — queued work will not run`);
+      }
+    });
+    console.log(
+      `[review] worker started — API enqueues jobs, the worker drains agent_jobs (pid ${workerChild.pid ?? "?"})`,
+    );
+  } else {
+    console.log("[review] jobs: inline (REVIEW_JOBS=0) — agent_jobs stays empty by design");
+  }
 
   const api = async (route: string, init: { method?: string; token?: string; body?: unknown } = {}) => {
     const res = await fetch(`${API}${route}`, {
@@ -387,6 +443,14 @@ async function main(): Promise<void> {
   if (reg.status !== 201) throw new Error(`register failed: ${reg.status} ${JSON.stringify(reg.body).slice(0, 200)}`);
   const orgId: string = reg.body.data.org.id;
   await pg.pool.query("update users set email_verified_at = now() where email = $1", [FOUNDER_EMAIL]);
+  // The seeded founder is this stack's platform admin, so the admin console is
+  // actually reviewable. It is a local harness with one user and one org —
+  // without this, every /admin page (including Commands, docs/78) answered
+  // "Access Denied" and could not be reviewed at all. Set REVIEW_ADMIN=0 to
+  // review the denied path instead.
+  if (process.env.REVIEW_ADMIN !== "0") {
+    await pg.pool.query("update users set platform_role = 'admin' where email = $1", [FOUNDER_EMAIL]);
+  }
   // Mark the seeded company as already set up. The dashboard derives the
   // founder's stage from this row, and a demo company with live employees,
   // goals and work greeted as "Welcome to ORQ8 — tell me what you are
@@ -962,6 +1026,9 @@ async function main(): Promise<void> {
   const shutdown = async () => {
     tickerStopped = true;
     if (tickerTimer) clearTimeout(tickerTimer);
+    // The worker reaps its own in-flight job on SIGTERM (JOB_SHUTDOWN_GRACE_MS);
+    // killing it here keeps the child from outliving the stack's database.
+    workerChild?.kill();
     web.kill();
     await app.close().catch(() => undefined);
     await gateway.close().catch(() => undefined);

@@ -110,9 +110,14 @@ PGPORT=5433 PGHOST=127.0.0.1 pnpm test        # 1,165 passing
 
 ## 5. Still open
 
-- **Memory tabs / integrations permission map / Auto Model hierarchy** (docs/74 §M).
+- **Memory tabs / integrations permission map / Auto Model hierarchy**.
 - docs/68 screen matrix re-walk against the mock.
 - Marketing pages outside the console scope (login, landing) still on brand-light.
+- docs/80 Phase 0 + Phase 3 shipped (webhook hardening, ledger CHECK, reconcile panel, layered
+  rate limits). The rate limits are live in this stack — the 4th `POST /v1/business-imports/analyze`
+  inside a minute answers `429` with `policy_ref: docs/80 §3.3`.
+- Still owed from docs/79: phases 8–13 (preferred models — merged into docs/80 Phase 4 — provider
+  smoke, release gate, soak, mobile, readiness report).
 
 ## 6. Git state
 

@@ -5,7 +5,10 @@
 #     → boots postgres+pgvector, minio, litellm, ollama; run the apps on the host:
 #        pnpm --filter @orq8/api dev     (http://localhost:3001)
 #        pnpm --filter @orq8/web dev     (http://localhost:3000)
-#   All-in-one (api/web as images)   docker compose --profile app up -d --build
+#   All-in-one (api/worker/web as images)  docker compose --profile app up -d --build
+#     → API enqueues (JOB_QUEUE_MODE=enqueue), orq8-worker drains (workers).
+#       Scale the halves independently:
+#         docker compose --profile app up -d --scale orq8-api=2 --scale orq8-worker=5
 #   VPS with TLS                     docker compose --profile tls up -d
 #   Observability (Langfuse)         docker compose --profile obs up -d
 #     (first create the langfuse database: docker exec orq8-postgres createdb -U orq8 langfuse)
@@ -107,7 +110,13 @@ services:
       retries: 6
     networks: [orq8]
 
-  # ---- Phase 1 all-in-one mode (profile "app"): API + Web as container images ----
+  # ---- Phase 2 (profile "app"): API + worker + Web as container images ----
+  #
+  # The API only enqueues (JOB_QUEUE_MODE=enqueue); the worker drains
+  # (JOB_QUEUE_MODE=workers). They scale independently:
+  #   docker compose -f infra/docker-compose.yml --profile app up -d --scale orq8-api=2 --scale orq8-worker=5
+  # SKIP LOCKED keeps replicas from colliding, so replicas are always safe to
+  # add; autoscale on eligible queue depth (docs/75 §3: alert > 50 for 5 min).
   orq8-api:
     build:
       context: ..
@@ -118,6 +127,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      # Request handlers enqueue; the worker below executes. Setting this to
+      # 'workers' here would drain in-process and make the split meaningless.
+      JOB_QUEUE_MODE: enqueue
       DATABASE_URL: postgres://${POSTGRES_USER:-orq8}:${POSTGRES_PASSWORD:-orq8_dev_only_change_me}@postgres:5432/${POSTGRES_DB:-orq8}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret}  # set in infra/.env for real use
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-only-encryption-key-hex-32-bytes!!}  # set in infra/.env for real use
@@ -144,6 +156,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+    networks: [orq8]
+
+  orq8-worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    # No container_name: it would pin the service to one replica. Compose names
+    # replicas orq8-orq8-worker-1, -2, … which is what --scale needs.
+    restart: unless-stopped
+    profiles: ["app"]
+    environment:
+      NODE_ENV: production
+      JOB_QUEUE_MODE: workers
+      DATABASE_URL: postgres://${POSTGRES_USER:-orq8}:${POSTGRES_PASSWORD:-orq8_dev_only_change_me}@postgres:5432/${POSTGRES_DB:-orq8}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-only-encryption-key-hex-32-bytes!!}
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-orq8-dev-litellm}
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Worker tuning (docs/75): how often to poll, how many jobs per tick, how
+      # long a single job may run, and how long SIGTERM waits for in-flight work.
+      JOB_WORKER_INTERVAL_MS: ${JOB_WORKER_INTERVAL_MS:-2000}
+      JOB_BATCH_SIZE: ${JOB_BATCH_SIZE:-5}
+      JOB_TIMEOUT_MS: ${JOB_TIMEOUT_MS:-600000}
+      JOB_SHUTDOWN_GRACE_MS: ${JOB_SHUTDOWN_GRACE_MS:-30000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No ports: the worker has no HTTP surface, by design.
+    stop_grace_period: 40s   # > JOB_SHUTDOWN_GRACE_MS so the drain finishes
     networks: [orq8]
 
   orq8-web:

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { Loader2 } from "lucide-react";
 import { useRealtime } from "../hooks/use-realtime";
 import { CommandInput } from "./command-bar-input";
 import { CommandResultDisplay } from "./command-bar-result";
-import { ExecutiveAgentProgress, type EAProgressStage } from "./ea-progress";
 import { runCommandStream, CommandStreamError } from "../lib/command-stream";
 import { analytics } from "@/lib/analytics";
 
@@ -53,8 +53,6 @@ export function CommandBar({ context }: { context?: CommandContext }) {
   const [result, setResult] = useState<CommandResult | null>(null);
   const [history, setHistory] = useState<CommandResult[]>([]);
   const [approvalStatus, setApprovalStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
-  // Live pipeline stages from the streaming endpoint (empty on POST fallback).
-  const [stages, setStages] = useState<EAProgressStage[]>([]);
 
   const { connected } = useRealtime({
     onEvent: useCallback((event: any) => {
@@ -87,7 +85,6 @@ export function CommandBar({ context }: { context?: CommandContext }) {
   const handleSubmit = async (command: string) => {
     setIsProcessing(true);
     setResult(null);
-    setStages([]);
     setApprovalStatus("idle");
     const startTime = performance.now();
     analytics.commandSent(command); // length only — never content
@@ -100,28 +97,9 @@ export function CommandBar({ context }: { context?: CommandContext }) {
         data = await runCommandStream({
           command,
           context: context as Record<string, unknown> | undefined,
-          onStage: (ev) =>
-            setStages((prev) => {
-              const next = prev.filter((s) => s.stage !== ev.stage);
-              next.push({ stage: ev.stage, label: ev.label, status: ev.status });
-              return next;
-            }),
-          onTask: (ev) =>
-            setStages((prev) => {
-              // Live per-task progress inside the execution stage — the console
-              // shows real work finishing instead of an undifferentiated bar.
-              const done = (ev.status === "completed" ? 1 : 0) + (prev.find((s) => s.stage === "task_execution")?.done ?? 0);
-              const next = prev.filter((s) => s.stage !== "task_execution");
-              const base = prev.find((s) => s.stage === "task_execution");
-              next.push({
-                stage: "task_execution",
-                label: "Executing tasks",
-                status: "in_progress",
-                done,
-                total: base?.total ?? prev.length,
-              });
-              return next;
-            }),
+          // Stage/task stream events are deliberately not rendered: the
+          // founder asked for execute-and-report, not a "reading the
+          // organization…" play-by-play. The stream still emits them for logs.
         });
       } catch (err) {
         // Fall back to the buffered POST ONLY when the stream never got far
@@ -176,9 +154,13 @@ export function CommandBar({ context }: { context?: CommandContext }) {
     <div className="w-full">
       <CommandInput isProcessing={isProcessing} onSubmit={handleSubmit} onSuggestionClick={(cmd) => handleSubmit(cmd)} />
 
-      {isProcessing && stages.length > 0 && (
-        <div className="mt-3 rounded-lg border border-hairline-light bg-white p-3 shadow-sm">
-          <ExecutiveAgentProgress stages={stages} />
+      {isProcessing && (
+        <div
+          className="mt-3 flex items-center gap-2 rounded-lg border border-hairline-light bg-white p-3 text-sm text-ink-muted shadow-sm"
+          aria-live="polite"
+        >
+          <Loader2 className="h-4 w-4 animate-spin text-ink-faint" aria-hidden />
+          Working on it — the result appears here when it is ready.
         </div>
       )}
 

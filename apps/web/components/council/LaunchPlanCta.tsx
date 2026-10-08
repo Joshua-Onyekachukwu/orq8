@@ -4,11 +4,10 @@
  * Approval → execution bridge (approval-to-execution gap, demo §1).
  *
  * When a founder approves a council recommendation, this CTA offers a one-click
- * "Create the launch plan" action that delegates execution to the Executive
- * Agent — the same streaming command pipeline the command bar uses, so the
- * founder watches real EA stages (intent, tools, tasks, execution) instead of
- * a silent wait. Nothing is invented: progress rows are the stages the backend
- * actually emits, and the flow ends in one of three honest states:
+ * "Create the launch plan" action that delegates execution to the Executive Agent
+ * — the same streaming command pipeline the command bar uses. The founder gets
+ * one quiet working indicator while the pipeline runs (no stage-by-stage
+ * narration: execute and report), and the flow ends in one of three honest states:
  *
  *   • Delegated  — EA accepted the objective, tasks created, marker note
  *                  recorded on the decision (Decision Memory).
@@ -30,7 +29,6 @@
  */
 
 import { useCallback, useState } from "react";
-import { ExecutiveAgentProgress, type EAProgressStage } from "../ea-progress";
 import { runCommandStream, CommandStreamError } from "../../lib/command-stream";
 import { buildDelegationMarkerNote, buildLaunchPlanObjective } from "../../lib/council-delegation";
 import { Check, Loader2, Rocket, RefreshCw, XCircle } from "lucide-react";
@@ -50,26 +48,14 @@ type Phase = "idle" | "running" | "delegated" | "failed" | "stream_lost";
 
 export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelegated }: LaunchPlanCtaProps) {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [stages, setStages] = useState<EAProgressStage[]>([]);
   const [taskIds, setTaskIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [markerRecorded, setMarkerRecorded] = useState(false);
   // The EA's own honest execution summary (may include governance blocks).
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
-  const upsertStage = useCallback((stage: string, label: string, status: EAProgressStage["status"]) => {
-    setStages((prev) => {
-      const i = prev.findIndex((s) => s.stage === stage);
-      const next = [...prev];
-      if (i >= 0) next[i] = { ...next[i], stage, label, status };
-      else next.push({ stage, label, status });
-      return next;
-    });
-  }, []);
-
   const delegate = useCallback(async () => {
     setPhase("running");
-    setStages([]);
     setTaskIds([]);
     setError(null);
     setMarkerRecorded(false);
@@ -81,7 +67,6 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
           councilDecisionId: decisionId,
           councilConfidence: confidence,
         },
-        onStage: (e) => upsertStage(e.stage, e.label, e.status),
         onTask: (e) => {
           setTaskIds((prev) => (prev.includes(e.taskId) ? prev : [...prev, e.taskId]));
         },
@@ -145,11 +130,8 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
         );
         setPhase("stream_lost");
       }
-      setStages((prev) =>
-        prev.map((s) => (s.status === "started" || s.status === "in_progress" ? { ...s, status: "failed" } : s)),
-      );
     }
-  }, [recommendation, decisionId, confidence, upsertStage, taskIds, onDelegated]);
+  }, [recommendation, decisionId, confidence, taskIds, onDelegated]);
 
   if (phase === "idle") {
     return (
@@ -176,9 +158,8 @@ export function LaunchPlanCta({ decisionId, recommendation, confidence, onDelega
     return (
       <div className="rounded-lg border border-hairline bg-muted/5 p-3">
         <span className="text-2xs font-semibold text-muted uppercase tracking-wide flex items-center gap-1.5">
-          <Loader2 className="h-3 w-3 animate-spin" /> Executive Agent is working
+          <Loader2 className="h-3 w-3 animate-spin" /> Executive Agent is working — the result appears here when it is ready
         </span>
-        <ExecutiveAgentProgress stages={stages} className="mt-2" />
       </div>
     );
   }

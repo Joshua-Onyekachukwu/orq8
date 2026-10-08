@@ -252,7 +252,7 @@ export function AuthForm({
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => null)) as
-        | { error?: string; code?: string }
+        | { error?: string; code?: string; email_verified?: boolean }
         | null;
       if (!res.ok) {
         if (res.status === 429) {
@@ -291,16 +291,20 @@ export function AuthForm({
         analytics.userLoggedIn("email");
       }
       if (mode === "register") {
-        try {
-          sessionStorage.setItem("orq8_verification_notice", "1");
-        } catch {
-          // Storage may be unavailable; /check-email reads the address server-side.
+        if (data?.email_verified === true) {
+          // Verification is off on this deployment: the account is active at
+          // signup, so go straight into the app rather than the confirm-email page.
+          router.push(target ?? "/app");
+        } else {
+          try {
+            sessionStorage.setItem("orq8_verification_notice", "1");
+          } catch {
+            // Storage may be unavailable; /check-email reads the address server-side.
+          }
+          // A fresh account has an unconfirmed email: /check-email explains that
+          // and offers a resend. Everything behind /app waits until it is confirmed.
+          router.push("/check-email");
         }
-        // A fresh account has an unconfirmed email: /check-email explains that
-        // and offers a resend. Everything behind /app waits until it is confirmed.
-        router.push("/check-email");
-      } else {
-        router.push(target ?? "/app");
       }
       router.refresh();
     } catch {
@@ -471,19 +475,31 @@ export function AuthForm({
         )}
 
         {mode === "register" && (
-          <label className="flex cursor-pointer items-start gap-2 text-sm text-white/60">
+          <div className="flex items-start gap-2 text-sm text-white/60">
             <input
+              id="terms-accept"
               type="checkbox"
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
               disabled={pending}
-              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.03] accent-[color:var(--orq-ink-accent)]"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-white/[0.03] accent-[color:var(--orq-ink-accent)]"
             />
+            {/* The label owns ONLY the checkbox and plain text: a link inside a
+                <label> can trigger the checkbox toggle on click (browser
+                label-activation), so the terms/privacy links live outside it
+                as plain siblings. The sentence stays one line, and a click on
+                "terms" opens the document without ever touching the box. */}
             <span>
-              I accept the{" "}
+              <label
+                htmlFor="terms-accept"
+                className="cursor-pointer transition-colors hover:text-white/80"
+              >
+                I accept the{" "}
+              </label>
               <Link
                 href="/settings/terms-conditions"
                 target="_blank"
+                rel="noopener noreferrer"
                 className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
               >
                 terms
@@ -492,13 +508,14 @@ export function AuthForm({
               <Link
                 href="/settings/privacy-policy"
                 target="_blank"
+                rel="noopener noreferrer"
                 className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
               >
                 privacy policy
               </Link>
               .
             </span>
-          </label>
+          </div>
         )}
 
         <button

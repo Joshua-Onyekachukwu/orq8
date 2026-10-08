@@ -1,6 +1,8 @@
 # 77 — AI Cost, Security, Rate Limiting & Credit Economy: Audit + Remediation Plan
 
-Status: **AUDIT COMPLETE. P0 shipped; P1 §5 (cost recording) shipped; the rest awaits approval.**
+Status: **AUDIT COMPLETE. P0 shipped; P1 §5 (cost recording) shipped; P1 §8 (layered rate limits,
+including per-provider concurrency) shipped 2026-10-02 via docs/80 Phase 3. Still open: P1 §6–7
+and the P2/P3 remainder.**
 
 Shipped since this audit was written:
 
@@ -16,14 +18,20 @@ Shipped since this audit was written:
 - **P3 §13** (partial): the abuse suite (`test/abuse-suite.integration.test.ts`) covers
   cross-tenant ids, list leakage, waitlist spam/burst, `Idempotency-Key` replay, and a
   concurrent settlement race. Its five `it.todo` entries are the scenarios still without a
-  control — the layered limits below are the first of them.
+  control — the layered limits below were the first of them.
+- **P1 §8** (item 8): layered rate limits shipped. Per-user / per-org / per-endpoint-class
+  sliding windows, a per-agent hourly job quota counted from the durable queue, global +
+  per-provider concurrency gates in the LLM chain, a per-org job-claim cap, and fail-closed
+  behaviour when Redis is configured but unreachable. Files, budgets and evidence: docs/80
+  Appendix C.
+- The first abuse `it.todo` is now a real test (same appendix); four remain.
 - Two defects the suite found and this work fixed: the `Idempotency-Key` guard compared its
   payload hash in `onRequest` (before Fastify parses the body), so every legitimate replay was
   answered **409 "different payload" instead of the stored response**; and
   `POST /v1/agents/:id/emergency-stop` answered **200 for an unknown agent**, claiming a stop
   that never happened.
 
-Still open: P1 §6–8 (reservations, budget enforcement, layered rate limits) and P2.
+Still open: P1 §6–7 (reservations, budget enforcement) and P2.
 **No further code should be written against the numbers above until the founder has reviewed the
 margin output of §5.**
 
@@ -149,6 +157,9 @@ Missing: per-**org**, per-**agent**, per-**job**, per-**provider** limits; dedic
 execute / tool calls / credits endpoints; and the in-memory fallback (`plugins/rate-limit.ts`) is
 bypassable by running more than one instance or by cycling sessions. `rateLimitRoute` keys on `ip`
 for every route, so all users behind one proxy share a bucket where Redis is absent.
+
+**Shipped 2026-10-02** — resolved by the layered per-user/per-org/per-agent/per-class limits and the
+provider gates; see docs/80 Appendix C.
 
 ### A9. MEDIUM — Model selection is genuinely good on quality, blind on economics
 

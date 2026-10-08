@@ -143,6 +143,27 @@ export function classifyTask(input: {
 export type ModelTier = 0 | 1 | 2 | 3;
 
 /**
+ * Plan → maximum model tier (docs/80 Phase 4, decision 5):
+ *   trial ≤ 0, founder ≤ 1, team ≤ 2, company/enterprise ≤ 3.
+ * A plan cap routes *down*, never up: when a task's own floor is higher than the
+ * plan allows, the cap wins, so a low-revenue plan cannot quietly burn a
+ * flagship model (§7: premium models on low-margin plans are the negative-margin
+ * risk). An unknown plan is treated as uncapped rather than silently restricted.
+ */
+export const PLAN_TIER_CAP: Record<string, ModelTier> = {
+  trial: 0,
+  founder: 1,
+  team: 2,
+  company: 3,
+  enterprise: 3,
+};
+
+export function planTierCap(plan: string | null | undefined): ModelTier {
+  if (!plan) return 3;
+  return PLAN_TIER_CAP[plan] ?? 3;
+}
+
+/**
  * Tier boundaries on registry metadata:
  *   - Tier 0: cheap AND fast AND small context footprint, no reasoning req.
  *   - Tier 3: reasoning-capable AND among the most expensive quartile.
@@ -231,12 +252,20 @@ export function requirementsForTask(c: TaskComplexity): TaskRequirements {
   };
 }
 
-/** Cheapest available model whose tier satisfies the classification. */
-export function selectTierModel(c: TaskComplexity): string | undefined {
-  const minTier: ModelTier =
+/**
+ * Cheapest available model whose tier satisfies the classification, never above
+ * `opts.maxTier` (the plan cap when the caller supplies it).
+ */
+export function selectTierModel(
+  c: TaskComplexity,
+  opts: { maxTier?: ModelTier } = {},
+): string | undefined {
+  const requiredTier: ModelTier =
     c.risk === 'critical' || c.complexity >= 4 ? 2 : c.complexity >= 3 || c.reasoning !== 'low' ? 1 : 0;
+  const maxTier = opts.maxTier ?? 3;
+  const minTier = Math.min(requiredTier, maxTier) as ModelTier;
   const tiers = modelsByTier();
-  for (let tier = minTier as number; tier <= 3; tier++) {
+  for (let tier = minTier as number; tier <= maxTier; tier++) {
     const candidates = tiers[tier as ModelTier];
     if (candidates.length > 0) return candidates[0]?.id;
   }

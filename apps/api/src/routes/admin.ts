@@ -1,12 +1,19 @@
 import { createHash } from 'node:crypto';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
 import { buildProviderChain } from '../services/llm.js';
 import * as userService from '../services/users.js';
 import { forbidden, platformAdminEmails } from '@orq8/core';
-import { jobsOverview } from '../services/jobs.js';
+import {
+  deadLetterJobs,
+  jobsHealth,
+  jobsOverview,
+  recentJobsDetailed,
+  retryJob,
+} from '../services/jobs.js';
 import {
   users,
   organizations,
@@ -20,6 +27,14 @@ import {
   llmPerformance,
   sessions,
   waitlistSignups,
+  departments,
+  tasks,
+  goals,
+  companyMemory,
+  decisions,
+  auditEvents,
+  onboardingStates,
+  businessImports,
   type Db,
 } from '@orq8/db';
 import { computeMargin, CREDIT_RATE_BASIS, USD_PER_CREDIT_REFERENCE } from '../services/economics.js';
@@ -155,6 +170,192 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     };
   });
 
+  /**
+   * GET /v1/admin/users/:id/detail — everything the platform knows about one
+   * account, for support and trust-and-safety work (docs/82 §admin-accounts):
+   * profile and status, org memberships, session footprint, credit balance,
+   * agent/task/goal counts per company they belong to, and their most recent
+   * audit events.
+   *
+   * Privacy posture: account-level metadata and operational records only.
+   * Company memory CONTENT is deliberately not exposed here — it is business
+   * data owned by the org, readable by the org-intel endpoint under its own
+   * audit trail when there is a specific, logged reason. This endpoint answers
+   * "who is this account and what are they doing", not "read their company's
+   * knowledge". Every view is audited (admin.user_detail_viewed).
+   */
+  app.get<{ Params: { id: string } }>('/v1/admin/users/:id/detail', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const userId = (request.params as { id: string }).id;
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'User not found' } };
+    }
+
+    const userMemberships = await db
+      .select({
+        orgId: memberships.orgId,
+        role: memberships.role,
+        status: memberships.status,
+        createdAt: memberships.createdAt,
+        orgName: organizations.name,
+        orgPlan: organizations.plan,
+        orgStatus: organizations.status,
+      })
+      .from(memberships)
+      .innerJoin(organizations, eq(organizations.id, memberships.orgId))
+      .where(eq(memberships.userId, userId));
+
+    const orgIds = userMemberships.map((m) => m.orgId);
+
+    const [activeSessions, recentAudit] = await Promise.all([
+      db
+        .select({
+          id: sessions.id,
+          createdAt: sessions.createdAt,
+          expiresAt: sessions.expiresAt,
+          ip: sessions.ip,
+          userAgent: sessions.userAgent,
+        })
+        .from(sessions)
+        .where(and(eq(sessions.userId, userId), sql`${sessions.revokedAt} is null`))
+        .orderBy(desc(sessions.createdAt))
+        .limit(10),
+      db
+        .select({
+          action: auditEvents.action,
+          outcome: auditEvents.outcome,
+          occurredAt: auditEvents.occurredAt,
+        })
+        .from(auditEvents)
+        .where(eq(auditEvents.actorId, userId))
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(20),
+    ]);
+
+    // Per-org footprint: agents, task counts, goal counts — orientation on
+    // what each company this account belongs to is doing, per org.
+    // The `building` block adds the business's OWN declared profile (onboarding
+    // answers, constitution, imports) and memory composition as COUNTS — the
+    // things the business told the platform about itself. Raw company-memory
+    // content, task descriptions/results and message bodies stay org-owned.
+    const orgFootprint = await Promise.all(
+      orgIds.map(async (orgId) => {
+        const [agentCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(agents)
+          .where(eq(agents.orgId, orgId));
+        const [taskCount] = await db
+          .select({
+            total: sql<number>`count(*)::int`,
+            completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+          })
+          .from(tasks)
+          .where(eq(tasks.orgId, orgId));
+        const [goalCount] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(goals)
+          .where(eq(goals.orgId, orgId));
+        const [balance] = await db
+          .select({
+            included: creditBalances.includedCredits,
+            purchased: creditBalances.purchasedCredits,
+            used: creditBalances.usedCredits,
+          })
+          .from(creditBalances)
+          .where(eq(creditBalances.orgId, orgId))
+          .limit(1);
+        return {
+          orgId,
+          agents: agentCount?.count ?? 0,
+          tasks: taskCount ?? { total: 0, completed: 0 },
+          goals: goalCount?.count ?? 0,
+          credits: balance ?? null,
+        };
+      }),
+    );
+
+    // What they're building, in the business's own declared words.
+    const building = await Promise.all(
+      orgIds.map(async (orgId) => {
+        const [onboarding] = await db
+          .select({
+            step: onboardingStates.step,
+            organization: onboardingStates.organization,
+            constitution: onboardingStates.constitution,
+            completedAt: onboardingStates.completedAt,
+          })
+          .from(onboardingStates)
+          .where(and(eq(onboardingStates.orgId, orgId), eq(onboardingStates.userId, userId)))
+          .limit(1);
+
+        const imports = await db
+          .select({
+            id: businessImports.id,
+            websiteUrl: businessImports.websiteUrl,
+            websiteTitle: businessImports.websiteTitle,
+            websiteSummary: businessImports.websiteSummary,
+            description: businessImports.description,
+            status: businessImports.status,
+            createdAt: businessImports.createdAt,
+          })
+          .from(businessImports)
+          .where(eq(businessImports.orgId, orgId))
+          .orderBy(desc(businessImports.createdAt))
+          .limit(5);
+
+        const byCategory = await db
+          .select({
+            category: companyMemory.category,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(companyMemory)
+          .where(eq(companyMemory.orgId, orgId))
+          .groupBy(companyMemory.category);
+
+        return {
+          orgId,
+          onboarding: onboarding ?? null,
+          imports,
+          memory: { byCategory, total: byCategory.reduce((a, m) => a + m.count, 0) },
+        };
+      }),
+    );
+
+    await appendAudit(deps.db, {
+      orgId: userMemberships[0]?.orgId ?? admin.orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.user_detail_viewed',
+      outcome: 'success',
+      resultRef: `admin:${admin.email} → user:${userId}`,
+    });
+
+    return {
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          status: user.status,
+          platformRole: user.platformRole,
+          jobTitle: user.jobTitle,
+          timezone: user.timezone,
+          emailVerifiedAt: user.emailVerifiedAt,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        memberships: userMemberships,
+        orgFootprint,
+        building,
+        activeSessions,
+        recentAudit,
+      },
+    };
+  });
+
   /** GET /v1/admin/organizations — List all orgs with member counts, paginated. */
   app.get('/v1/admin/organizations', async (request) => {
     await requirePlatformAdmin(request, deps);
@@ -219,6 +420,212 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     return {
       data: enriched,
       meta: { limit, offset, total: totalRow?.count ?? 0 },
+    };
+  });
+
+  /**
+   * GET /v1/admin/organizations/:id/intel — Organization intelligence snapshot.
+   *
+   * What the platform operator needs to understand one customer: who they are,
+   * what they are building (departments, employees, goals, work volumes), how
+   * much of the platform they use (credits, LLM spend), and their recent
+   * lifecycle. Counts, structures and metadata only — NEVER memory content,
+   * task results or other tenant work product: the operator must be able to
+   * operate the platform without reading customers' private material (privacy
+   * by design; access is audited either way).
+   */
+  app.get('/v1/admin/organizations/:id/intel', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const orgId = (request.params as { id: string }).id;
+
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+    if (!org) {
+      reply.code(404);
+      return { error: { code: 'not_found', message: 'Organization not found' } };
+    }
+
+    const [
+      members,
+      orgAgents,
+      departmentsCount,
+      taskStats,
+      recentTasks,
+      orgGoals,
+      activitySamples,
+      memoryCounts,
+      [credits],
+      llmUsage,
+      recentAudit,
+      decisionsCount,
+      sessionsCount,
+    ] = await Promise.all([
+      db
+        .select({
+          userId: memberships.userId,
+          email: users.email,
+          name: users.name,
+          role: memberships.role,
+          joinedAt: memberships.createdAt,
+        })
+        .from(memberships)
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(eq(memberships.orgId, orgId)),
+      db
+        .select({
+          id: agents.id,
+          name: agents.name,
+          role: agents.role,
+          status: agents.status,
+          autonomyLevel: agents.autonomyLevel,
+          tasksCompleted: agents.tasksCompleted,
+          tasksFailed: agents.tasksFailed,
+          creditsUsed: agents.creditsUsed,
+        })
+        .from(agents)
+        .where(eq(agents.orgId, orgId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(departments)
+        .where(eq(departments.orgId, orgId)),
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+          failed: sql<number>`count(*) filter (where ${tasks.status} = 'failed')::int`,
+          active: sql<number>`count(*) filter (where ${tasks.status} in ('pending','in_progress','awaiting_approval'))::int`,
+        })
+        .from(tasks)
+        .where(eq(tasks.orgId, orgId)),
+      // What this company is actually building: the newest task titles.
+      // Titles only — descriptions/results can carry private content, and the
+      // admin surface needs orientation, not surveillance.
+      db
+        .select({
+          id: tasks.id,
+          title: tasks.title,
+          status: tasks.status,
+          updatedAt: tasks.updatedAt,
+        })
+        .from(tasks)
+        .where(eq(tasks.orgId, orgId))
+        .orderBy(desc(tasks.updatedAt))
+        .limit(10),
+      // The founder's stated direction: active goals with progress.
+      db
+        .select({
+          id: goals.id,
+          title: goals.title,
+          status: goals.status,
+          progress: goals.progress,
+          updatedAt: goals.updatedAt,
+        })
+        .from(goals)
+        .where(eq(goals.orgId, orgId))
+        .orderBy(desc(goals.updatedAt))
+        .limit(10),
+      // How work actually moves: the newest activity-event summaries. These
+      // are the system's own one-line records of what agents did.
+      db
+        .select({
+          id: activityEvents.id,
+          type: activityEvents.type,
+          summary: activityEvents.summary,
+          occurredAt: activityEvents.occurredAt,
+        })
+        .from(activityEvents)
+        .where(eq(activityEvents.orgId, orgId))
+        .orderBy(desc(activityEvents.occurredAt))
+        .limit(10),
+      // Category counts only — never content.
+      db
+        .select({
+          category: companyMemory.category,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(companyMemory)
+        .where(eq(companyMemory.orgId, orgId))
+        .groupBy(companyMemory.category),
+      db
+        .select()
+        .from(creditBalances)
+        .where(eq(creditBalances.orgId, orgId))
+        .limit(1),
+      db
+        .select({
+          calls: sql<number>`count(*)::int`,
+          tokens: sql<number>`coalesce(sum(${llmPerformance.totalTokens}),0)::int`,
+          costUsd: sql<number>`coalesce(sum(${llmPerformance.providerCostUsd}),0)::float`,
+        })
+        .from(llmPerformance)
+        .where(eq(llmPerformance.orgId, orgId)),
+      db
+        .select({
+          action: auditEvents.action,
+          occurredAt: auditEvents.occurredAt,
+          outcome: auditEvents.outcome,
+        })
+        .from(auditEvents)
+        .where(eq(auditEvents.orgId, orgId))
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(15),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(decisions)
+        .where(eq(decisions.orgId, orgId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(sessions)
+        .where(and(eq(sessions.orgId, orgId), sql`${sessions.revokedAt} is null`)),
+    ]);
+
+    await appendAudit(deps.db, {
+      orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.org_intel_viewed',
+      outcome: 'success',
+      resultRef: `admin:${admin.email} → org:${orgId}`,
+    });
+
+    return {
+      data: {
+        organization: {
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          plan: org.plan,
+          status: org.status,
+          createdAt: org.createdAt,
+        },
+        members,
+        agents: orgAgents,
+        departments: departmentsCount[0]?.count ?? 0,
+        tasks: taskStats[0] ?? { total: 0, completed: 0, failed: 0, active: 0 },
+        recentTasks: recentTasks,
+        goals: orgGoals,
+        activity: activitySamples,
+        memory: {
+          byCategory: memoryCounts,
+          total: memoryCounts.reduce((a, m) => a + m.count, 0),
+        },
+        credits: credits
+          ? {
+              included: credits.includedCredits,
+              purchased: credits.purchasedCredits,
+              used: credits.usedCredits,
+              reserved: credits.reservedCredits,
+              remaining: Math.max(0, credits.includedCredits + credits.purchasedCredits - credits.usedCredits),
+            }
+          : null,
+        aiUsage: llmUsage[0] ?? { calls: 0, tokens: 0, costUsd: 0 },
+        decisions: decisionsCount[0]?.count ?? 0,
+        activeSessions: sessionsCount[0]?.count ?? 0,
+        recentAudit: recentAudit,
+      },
     };
   });
 
@@ -1006,12 +1413,301 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AppDeps): void {
     } catch { /* */ }
     let waitlistPending = 0;
     try { const [wp] = await db.select({ count: sql<number>`count(*)::int` }).from(waitlistSignups).where(eq(waitlistSignups.status, 'pending')); waitlistPending = wp?.count ?? 0; } catch { /* */ }
-    const agentQueue = await jobsOverview(db, 20).catch(() => ({ counts: {}, recent: [] }));
-    return { data: { dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed }, waitlist: { pending: waitlistPending }, agentQueue, jobs: [
-      { name: 'Waitlist Drip Sequence', status: dripPending > 0 ? 'has_pending' : 'idle', pending: dripPending, sent: dripSent, failed: dripFailed },
-      { name: 'Waitlist Processing', status: waitlistPending > 0 ? 'has_pending' : 'idle', pending: waitlistPending },
-      { name: 'Weekly Report Generation', status: 'scheduled', nextRun: 'Sunday 00:00 UTC' },
-      { name: 'Credit Reconciliation', status: 'scheduled', nextRun: 'Daily 00:00 UTC' },
-    ] } };
+    const agentQueue = await jobsOverview(db, 20).catch(() => ({
+      counts: {},
+      health: null,
+      recent: [],
+    }));
+    // The fabricated ``jobs`` list this used to return ("Weekly Report
+    // Generation — Sunday 00:00 UTC") described schedulers that do not exist.
+    // The real queue is what the Commands tab reads, so only real rows are
+    // reported from here on.
+    return {
+      data: {
+        dripQueue: { pending: dripPending, sent: dripSent, failed: dripFailed },
+        waitlist: { pending: waitlistPending },
+        queueMode: deps.config.JOB_QUEUE_MODE,
+        agentQueue,
+      },
+    };
+  });
+
+  /**
+   * GET /v1/admin/jobs/health — queue depth and worker liveness.
+   *
+   * Liveness is derived from the queue itself (a running job with a fresh
+   * lock), so an idle-but-alive worker and a dead worker are told apart by the
+   * last completed job rather than by a heartbeat nothing writes.
+   */
+  app.get('/v1/admin/jobs/health', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const health = await jobsHealth(db);
+    return { data: { mode: deps.config.JOB_QUEUE_MODE, ...health } };
+  });
+
+  /** GET /v1/admin/jobs/recent — recent jobs with their real task and employee. */
+  app.get('/v1/admin/jobs/recent', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const jobs = await recentJobsDetailed(db, {
+      status: url.searchParams.get('status') ?? undefined,
+      type: url.searchParams.get('type') ?? undefined,
+      limit: Number(url.searchParams.get('limit') ?? 50),
+    });
+    return { data: jobs };
+  });
+
+  /** GET /v1/admin/jobs/dead-letter — jobs that will not run again on their own. */
+  app.get('/v1/admin/jobs/dead-letter', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    const url = new URL(request.url, 'http://localhost');
+    const jobs = await deadLetterJobs(db, Number(url.searchParams.get('limit') ?? 50));
+    return { data: jobs };
+  });
+
+  /**
+   * POST /v1/admin/jobs/:id/retry — requeue a dead-lettered job.
+   *
+   * The retry is audited with the job's prior state so the trail answers "who
+   * asked for this to run again, and what was it the first time".
+   */
+  app.post<{ Params: { id: string } }>('/v1/admin/jobs/:id/retry', async (request, reply) => {
+    const ctx = await requirePlatformAdmin(request, deps);
+    const outcome = await retryJob(db, request.params.id);
+
+    if (!outcome.ok) {
+      reply.code(outcome.status);
+      return {
+        error: {
+          code: outcome.status === 404 ? 'job.not_found' : 'job.not_retryable',
+          message: outcome.reason,
+        },
+      };
+    }
+
+    await appendAudit(db, {
+      orgId: outcome.job.orgId,
+      actorType: 'user',
+      actorId: ctx.userId,
+      action: 'job.retry_requested',
+      tool: 'admin-commands',
+      outcome: 'success',
+      inputRef: JSON.stringify({
+        jobId: outcome.job.id,
+        jobType: outcome.job.type,
+        taskId: outcome.job.taskId,
+        previousStatus: outcome.previous.status,
+        previousAttempts: outcome.previous.attempts,
+        previousError: outcome.previous.lastError?.slice(0, 500) ?? null,
+      }),
+    }).catch(() => undefined);
+
+    return {
+      data: {
+        job: outcome.job,
+        previous: {
+          status: outcome.previous.status,
+          attempts: outcome.previous.attempts,
+        },
+        requeued: true,
+      },
+    };
+  });
+
+  // ── ADMIN EXECUTIVE AGENT (read-only) ──
+  //
+  // The founder's admin console needs its own Executive Agent: it answers
+  // questions about the platform and its customers from live platform data —
+  // account metadata, declared business profile, operational counters, audit
+  // trail. Design boundary: it is STRICTLY read-only, every intent is
+  // deterministic (explainable, testable, no model in the loop, no cost), and
+  // it never exposes customer memory content, task results or message bodies.
+  // Every command is audited.
+
+  /** Shared platform snapshot for both the brief endpoint and the `stats` intent. */
+  async function adminPlatformSnapshot() {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [
+      [usersTotal],
+      [usersActive],
+      [orgsTotal],
+      [agentsTotal],
+      [agentsActive],
+      [pendingApprovals],
+      [sessionsActive],
+      [aiCalls24h],
+      [cost24h],
+      [denied24h],
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(users),
+      db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(organizations),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents),
+      db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.status, 'active')),
+      db.select({ count: sql<number>`count(*)::int` }).from(approvals).where(eq(approvals.status, 'pending')),
+      db.select({ count: sql<number>`count(*)::int` }).from(sessions).where(sql`${sessions.revokedAt} IS NULL AND ${sessions.expiresAt} > NOW()`),
+      db.select({ count: sql<number>`count(*)::int` }).from(llmPerformance).where(sql`${llmPerformance.createdAt} >= ${dayAgo}`),
+      db.select({ cost: sql<number>`coalesce(sum(${llmPerformance.providerCostUsd}),0)::float` }).from(llmPerformance).where(sql`${llmPerformance.createdAt} >= ${dayAgo}`),
+      db.select({ count: sql<number>`count(*)::int` }).from(auditEvents).where(sql`${auditEvents.outcome} = 'denied' AND ${auditEvents.occurredAt} >= ${dayAgo}`),
+    ]);
+    return {
+      users: { total: usersTotal?.count ?? 0, active: usersActive?.count ?? 0 },
+      orgs: orgsTotal?.count ?? 0,
+      agents: { total: agentsTotal?.count ?? 0, active: agentsActive?.count ?? 0 },
+      pendingApprovals: pendingApprovals?.count ?? 0,
+      activeSessions: sessionsActive?.count ?? 0,
+      last24h: { aiCalls: aiCalls24h?.count ?? 0, providerCostUsd: cost24h?.cost ?? 0, deniedEvents: denied24h?.count ?? 0 },
+    };
+  }
+
+  /** GET /v1/admin/ea/brief — the admin EA's one-call platform snapshot. */
+  app.get('/v1/admin/ea/brief', async (request) => {
+    await requirePlatformAdmin(request, deps);
+    return { data: await adminPlatformSnapshot() };
+  });
+
+  /**
+   * POST /v1/admin/ea/command — the admin EA. Deterministic, read-only intents:
+   *   `stats` — platform totals + last-24h activity
+   *   `user <email or name fragment>` — account summary
+   *   `org <name or slug fragment>` — organization summary
+   *   `recent` — the latest audit actions across tenants
+   * Anything else returns the capability list.
+   */
+  app.post('/v1/admin/ea/command', async (request, reply) => {
+    const admin = await requirePlatformAdmin(request, deps);
+    const parsed = z.object({ command: z.string().trim().min(1).max(300) }).safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: { code: 'validation', message: 'command is required (max 300 chars)' } };
+    }
+    const command = parsed.data.command;
+
+    let intent = 'help';
+    let answer = '';
+    const facts: Record<string, string | number> = {};
+
+    const lower = command.toLowerCase();
+    if (/^(stats|brief|platform stats|overview)\b/.test(lower)) {
+      intent = 'stats';
+      const s = await adminPlatformSnapshot();
+      answer =
+        `${s.users.total} account(s) (${s.users.active} active), ${s.orgs} organization(s), ` +
+        `${s.agents.total} AI employee(s) (${s.agents.active} active). ` +
+        `${s.pendingApprovals} approval(s) waiting, ${s.activeSessions} active session(s). ` +
+        `Last 24h: ${s.last24h.aiCalls} AI calls ($${s.last24h.providerCostUsd.toFixed(4)} provider cost), ` +
+        `${s.last24h.deniedEvents} denied events.`;
+      facts.usersTotal = s.users.total;
+      facts.usersActive = s.users.active;
+      facts.orgs = s.orgs;
+      facts.agentsTotal = s.agents.total;
+      facts.agentsActive = s.agents.active;
+      facts.pendingApprovals = s.pendingApprovals;
+      facts.aiCalls24h = s.last24h.aiCalls;
+      facts.providerCost24h = Number(s.last24h.providerCostUsd.toFixed(4));
+      facts.deniedEvents24h = s.last24h.deniedEvents;
+    } else if (/^user\b/.test(lower)) {
+      intent = 'user';
+      const q = command.replace(/^user\s*/i, '').trim();
+      if (q.length === 0) {
+        answer = 'Give me an email or a name fragment: "user demo@orq8.test".';
+      } else {
+        const frag = `%${q}%`;
+        const [user] = await db
+          .select({ id: users.id, email: users.email, name: users.name, status: users.status, platformRole: users.platformRole, createdAt: users.createdAt })
+          .from(users)
+          .where(sql`${users.email} ILIKE ${frag} OR ${users.name} ILIKE ${frag}`)
+          .orderBy(desc(users.createdAt))
+          .limit(1);
+        if (!user) {
+          answer = `No account matches "${q}".`;
+        } else {
+          const mems = await db
+            .select({ orgName: organizations.name, role: memberships.role, orgPlan: organizations.plan })
+            .from(memberships)
+            .innerJoin(organizations, eq(organizations.id, memberships.orgId))
+            .where(eq(memberships.userId, user.id));
+          answer =
+            `${user.name || user.email} (${user.email}) — status ${user.status}, ` +
+            `platform role ${user.platformRole ?? 'user'}, registered ${user.createdAt.toISOString().slice(0, 10)}. ` +
+            (mems.length > 0
+              ? `Organizations: ${mems.map((m) => `${m.orgName} (${m.role}, ${m.orgPlan})`).join('; ')}.`
+              : 'No organization memberships.');
+          facts.email = user.email;
+          facts.status = user.status;
+          facts.platformRole = user.platformRole ?? 'user';
+          facts.orgs = mems.length;
+        }
+      }
+    } else if (/^org(anization)?\b/.test(lower)) {
+      intent = 'org';
+      const q = command.replace(/^organization?\s*/i, '').trim();
+      if (q.length === 0) {
+        answer = 'Give me an organization name or slug: "org oddly".';
+      } else {
+        const frag = `%${q}%`;
+        const [org] = await db
+          .select({ id: organizations.id, name: organizations.name, slug: organizations.slug, plan: organizations.plan, status: organizations.status, createdAt: organizations.createdAt })
+          .from(organizations)
+          .where(sql`${organizations.name} ILIKE ${frag} OR ${organizations.slug} ILIKE ${frag}`)
+          .orderBy(desc(organizations.createdAt))
+          .limit(1);
+        if (!org) {
+          answer = `No organization matches "${q}".`;
+        } else {
+          const [agentCount] = await db.select({ count: sql<number>`count(*)::int` }).from(agents).where(eq(agents.orgId, org.id));
+          const [taskStats] = await db
+            .select({
+              total: sql<number>`count(*)::int`,
+              completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
+            })
+            .from(tasks)
+            .where(eq(tasks.orgId, org.id));
+          const [credits] = await db
+            .select({ used: creditBalances.usedCredits })
+            .from(creditBalances)
+            .where(eq(creditBalances.orgId, org.id))
+            .limit(1);
+          answer =
+            `${org.name} (${org.slug}) — plan ${org.plan}, status ${org.status}, created ${org.createdAt.toISOString().slice(0, 10)}. ` +
+            `${agentCount?.count ?? 0} AI employee(s); ${taskStats?.total ?? 0} tasks (${taskStats?.completed ?? 0} completed); ` +
+            `${credits?.used ?? 0} credits used.`;
+          facts.name = org.name;
+          facts.plan = org.plan;
+          facts.agents = agentCount?.count ?? 0;
+          facts.tasks = taskStats?.total ?? 0;
+          facts.creditsUsed = credits?.used ?? 0;
+        }
+      }
+    } else if (/^recent\b/.test(lower)) {
+      intent = 'recent';
+      const rows = await db
+        .select({ action: auditEvents.action, outcome: auditEvents.outcome, occurredAt: auditEvents.occurredAt, orgId: auditEvents.orgId })
+        .from(auditEvents)
+        .orderBy(desc(auditEvents.occurredAt))
+        .limit(15);
+      answer = rows.length > 0
+        ? `Latest ${rows.length} audit actions: ${rows.map((r) => `${r.action} (${r.outcome})`).join(', ')}.`
+        : 'No audit events yet.';
+      facts.count = rows.length;
+    } else {
+      answer =
+        'I can answer from live platform data: "stats" (platform snapshot), ' +
+        '"user <email or name>" (account summary), "org <name or slug>" (organization summary), ' +
+        '"recent" (latest audit actions). I am read-only and every command is audited.';
+    }
+
+    await appendAudit(deps.db, {
+      orgId: admin.orgId,
+      actorType: 'user',
+      actorId: admin.userId,
+      action: 'admin.ea_command',
+      tool: 'admin-assistant',
+      outcome: 'success',
+      inputRef: command.slice(0, 300),
+      resultRef: `intent:${intent}`,
+    }).catch(() => undefined);
+
+    return { data: { intent, answer, facts } };
   });
 }

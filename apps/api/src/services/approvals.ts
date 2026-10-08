@@ -1,6 +1,13 @@
-import { eq, and, desc, inArray, isNull } from 'drizzle-orm';
-import { approvals, type Approval, type NewApproval, type Db } from '@orq8/db';
+import { eq, and, desc, inArray, isNull, isNotNull, lte, sql } from 'drizzle-orm';
+import { approvals, tasks, type Approval, type NewApproval, type Db } from '@orq8/db';
 import { captureDecisionFromApproval } from './knowledge-graph.js';
+
+/**
+ * How long an unanswered gate stays open (docs/82 §gate-expiry). When it
+ * passes, the expiry sweeper expires the approval and pauses its task —
+ * silence never approves; the founder decides again when they return.
+ */
+export const GATE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Find approvals for an org, optionally filtered by status. */
 export async function findByOrg(
@@ -136,6 +143,68 @@ export async function findGrantedGate(
 /** Stamp the grant as spent. Called as the gated work resumes. */
 export async function markGateReleased(db: Db, approvalId: string): Promise<void> {
   await db.update(approvals).set({ releasedAt: new Date() }).where(eq(approvals.id, approvalId));
+}
+
+/** One gate the expiry sweep turned away, for logging and ops surfaces. */
+export interface ExpiredGate {
+  approvalId: string;
+  orgId: string;
+  taskId: string | null;
+}
+
+/**
+ * Expire open gates past their decision window (docs/82 §gate-expiry).
+ *
+ * The `expired` approval status existed but nothing ever set it. This is the
+ * job that sets it: an open gate whose `gate_expires_at` has passed becomes an
+ * `expired` decision with a note naming why, and its task returns to `paused`
+ * — never to `approved`, never re-run by a background pass. Silence is not a
+ * yes. The founder can explicitly re-decide (approve/reject on the expired
+ * row, or retry the task) when they come back; a paused task asks again
+ * through the normal gates.
+ */
+export async function expireOpenGates(
+  db: Db,
+  opts: { now?: Date; limit?: number } = {},
+): Promise<ExpiredGate[]> {
+  const now = opts.now ?? new Date();
+
+  const due = await db
+    .select({ id: approvals.id, orgId: approvals.orgId, taskId: approvals.taskId })
+    .from(approvals)
+    .where(
+      and(
+        eq(approvals.status, 'pending'),
+        // Rows without a deadline (legacy gates) never expire — only gates
+        // created after 0047 carry one.
+        isNotNull(approvals.gateExpiresAt),
+        lte(approvals.gateExpiresAt, now),
+      ),
+    )
+    .limit(Math.min(Math.max(opts.limit ?? 100, 1), 500));
+
+  const expired: ExpiredGate[] = [];
+  for (const gate of due) {
+    // Conditional UPDATE: a founder who decided in the race between the read
+    // and the write keeps their decision (0 rows updated → not expired).
+    const updated = await db
+      .update(approvals)
+      .set({ status: 'expired', decisionNote: 'Expired unanswered — silence never approves. Decide again to run this.', decidedAt: now })
+      .where(and(eq(approvals.id, gate.id), eq(approvals.status, 'pending')))
+      .returning({ id: approvals.id });
+    if (updated.length === 0) continue;
+
+    expired.push({ approvalId: gate.id, orgId: gate.orgId, taskId: gate.taskId });
+
+    if (gate.taskId) {
+      await db
+        .update(tasks)
+        .set({ status: 'paused', updatedAt: now })
+        .where(and(eq(tasks.id, gate.taskId), eq(tasks.orgId, gate.orgId), eq(tasks.status, 'awaiting_approval')));
+    }
+  }
+
+  return expired;
 }
 
 /** Count pending approvals for an org. */

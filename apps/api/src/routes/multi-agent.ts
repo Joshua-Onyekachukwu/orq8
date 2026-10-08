@@ -9,6 +9,7 @@ import {
   monitorDelegations,
   handleAgentFeedback,
 } from '../services/delegation-orchestrator.js';
+import { resolveDelegationLimits } from '../services/delegation-guard.js';
 import type { AppDeps } from '../types.js';
 
 const delegateBody = z.object({
@@ -56,7 +57,8 @@ const taskDecompositionBody = z.object({
 });
 
 export function registerMultiAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
-  const { db } = deps;
+  const { db, config } = deps;
+  const limits = resolveDelegationLimits(config);
 
   /**
    * POST /v1/delegations/plan — Build a delegation plan from a task
@@ -82,7 +84,7 @@ export function registerMultiAgentRoutes(app: FastifyInstance, deps: AppDeps): v
     if (!parsed.success) throw validation(parsed.error.flatten());
 
     const plan = await createDelegationPlan(db, ctx.orgId, parsed.data.tasks);
-    const result = await executeDelegationPlan(db, ctx.orgId, plan, parsed.data.tasks);
+    const result = await executeDelegationPlan(db, ctx.orgId, plan, parsed.data.tasks, config);
     reply.code(result.createdTaskIds.length > 0 ? 201 : 200);
     return { data: result };
   });
@@ -130,6 +132,7 @@ export function registerMultiAgentRoutes(app: FastifyInstance, deps: AppDeps): v
       priority: parsed.data.priority,
       context: parsed.data.context,
       dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : undefined,
+      limits,
     });
 
     reply.code(result.status === 'created' ? 201 : 400);

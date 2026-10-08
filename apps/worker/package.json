@@ -1,0 +1,23 @@
+{
+  "name": "@orq8/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone agent-job worker (docs/75 phase 2) — drains agent_jobs with no HTTP surface",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "once": "tsx src/main.ts --once",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@orq8/api": "workspace:^",
+    "@orq8/core": "workspace:^",
+    "@orq8/db": "workspace:^",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.12"
+  },
+  "devDependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "pg": "^8.23.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    // The worker imports the API's job loop, which transitively type-checks the
+    // API's service graph — including `request.cookies`, whose declaration
+    // lives in @fastify/cookie's module augmentation. Listing it here is what
+    // makes that augmentation part of this program.
+    "types": ["node", "@fastify/cookie"]
+  },
+  "include": ["src"]
+}
