@@ -13,7 +13,23 @@ import Link from "next/link";
 
 // ── Status system (docs/85 §4) ──────────────────────────────────────────────
 
-export type DotState = "" | "working" | "waiting" | "blocked";
+/**
+ * The full operational state vocabulary (docs/85 §4 / docs/86 §3). These are the
+ * nine states an employee or a piece of work can be in; each one has a token
+ * pair and a dot treatment, so no surface has to invent its own colour.
+ * `""` is the neutral/idle state the default dot already renders.
+ */
+export type DotState =
+  | ""
+  | "active"
+  | "working"
+  | "waiting"
+  | "blocked"
+  | "review"
+  | "done"
+  | "paused"
+  | "failed"
+  | "offline";
 
 export interface OsStatus {
   label: string;
@@ -25,7 +41,9 @@ export function taskOsStatus(status: string): OsStatus {
   if (status === "in_progress") return { label: "Working", state: "working" };
   if (status === "awaiting_approval") return { label: "Waiting on a decision", state: "waiting" };
   if (status === "pending") return { label: "Queued", state: "" };
-  if (status === "failed") return { label: "Failed", state: "blocked" };
+  // A failed run is terminal, not obstructed — it gets its own tone so it never
+  // reads as "someone must unblock this right now" (that is `blocked`).
+  if (status === "failed") return { label: "Failed", state: "failed" };
   if (status === "completed") return { label: "Done", state: "" };
   if (status === "cancelled") return { label: "Cancelled", state: "" };
   return { label: status, state: "" };
@@ -33,8 +51,8 @@ export function taskOsStatus(status: string): OsStatus {
 
 /** Canonical mapping for an employee row. */
 export function employeeOsStatus(status: string, currentTask: string | null): OsStatus {
-  if (status === "archived") return { label: "Retired", state: "" };
-  if (status === "paused") return { label: "Paused", state: "" };
+  if (status === "archived") return { label: "Retired", state: "offline" };
+  if (status === "paused") return { label: "Paused", state: "paused" };
   if (currentTask) return { label: "Working", state: "working" };
   return { label: "Idle", state: "" };
 }

@@ -245,11 +245,17 @@ the API returns, never guesses.
   department page (works for ALL departments; differential via pageConfig) +
   employee page + pageConfig defaults for executive_office, engineering,
   marketing, sales.
-- **P2**: template catalog page (activate from the department list),
-  hire-from-template with role blueprints, workflow (event rule) editor
-  embedded in the department page.
-- **P3**: executive dashboard department strip, per-department health,
-  workflow run history (job lineage per rule).
+- **P2 (done)**: department template catalog at `/app/departments/templates`
+  (blueprint preview + one-click establish, idempotent), hire-from-template on
+  the department page ordered by the department's own blueprint roles, and the
+  workflow (event rule) editor embedded in the department page — create, edit,
+  disable and delete, against `PUT/DELETE /v1/event-rules`. The write paths go
+  through new web proxies; the API keeps every decision (plan caps, the
+  agent-must-be-a-member guard, audit entries).
+- **P3 (next)**: executive dashboard department strip, per-department health,
+  workflow run history (job lineage per rule), per-department focus read-models
+  (engineering repos/PRs/sandbox; marketing campaigns; sales pipeline) so the
+  differential is data, not just emphasis.
 
 ## 11. Validation plan
 

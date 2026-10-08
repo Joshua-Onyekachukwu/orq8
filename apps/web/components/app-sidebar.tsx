@@ -27,6 +27,7 @@ import {
   Inbox,
   KeyRound,
   Landmark,
+  LayoutTemplate,
   Layers,
   LayoutDashboard,
   ListChecks,
@@ -125,6 +126,7 @@ const navAreas: NavArea[] = [
     items: [
       { label: "AI Employees", href: "/app/agents", icon: Users },
       { label: "Departments", href: "/app/departments", icon: Building2 },
+      { label: "Department Templates", href: "/app/departments/templates", icon: LayoutTemplate },
       { label: "Teams", href: "/app/teams", icon: Network },
       { label: "Squads", href: "/app/squads", icon: Layers },
       { label: "Org Explorer", href: "/app/org", icon: Boxes },

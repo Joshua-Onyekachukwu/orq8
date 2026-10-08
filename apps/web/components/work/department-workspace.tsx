@@ -17,12 +17,15 @@ import {
 } from "lucide-react";
 import { usePageContext } from "../executive-agent-context";
 import { titleize, type AgentAuthority } from "./authority-panel";
+import { WorkCard } from "../os/primitives";
+import { HirePanel } from "./hire-panel";
+import { WorkflowEditor } from "./workflow-editor";
+import { OsFacts, OsMetricRow, OsSection, OsTabs } from "../os/structure";
 import {
-  Stat,
-  WorkflowCard,
-  WorkCard,
-  type WorkflowItem,
-} from "../os/primitives";
+  blueprintLabels,
+  departmentMetrics,
+  resolvePageConfig,
+} from "./department-focus";
 
 /**
  * The department workspace (docs/71 §G). The department owns one row; every
@@ -183,6 +186,10 @@ export interface DepartmentDetailData {
       kpis?: unknown[];
       typicalGoals?: unknown[];
       roles?: unknown[];
+      /** docs/85 §7 / docs/86 §4 — section order + metric emphasis, resolved
+       *  server-side by defaultPageConfig so the page never guesses what this
+       *  department is about. */
+      pageConfig?: { sections?: string[]; metrics?: string[] } | null;
     } | null;
   };
   members: DepartmentMemberData[];
@@ -340,6 +347,14 @@ const RISK_TONE: Record<string, string> = {
   critical: "text-error-ink",
 };
 
+// ── The department's own emphasis (docs/86 §4) ─────────────────────────────
+//
+// The backend already decides what matters here (`settings.pageConfig`, written
+// by `setDepartmentBlueprint` at activation). Until now the web ignored it and
+// every department rendered the same five stats in the same order — which is
+// exactly the "same page, different name" problem this work exists to fix.
+// The logic itself is pure and lives in `department-focus.ts` so it is testable.
+
 export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }) {
   const [tab, setTab] = useState<TabKey>("tools");
   const department = detail.department;
@@ -442,23 +457,6 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
               {department.description && (
                 <p className="mt-1 max-w-2xl text-sm text-muted">{department.description}</p>
               )}
-              {(department.settings?.kpis?.length ?? 0) > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(department.settings!.kpis as unknown[]).slice(0, 4).map((k, i) => {
-                    const label =
-                      typeof k === "string"
-                        ? k
-                        : k && typeof k === "object" && "name" in (k as Record<string, unknown>)
-                          ? String((k as Record<string, unknown>).name)
-                          : null;
-                    return label ? (
-                      <span key={i} className="rounded-md bg-elevated px-1.5 py-0.5 text-3xs text-muted">
-                        KPI · {label}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-2xs text-ink">
                   <span className="state-dot" data-state={state.state} />
@@ -538,9 +536,75 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
               </dt>
               <dd className="mt-0.5 text-sm tabular-nums text-ink">{stat.value}</dd>
             </div>
-          ))}
+          )      )}
         </dl>
       </header>
+
+      {/* ── Charter (docs/86 §4) — the blueprint the template carried in ──
+          This is the department's own content, written at activation, not a
+          generic block every department shares. It is what makes Executive and
+          Engineering read as different organisations rather than one page with
+          a swapped name. */}
+      {(() => {
+        const kpis = blueprintLabels(department.settings?.kpis, ["name", "label", "title"]);
+        const roles = blueprintLabels(department.settings?.roles, ["name", "title", "role"]);
+        const goals = blueprintLabels(department.settings?.typicalGoals, ["goal", "name", "title"]);
+        if (kpis.length + roles.length + goals.length === 0) return null;
+        return (
+          <OsSection
+            id="charter"
+            title="Charter"
+            description={`What ${department.name} is here to do, carried from its template.`}
+          >
+            <div className="console-card p-4">
+              <OsFacts
+                columns={3}
+                items={[
+                  {
+                    label: "What we measure",
+                    value:
+                      kpis.length > 0 ? (
+                        <ul className="space-y-1">
+                          {kpis.slice(0, 5).map((k) => (
+                            <li key={k} className="text-sm">{k}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-muted">not specified</span>
+                      ),
+                  },
+                  {
+                    label: "Roles it needs",
+                    value:
+                      roles.length > 0 ? (
+                        <ul className="space-y-1">
+                          {roles.slice(0, 6).map((r) => (
+                            <li key={r} className="text-sm">{r.replace(/_/g, " ")}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-muted">not specified</span>
+                      ),
+                  },
+                  {
+                    label: "Typical goals",
+                    value:
+                      goals.length > 0 ? (
+                        <ul className="space-y-1">
+                          {goals.slice(0, 5).map((g) => (
+                            <li key={g} className="text-sm">{g}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-muted">not specified</span>
+                      ),
+                  },
+                ]}
+              />
+            </div>
+          </OsSection>
+        );
+      })()}
 
       {/* ── Needs founder — never buried ─────────────────────────────────── */}
       {detail.needsFounder.length > 0 && (
@@ -627,43 +691,38 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
         )}
       </section>
 
-      {/* ── Workflows (docs/85 §5 workflow-card) ─────────────────────────── */}
-      {(detail.workflows?.length ?? 0) > 0 && (
-        <section className="console-card p-4">
-          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-            Workflows — triggers this department responds to
-          </h2>
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            {detail.workflows!.map((wf) => (
-              <WorkflowCard key={wf.id} wf={wf as WorkflowItem} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Workflows — the department's recurring processes (docs/85 P2) ── */}
+      <OsSection
+        id="workflows"
+        title="Workflows"
+        description="External events this department responds to: what fires, what it does, and who owns it."
+      >
+        <div className="console-card p-4">
+          <WorkflowEditor
+            rules={detail.workflows ?? []}
+            members={detail.members.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+          />
+        </div>
+      </OsSection>
 
-      {/* ── Metrics (docs/85 §3.3) ──────────────────────────────────────── */}
-      {detail.metrics && (
-        <section className="console-card p-4">
-          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-            Last 30 days
-          </h2>
-          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Stat label="Tasks done" value={detail.metrics.tasksDone30d} />
-            <Stat label="Failed" value={detail.metrics.failed30d} />
-            <Stat label="Credits spent" value={detail.metrics.creditsUsed30d} />
-            <Stat
-              label="Avg approval wait"
-              value={detail.metrics.avgApprovalHours != null ? `${detail.metrics.avgApprovalHours}h` : "—"}
-              sub="request → founder decision"
-            />
-            <Stat
-              label="Budget burn"
-              value={detail.metrics.budgetBurnPct != null ? `${detail.metrics.budgetBurnPct}%` : "—"}
-              sub={department.budget ? `of ${department.budget.toLocaleString()} credits` : "no budget set"}
-            />
-          </div>
-        </section>
-      )}
+      {/* ── Metrics — ordered by what this department is about (docs/86 §4) ── */}
+      {detail.metrics && (() => {
+        const metrics = departmentMetrics(
+          detail.metrics,
+          resolvePageConfig(department.settings).metrics,
+          department.budget,
+        );
+        if (metrics.length === 0) return null;
+        return (
+          <OsSection
+            id="metrics"
+            title="Last 30 days"
+            description="Emphasis follows this department's template — the metric it leads with is the one it is judged on."
+          >
+            <OsMetricRow metrics={metrics} className="lg:grid-cols-4" />
+          </OsSection>
+        );
+      })()}
 
       {/* ── Team ─────────────────────────────────────────────────────────── */}
       <section className="console-card p-4">
@@ -742,15 +801,30 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
         )}
       </section>
 
+      {/* ── Hire from template (docs/85 P2) ──────────────────────────────── */}
+      <div className="console-card p-4">
+        <HirePanel
+          departmentId={department.id}
+          departmentName={department.name}
+          blueprintRoles={blueprintLabels(department.settings?.roles, ["name", "title", "role"])}
+        />
+      </div>
+
       {/* ── Operating context ────────────────────────────────────────────── */}
       <div>
         <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
           Operating context
         </h2>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {TABS.map((t) => {
-            const active = tab === t.key;
-            const badge =
+        {/* The shared tab bar (docs/86 §4) — one tab pattern for the product,
+            not a per-page pill row. Counts stay on the tab they belong to. */}
+        <OsTabs
+          className="mt-2"
+          active={tab}
+          onChange={(key) => setTab(key as TabKey)}
+          tabs={TABS.map((t) => ({
+            key: t.key,
+            label: t.label,
+            count:
               t.key === "tools" && detail.tools.length > 0
                 ? detail.tools.length
                 : t.key === "memory" && detail.memory.length > 0
@@ -759,27 +833,9 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                     ? detail.activity.length
                     : t.key === "resources" && detail.files.length > 0
                       ? detail.files.length
-                      : null;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                aria-pressed={active}
-                className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                  active
-                    ? "border-hairline-strong bg-elevated text-ink"
-                    : "border-hairline text-muted hover:border-hairline-strong hover:text-ink"
-                }`}
-              >
-                {t.label}
-                {badge !== null && (
-                  <span className="ml-1.5 font-mono text-2xs text-muted">{badge}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                      : undefined,
+          }))}
+        />
       </div>
 
       {/* Tools & integrations */}

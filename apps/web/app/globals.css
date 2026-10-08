@@ -367,6 +367,8 @@ body {
   --color-status-paused-text: var(--orq-status-paused-text);
   --color-status-offline-bg: var(--orq-status-offline-bg);
   --color-status-offline-text: var(--orq-status-offline-text);
+  --color-status-failed-bg: var(--orq-status-failed-bg);
+  --color-status-failed-text: var(--orq-status-failed-text);
 
   /* Authority */
   --color-authority-can-bg: var(--orq-authority-can-bg);
@@ -556,6 +558,12 @@ body {
   --orq-status-paused-text: #356267;
   --orq-status-offline-bg: #000000;
   --orq-status-offline-text: #FFFFFF;
+  /* `failed` is a *terminal* failure, `blocked` is a live obstruction. They
+     must not read the same: blocked is the loud solid fill (it is asking for
+     a person right now), failed is the settled wash (the run is over). Deep
+     red on a 10% red wash clears AA (~4.6:1) without competing with blocked. */
+  --orq-status-failed-bg: var(--orq-error-soft);
+  --orq-status-failed-text: var(--orq-error-fill);
 
   /* Status marks: the small live indicator dot beside a label, and the fill of
      a progress bar. A status *chip* is a fill carrying its own text; a status
@@ -1096,6 +1104,10 @@ body {
   --orq-status-paused-text: var(--console-body);
   --orq-status-offline-bg: var(--console-line-strong);
   --orq-status-offline-text: var(--console-muted);
+  /* Terminal failure keeps the quiet-chip treatment the console statuses use,
+     red-washed so it still reads as a bad ending next to blocked's solid red. */
+  --orq-status-failed-bg: rgba(224, 122, 122, 0.08);
+  --orq-status-failed-text: var(--console-red);
 
   /* Authority bands: same neutral-chip treatment */
   --orq-authority-can-bg: var(--console-hover);
@@ -1234,6 +1246,10 @@ body {
   background: var(--console-orange);
 }
 .console .state-dot[data-state="blocked"] {
+  background: var(--console-red);
+}
+/* Terminal failure: same red, no pulse — the run has stopped. */
+.console .state-dot[data-state="failed"] {
   background: var(--console-red);
 }
 /* Ghost decision pair (docs/71 items 18/22): transparent red / white */
