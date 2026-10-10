@@ -2032,3 +2032,82 @@ export const decisions = pgTable(
 
 export type Decision = typeof decisions.$inferSelect;
 export type NewDecision = typeof decisions.$inferInsert;
+
+// ── Deals and Tickets (migration 0054) ──────────────────────────────────────
+// The sales pipeline and the customer-success queue. Before this, the two
+// departments shared one accounts read-model because neither table existed —
+// a pipeline or a queue printed from `knowledge_entities` would have been a
+// number nobody wrote (docs/86 §6, docs/87 §4).
+//
+// Both hang off the knowledge graph's `customer` entity when one exists
+// (`accountId`), with `accountName` denormalised so a deal or a ticket is
+// recordable the moment an employee learns it, before the entity is created.
+// Money is integer cents: a real currency amount, never a float.
+
+export const deals = pgTable(
+  'deals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id').references(() => knowledgeEntities.id, { onDelete: 'set null' }),
+    accountName: text('account_name').notNull(),
+    title: text('title').notNull(),
+    // qualifying | discovery | proposal | negotiation | won | lost
+    stage: text('stage').notNull().default('qualifying'),
+    valueCents: integer('value_cents').notNull().default(0),
+    currency: text('currency').notNull().default('USD'),
+    probability: integer('probability').notNull().default(0),
+    ownerAgentId: uuid('owner_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    source: text('source'),
+    nextStep: text('next_step'),
+    expectedCloseAt: timestamp('expected_close_at', { withTimezone: true }),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('deals_org_idx').on(t.orgId),
+    index('deals_org_stage_idx').on(t.orgId, t.stage),
+    index('deals_org_owner_idx').on(t.orgId, t.ownerAgentId),
+    index('deals_org_close_idx').on(t.orgId, t.expectedCloseAt),
+  ],
+);
+
+export const tickets = pgTable(
+  'tickets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id').references(() => knowledgeEntities.id, { onDelete: 'set null' }),
+    accountName: text('account_name').notNull(),
+    subject: text('subject').notNull(),
+    body: text('body'),
+    // open | pending | waiting_customer | escalated | resolved | closed
+    status: text('status').notNull().default('open'),
+    // low | normal | high | urgent
+    priority: text('priority').notNull().default('normal'),
+    // email | chat | phone | portal
+    channel: text('channel').notNull().default('portal'),
+    assigneeAgentId: uuid('assignee_agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    slaDueAt: timestamp('sla_due_at', { withTimezone: true }),
+    firstResponseAt: timestamp('first_response_at', { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('tickets_org_idx').on(t.orgId),
+    index('tickets_org_status_idx').on(t.orgId, t.status),
+    index('tickets_org_assignee_idx').on(t.orgId, t.assigneeAgentId),
+    index('tickets_org_sla_idx').on(t.orgId, t.slaDueAt),
+  ],
+);
+
+export type Deal = typeof deals.$inferSelect;
+export type NewDeal = typeof deals.$inferInsert;
+export type Ticket = typeof tickets.$inferSelect;
+export type NewTicket = typeof tickets.$inferInsert;

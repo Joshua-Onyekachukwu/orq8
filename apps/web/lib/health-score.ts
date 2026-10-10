@@ -1,4 +1,119 @@
 /**
+ * Per-department health (docs/85 §6 P3).
+ *
+ * A department is judged on the four things the product actually knows about it:
+ * how much of its workforce is active, how its work resolved in the window,
+ * whether its budget is intact, and how many of its requests are sitting on the
+ * founder. The company composite's fifth dimension — goals — is deliberately
+ * excluded: goals are org-scoped and carry no department column, so including
+ * them would mean scoring a department on a number that is not its own.
+ *
+ * The weights are the company weights (agents 25%, tasks 30%, credits 20%,
+ * approvals 10%) renormalised over the dimensions that apply. When a department
+ * has no budget set, the credits dimension is dropped and the rest is
+ * renormalised again, rather than scoring it zero for an unset ceiling.
+ *
+ * Both the executive strip and the department page call this, so the same
+ * department cannot show two different health scores.
+ */
+export interface DepartmentHealthInput {
+  membersActive: number;
+  membersTotal: number;
+  tasksDone: number;
+  tasksFailed: number;
+  tasksWorking: number;
+  tasksQueued: number;
+  gatesPending: number;
+  /** Null when the department has no budget; the dimension is then not scored. */
+  budgetAmount: number | null;
+  budgetRemaining: number | null;
+}
+
+export interface DepartmentHealthResult {
+  score: number;
+  label: string;
+  segments: HealthSegment[];
+}
+
+function departmentLabel(score: number): string {
+  if (score >= 80) return "Thriving";
+  if (score >= 60) return "Healthy";
+  if (score >= 40) return "Needs Attention";
+  return "At Risk";
+}
+
+export function departmentHealth(input: DepartmentHealthInput): DepartmentHealthResult {
+  const {
+    membersActive,
+    membersTotal,
+    tasksDone,
+    tasksFailed,
+    tasksWorking,
+    tasksQueued,
+    gatesPending,
+    budgetAmount,
+    budgetRemaining,
+  } = input;
+
+  const tasksTotal = tasksDone + tasksFailed + tasksWorking + tasksQueued;
+  const workforce = membersTotal > 0 ? (membersActive / membersTotal) * 100 : 0;
+  const execution = tasksTotal > 0 ? (tasksDone / tasksTotal) * 100 : 0;
+  const approvals = gatesPending === 0 ? 100 : Math.max(0, 100 - gatesPending * 20);
+
+  const segments: HealthSegment[] = [
+    {
+      label: "Workforce",
+      value: Math.round(workforce),
+      display: `${membersActive}/${membersTotal}`,
+      status: segmentStatus(workforce, membersTotal === 0),
+    },
+    {
+      label: "Execution",
+      value: Math.round(execution),
+      display: `${tasksDone}/${tasksTotal}`,
+      status: segmentStatus(execution, tasksTotal === 0),
+    },
+    {
+      label: "Approvals",
+      value: Math.round(approvals),
+      display: gatesPending === 0 ? "Clear" : `${gatesPending} pending`,
+      status: segmentStatus(approvals, false),
+    },
+  ];
+
+  // Weighted over the dimensions present in this department's data.
+  let weighted = workforce * 0.25 + execution * 0.3 + approvals * 0.1;
+  let weightSum = 0.65;
+
+  const hasBudget = budgetAmount !== null && budgetAmount > 0 && budgetRemaining !== null;
+  if (hasBudget) {
+    const credits = Math.max(0, Math.min(100, (budgetRemaining! / budgetAmount!) * 100));
+    segments.push({
+      label: "Budget",
+      value: Math.round(credits),
+      display: `${buildBudgetDisplay(budgetRemaining!, budgetAmount!)}`,
+      status: segmentStatus(credits, false),
+    });
+    weighted += credits * 0.2;
+    weightSum += 0.2;
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round(weighted / weightSum)));
+  return { score, label: departmentLabel(score), segments };
+}
+
+/** "12 / 40" credits, without a currency sign — credits are the unit, not money. */
+function buildBudgetDisplay(remaining: number, total: number): string {
+  return `${Math.round(remaining)}/${Math.round(total)}`;
+}
+
+function segmentStatus(value: number, neutral: boolean): HealthSegmentStatus {
+  if (neutral && value === 0) return "neutral";
+  if (value >= 70) return "good";
+  return value >= 40 ? "warning" : "critical";
+}
+
+/**
  * Company health composite — the single source of truth for the number shown in
  * the dashboard stat strip and the HealthScore widget.
  *

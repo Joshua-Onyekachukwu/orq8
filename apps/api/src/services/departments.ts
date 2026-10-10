@@ -13,7 +13,30 @@ import {
   type Department,
   type Db,
 } from '@orq8/db';
-import { engineeringFocus, type EngineeringFocus } from './department-focus.js';
+import {
+  engineeringFocus,
+  financeFocus,
+  marketingFocus,
+  salesFocus,
+  successFocus,
+  type EngineeringFocus,
+  type FinanceFocus,
+  type MarketingFocus,
+  type SalesFocus,
+  type SuccessFocus,
+} from './department-focus.js';
+import {
+  departmentOverview,
+  workflowRunHistory,
+  type DepartmentOverviewRow,
+  type WorkflowRun,
+} from './department-overview.js';
+
+// Re-exported so the route layer talks to one department service module, not
+// two: `/v1/departments/overview` (the executive strip) and `/v1/departments/:id`
+// (the workspace) read the same data with the same rules.
+export { departmentOverview };
+export type { DepartmentOverviewRow };
 
 /** One member of a department, as the workspace's Team zone reads them. */
 export interface DepartmentMember {
@@ -159,6 +182,13 @@ export interface DepartmentDetail {
     agentName: string | null;
     taskTitleTemplate: string | null;
   }>;
+  /**
+   * docs/85 §6 P3 — recent runs for each of this department's workflows, keyed
+   * by event-rule id. A run is a matched webhook event traced through the audit
+   * trail to the task it created and the job that ran that task. An empty array
+   * means the rule has never fired, which the page states rather than hides.
+   */
+  workflowRuns: Record<string, WorkflowRun[]>;
   /** docs/85 §3.3 — the member acting as department head (manager/router). */
   head: DepartmentMember | null;
   /**
@@ -170,6 +200,14 @@ export interface DepartmentDetail {
    */
   focus?: {
     engineering?: EngineeringFocus;
+    /** Marketing: assets its employees produced + workspace briefings. */
+    marketing?: MarketingFocus;
+    /** Finance: the department's budget, spend, holds, purchases, alerts. */
+    finance?: FinanceFocus;
+    /** Sales: the deals this department owns, plus the org's customer accounts. */
+    sales?: SalesFocus;
+    /** Customer success: the tickets this department is on, plus the accounts. */
+    success?: SuccessFocus;
   };
 }
 
@@ -526,6 +564,21 @@ export async function findDetail(
     workflows = [];
   }
 
+  // WORKFLOW RUN HISTORY (docs/85 §6 P3) — what each of this department's rules
+  // actually did. Wrapped like the other optional reads so a department page can
+  // never fail because a lineage query was unavailable; an empty map means
+  // "no runs recorded", never a fabricated run.
+  let workflowRuns: Record<string, WorkflowRun[]> = {};
+  try {
+    workflowRuns = await workflowRunHistory(
+      db,
+      orgId,
+      workflows.map((w) => ({ id: w.id, provider: w.provider, eventType: w.eventType })),
+    );
+  } catch {
+    workflowRuns = {};
+  }
+
   // HEAD — the member acting as the department's manager/router (docs/85
   // §3.3). departments.head stores the member's NAME; resolve to the row so
   // the UI can show state + authority, and link the profile.
@@ -720,8 +773,38 @@ export async function findDetail(
   let focus: DepartmentDetail['focus'];
   try {
     const templateSlug = (department.settings as { templateSlug?: string } | null)?.templateSlug;
-    if (templateSlug === 'engineering') {
-      focus = { engineering: await engineeringFocus(db, orgId, memberIds) };
+    // One arm per template that has a focus read-model (docs/86 §6). The
+    // template slug is the gate: a department whose blueprint was never written
+    // (or whose template has no model) gets `focus: undefined` — absent, not
+    // empty, so a page can tell "no model" apart from "model with no rows".
+    switch (templateSlug) {
+      case 'engineering':
+        focus = { engineering: await engineeringFocus(db, orgId, memberIds) };
+        break;
+      case 'marketing':
+        focus = { marketing: await marketingFocus(db, orgId, memberIds) };
+        break;
+      case 'finance':
+        focus = {
+          finance: await financeFocus(db, orgId, memberIds, {
+            budget: department.budget ?? null,
+            // Same definition as the page's `budgetBurnPct` metric, so the two
+            // numbers on one page can never disagree.
+            lifetimeCreditsUsed: members.reduce((a, m) => a + (m.creditsUsed ?? 0), 0),
+          }),
+        };
+        break;
+      case 'sales':
+        // Since migration 0054 this is a real pipeline, not the shared account
+        // list. It still shows the org's accounts, but as context beside the
+        // department's own deals rather than instead of them.
+        focus = { sales: await salesFocus(db, orgId, memberIds) };
+        break;
+      case 'customer_success':
+        focus = { success: await successFocus(db, orgId, memberIds) };
+        break;
+      default:
+        break;
     }
   } catch {
     focus = undefined;
@@ -740,6 +823,7 @@ export async function findDetail(
     done,
     metrics,
     workflows,
+    workflowRuns,
     head,
     focus,
     needsFounder,
@@ -808,19 +892,21 @@ const PAGE_CONFIGS: Record<string, DepartmentPageConfig> = {
     metrics: ['failed30d', 'tasksDone30d', 'creditsUsed30d', 'budgetBurnPct'],
   },
   marketing: {
-    sections: ['now', 'queued', 'needsFounder', 'employees', 'workflows', 'metrics', 'done', 'decisions', 'memory', 'tools', 'activity'],
+    // `focus` (docs/86 §6) leads: marketing is judged on what it shipped, not
+    // on a generic queue.
+    sections: ['now', 'focus', 'queued', 'needsFounder', 'employees', 'workflows', 'metrics', 'done', 'decisions', 'memory', 'tools', 'activity'],
     metrics: ['tasksDone30d', 'creditsUsed30d', 'budgetBurnPct', 'avgApprovalHours'],
   },
   sales: {
-    sections: ['now', 'queued', 'needsFounder', 'employees', 'workflows', 'metrics', 'done', 'decisions', 'memory', 'tools', 'activity'],
+    sections: ['now', 'focus', 'queued', 'needsFounder', 'employees', 'workflows', 'metrics', 'done', 'decisions', 'memory', 'tools', 'activity'],
     metrics: ['tasksDone30d', 'creditsUsed30d', 'budgetBurnPct', 'avgApprovalHours'],
   },
   finance: {
-    sections: ['needsFounder', 'now', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'activity'],
+    sections: ['needsFounder', 'now', 'focus', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'activity'],
     metrics: ['budgetBurnPct', 'creditsUsed30d', 'avgApprovalHours', 'tasksDone30d'],
   },
   customer_success: {
-    sections: ['now', 'needsFounder', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'activity'],
+    sections: ['now', 'focus', 'needsFounder', 'employees', 'workflows', 'metrics', 'queued', 'done', 'decisions', 'memory', 'tools', 'activity'],
     metrics: ['tasksDone30d', 'failed30d', 'avgApprovalHours', 'creditsUsed30d'],
   },
 };

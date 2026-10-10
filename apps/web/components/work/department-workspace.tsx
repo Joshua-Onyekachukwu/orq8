@@ -20,13 +20,25 @@ import { titleize, type AgentAuthority } from "./authority-panel";
 import { WorkCard } from "../os/primitives";
 import { HirePanel } from "./hire-panel";
 import { WorkflowEditor } from "./workflow-editor";
-import { DepartmentFocusPanel, type EngineeringFocusData } from "./department-focus-panel";
-import { OsFacts, OsMetricRow, OsSection, OsTabs } from "../os/structure";
+import {
+  DepartmentFocusPanel,
+  FinanceFocusPanel,
+  MarketingFocusPanel,
+  SalesFocusPanel,
+  SuccessFocusPanel,
+  type EngineeringFocusData,
+  type FinanceFocusData,
+  type SalesFocusData,
+  type SuccessFocusData,
+  type MarketingFocusData,
+} from "./department-focus-panel";
+import { OsEmptyPanel, OsFacts, OsMetricRow, OsSection, OsTabs, type OsMetric } from "../os/structure";
 import {
   blueprintLabels,
   departmentMetrics,
   resolvePageConfig,
 } from "./department-focus";
+import { departmentHealth } from "../../lib/health-score";
 
 /**
  * The department workspace (docs/71 §G). The department owns one row; every
@@ -162,6 +174,37 @@ export interface DepartmentWorkflowData {
   taskTitleTemplate: string | null;
 }
 
+/**
+ * One run of a workflow, from `GET /v1/departments/:id` (docs/85 §6 P3).
+ *
+ * The lineage is rule → matched webhook event → the task or approval the audit
+ * trail records against that event → the job that ran the task. Every field is a
+ * recorded value; `outcome: 'unresolved'` means the event matched the rule but
+ * no audit row names what it produced, which is shown rather than guessed.
+ */
+export interface WorkflowRunData {
+  eventId: string;
+  provider: string;
+  eventType: string;
+  title: string | null;
+  /** webhook_events.status: pending | processed | failed | dead. */
+  status: string;
+  receivedAt: string;
+  processedAt: string | null;
+  retryCount: number;
+  lastError: string | null;
+  outcome: "task" | "approval" | "ignored" | "unresolved";
+  taskId: string | null;
+  approvalId: string | null;
+  job: {
+    status: string;
+    attempts: number;
+    maxAttempts: number;
+    lastError: string | null;
+    updatedAt: string;
+  } | null;
+}
+
 export interface DepartmentMetricsData {
   creditsUsed30d: number;
   tasksDone30d: number;
@@ -217,9 +260,17 @@ export interface DepartmentDetailData {
   }>;
   metrics?: DepartmentMetricsData;
   workflows?: DepartmentWorkflowData[];
+  /** docs/85 §6 P3 — recent runs per workflow, keyed by event-rule id. */
+  workflowRuns?: Record<string, WorkflowRunData[]>;
   /** docs/86 §6 — department-scoped focus read-model (present only for
-   *  templates that have one, e.g. engineering). */
-  focus?: { engineering?: EngineeringFocusData } | null;
+   *  templates that have one). One key per model; absent for the rest. */
+  focus?: {
+    engineering?: EngineeringFocusData;
+    marketing?: MarketingFocusData;
+    finance?: FinanceFocusData;
+    sales?: SalesFocusData;
+    success?: SuccessFocusData;
+  } | null;
   head?: {
     id: string;
     name: string;
@@ -555,6 +606,34 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
           agentNameById={memberNameById}
         />
       ) : null}
+      {detail.focus?.marketing ? (
+        <MarketingFocusPanel
+          focus={detail.focus.marketing}
+          departmentName={department.name}
+          agentNameById={memberNameById}
+        />
+      ) : null}
+      {detail.focus?.finance ? (
+        <FinanceFocusPanel
+          focus={detail.focus.finance}
+          departmentName={department.name}
+          agentNameById={memberNameById}
+        />
+      ) : null}
+      {detail.focus?.sales ? (
+        <SalesFocusPanel
+          focus={detail.focus.sales}
+          departmentName={department.name}
+          agentNameById={memberNameById}
+        />
+      ) : null}
+      {detail.focus?.success ? (
+        <SuccessFocusPanel
+          focus={detail.focus.success}
+          departmentName={department.name}
+          agentNameById={memberNameById}
+        />
+      ) : null}
 
       {/* ── Charter (docs/86 §4) — the blueprint the template carried in ──
           This is the department's own content, written at activation, not a
@@ -720,6 +799,141 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
           />
         </div>
       </OsSection>
+
+      {/* ── Workflow runs — what each workflow actually did (docs/85 §6 P3) ── */}
+      <OsSection
+        id="workflow-runs"
+        title="Workflow runs"
+        description="Each run is a matched event, traced to the work it created and the job that ran that work."
+      >
+        {(detail.workflows ?? []).length === 0 ? (
+          <OsEmptyPanel
+            title="No workflows yet"
+            hint="A workflow is an event rule — an external event this department responds to. Create one above and its runs appear here."
+          />
+        ) : (
+          <div className="space-y-3">
+            {(detail.workflows ?? []).map((rule) => {
+              const runs = detail.workflowRuns?.[rule.id] ?? [];
+              return (
+                <div key={rule.id} className="console-card p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-mono text-2xs uppercase tracking-wide text-muted">
+                      {rule.provider}.{rule.eventType}
+                    </p>
+                    <span className="font-mono text-2xs uppercase tracking-wide text-muted">
+                      {rule.enabled ? "enabled" : "disabled"} · {rule.action}
+                    </span>
+                  </div>
+                  {runs.length === 0 ? (
+                    <p className="mt-2 text-xs text-muted">
+                      No runs recorded yet — this rule has not fired.
+                    </p>
+                  ) : (
+                    <ul className="mt-1 divide-y divide-[var(--console-line)]">
+                      {runs.map((run) => (
+                        <li
+                          key={run.eventId}
+                          className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
+                        >
+                          <span className="w-24 shrink-0 font-mono text-2xs text-muted">
+                            {formatTimeAgo(run.receivedAt)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-xs text-ink">
+                            {run.title ?? run.eventType}
+                          </span>
+                          <span
+                            className="shrink-0 font-mono text-2xs uppercase tracking-wide"
+                            style={{
+                              color:
+                                run.status === "failed" || run.status === "dead"
+                                  ? "var(--orq-error)"
+                                  : run.status === "processed"
+                                    ? "var(--orq-mark-active)"
+                                    : "var(--orq-warm)",
+                            }}
+                          >
+                            {run.status}
+                          </span>
+                          {run.taskId ? (
+                            <Link
+                              href={`/app/tasks/${run.taskId}`}
+                              className="shrink-0 text-2xs text-muted transition-colors hover:text-ink"
+                            >
+                              task{run.job ? ` · ${run.job.status}` : ""} →
+                            </Link>
+                          ) : run.approvalId ? (
+                            <Link
+                              href="/app/approvals"
+                              className="shrink-0 text-2xs text-muted transition-colors hover:text-ink"
+                            >
+                              approval →
+                            </Link>
+                          ) : (
+                            <span className="shrink-0 text-2xs text-muted">
+                              no outcome recorded
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </OsSection>
+
+      {/* ── Department health (docs/85 §6 P3) — same rule as the dashboard strip ── */}
+      {detail.metrics && (() => {
+        const budgetAmount = department.budget && department.budget > 0 ? department.budget : null;
+        const budgetRemaining =
+          budgetAmount === null
+            ? null
+            : Math.max(
+                0,
+                Math.round(budgetAmount * (1 - (detail.metrics!.budgetBurnPct ?? 0) / 100)),
+              );
+        const health = departmentHealth({
+          membersActive: department.activeCount,
+          membersTotal: department.agentCount,
+          tasksDone: detail.metrics.tasksDone30d,
+          tasksFailed: detail.metrics.failed30d,
+          tasksWorking: detail.now.length,
+          tasksQueued: (detail.queued ?? []).length,
+          gatesPending: detail.needsFounder.length,
+          budgetAmount,
+          budgetRemaining,
+        });
+        const tone = (status: string): OsMetric["tone"] =>
+          status === "good" ? "default" : status === "warning" ? "warn" : status === "critical" ? "bad" : "default";
+        const rows: OsMetric[] = [
+          {
+            key: "health",
+            label: "Health",
+            value: health.score,
+            sub: health.label,
+            tone: health.score >= 70 ? "default" : health.score >= 40 ? "warn" : "bad",
+          },
+          ...health.segments.map((segment) => ({
+            key: segment.label,
+            label: segment.label,
+            value: segment.value,
+            sub: segment.display,
+            tone: tone(segment.status),
+          })),
+        ];
+        return (
+          <OsSection
+            id="health"
+            title="Department health"
+            description="Scored with the same weights as the company composite, minus goals — goals are org-scoped and have no department."
+          >
+            <OsMetricRow metrics={rows} className="lg:grid-cols-5" />
+          </OsSection>
+        );
+      })()}
 
       {/* ── Metrics — ordered by what this department is about (docs/86 §4) ── */}
       {detail.metrics && (() => {

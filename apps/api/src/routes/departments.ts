@@ -84,6 +84,23 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
   });
 
   /**
+   * Executive department strip (docs/85 §6 P3) — one row per department with the
+   * counts its state and health are built from, plus the newest activity. The
+   * dashboard renders this strip; the department page renders the same numbers
+   * from `findDetail`, so the two surfaces cannot disagree about a department's
+   * state.
+   *
+   * Declared before `/v1/departments/:id` on purpose: Fastify matches in
+   * registration order, so a static segment must come first or `overview` would
+   * be read as a department id.
+   */
+  app.get('/v1/departments/overview', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const rows = await deptService.departmentOverview(db, ctx.orgId);
+    return { data: rows };
+  });
+
+  /**
    * Department workspace (docs/71 §G) — one department with everything its
    * page renders: members, teams, live work, the founder's pending decisions,
    * activity, decisions, memory, resources, and the tools this department's

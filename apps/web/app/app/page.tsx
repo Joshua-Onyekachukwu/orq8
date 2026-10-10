@@ -8,6 +8,10 @@ import {
   type HappeningMember,
 } from "../../components/dashboard/whats-happening";
 import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
+import {
+  DepartmentStrip,
+  type DepartmentOverviewRow,
+} from "../../components/dashboard/department-strip";
 import { EADock } from "../../components/dashboard/ea-dock";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import type { FounderStage } from "../../components/executive-agent-context";
@@ -106,7 +110,7 @@ interface CompanyProgressData {
 interface OrgInfo {
   user: { id: string; email: string; name: string | null };
   memberships: {
-    org: { id: string; name: string; slug: string; plan: string; isDemo?: boolean };
+    org: { id: string; name: string; slug: string; plan: string; isDemo?: boolean; eaName?: string | null };
     role: string;
   }[];
   active_org_id: string | null;
@@ -186,6 +190,11 @@ const fetchDecisions = () =>
   );
 const fetchActiveGoals = () =>
   fetchWithAuth<GoalRow[]>("/v1/goals?status=active&limit=4", FRESH).catch(() => null);
+// docs/85 §6 P3 — the executive department strip. A read that returns counts
+// only; the state and the health score are derived in the component with the
+// same rule the department page uses.
+const fetchDepartmentOverview = () =>
+  fetchWithAuth<DepartmentOverviewRow[]>("/v1/departments/overview", FRESH).catch(() => null);
 
 type DotState = "" | "working" | "waiting" | "blocked";
 
@@ -312,6 +321,7 @@ export default async function AppPage() {
     decisionsRes,
     activeGoalsRes,
     pendingRevisionRes,
+    departmentOverviewRes,
   ] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
@@ -325,6 +335,7 @@ export default async function AppPage() {
     fetchDecisions(),
     fetchActiveGoals(),
     fetchPendingRevision(),
+    fetchDepartmentOverview(),
   ]);
 
   const agentList = agents ?? [];
@@ -343,6 +354,9 @@ export default async function AppPage() {
 
   const activeOrg = orgInfo?.memberships?.find((m) => m.org.id === orgInfo.active_org_id);
   const orgName = activeOrg?.org.name ?? "My Company";
+  // The org's own EA name (Settings → Account), falling back to the
+  // deployment default when the founder never renamed it.
+  const eaName = activeOrg?.org.eaName?.trim() || EA_NAME;
 
   const activeAgents = dashboard?.active_agents ?? 0;
   const pendingApprovals = dashboard?.pending_approvals ?? 0;
@@ -408,7 +422,7 @@ export default async function AppPage() {
         : "There is no activity yet. Ask me to plan the first work for your company."
       : founderStage === "in_progress"
         ? "I kept what you have already given me, so we can pick up where you left off. Nothing is activated until you approve it."
-        : `Welcome to ORQ8${firstName ? `, ${firstName}` : ""}. I am ${EA_NAME}, your Executive Agent. Tell me what you are building and what you want it to accomplish.`;
+        : `Welcome to ORQ8${firstName ? `, ${firstName}` : ""}. I am ${eaName}, your Executive Agent. Tell me what you are building and what you want it to accomplish.`;
 
   const goalList = activeGoalsRes ?? [];
   const decisionList = decisionsRes?.decisions ?? [];
@@ -710,7 +724,7 @@ export default async function AppPage() {
                   className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                   prompt="Here is what I am building: "
                 >
-                  Tell {EA_NAME} about it
+                  Tell {eaName} about it
                 </EAOpenButton>
               </>
             )}
@@ -762,6 +776,9 @@ export default async function AppPage() {
           href="/app/health"
         />
       </div>
+
+      {/* ── The executive department strip (docs/85 §6 P3) ────────────────── */}
+      <DepartmentStrip rows={departmentOverviewRes ?? []} />
 
       {/* ── Main grid: the company column + the Atlas dock ────────────── */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -827,13 +844,13 @@ export default async function AppPage() {
           <div className="mt-3 rounded-md border border-dashed border-hairline px-4 py-6">
             <p className="text-sm text-ink">No departments and no employees yet.</p>
             <p className="mt-1 text-xs text-muted">
-              Finish setup, or ask {EA_NAME} to propose a structure for the company.
+              Finish setup, or ask {eaName} to propose a structure for the company.
             </p>
             <EAOpenButton
               className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
               prompt="Propose a structure for my company"
             >
-              Ask {EA_NAME}
+              Ask {eaName}
             </EAOpenButton>
           </div>
         ) : (
@@ -904,14 +921,14 @@ export default async function AppPage() {
             <div className="mt-3 rounded-md border border-dashed border-hairline px-4 py-5">
               <p className="text-sm text-ink">No active goals yet.</p>
               <p className="mt-1 text-xs text-muted">
-                Tell {EA_NAME} what you want the company to accomplish and it can define the first
+                Tell {eaName} what you want the company to accomplish and it can define the first
                 goal with you.
               </p>
               <EAOpenButton
                 className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                 prompt="Help me define my first goal"
               >
-                Ask {EA_NAME}
+                Ask {eaName}
               </EAOpenButton>
             </div>
           ) : (
@@ -986,7 +1003,7 @@ export default async function AppPage() {
         <section className="console-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-              From {EA_NAME}
+              From {eaName}
             </h2>
             <span className="font-mono text-2xs uppercase tracking-wide text-muted">
               {priorityList.length > 0
@@ -1032,7 +1049,7 @@ export default async function AppPage() {
             </ul>
           ) : (
             <p className="mt-3 text-xs text-muted">
-              No recommendations right now. {EA_NAME} reviews goals, work, approvals and blockers
+              No recommendations right now. {eaName} reviews goals, work, approvals and blockers
               continuously and surfaces what deserves your attention here.
             </p>
           )}
