@@ -317,7 +317,12 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
             // now, not on the next worker tick. Fire-and-forget with a full
             // log — the job is durable, so a crash here loses nothing; a slow
             // model call must never stretch the PATCH (docs/75 request path).
-            void claimAndRunOne(deps.config, db, deps.logger, `approval-release-${job.id.slice(0, 8)}`)
+            // Scoped to this org: the drain exists to start the work this founder
+            // just released, so it must look at this org's queue rather than
+            // claim whatever pending job happens to be oldest globally.
+            void claimAndRunOne(deps.config, db, deps.logger, `approval-release-${job.id.slice(0, 8)}`, {
+              orgId: ctx.orgId,
+            })
               .then((outcome) => {
                 if (outcome.kind === 'failed') {
                   request.log.error(

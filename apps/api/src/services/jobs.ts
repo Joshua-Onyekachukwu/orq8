@@ -141,7 +141,13 @@ const RUNNING_LOCK_WINDOW_SECONDS = 300;
 export async function claimJob(
   db: Db,
   workerId: string,
-  opts: { maxConcurrentPerOrg?: number } = {},
+  // `orgId` is an OPTIONAL narrowing, not a tenant boundary: a production worker
+  // still serves every org. It exists because releasing one unit of a founder's
+  // already-approved work should consider that org's queue — and because a test
+  // that starts a worker on a database shared with other test files must not
+  // steal their jobs (a stolen job runs under the thief's module registry, which
+  // in tests means the wrong stubbed model).
+  opts: { maxConcurrentPerOrg?: number; orgId?: string } = {},
 ): Promise<{
   id: string;
   orgId: string;
@@ -153,6 +159,7 @@ export async function claimJob(
   createdAt: Date;
 } | null> {
   const maxPerOrg = opts.maxConcurrentPerOrg ?? 0;
+  const scopedOrgId = opts.orgId ?? null;
   const result = await db.execute(sql`
     update agent_jobs set
       status = 'running',
@@ -163,6 +170,7 @@ export async function claimJob(
     where id = (
       select id from agent_jobs
       where status = 'pending' and run_at <= now()
+        and (cast(${scopedOrgId} as uuid) is null or org_id = cast(${scopedOrgId} as uuid))
         and (
           ${maxPerOrg} = 0
           or (

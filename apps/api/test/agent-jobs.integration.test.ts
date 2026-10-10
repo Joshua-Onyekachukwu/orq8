@@ -259,6 +259,10 @@ run('agent_jobs queue', () => {
         } as NodeJS.ProcessEnv),
         deps.db,
         createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+        // Scoped to this file's org. The test database is shared by every test
+        // file, so an unscoped worker races the other files for their pending
+        // jobs — and this test's assertion is about what THIS worker did.
+        { orgId: org.orgId },
       );
       try {
         const status = await waitForTerminal(id);
@@ -293,13 +297,22 @@ run('agent_jobs queue', () => {
         } as NodeJS.ProcessEnv),
         deps.db,
         createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+        // Same reason as the worker above: claim only this org's jobs, or a
+        // neighbour file's job satisfies this worker's `skipped` counter and
+        // the assertion below reads a number that was never about this file.
+        { orgId: org.orgId },
       );
       try {
         const status = await waitForTerminal(id);
         // Completed without executing: a dead-letter here would mean the guard
         // treated honest history as a failure.
         expect(status).toBe('done');
-        expect(worker.stats.skipped + worker.stats.deadLettered).toBeGreaterThanOrEqual(1);
+        // Specifically `skipped`, not dead-lettered. The either/or form this
+        // replaces could not tell the two apart, so a skip verdict that
+        // regressed into a dead-letter (or into running the work anyway) would
+        // still have satisfied it.
+        expect(worker.stats.skipped).toBeGreaterThanOrEqual(1);
+        expect(worker.stats.deadLettered).toBe(0);
         const row = await readJob(id);
         expect(row?.lastError).toMatch(/already completed/i);
       } finally {

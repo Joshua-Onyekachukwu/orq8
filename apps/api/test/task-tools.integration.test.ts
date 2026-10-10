@@ -42,6 +42,17 @@ vi.mock('../src/services/llm.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/services/llm.js')>()),
   chat: async (_config: unknown, _system: unknown, user: unknown) => {
     const prompt = String(user);
+    // Chained tools: this task's first tool runs and its second needs the
+    // founder, so the model has to ask twice. Keyed on which tool's outcome it
+    // is reading — asking for the second one again after it succeeded would
+    // stop the resumed run at a gate whose single-use grant is already spent.
+    if (prompt.includes('Analyze the pilot metrics then email the findings')) {
+      if (prompt.includes('Tool "write_email" succeeded'))
+        return 'Final answer grounded in both tool outputs.';
+      if (prompt.includes('succeeded. Output:'))
+        return '```tool\n{"toolId": "write_email", "params": {"recipient": "pilot@orq8.test", "purpose": "pilot findings"}}\n```';
+      return '```tool\n{"toolId": "analyze_data", "params": {"data_description": "pilot metrics"}}\n```';
+    }
     // A follow-up carries the tool's outcome. Having read it, the model answers
     // in prose — it does not ask for the same tool again.
     if (
@@ -308,5 +319,68 @@ run('a task uses tools through the registry, with its gate', () => {
 
     // And the record the founder reads reports the same charge.
     expect(completed?.result).toMatch(/write_email: ran in [\d.]+s, 1 credit\b/);
+  });
+
+  it('keeps the tools that already ran when a later tool stops the task', async () => {
+    // Two tools in one task, in order: the first runs, the second needs the
+    // founder. The first really executed and was charged, so stopping at the
+    // second must not erase it — a task record that says nothing ran while the
+    // ledger says 2 credits were spent is a lie the founder would read.
+    const agentId = await seedAgent('executive_agent');
+    const taskId = await runTask('Analyze the pilot metrics then email the findings', agentId);
+
+    const gated = await taskRow(taskId);
+    expect(gated?.status).toBe('awaiting_approval');
+    // The question names the tool that is waiting...
+    expect(gated?.result).toContain('write_email');
+    // ...and the record keeps the one that ran.
+    expect(gated?.result).toContain('Tools used before stopping: analyze_data: ran in');
+
+    // Money already moved, so the task row and the ledger agree at this moment.
+    const ledger = await ledgerFor(taskId);
+    const ran = ledger.find((row) => (row.description ?? '').includes('Tool: Analyze Data'));
+    expect(ran).toBeTruthy();
+    expect(Math.abs(ran!.amount)).toBe(gated?.cost);
+    expect(gated?.cost).toBe(2);
+    // The tool waiting on the founder has not run, so it is not charged.
+    expect(
+      ledger.some((row) => (row.description ?? '').includes('Tool: Write Email')),
+    ).toBe(false);
+
+    // Approving releases the work: the grant is consumed by the queue and the
+    // second call really runs.
+    const [approval] = await db
+      .select()
+      .from(approvalsTable)
+      .where(and(eq(approvalsTable.taskId, taskId), eq(approvalsTable.status, 'pending')));
+    expect(approval?.toolId).toBe('write_email');
+
+    const decided = await app.inject({
+      method: 'PATCH',
+      url: `/v1/approvals/${approval!.id}`,
+      headers: auth(),
+      payload: { status: 'approved' },
+    });
+    expect(decided.statusCode, decided.payload).toBe(200);
+
+    let jobStatus: string | undefined;
+    const settledBy = Date.now() + 15_000;
+    while (Date.now() < settledBy) {
+      const [job] = await db
+        .select({ status: agentJobsTable.status })
+        .from(agentJobsTable)
+        .where(eq(agentJobsTable.taskId, taskId))
+        .limit(1);
+      jobStatus = job?.status;
+      if (jobStatus === 'done' || jobStatus === 'dead') break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    expect(jobStatus).toBe('done');
+
+    const completed = await taskRow(taskId);
+    expect(completed?.status).toBe('completed');
+    // Both tools, in the order they ran, on the completed record.
+    expect(completed?.result).toContain('Tools used: analyze_data: ran in');
+    expect(completed?.result).toContain('write_email: ran in');
   });
 });

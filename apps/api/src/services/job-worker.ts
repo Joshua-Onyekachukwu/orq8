@@ -155,9 +155,11 @@ export async function claimAndRunOne(
   db: Db,
   logger: Logger,
   workerId: string,
+  opts: { orgId?: string } = {},
 ): Promise<ClaimedJobOutcome> {
   const job = await claimJob(db, workerId, {
     maxConcurrentPerOrg: config.JOB_MAX_CONCURRENT_PER_ORG,
+    orgId: opts.orgId,
   });
   if (!job) return { kind: 'empty' };
   const started = Date.now();
@@ -223,7 +225,13 @@ export async function claimAndRunOne(
   }
 }
 
-export function startJobWorker(config: AppConfig, db: Db, logger: Logger): JobWorkerHandle {
+export function startJobWorker(
+  config: AppConfig,
+  db: Db,
+  logger: Logger,
+  /** Optional narrowing to one org — see claimJob. Absent = the whole queue. */
+  opts: { orgId?: string } = {},
+): JobWorkerHandle {
   let stopped = false;
   let running = false; // no overlapping ticks if a run outlasts the interval
   let inFlight = 0;
@@ -281,7 +289,7 @@ export function startJobWorker(config: AppConfig, db: Db, logger: Logger): JobWo
 
       for (let i = 0; i < batchSize; i++) {
         if (stopped) break;
-        const outcome = await claimAndRunOne(config, db, logger, workerId);
+        const outcome = await claimAndRunOne(config, db, logger, workerId, opts);
         if (outcome.kind === 'empty') break;
         stats.claimed += 1;
         stats.lastClaimAt = new Date();

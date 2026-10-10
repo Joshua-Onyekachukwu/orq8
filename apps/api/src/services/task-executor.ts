@@ -191,8 +191,17 @@ async function stopForToolApproval(
   toolId: string,
   approvalId: string | undefined,
   reason: string,
+  prior?: { toolsUsed: string[]; costCredits: number },
 ): Promise<TaskExecutionResult> {
-  const text = `Awaiting founder approval: ${agentName} asked to use the "${toolId}" tool for "${task.title}". ${reason}`;
+  const base = `Awaiting founder approval: ${agentName} asked to use the "${toolId}" tool for "${task.title}". ${reason}`;
+  // A tool that already ran before this stop is part of what happened: the
+  // registry ran it, charged it and audited it. Dropping it here would leave
+  // the task record claiming nothing was used while the ledger says otherwise,
+  // so the record keeps the tools that actually executed and names them.
+  const text =
+    prior && prior.toolsUsed.length > 0
+      ? `${base}\n\nTools used before stopping: ${prior.toolsUsed.join('; ')}`
+      : base;
 
   await db
     .update(tasks)
@@ -210,6 +219,13 @@ async function stopForToolApproval(
     department: null,
   });
 
+  // The same reasoning for money: credits already charged for the tools that
+  // ran are on the task row, so "cost" and the ledger agree at the moment the
+  // founder is asked. The tool that is waiting has not been charged.
+  if (prior && prior.costCredits > 0) {
+    await db.update(tasks).set({ cost: prior.costCredits }).where(eq(tasks.id, task.id));
+  }
+
   broadcastToOrg(orgId, { type: 'task.cancelled', taskId: task.id, reason });
   notifyAttentionChanged(orgId, 'approval.created');
 
@@ -217,7 +233,7 @@ async function stopForToolApproval(
     taskId: task.id,
     status: 'awaiting_approval',
     result: text,
-    cost: 0,
+    cost: prior?.costCredits ?? 0,
     tokensUsed: 0,
     llmUsed: false,
     approvalId,
@@ -820,6 +836,10 @@ export async function executeTask(
             pending.toolId,
             execution.approvalId,
             `Approving releases this task; rejecting stops it and keeps your reason.`,
+            // The tool waiting on the founder is the last entry pushed; every
+            // entry before it already ran (and was charged), so those belong
+            // on the record even though this run stops here.
+            { toolsUsed: toolCalls.slice(0, -1), costCredits: toolCredits },
           );
         }
 
