@@ -555,7 +555,7 @@ export default function DepartmentsPage() {
         )}
 
         {loading && (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="console-card animate-pulse p-5">
                 <div className="h-4 w-1/2 rounded bg-hairline" />
@@ -603,7 +603,7 @@ export default function DepartmentsPage() {
         )}
 
         {!loading && departments.length > 0 && (
-          <ul className="grid gap-4 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {departments.map((dept) => {
               const members = membersOf.get(deptName(dept)) ?? [];
               const chip = deptChip(dept, members);

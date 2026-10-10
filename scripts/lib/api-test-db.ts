@@ -87,11 +87,34 @@ export async function setup(): Promise<void> {
   // it and their open pages started answering 500.
   await killStaleEmbeddedPostgres('.integration-suite-data');
 
+  // `bootEmbeddedDatabase` imports the `embedded-postgres` package, which
+  // registers an async-exit-hook *on import*. That hook listens for
+  // `beforeExit` and force-exits with a hardcoded 0:
+  //
+  //   async-exit-hook@2.0.1/index.js   add.hookEvent('beforeExit', 0)
+  //                                    exit(true, 0) → process.nextTick(process.exit.bind(null, 0))
+  //
+  // Vitest sets `process.exitCode = 1` when a run has failures and then lets the
+  // event loop drain, so the hook fires last and throws that 1 away: an offline
+  // API run printed "Tests 1 failed" and still exited 0. `pnpm -r test` — the
+  // test job in .github/workflows/ci.yml — therefore cannot fail on a machine
+  // that boots its own database, which is every local run and any CI job without
+  // a Postgres service. (A run against a reachable `DATABASE_URL` returns early
+  // above and never imports the package, which is why CI's own Postgres hid it.)
+  //
+  // Remove exactly the `beforeExit` listeners the import added, and nothing
+  // else: the hook's only job here would be to stop a server this harness stops
+  // explicitly in `teardown()`, while the exit status it clobbers is the entire
+  // point of a test gate.
+  const beforeExitListeners = new Set(process.listeners('beforeExit'));
   const started = await bootEmbeddedDatabase({
     dbName: 'orq8_test',
     dataRoot: '.integration-suite-data',
     dirPrefix: 'api-tests',
   });
+  for (const listener of process.listeners('beforeExit')) {
+    if (!beforeExitListeners.has(listener)) process.removeListener('beforeExit', listener);
+  }
   embedded = started;
 
   // Set before the workers fork, so every test file that reads

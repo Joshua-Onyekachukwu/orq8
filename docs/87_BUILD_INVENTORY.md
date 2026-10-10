@@ -9,7 +9,7 @@ owns it.
 | Web pages (`page.tsx`) | **87** |
 | Web API proxies (`app/api/**/route.ts`) | **159** |
 | API route modules | **60** |
-| Supabase migrations | **53** (through `0053`) |
+| Supabase migrations | **54** (through `0054`) |
 | API service lines / route lines | ~41.4k / ~13.3k |
 | API tests | **982** (979 passed, 3 skipped) across 119 files |
 
@@ -40,29 +40,35 @@ owns it.
 | Queue claims are scopeable — the root cause of both | `claimJob` takes an optional `orgId` narrowing (the production worker stays global); the approval-release drain scopes to the org whose founder just said yes, and the job tests scope their workers to their own org. This is the fix that makes the two rows above deterministic instead of load-dependent | cluster (6 files) **1/3 → 5/5** |
 | Four focus read-models | marketing, finance, and a shared accounts model for sales + customer success, template-gated exactly like engineering | `department-focus.integration.test.ts` 6/6 |
 
+### Done in this session — responsive verification, and the two defects it exposed
+
+| Item | Result | Evidence |
+|---|---|---|
+| Responsive walk at 375 / 768 / 1280 (`docs/87` §4 item 8) | **Run for the first time**, against the built stack (`next start`), not `next dev` | `scripts/route-sweep.mjs --width …`: **37/37** at all three widths after the fix below |
+| Both console themes on every `/app` route | 74/74 route-theme pairs clean, including the two dynamic workspaces discovered from the app's own API | `scripts/theme-walk.mjs` |
+| The one responsive defect found | `/app/departments` scrolled the document 33px sideways at 375. Its card grid (`grid gap-4 md:grid-cols-2`) has one implicit `auto` track below `md`, and that track is sized by its items' contributions, not the container: **392px inside 326px**, measured in the live DOM. Fixed by naming the mobile track `grid-cols-1` (`minmax(0, 1fr)`) | pre-fix `36/37`, post-fix `37/37`; the diagnosis was proved by forcing the template column in the browser before editing |
+| A real 500 the 768 walk caught | `GET /v1/capabilities` threw `duplicate key value violates unique constraint "capability_registry_org_id_name_key"` — `ensureBuiltInCapabilities` is check-then-act and all three capability routes seed lazily, so concurrent readers both inserted. Now `onConflictDoNothing({ target: [orgId, name] })` | new race test in `mcp-capability.test.ts`: **fails without the fix** (`1 failed / 12 passed`), passes with it; live: 12 concurrent reads → 12 × 200, 15 capabilities |
+| The API test gate could not fail | Offline runs printed `Test Files 1 failed` and exited **0**. `embedded-postgres` registers `async-exit-hook` on import, which force-exits on `beforeExit` with a hardcoded `0`, discarding the `process.exitCode = 1` vitest had set. `scripts/lib/api-test-db.ts` now removes exactly the `beforeExit` listeners that import adds | failing probe → exit **1**, green file → exit **0**, full suite → **120 files passed / 1 skipped, 989 passed / 3 skipped, exit 0** |
+| `docs/87` §5 item 3 — credential-shaped files in the root | **Resolved**: `.review-token.txt`, `.review-kid.txt`, `.railway-api-env-names.json`, `all prompt.txt`, `.dept-e2e-data/` were untracked *and unignored*; now ignored by name | `git check-ignore` on all five |
+| §5 item 5 — focus panels unverified in a browser | **Resolved for the models that have data**: the Growth page renders its real pipeline (2 open deals, $19,300, $10,860 weighted, 50% win rate, stage breakdown, per-deal rows) and Customer Success its support queue, at 375px with a founder session and zero overflow | browser DOM read on the live stack |
+| §4 item 5 — employee → department back-link | **Half done, and the missing half is the UI's**: `GET /v1/agents/:id` already returns `departmentId`, `departmentName`, `teamId`, `teamName` (verified live), and the employee page prints the department name — but as plain text, with no link to `/app/departments/<id>`. Not touched here: `components/work/employee-workspace.tsx` is in another thread's uncommitted changes | live API + DOM read |
+
 ---
 
-## 2. In flight (uncommitted)
+## 2. Tree state after this session
 
-| File(s) | State |
-|---|---|
-| `supabase/migrations/0052_*.sql`, `0053_*.sql` | written, verified against the harness; **not applied to production** |
-| `apps/api/src/services/department-focus.ts` | +3 read-models (finance, marketing, accounts) |
-| `apps/api/src/services/departments.ts` | template→model switch, `focus` type, `pageConfig` `focus` for 4 more templates |
-| `apps/api/src/services/task-executor.ts` | stop-for-approval keeps the tools that ran + their charged credits |
-| `apps/api/src/services/jobs.ts` | `claimJob` optional `orgId` narrowing |
-| `apps/api/src/services/job-worker.ts` | `claimAndRunOne` / `startJobWorker` pass the narrowing through |
-| `apps/api/src/routes/approvals.ts` | release drain claims only its own org's queue |
-| `apps/api/test/agent-jobs.integration.test.ts` | workers scoped to the file's org; skip assertion tightened |
-| `apps/api/test/{task-tools,department-focus}.integration.test.ts` | new chain test, 3 new read-model tests |
-| `apps/web/components/work/department-focus-panel.tsx` | +3 panels (marketing, finance, accounts) |
-| `apps/web/components/work/department-workspace.tsx` | renders whichever model the template ships |
-| `docs/87_BUILD_INVENTORY.md` | this file |
+**Committed** (see §1): the department OS work through `b93d128` — migrations `0050`–`0054`,
+the focus read-models and their panels, the org-scoped job claims and the `agent_jobs.locked_at`
+repair — plus this session's responsive fix, the capability-registry race fix, the embedded-DB
+exit-code fix, the `.gitignore` additions and this file.
 
-Other threads (untouched here — do not assume ownership): EA display-name rename,
-`orgs`/`attention`/`plan-revisions`, a new admin organizations page,
-`scripts/verify-ci-lineage.ts`, `weekly-report-byline.test.ts`, `email/*`, and page edits
-across usage/teams/tasks/strategy/settings.
+**Not applied to production**: `0053` and `0054`. The rest of this list — the EA display-name
+rename (`executive-agent-context` and its consumers), `orgs`/`attention`/`plan-revisions`, a new
+admin organizations page, `scripts/verify-ci-lineage.ts`, `weekly-report-byline.test.ts`,
+`email/*`, and page edits across usage/teams/tasks/strategy/settings — was already in the working
+tree, belongs to other threads, and was neither staged, committed nor overwritten. The one
+exception is `/app/departments`' card grid, where a two-word responsive fix was staged from a file
+another thread is editing; their hunks in that file were left uncommitted.
 
 ---
 
@@ -123,13 +129,13 @@ is `docs/78`; none of it has been migrated.
 |---|---|---|---|
 | 1 | Apply `0053` to production, then land `0051`–`0053` + this session's work | **latent outage** | not started |
 | 2 | Make the drift detector able to report *clean*, then put it in CI | debt that hid a defect | not started |
-| 3 | P3: executive dashboard department strip, per-department health, workflow run history | product | not started |
-| 4 | Sales/customer-success get real `deals` and `tickets` tables so their boards stop sharing one read-model | product + schema | not started |
-| 5 | Employee → department back-link (`departmentId` on `GET /v1/agents/:id`) | small gap | not started |
+| 3 | P3: executive dashboard department strip, per-department health, workflow run history | product | **done** (`b26e62d`) |
+| 4 | Sales/customer-success get real `deals` and `tickets` tables so their boards stop sharing one read-model | product + schema | **done**: `0054` + the two read-models + their panels (`b26e62d`); sales now reads deals, success reads tickets, and each page says which rows are its own |
+| 5 | Employee → department back-link (`departmentId` on `GET /v1/agents/:id`) | small gap | **API half done, UI half missing** — the field and the department name are both already there and verified live; the employee page prints the name without linking to the department (its component is another thread's, so left alone) |
 | 6 | Bulk page migration, worst-first (§3b): `business-import`, `teams`, `onboarding`, `squads`, `agents`, `simulation`, `performance`, `roi`; plus a decision on the admin console per `docs/78` | UI | not started |
 | 7 | Ledger leftovers: Monaco browser (`T-08`), Stripe upgrade UI (`T-07`), Playwright in CI (`docs/84`), worker Dockerfile scale demo (`docs/79`), launch-checklist Vercel/domain/`REGISTRATION_OPEN` | mixed | not started |
-| 8 | Responsive verification at 375/768/1280 on the migrated pages; charts deferred until a real series exists | verification | not started |
-| 9 | `GET /v1/agents/:id` and the department page's rendered output verified in a browser with a founder session | verification | never run |
+| 8 | Responsive verification at 375/768/1280 on the migrated pages; charts deferred until a real series exists | verification | **done** for the three widths and both themes (§1); charts still deferred |
+| 9 | `GET /v1/agents/:id` and the department page's rendered output verified in a browser with a founder session | verification | **done**: 37 routes plus both dynamic workspaces walked at three widths and in both themes with a founder session, the Growth department's deal board and Customer Success's ticket queue read back from the live DOM, and `GET /v1/agents/:id` read live |
 
 ### Focus read-models — the P3 sub-table (docs/86 §6)
 
@@ -156,12 +162,14 @@ above is what turns them into genuinely different boards.
 |---|---|---|---|
 | 1 | `0053` not applied: production's `agent_jobs.locked_at` is `NOT NULL DEFAULT now()` while `jobs.ts` writes `locked_at = null` on every terminal transition and the reaper. Any claimed job wedges in `running`. Latent **only** because production's `agent_jobs` is empty | **outage on first real job** | fixed in repo, not in prod |
 | 2 | The parity tool cannot report clean: 163 unexpected differences (pgvector + ~110 functions + embedding index, `pg_stat_statements`, `supabase_vault`, `uuid-ossp`, pgcrypto, and 3 production-only functions `0049` already names). `isExpected` whitelists 2. **No CI workflow runs it.** It diffs prod against a fresh build *of the same migrations*, so a migration contradicting `packages/db` is invisible by construction — how `0048` survived | high | open |
-| 3 | Credential-shaped files untracked in the repo root: `.review-token.txt`, `.review-kid.txt`, loose `.railway-api-env-names.json`, `all prompt.txt`, `.dept-e2e-data/` | high | open |
-| 4 | Nothing is committed or pushed; `0051`–`0053` and this session's work sit in the working tree alongside other threads' edits | medium | open |
-| 5 | The new focus panels are **unverified in a browser** — they need a founder session. API tests, API tsc and the web build/tsc are the evidence today | medium | open |
+| 3 | Credential-shaped files untracked in the repo root: `.review-token.txt`, `.review-kid.txt`, loose `.railway-api-env-names.json`, `all prompt.txt`, `.dept-e2e-data/` | high | **resolved** — ignored by name, verified with `git check-ignore` |
+| 4 | Nothing is committed or pushed; `0051`–`0053` and this session's work sit in the working tree alongside other threads' edits | medium | **partly resolved** — everything through `b93d128` plus this session’s work is committed; other threads’ edits remain uncommitted by design, and nothing is pushed |
+| 5 | The new focus panels are **unverified in a browser** — they need a founder session. API tests, API tsc and the web build/tsc are the evidence today | medium | **resolved** for the panels that have real rows: the Growth pipeline and the Customer Success queue were read back from the live DOM at 375px (§1). Templates with no data still show their honest empty state |
 | 6 | `pageConfig.sections` is **declared but not rendered**: the API returns a per-template section order and `resolvePageConfig` exposes it, yet no page consumes it — only `metrics` drives the render. So "the differential is expressed as `pageConfig`" is true for metric emphasis and not for section order, and adding `focus` to a template's `sections` is contract metadata, not a layout change | medium | open |
 | 7 | ~~`approval-gated-work.integration.test.ts`'s "resumes the gated task" can miss its 15s settle window~~ — **root cause found and fixed.** The PATCH answers by enqueuing and firing *one* claim; unscoped, that claim could take a different org's older pending job, and tests run no background worker (`JOB_QUEUE_MODE` defaults to `inline`), so the just-released job sat `pending` until the deadline. The `orgId` narrowing makes the drain take its own org's job. The 15s window was left as-is — it was never the problem | resolved | fixed |
-| 8 | Responsive verification owed; charts deferred | low | open |
+| 8 | Responsive verification owed; charts deferred | low | **resolved** at 375/768/1280 and in both themes (§1); charts remain deferred |
+| 9 | The API suite prints "something prevents Vite server from exiting" and pays the full 60s `teardownTimeout` on every offline run — a handle the embedded-Postgres teardown leaves open. The **exit status is now correct** (this is cosmetic), but a 289s suite spends a minute of it waiting | low | open |
+| 10 | The bare-`grid`-with-responsive-columns pattern (~30 call sites, e.g. `grid gap-4 sm:grid-cols-2`) leaves an implicit `auto` track at small widths; an `auto` track is sized by content, not the container, so a wide card can push the page sideways — which is exactly what `/app/departments` did. Every other occurrence fits at 375 today, so none was changed speculatively; the sweep is what would catch the next one | low | open |
 
 ### Corrections to the 2026-10-09 version of this file
 

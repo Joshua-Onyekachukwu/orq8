@@ -79,6 +79,17 @@ secrets.env
 .review-stack*.err
 .supabase-setup.json
 
+# Harness artifacts that carry credentials or captured environment state.
+# These sat untracked-but-committable in the repo root (docs/87 §5 item 3), so a
+# single `git add -A` would have put a live review session token in a commit.
+# Named explicitly rather than by wildcard: `*.txt` would also swallow scratch
+# notes a contributor means to keep.
+.review-token.txt
+.review-kid.txt
+.railway-api-env-names.json
+all prompt.txt
+.dept-e2e-data/
+
 # DR drill artifacts (prod data snapshot + restore scratch)
 .dr-backup/
 .dr-restore-data/

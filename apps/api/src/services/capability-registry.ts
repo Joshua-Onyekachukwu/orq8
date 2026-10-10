@@ -39,7 +39,24 @@ export const BUILTIN_CAPABILITIES: Array<Omit<NewCapabilityEntry, 'orgId'>> = [
   { name: 'engineering.workspace', description: 'Repository import, sandbox runs, PRs and engineering tasks.', category: 'code', provider: 'internal', location: 'engineering', reusable: true, status: 'available', source: 'builtin' },
 ];
 
-/** Idempotent: seed built-ins for an org without clobbering entries added later. */
+/**
+ * Idempotent: seed built-ins for an org without clobbering entries added later.
+ *
+ * Returns the number of rows this call actually inserted (0 when another caller
+ * won the race for the same org).
+ *
+ * The read above is check-then-act, so two callers that both see an org with no
+ * capabilities both build the same insert list. Postgres owns the invariant —
+ * `unique (org_id, name)` from 0012 — so the loser used to raise
+ * `duplicate key value violates unique constraint
+ * "capability_registry_org_id_name_key"`, which the route did not catch and
+ * answered as a 500. Every read of `/v1/capabilities` seeds lazily (three routes
+ * in `routes/capabilities.ts` plus the playbook activation path), so two founder
+ * pages — or two panels on one page — race by design rather than by accident.
+ * `on conflict do nothing` makes the loser a no-op instead of an error, the same
+ * way 0046's partial unique index turned enqueue dedup into a database-owned
+ * rule instead of a hopeful read.
+ */
 export async function ensureBuiltInCapabilities(db: Db, orgId: string): Promise<number> {
   const existing = await db
     .select({ name: capabilityRegistry.name })
@@ -48,10 +65,14 @@ export async function ensureBuiltInCapabilities(db: Db, orgId: string): Promise<
   const have = new Set(existing.map((e) => e.name));
 
   const missing = BUILTIN_CAPABILITIES.filter((c) => !have.has(c.name));
-  if (missing.length > 0) {
-    await db.insert(capabilityRegistry).values(missing.map((c) => ({ ...c, orgId })));
-  }
-  return missing.length;
+  if (missing.length === 0) return 0;
+
+  const inserted = await db
+    .insert(capabilityRegistry)
+    .values(missing.map((c) => ({ ...c, orgId })))
+    .onConflictDoNothing({ target: [capabilityRegistry.orgId, capabilityRegistry.name] })
+    .returning({ name: capabilityRegistry.name });
+  return inserted.length;
 }
 
 export async function listCapabilities(db: Db, orgId: string): Promise<CapabilityEntry[]> {

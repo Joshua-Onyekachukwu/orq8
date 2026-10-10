@@ -1,5 +1,46 @@
 # ORQ8 Changelog
 
+## 2026-10-10 — The responsive walk, the 500 it found, and a test gate that could not fail
+
+- **Responsive verification, measured rather than owed.** `scripts/route-sweep.mjs` ran against the
+  **built** review stack (`next start`, not `next dev`) at three widths, and `scripts/theme-walk.mjs`
+  walked both console themes — the check `docs/87` §4 item 8 had carried as "not started" since the
+  migration work began. After the fix below: **375px 37/37 · 768px 37/37 · 1280px 37/37 · theme walk
+  74/74 route-theme pairs clean**. The small widths had never been measured before this run.
+- **The one defect the 375px sweep found, and its cause.** `/app/departments` scrolled the document
+  sideways by 33px. The card grid is `grid gap-4 md:grid-cols-2`, so below `md` it has one implicit
+  `auto` track, and an `auto` track is sized by its items' contributions rather than the container's
+  width — measured in the browser, the track resolved to **392px inside a 326px column** (the cards
+  themselves lay out fine at 326). Naming the mobile track `grid-cols-1` (Tailwind's
+  `minmax(0, 1fr)`) fixes it; forcing that template column in the live DOM first proved the diagnosis,
+  and the rebuilt sweep proves the fix. About thirty other call sites use the same bare-`grid`
+  pattern; they did not overflow at any width the sweep walked, so none was changed speculatively.
+- **A real 500, caught by the 768px sweep.** `GET /v1/capabilities` answered
+  `500 duplicate key value violates unique constraint "capability_registry_org_id_name_key"`.
+  `ensureBuiltInCapabilities` reads the org's entries and then inserts the missing built-ins —
+  check-then-act — and all three capability routes seed lazily on read, so two concurrent readers
+  both insert and the loser threw. Fixed with `.onConflictDoNothing({ target: [orgId, name] })`: the
+  same "the database owns the invariant" shape `0046` gave enqueue dedup. The regression test in
+  `mcp-capability.test.ts` races 14 callers against a fresh org and **fails without the fix**
+  (`1 failed | 12 passed`, the exact constraint error) and passes with it. Re-proved live: twelve
+  concurrent reads through the web proxy now all answer 200 with 15 capabilities.
+- **The API test gate could not fail.** `vitest run` printed `Test Files 1 failed (1)` and still
+  exited **0** on every run that boots its own database. Cause, isolated by measurement: importing
+  `embedded-postgres` registers `async-exit-hook`, which listens for `beforeExit` and force-exits
+  with a hardcoded `0` (`add.hookEvent('beforeExit', 0)`); vitest sets `process.exitCode = 1` and
+  then lets the loop drain, so the hook ran last and discarded the failure. Same failing test:
+  exit **1** without the globalSetup, exit **0** with it, and exit **1** again with `teardown()`
+  disabled (vitest's own timeout path force-exits with the real code). `scripts/lib/api-test-db.ts`
+  now removes exactly the `beforeExit` listeners the import added. Proved both ways — a deliberately
+  failing probe exits 1, a green file exits 0 — and the full suite then reported **120 files passed /
+  1 skipped, 989 tests passed / 3 skipped, exit 0**. CI's own test job exports a reachable
+  `DATABASE_URL`, returns before that import, and was never affected; every offline/local run was.
+- **Credential-shaped files are no longer committable.** `.review-token.txt`, `.review-kid.txt`,
+  `.railway-api-env-names.json`, `all prompt.txt` and `.dept-e2e-data/` sat untracked *and
+  unignored* in the repo root (`docs/87` §5 item 3): one `git add -A` from a live review session
+  token in a commit. They are now ignored by name — not by wildcard, so scratch notes a
+  contributor means to keep are unaffected.
+
 ## 2026-10-03 — Worker soak: the queue's safety properties are now proven, not asserted
 
 - **`scripts/worker-soak.ts`** boots an isolated embedded Postgres, runs N real `startJobWorker`

@@ -229,7 +229,6 @@ run('MCP + capability registry integration', () => {
     expect(seeded).toBe(BUILTIN_CAPABILITIES.length);
     const again = await ensureBuiltInCapabilities(db, orgA);
     expect(again).toBe(0);
-
     const all = await listCapabilities(db, orgA);
     expect(all.length).toBe(BUILTIN_CAPABILITIES.length);
 
@@ -242,6 +241,33 @@ run('MCP + capability registry integration', () => {
 
     const aSearch = await searchCapabilities(db, orgA, 'github issues');
     expect(aSearch.some((c) => c.name === 'github.create_issues')).toBe(true);
+  });
+
+  it('seeding built-ins concurrently makes the losers a no-op, not an error', async () => {
+    // Fourteen readers of a brand-new org, all racing the same lazy seed. The
+    // read-then-insert above is check-then-act, so every caller that saw an empty
+    // org built the same 14-row insert; the losers raised
+    // `duplicate key value violates unique constraint
+    // "capability_registry_org_id_name_key"`, which the route did not catch and
+    // answered as 500. This is the test that fails without `on conflict do
+    // nothing` — and it is how the route sweep caught it on /app/engineering,
+    // whose page fires several capability reads at once.
+    const orgC = randomUUID();
+    await db
+      .insert(organizations)
+      .values({ id: orgC, name: 'Org C', slug: `org-c-${randomUUID().slice(0, 8)}`, settings: {} })
+      .onConflictDoNothing();
+
+    const results = await Promise.all(
+      Array.from({ length: 14 }, () => ensureBuiltInCapabilities(db, orgC)),
+    );
+
+    // Exactly one caller may claim the seed; the rest must report 0 rather than
+    // throw. Postgres serialises the insert, so the winners' rows always add up
+    // to the full built-in set — a partial seed would mean the invariant leaked.
+    expect(results.reduce((a, b) => a + b, 0)).toBe(BUILTIN_CAPABILITIES.length);
+    const rows = await listCapabilities(db, orgC);
+    expect(rows.length).toBe(BUILTIN_CAPABILITIES.length);
   });
 
   it('registerCapability dedupes by name and search finds engineering registrations', async () => {
