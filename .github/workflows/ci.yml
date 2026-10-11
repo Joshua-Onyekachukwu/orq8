@@ -34,6 +34,41 @@ jobs:
       - name: Typecheck Web
         run: cd apps/web && npx tsc --noEmit
 
+  lineage:
+    name: Schema lineage parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The drift detector, finally able to run with no database to point at:
+      # it boots an embedded Postgres, applies BOTH lineages from scratch and
+      # diffs the catalog against the committed baseline. That is a check this
+      # repository did not have, and its absence is why a migration contradicting
+      # the other lineage (0048 tightening agent_jobs.locked_at) shipped with
+      # typecheck, tests and parity all green: every existing parity mode needed
+      # a live database, so it could only ever be run by hand, by someone with
+      # credentials, on a good day.
+      #
+      # Verified both ways locally: clean on the current tree (exit 0), and exit 1
+      # naming `agent_jobs.locked_at` when a probe migration re-tightened it.
+      - name: Fresh lineage matches the committed baseline
+        run: pnpm exec tsx scripts/lineage-parity.ts --check
+
   test:
     name: Tests
     runs-on: ubuntu-latest

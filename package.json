@@ -23,7 +23,9 @@
     "audit:contrast": "tsx scripts/color-contrast-audit.ts",
     "verify:env": "pnpm --filter @orq8/api exec vitest run test/env-surface.test.ts",
     "audit:brand": "node scripts/brand-audit.mjs",
-    "verify:prod": "node scripts/run.mjs"
+    "verify:prod": "node scripts/run.mjs",
+    "check:parity": "tsx scripts/lineage-parity.ts --check",
+    "baseline:parity": "tsx scripts/lineage-parity.ts --write-baseline"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
