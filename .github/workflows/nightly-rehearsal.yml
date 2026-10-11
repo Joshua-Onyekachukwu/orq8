@@ -26,11 +26,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Playwright (browsers for the browser-based suites)
-        run: |
-          cd scripts
-          npm install --no-fund --no-audit
-          npx playwright install --with-deps chromium
+      # The suites import @orq8/db, @orq8/core and pg, and every one of those is
+      # a pnpm workspace dependency — so the dependencies have to come from pnpm,
+      # not npm. The old step was `cd scripts && npm install`, which fails before
+      # anything else runs: scripts/package.json depends on `@orq8/core:
+      # workspace:^` and npm rejects the `workspace:` protocol with
+      # EUNSUPPORTEDPROTOCOL. The rehearsal therefore never reached a single
+      # suite; it failed the same way every night, reading as "no tests ran"
+      # rather than as a broken install step.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (for the browser-based suites)
+        run: cd scripts && npx playwright install --with-deps chromium
 
       - name: Materialize rehearsal credentials from secrets
         env:

@@ -352,13 +352,14 @@ jobs:
       #
       # Blocking: it held green across the hardening cycles (docs/82), and an
       # advisory founder-loop is a founder-loop nobody reads.
-      # Browsers for the sweeps. `scripts/` owns its own package.json (playwright,
-      # pg), so it installs there — the same command the nightly rehearsal uses.
-      - name: Install Playwright
-        run: |
-          cd scripts
-          npm install --no-fund --no-audit
-          npx playwright install --with-deps chromium
+      # Only the browser binaries: `scripts` is a pnpm workspace member, so the
+      # `pnpm install` above already put playwright in scripts/node_modules.
+      # (`cd scripts && npm install` cannot work — package.json depends on
+      # `@orq8/core: workspace:^`, and npm rejects the `workspace:` protocol with
+      # EUNSUPPORTEDPROTOCOL. That is exactly how the nightly rehearsal has been
+      # failing before it ever reaches a suite.)
+      - name: Install Playwright browsers
+        run: cd scripts && npx playwright install --with-deps chromium
 
       - name: Route sweeps, theme walk, release gate and jobs canary on the review stack
         continue-on-error: false
