@@ -8,7 +8,9 @@ Status is stated here and in `docs/66_ORQ8_MVP_MASTER.md` and nowhere else.
 Anything else that states status is a snapshot and belongs in
 `docs/archive/`.
 
-Reconciled 2026-09-29. Evidence marked **[today]** was produced in the
+Reconciled 2026-09-29, and again on **2026-10-11 against the live deployment**
+(rows MVP-001, 002, 003, 005, 021 and 024 were re-measured; every other row
+stands as it was). Evidence marked **[today]** was produced in the
 reconciliation cycle; **[earlier]** was produced on this machine in the
 preceding cycles and is named so it can be re-run; **[inspection]** is a code
 read that has not been executed.
@@ -26,11 +28,11 @@ only the founder can make · **POST-MVP** = deliberately out of scope.
 
 | ID | Requirement | Ph | State | Evidence | Missing | Dependency | Priority |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| MVP-001 | A reachable deployed product (API + web) | 1 | **MISSING** | **[today]** production API answers 404 from a Railway edge that no longer hosts anything; web serves `orq8.vercel.app` from a build older than local `main` by 33 commits; the local review stack serves the whole product (route sweep 33/33 **[earlier]**) | an API host, with the env surface set | founder: choose and provision the host (`58.11`) | **P0** |
-| MVP-002 | A live database under the production lineage, migrations applied and recorded | 1 | **FOUNDER** | **[today]** local config points at Supabase ref `gttkaxbcdtpsusmconxm`; the connected Supabase account holds only `CapitalOS` (`tvekoojdilkjptjzpvqo`), an investor-intelligence database with no ORQ8 table | a project that hosts the ORQ8 lineage | founder decision: which project is production | **P0** |
-| MVP-003 | A safe migration path (`--status` before apply, a ledger of what landed) | 1 | **REAL (code)**, never run in production | **[earlier]** lineage replays from scratch on the embedded harness; `DB Migrate` workflow replays drizzle + supabase with a ledger | a production run against MVP-002 | MVP-002 | **P0** |
+| MVP-001 | A reachable deployed product (API + web) | 1 | **REAL (deployed, stale)** | **[2026-10-11, live]** the API answers 200 on `/healthz` and on `/readyz` (ready 7 / configuration-required 7) at `orq8api-production-062a.up.railway.app`; web answers 200 on both `orq8web-production.up.railway.app` and `orq8.vercel.app`; the local review stack serves the whole product (route sweep 33/33 **[earlier]**) | the deployments build from `origin` while the reviewed branch is **8 commits ahead**; the web host is undecided between the two that are live | founder: pick the canonical web host; the services catch up on the next push | **P0** |
+| MVP-002 | A live database under the production lineage, migrations applied and recorded | 1 | **REAL (applied) / PARTIAL (recorded)** | **[2026-10-11, live]** production is Supabase `gttkaxbcdtpsusmconxm`; a fingerprint through the Management API returns **0 unexpected of 164 documented differences** against a from-scratch build of both lineages, so the lineage (including `0053`/`0054`, applied by hand today) is present | the `supabase_migrations` ledger entries for the hand-applied files | MVP-003 (the runner re-applies and records them) | P1 |
+| MVP-003 | A safe migration path (`--status` before apply, a ledger of what landed) | 1 | **PARTIAL** | **[2026-10-11]** the lineage replays from scratch on the embedded harness and CI blocks on it (the drift check and `DB Migrate`); production was brought up to date by hand and *proven* by fingerprint rather than assumed | a production run of the runner: the pooler password has been stale since 2026-10-10, so nothing is ledgered | MVP-002 | P1 |
 | MVP-004 | A staging environment, so releases are not tested live | 1 | **MISSING** | **[inspection]** no second environment exists in CI or in the runbooks | a preview/staging target with its own database | MVP-001 | P1 |
-| MVP-005 | Scheduled jobs and cron run against a live API | 1 | **BROKEN** | **[today]** `orq8-jobs`, `waitlist-drip` and `nightly-rehearsal` all target an `API_URL` whose host no longer exists; `INTERNAL_TOKEN` is the capability key (`/v1/readiness` names it) | a reachable API | MVP-001 | **P0** |
+| MVP-005 | Scheduled jobs and cron run against a live API | 1 | **BROKEN (one secret away)** | **[2026-10-11, live]** every scheduled run is red: `orq8-jobs`, `waitlist-drip` and `nightly-rehearsal` all answer `404 {"code":404,"message":"Application not found"}` because the GitHub `API_URL` secret still targets the deleted application; `INTERNAL_TOKEN` is the capability key (`/v1/readiness` names it) | the `API_URL` secret pointed at the live API, and `INTERNAL_TOKEN` matching the deployment | the live API (MVP-001) | **P0** |
 | MVP-006 | Sign up, confirm email, log in, log out, recover password | 2 | **REAL** | **[earlier, live]** register 200 → `/v1/agents` 403 `email_not_verified` → confirmation link read from the dev transport log → verify 200 → 200; the mail-body regression is fixed so a deployment without a provider fails loudly instead of reporting phantom success | a mail provider in production | MVP-001 | P1 |
 | MVP-007 | Create a company and reach the dashboard | 2 | **REAL** | **[earlier, live]** founder loop §66.21: company created, dashboard rendered, all 33 `/app` routes render real content | — | — | P1 |
 | MVP-008 | Onboarding to first value (first hire, first command) | 2 | **PARTIAL** | **[earlier, live]** the loop works when driven; nothing guides a new founder through it | onboarding steps around the loop | — | P1 |
@@ -46,10 +48,10 @@ only the founder can make · **POST-MVP** = deliberately out of scope.
 | MVP-018 | Member invites and roles | 5 | **REAL** | **[earlier]** 20/20 `members.integration.test.ts`; **[earlier, live]** invite → mail → accept → role change → remove, and removal revokes the removed member's sessions in that organization | — | — | — |
 | MVP-019 | One working external integration end to end | 7 | **EXTERNAL** | **[today]** `/v1/readiness` reports `github_oauth` and `google_oauth` as `configuration_required`, naming `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` | an OAuth app and its keys | founder: create the OAuth app | P1 |
 | MVP-020 | One-click demo company for a prospect | 7 | **PARTIAL** | **[earlier, live]** the review stack seeds a demo company; the product has no one-click path to it | a founder-facing control | — | P2 |
-| MVP-021 | Production smoke check gating releases | 13 | **PARTIAL** | **[today]** `scripts/release-gate.mjs` asks a running deployment five questions — web `/healthz`, API `/healthz`, `/readyz`, `/v1/readiness` with the internal token, and `/v1/readiness/mail-check`, which sends one real message so *mail delivers* is proven rather than inferred from configuration (a `404` from an older API build is a failed check, not a skip) — and exits non-zero naming every blocking capability with its missing keys, its impact and its docs; `vercel-deploy.yml` runs it after verification and goes blocking the moment `PRODUCTION_API_URL` exists (before that it records *not run* in the job summary rather than a green check for a check that did not run); **[today, live]** proven against the local review stack both ways — it refused a stack with no mail provider (`blocking: email`, the mail step naming `RESEND_API_KEY`/`SMTP_HOST`) and cleared a stack whose mail capability is genuinely activated, reporting `smtp accepted a message for review@orq8.test`, with `/readyz` and `/v1/readiness` agreeing; `scripts/release-gate-proof.mjs` is a `proofs.mjs` proof asserting the verdict follows the deployment's own report *and* that the mail check fired — passing by delivering when a provider is configured, failing and naming the keys when one is not | a deployed target (MVP-001) | MVP-001 | **P0** |
+| MVP-021 | Production smoke check gating releases | 13 | **PARTIAL** | **[today]** `scripts/release-gate.mjs` asks a running deployment five questions — web `/healthz`, API `/healthz`, `/readyz`, `/v1/readiness` with the internal token, and `/v1/readiness/mail-check`, which sends one real message so *mail delivers* is proven rather than inferred from configuration (a `404` from an older API build is a failed check, not a skip) — and exits non-zero naming every blocking capability with its missing keys, its impact and its docs; `vercel-deploy.yml` runs it after verification and goes blocking the moment `PRODUCTION_API_URL` exists (before that it records *not run* in the job summary rather than a green check for a check that did not run); **[today, live]** proven against the local review stack both ways — it refused a stack with no mail provider (`blocking: email`, the mail step naming `RESEND_API_KEY`/`SMTP_HOST`) and cleared a stack whose mail capability is genuinely activated, reporting `smtp accepted a message for review@orq8.test`, with `/readyz` and `/v1/readiness` agreeing; `scripts/release-gate-proof.mjs` is a `proofs.mjs` proof asserting the verdict follows the deployment's own report *and* that the mail check fired — passing by delivering when a provider is configured, failing and naming the keys when one is not; **[2026-10-11, live]** the `PRODUCTION_API_URL` secret is confirmed still unset, so the job records *not run* — the gate exists, points at nothing, and cannot go blocking until the founder sets it | `PRODUCTION_API_URL` set against the live API (which exists), and the mail keys | founder: set the secret (MVP-001) | **P0** |
 | MVP-022 | The proof harnesses run in CI (slice, auth, RLS, routes) | 13 | **REAL / PARTIAL** | **[earlier]** `proofs` is a blocking CI job and reports the MVP id each proof protects (vertical slice 44/44, auth E2E, RLS 55/55, members 20/20); the route sweep needs a stack, so `founder-loop` is advisory until it holds on GitHub runners | making the stack proofs blocking | GitHub runner capacity | P1 |
 | MVP-023 | Env surface documented and guarded against drift | 1 | **REAL** | **[earlier]** `env-surface.test.ts` holds `apps/api/.env.example`, `infra/.env.example` and `apps/web/.env.example` against `envSurface()` | — | — | — |
-| MVP-024 | Backup and restore drill documented and exercised | 10 | **MISSING** | **[inspection]** `docs/53` describes it; no exercise is recorded | a performed drill | MVP-002 | P1 |
+| MVP-024 | Backup and restore drill documented and exercised | 10 | **REAL** | **[2026-10-07, executed]** `scripts/dr-drill.ts` dumped production, restored it into a clean PostgreSQL built from the same migration lineage, and checked counts against the manifest with both audit chains valid on either side (restore + verify ≈ 35 s); `docs/53` documents it | Supabase's managed backup/PITR status (console-only on this tier) and `auth.users`, which a lineage-based restore does not cover | — | P1 |
 | MVP-025 | Cost caps and alerts verified in production | 10 | **PARTIAL** | **[earlier]** caps enforced on the embedded harness | production verification | MVP-001 | P1 |
 | MVP-026 | Founder can operate for a week without developer intervention | 13 | **MISSING** | **[inspection]** it is the acceptance test; it cannot start before MVP-001 | the deployed product | MVP-001 | **P0** |
 | MVP-027 | No brand surface can ship a raster logo, a hardcoded logo path or a foreign wordmark | 1 | **REAL** | **[earlier]** `scripts/brand-audit.mjs` is a blocking CI job; zero `orq8-*` tokens remain | — | — | — |
@@ -73,37 +75,42 @@ only the founder can make · **POST-MVP** = deliberately out of scope.
 
 | State | Count |
 | --- | --- |
-| REAL | 23 |
-| PARTIAL | 4 |
-| MISSING | 4 |
+| REAL | 25 |
+| PARTIAL | 6 |
+| MISSING | 2 |
 | BROKEN | 1 |
 | EXTERNAL | 1 |
-| FOUNDER | 1 |
+| FOUNDER | 0 |
 | **Total** | **35** |
 
-Priorities: **P0 = 6** (MVP-001, 002, 003, 005, 021, 026 — of which MVP-026 is
-the acceptance of MVP-001; MVP-030 closed this cycle), P1 = 8, P2 = 2, remainder
-unprioritised because they are complete.
+Recounted 2026-10-11 (MVP-001, 002 and 024 left MISSING/FOUNDER; MVP-003 moved
+REAL → PARTIAL because production is applied but not ledgered).
+
+Priorities: **P0 open = 4** (MVP-001 deployed-but-stale, MVP-005 jobs one secret
+away, MVP-021 the gate that cannot go blocking, MVP-026 the acceptance — which
+can start now), P1 = 8, P2 = 2, remainder unprioritised because they are
+complete.
 
 ---
 
 ## 3. What the matrix says about the shape of the remaining work
 
-1. **Everything a founder does inside the product works; nothing reaches a
-   founder outside it.** Five of the six P0 rows are the same requirement:
-   there is no host. The engine, the loop, the gates, the memory and now the
-   release gate are verified on a real database; the deployment is not.
-2. **The last product gap inside the code closed this cycle**: MVP-030. An AI
-   employee's work now calls a tool through the same registry the Executive
-   Agent uses — role, authority, the approval gate, the ledger and the audit
-   trail are one implementation, not two. What is left in the matrix is
-   operational, and the only P0 that is not a host is the smoke gate that now
-   exists and cannot yet be pointed at anything.
-3. **The four "missing" rows are all operational** (a host, the production
-   environment, a restore drill, a week of founder operation). None of them is
-   a feature.
-4. **Nothing in the matrix is blocked on invention.** Every P0 row is either a
-   credential, an account, or a decision.
+1. **The host exists; the deployment is behind it.** Five of the six P0 rows of
+   the last reconciliation were the same requirement — there was no host. There
+   is one now, and it answers: API `/healthz` 200, `/readyz` 200 (ready 7 /
+   configuration-required 7), web 200 on both live hosts. What is left is
+   operational and specific: the services are 8 commits behind the reviewed
+   branch, the web host is undecided between two that work, one GitHub secret
+   (`API_URL`) still points the jobs at a deleted application, and one
+   (`PRODUCTION_API_URL`) would let the release gate go blocking.
+2. **The last product gap inside the code closed**: MVP-030. An AI employee's
+   work calls a tool through the same registry the Executive Agent uses — role,
+   authority, the approval gate, the ledger and the audit trail are one
+   implementation, not two. Nothing left in the matrix needs a feature built.
+3. **The two "missing" rows are operational** (a staging environment and a week
+   of founder operation). Neither is a feature, and the second can start.
+4. **Nothing in the matrix is blocked on invention.** Every open P0 is a
+   credential, a secret, or a decision.
 
 ---
 

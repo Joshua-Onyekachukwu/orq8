@@ -156,9 +156,17 @@ Decisions taken (reversible, recorded here rather than asked):
 
 ### The one decision that needs the founder
 
-Where the API and Postgres run. This is the only true blocker, it needs accounts
-I cannot create, and every other P0 item waits on it. See 66.11 for exactly what
-is needed.
+*Answered — updated 2026-10-11.* The API and PostgreSQL run on Railway +
+Supabase `gttkaxbcdtpsusmconxm`, and both were measured live on 2026-10-11
+(API `/healthz` 200, `/readyz` 200 with 7 of 14 capabilities ready; web 200 on
+`orq8web-production.up.railway.app` **and** `orq8.vercel.app`). What this
+previously blocked is no longer blocked: the database is under the production
+lineage (`0053`/`0054` applied, fingerprint **0 unexpected of 164 documented
+differences**), the restore drill has been executed, and scheduled jobs fail
+only because of one stale GitHub `API_URL` secret. The two decisions that
+remain are small and are named in 66.8's phase 1 gate: which of the two live web
+hosts is canonical, and whether `PRODUCTION_API_URL` is set so the release gate
+stops reporting *NOT RUN*.
 
 ---
 
@@ -195,11 +203,11 @@ that must not quietly lose members.
 
 | ID | Requirement | Phase | Status |
 | --- | --- | --- | --- |
-| MVP-001 | A reachable deployed product (API + web) | 1 | **MISSING** — the web serves an older commit and there is no API host (69 §7–8) |
-| MVP-002 | A live database under the production lineage, migrations applied and recorded | 1 | **EXTERNAL / FOUNDER** — the repository targets `gttkaxbcdtpsusmconxm`; the project visible to tooling is a different product (69 §9) |
-| MVP-003 | A safe migration path (`--status` before apply, ledger records what landed) | 1 | REAL (code), never run against production |
+| MVP-001 | A reachable deployed product (API + web) | 1 | **REAL, but stale (measured 2026-10-11)** — API `orq8api-production-062a.up.railway.app` `/healthz` 200 and `/readyz` 200 (ready 7 / configuration-required 7); web 200 on both `orq8web-production.up.railway.app` and `orq8.vercel.app`. What is left is not a host: the services are **8 commits behind** the reviewed branch, the web host is still undecided between the two live ones, and no `PRODUCTION_API_URL` secret exists, so the release gate prints *NOT RUN* |
+| MVP-002 | A live database under the production lineage, migrations applied and recorded | 1 | **REAL (applied) / PARTIAL (recorded)** — production is Supabase `gttkaxbcdtpsusmconxm`; a fingerprint on 2026-10-11 returns **0 unexpected of 164 documented differences** against a from-scratch build of both lineages, so the lineage is applied. The ledger still omits the hand-applied `0053`/`0054` until the runner re-applies them (82 §2) |
+| MVP-003 | A safe migration path (`--status` before apply, ledger records what landed) | 1 | **PARTIAL** — the embedded harness replays the lineage from scratch and CI blocks on it; production was brought up to date by hand and proven by fingerprint, because the pooler password has been stale since 2026-10-10 and the runner has still never been pointed at production |
 | MVP-004 | A staging environment, so releases are not tested live | 1 | MISSING |
-| MVP-005 | Scheduled jobs and cron run against a live API | 1 | BROKEN |
+| MVP-005 | Scheduled jobs and cron run against a live API | 1 | **BROKEN (one secret away)** — every scheduled run of 2026-10-11 fails with `404 {"code":404,"message":"Application not found"}` on `orq8-jobs`, `waitlist-drip` and `nightly-rehearsal`, because the GitHub `API_URL` secret still targets the deleted application; point it at the Railway API (and confirm `INTERNAL_TOKEN` matches) and the runs have a host |
 | MVP-006 | Sign up, confirm email, log in, log out, recover password | 2 | REAL |
 | MVP-007 | Create a company and reach the dashboard | 2 | REAL (prove end to end after deploy) |
 | MVP-008 | Onboarding to first value (first hire, first command) | 2 | PARTIAL |
@@ -215,9 +223,10 @@ that must not quietly lose members.
 | MVP-018 | Member invites and roles (a company is more than one person) | 5 | **REAL** (66.18, 66.22): 20/20 tests, and the surface is in the product |
 | MVP-033 | A session can act in every organization its user belongs to | 5 | **REAL** (66.18) |
 | MVP-034 | A running deployment can say what it can and cannot do, by configuration rather than by a developer reading the source | 1 | **REAL** — `capabilityReadiness` in `@orq8/core`, `GET /readyz` (counts, public, nameless) and `GET /v1/readiness` (named, by session or by `x-internal-token` in constant time); 7/7 + 11/11 tests (68 §1) |
+| MVP-035 | Mail delivery is provable: the founder can check the configured provider and be told exactly what failed and what to change | 1 | **REAL** — `GET /v1/settings/mail` (configuration, names only) and `POST /v1/settings/mail/test` (three verdicts, owner/admin, audited as `mail.delivery_checked`); 18/18 + 5/5 tests, and the settings page renders delivering/not-delivering, the failing step, the cause and the fix. This row was missing from the register until 2026-10-11 — the matrix carried it, the ID-stable list did not |
 | MVP-019 | One working external integration end to end | 7 | EXTERNAL |
 | MVP-020 | One-click demo company for a prospect | 7 | PARTIAL |
-| MVP-021 | Production smoke check gating releases | 13 | **PARTIAL** — `scripts/release-gate.mjs` checks web + API `/healthz`, `/readyz`, `/v1/readiness` **and `/v1/readiness/mail-check`** (which sends one real message, so *mail delivers* is proven rather than inferred from `SMTP_HOST` being set) and fails the release on a blocking capability, naming what to set; proven on the local review stack both ways (red on a stack with no mail provider — the mail step naming `RESEND_API_KEY`/`SMTP_HOST` — green on one whose mail capability is genuinely activated and accepts a message), and wired into `vercel-deploy.yml` where it goes blocking the moment `PRODUCTION_API_URL` exists. It waits only on the host (MVP-001) |
+| MVP-021 | Production smoke check gating releases | 13 | **PARTIAL** — `scripts/release-gate.mjs` checks web + API `/healthz`, `/readyz`, `/v1/readiness` **and `/v1/readiness/mail-check`** (which sends one real message, so *mail delivers* is proven rather than inferred from `SMTP_HOST` being set) and fails the release on a blocking capability, naming what to set; proven on the local review stack both ways (red on a stack with no mail provider — the mail step naming `RESEND_API_KEY`/`SMTP_HOST` — green on one whose mail capability is genuinely activated and accepts a message), and wired into `vercel-deploy.yml` where it goes blocking the moment `PRODUCTION_API_URL` exists. Confirmed 2026-10-11: the secret is **still unset**, so the gate reports *NOT RUN*; the host (MVP-001) is live, and mail remains the only red capability |
 | MVP-022 | The proof harnesses run in CI (slice, auth, RLS, routes) | 13 | **REAL / PARTIAL** — `proofs` is a blocking job that names the MVP id each proof protects; the stack proofs stay advisory (69 §12) |
 | MVP-023 | Env surface documented and guarded against drift | 1 | **REAL** (this cycle) |
 | MVP-027 | No brand surface can ship a raster logo, a hardcoded logo path or a foreign wordmark | 1 | **COMPLETE** (this cycle) |
@@ -226,7 +235,7 @@ that must not quietly lose members.
 | MVP-030 | A task execution can call a tool, under the same authority gate as the EA | 6 | **REAL** — the executor calls `executeTool`, so a task and the EA share one gate (role → authority → approval → credits → audit). 3/3 integration on the embedded database, 11/11 unit, 42/42 regression (68 §1) |
 | MVP-031 | Something drives unblocked work (a runner with a caller, not just an exported function) | 6 | **REAL** (66.19): the decision drives the runner, and `POST /v1/commands/tasks/:id/retry` drives it explicitly |
 | MVP-032 | No company can read or write another company's data (RLS matrix) | 10 | **COMPLETE** (verified earlier: 55/55), now gated in CI |
-| MVP-024 | Backup and restore drill documented and exercised | 10 | MISSING |
+| MVP-024 | Backup and restore drill documented and exercised | 10 | **REAL** — the drill was *executed and passed* on 2026-10-07 (`scripts/dr-drill.ts`: production dump → restore into a clean database built from the same lineage → counts checked against the manifest and both audit chains valid, restore+verify ≈ 35 s). Console-dependent remainder: Supabase's managed backup/PITR status and `auth.users`, which a lineage-based restore does not cover (83 §Disaster recovery) |
 | MVP-025 | Cost caps and alerts verified in production | 10 | PARTIAL |
 | MVP-026 | Founder can operate for a week without developer intervention | 13 | MISSING (acceptance) |
 

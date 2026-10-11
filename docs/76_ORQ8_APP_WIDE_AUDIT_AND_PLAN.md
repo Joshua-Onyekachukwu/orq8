@@ -178,6 +178,27 @@ New file `apps/web/components/layout/` with four primitives, built strictly on d
 No color/hex/radius changes — token law stays. Every migrated page keeps its content; only the
 wrapper changes. Width decision table goes in this doc as pages land.
 
+### Migration table — pages rebased onto the shared layer
+
+Recorded as each page lands (docs/87 §4 item 6 runs this worst-first). Evidence is the project's
+own gates, not a code read: `scripts/theme-walk.mjs` (every `/app` route in **both** console
+themes) and `scripts/route-sweep.mjs` (route renders, console errors, 1440 and 375).
+
+| Page | Width | Shared pieces adopted | Evidence |
+|---|---|---|---|
+| `/app/engineering` | standard | `PageContainer`, `OsSection`/`OsMetricRow`/`OsDataTable`/`OsDrawer`/`OsFacts`/`OsToolbar`/`OsEmptyPanel`/`OsLoadingRows`/`OsErrorPanel`, column builders | theme-walk clean both themes; route sweep clean |
+| `/app/business-import` | standard | `PageContainer`, `OsSection`/`OsPanel`/`OsDataTable`/`OsMetricRow`/`OsEmptyPanel`/`OsLoadingRows`/`OsErrorPanel`/`OsStateBadge`, `stateColumn`/`monoColumn`/`dateColumn` | **2026-10-11**: theme-walk clean dark+light; route sweep 375 clean; the whole flow (analyze → facts table → proposal metrics → decision controls) read back from the live DOM, and the two proxy routes moved to `cache: "no-store"` because a cached read hid a just-created import |
+| `/app/teams` | standard | `PageContainer`, `OsSection`/`OsToolbar`/`OsFacts`/`OsStateBadge`/`OsPagination`/`OsEmptyPanel`/`OsLoadingRows`/`OsErrorPanel`/`OsModal`, `taskOsStatus` for task rows | **2026-10-11**: theme-walk clean dark+light; route sweep clean; create and confirm modals driven live (create → 2 cards, Escape closes, archive → list back to 1); server search/pagination contract unchanged |
+| `/app/departments/[id]` | standard | the above plus `resolveBlockOrder` — the page's section order now comes from the department's `pageConfig.sections` | **2026-10-11**: order read back live for three departments (see docs/87 §5 item 6) |
+
+Shared-layer additions made by these migrations (both additive): **`OsModal`** — ten pages had
+hand-rolled the same overlay, so it lives in `os/structure.tsx` now — and **`OsEmptyPanel.action`**
+accepts a real `onClick` control as well as an `href`, because an empty state whose next step is
+local ("create the first team") is not a navigation.
+
+Next worst-first: `/app/onboarding`, `/app/squads`, `/app/agents`, `/app/simulation`,
+`/app/performance`, `/app/roi` (docs/87 §4 item 6).
+
 ### Phase 4 — Work system (Kanban + tasks + goals + briefings + EA awareness)
 
 **4a. Kanban (real, persistent).**

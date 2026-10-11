@@ -73,9 +73,17 @@ machine proofs: `release-gate.mjs`, `vertical-slice-e2e.ts` (44 checks),
 
 ## E. UI-only / mocked (honest list)
 
-- **Live-site API deployment**: absent (Railway “Application not found”).
-  Live sign-in cannot work until deployed. Deployment problem, not code.
-- **Supabase 0035–0045**: not applied to hosted project (awaiting approval).
+- **Live-site API deployment — updated 2026-10-11**: *present*, not absent. The API answers
+  `/healthz` 200 and `/readyz` 200 (ready 7 / configuration-required 7) at
+  `orq8api-production-062a.up.railway.app`, and web answers 200 on both
+  `orq8web-production.up.railway.app` and `orq8.vercel.app`. The 404 recorded here was the
+  Railway application that no longer exists — and the GitHub `API_URL` secret still names it,
+  which is the only thing that keeps the *scheduled* jobs red (MVP-005). The deployments build
+  from `origin`, so the live services are 8 commits behind the reviewed branch.
+- **Supabase lineage — updated 2026-10-11**: applied, through `0053` and `0054`, to hosted
+  project `gttkaxbcdtpsusmconxm` (fingerprint: **0 unexpected of 164 documented differences**
+  against a from-scratch build of both lineages). What is missing is the `supabase_migrations`
+  ledger row for the two hand-applied files.
 - Drip/waitlist marketing emails: pre-org, generic — fine as-is.
 - Sample notification copy in `routes/notifications.ts` (static example).
 
@@ -85,7 +93,8 @@ machine proofs: `release-gate.mjs`, `vertical-slice-e2e.ts` (44 checks),
 - FFmpeg-dependent media features (by extension).
 - Production secrets: `RESEND_API_KEY`/SMTP, `GOOGLE_CLIENT_ID/SECRET`,
   `GITHUB_*`, Stripe keys, provider keys (BYOK or platform).
-- Hosted Supabase migrations 0035–0045 + pgvector image parity.
+- Hosted Supabase migrations: applied through `0054` (2026-10-11); the ledger entry and pgvector
+  image parity remain.
 
 ## G. Security status
 

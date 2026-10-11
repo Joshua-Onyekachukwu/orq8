@@ -154,7 +154,9 @@ task with no agent role is invalid.
 
 - **A real external integration** (MVP-019) — GitHub/Gmail OAuth keys are not configured, so
   `/v1/readiness` reports `configuration_required`.
-- **Scheduled jobs in production** (MVP-005) — the workflows exist but point at no host.
+- **Scheduled jobs in production** (MVP-005) — updated 2026-10-11: the workflows exist and the host
+  exists; every scheduled run fails `404 Application not found` because the GitHub `API_URL` secret
+  still names the deleted Railway application. One secret fixes it.
 - **A deployed product** (MVP-001/002) — this is the one P0 that is not a feature; the review
   stack is the only place the whole loop runs.
 - **Campaigns / experiments tables** — marketing reads produced assets and briefings because

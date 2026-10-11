@@ -1,5 +1,83 @@
 # ORQ8 Changelog
 
+## 2026-10-11 (later) — The bulk page migration starts, and `pageConfig.sections` finally renders
+
+- **Two pages rebased onto the shared `os/` layer, worst-first (`docs/87` §4 item 6).**
+  `business-import` and `teams` were still speaking a different design language:
+  `bg-white`, `text-muted-foreground`, `rounded-xl … shadow-sm`, `text-[11px]`, four
+  copy-pasted modal overlays and two local status colour tables. Both now compose
+  `PageContainer` + `OsSection`/`OsPanel`/`OsDataTable`/`OsFacts`/`OsToolbar`/`OsPagination`
+  and read state through the shared nine-state vocabulary. `bg-white` is not a stylistic
+  preference — it ignores the ink theme, which is why these surfaces stayed white in dark mode.
+  The width decisions and the evidence are recorded in the new migration table in `docs/76`
+  Phase 3, and the next worst-first pages are named there.
+- **The migrations paid for themselves twice.** They forced two *additive* shared primitives —
+  `OsModal` (ten pages had hand-rolled the same overlay; it is one component in `os/structure.tsx`
+  now) and `OsEmptyPanel.action` accepting a real `onClick` control, because an empty state whose
+  next step is local is not a navigation — and they exposed a real defect: **40 of the 159 web proxy
+  routes cache an authenticated, per-session read** (`next: { revalidate: N }`).
+- **Found live, then fixed (2 of 40).** On `business-import`, a founder who had just analyzed a
+  company saw *No imports yet* while the API held the row: reproduced by reading the API and the DOM
+  at the same moment (1 vs 0). The list and detail proxies now use `cache: "no-store"`, and the
+  fixed page shows the import immediately — verified in the same session. The remaining 38 routes
+  are the same pattern and are recorded as an **open, high** risk in `docs/87` §5 item 11 (docs/78
+  A7 asks for exactly this treatment of authenticated reads).
+- **`pageConfig.sections` stops being contract metadata (`docs/87` §5 item 6).** The API resolved a
+  per-template section order at activation and the department page ignored it, stacking the same
+  four blocks in the same hardcoded order for every department. `resolveBlockOrder` (pure, in
+  `department-focus.ts`) now maps the blueprint onto the four blocks the workspace can move, and the
+  page renders them in that order. Rules, all pinned by five new tests (16/16 in the file): the list
+  is an **order, never a filter** (an unlisted block is appended, so a stale blueprint cannot hide a
+  department's work), unknown and duplicate ids are ignored, `focus` leads when a blueprint does not
+  place it, and "no blueprint" falls back to `CANONICAL_SECTIONS` instead of a second hand-written
+  list. Read back from the running stack: **Engineering** → Now, Engineering focus, Workflows;
+  **Communications** (marketing) → Now, Marketing output, Needs founder, Workflows; **Research** (no
+  blueprint) → Now, Needs founder, Workflows. The old stack was `focus, needsFounder, now, workflows`
+  for all of them.
+- **Verified on the running review stack, both themes.** `pnpm --filter @orq8/web build` exit 0
+  (47s, 191 pages); web tests **97/97**; `tsc` clean; `theme-walk` **74/74 route-theme pairs clean**
+  (including `/app/teams` and `/app/business-import` in dark *and* light); `route-sweep --width 375`
+  **37/37 clean**; and the live flows driven through the browser — analyze → facts table → proposal
+  metrics → approval controls on `business-import`, create/escape/archive through the shared modal on
+  `teams`, and the section order on three department pages.
+
+## 2026-10-11 — The employee → department link, a drift detector that can report clean, and the deployed state measured
+
+- **Employee → department back-link (`67f00b2`).** The employee workspace printed the department name
+  as plain text, so the only way from an AI employee to the unit that owns it was the sidebar. The
+  identity header now links to `/app/departments/<id>` whenever the agent carries the real FK, and
+  stays plain text for an agent with only the legacy text column — a label can never become a 404
+  link. `scripts/verify-employee-dept-link.mjs` drives the round trip in a browser (login → employee
+  → click → department workspace → back-link) and reports **8/8, exit 0** against the rebuilt review
+  stack; the running build on `:3112` carries it.
+- **The parity tool can finally report clean (`8fe528e`).** `--check` diffs a from-scratch lineage
+  against the committed `supabase/lineage-baseline.json` with no database at all and runs as a
+  blocking CI job. Expectedness is now **provenanced** rather than a two-name whitelist: a function
+  difference counts as environment only when the side that has it attributes it to one of the five
+  documented extensions (`vector`, `pgcrypto`, `pg_stat_statements`, `supabase_vault`, `uuid-ossp`)
+  or it is one of the three Supabase bootstrap functions `0049` names. Production is
+  fingerprintable without the database password — stale since 2026-10-10 — through `--supabase`
+  (Management API). Measured: fresh vs **live production** is **0 unexpected of 164 documented
+  differences, exit 0**; four injected drifts, including the pre-`0053` `agent_jobs.locked_at`
+  shape, exit 1 naming them; re-recording the baseline changed only the fingerprint shape (every
+  catalog section byte-identical).
+- **Production measured, not assumed.** `0053` and `0054` are in the Supabase project
+  `gttkaxbcdtpsusmconxm`: `agent_jobs.locked_at` is nullable with no default, `deals` (16 columns)
+  and `tickets` (15) carry their `*_org_member` policies. The `supabase_migrations` ledger still
+  omits the hand-applied files; the runner records them when it next runs.
+- **The deployed state surveyed (read-only).** API `orq8api-production-062a.up.railway.app`
+  answers `/healthz` 200 and `/readyz` 200 (ready 7 / configuration-required 7); web answers 200 on
+  both `orq8web-production.up.railway.app` and `orq8.vercel.app`. Every **scheduled** workflow is
+  red: `orq8-jobs`, `waitlist-drip` and the nightly rehearsal get
+  `404 {"code":404,"message":"Application not found"}` because the `API_URL` secret still targets
+  the deleted application, and there is no `PRODUCTION_API_URL`, so the release gate prints
+  *NOT RUN* rather than a green check. The local branch is **8 commits ahead of its origin**, so the
+  live services are behind the reviewed tree.
+- **Docs reconciled (`2c02480` and this entry).** `docs/87` §4/§5 carry the now-true states with an
+  update section; `docs/64` §64.5 fingerprints production through `--supabase`; `docs/66` §66.7 and
+  `docs/68` rows were corrected against live evidence (the matrix still called the product
+  undeployed).
+
 ## 2026-10-10 — The responsive walk, the 500 it found, and a test gate that could not fail
 
 - **Responsive verification, measured rather than owed.** `scripts/route-sweep.mjs` ran against the

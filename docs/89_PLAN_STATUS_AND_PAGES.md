@@ -18,11 +18,11 @@ named piece is missing. **Left**: not implemented, or implemented and unreachabl
 
 | # | Feature (ID) | What it is for | State | What is missing / how it is verified |
 |---|---|---|---|---|
-| 1 | Reachable deployed product (MVP-001) | a founder can use it at a URL | **Left** | no API host; web build behind local `main`. The review stack is the only place the whole loop runs |
-| 2 | Live database under the production lineage (MVP-002) | migrations applied and recorded | **Left (founder)** | no production project; local harness replays the full lineage |
-| 3 | Safe migration path with a ledger (MVP-003) | `--status` before apply, a record of what landed | **Partial** | code real, **never run against production** |
+| 1 | Reachable deployed product (MVP-001) | a founder can use it at a URL | **Done, stale** | live and answering: API `/healthz` 200 + `/readyz` 200, web 200 on `orq8web-production.up.railway.app` *and* `orq8.vercel.app` (measured 2026-10-11). The deployment builds from `origin` and is 8 commits behind; the web host is undecided |
+| 2 | Live database under the production lineage (MVP-002) | migrations applied and recorded | **Done (applied)** | production is `gttkaxbcdtpsusmconxm`; fingerprint **0 unexpected of 164 documented differences**; the ledger still omits the hand-applied `0053`/`0054` |
+| 3 | Safe migration path with a ledger (MVP-003) | `--status` before apply, a record of what landed | **Partial** | the harness replays and CI blocks on it; production was brought up to date by hand (verified by fingerprint) because the pooler password has been stale since 2026-10-10 |
 | 4 | Staging environment (MVP-004) | releases are not tested live | **Left** | none exists |
-| 5 | Scheduled jobs / cron against a live API (MVP-005) | briefings, drip, rehearsal on a schedule | **Left** | workflows target no host |
+| 5 | Scheduled jobs / cron against a live API (MVP-005) | briefings, drip, rehearsal on a schedule | **Left (one secret)** | the host exists; every scheduled run fails `404 Application not found` because the GitHub `API_URL` secret names the deleted application |
 | 6 | Signup, email confirm, login, logout, recover (MVP-006) | getting in | **Done** | verified live; mail provider only in production gap |
 | 7 | Create a company and reach the dashboard (MVP-007) | first run | **Done** | founder loop run end to end |
 | 8 | Onboarding to first value (MVP-008) | guide a new founder to the first hire/command | **Partial** | the loop works when driven; nothing guides it |
@@ -38,10 +38,10 @@ named piece is missing. **Left**: not implemented, or implemented and unreachabl
 | 18 | Member invites and roles (MVP-018) | more than one human | **Done** | 20/20; removal revokes sessions |
 | 19 | One working external integration (MVP-019) | the company touches the outside | **Left (keys)** | `/v1/readiness` reports `configuration_required` |
 | 20 | One-click demo company (MVP-020) | a prospect sees it working | **Partial** | the review stack seeds it; no product control |
-| 21 | Production smoke check gating releases (MVP-021) | a deploy is not good until the product is on | **Partial** | gate exists and is proven; nothing to point it at |
+| 21 | Production smoke check gating releases (MVP-021) | a deploy is not good until the product is on | **Partial** | the gate is proven both ways; the `PRODUCTION_API_URL` secret is still unset (checked 2026-10-11), so it reports *not run* instead of gating |
 | 22 | Proof harnesses in CI (MVP-022) | the claims are checked automatically | **Done** | `proofs` is a blocking job |
 | 23 | Env surface documented and drift-guarded (MVP-023) | a deployer can learn the surface | **Done** | `env-surface.test.ts` |
-| 24 | Backup/restore drill (MVP-024) | survivable | **Left** | never exercised |
+| 24 | Backup/restore drill (MVP-024) | survivable | **Done** | executed 2026-10-07: prod dump → restore into a clean lineage → counts vs manifest, audit chains valid both sides (~35 s) |
 | 25 | Cost caps verified in production (MVP-025) | no runaway spend | **Partial** | enforced locally only |
 | 26 | A founder runs for a week unassisted (MVP-026) | the acceptance test | **Left** | blocked on #1 |
 | 27 | No raster logo / foreign wordmark can ship (MVP-027) | brand integrity | **Done** | blocking CI job |
@@ -180,8 +180,9 @@ the console migration; they are correct as they are.
   Support queue, Finance focus, Marketing output, Engineering focus.
 
 **Could not verify, and why**
-- **Migrations against production** — no host and no credentials in this checkout. Nothing was
-  applied to production; the local harness is where `0052`/`0053`/`0054` have been exercised.
+- **Migrations against production** — the pooler database password in this checkout is stale, so the
+  runner cannot be used from here; production was updated through the Supabase Management API instead
+  (`scripts/supabase-sql.mjs`) and verified by fingerprint rather than by a ledger row.
 - **The Executive Agent command in the review stack returned `status=error provider=none`** —
   the live model key in `apps/api/.env` is not working from here. The pipeline itself is
   covered by the API suites; the *deployed* LLM call is not something this run can claim.
