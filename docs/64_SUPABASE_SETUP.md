@@ -171,15 +171,21 @@ which is why the workflow answered `read ECONNRESET`.
 Two fingerprints, both produced by `scripts/lineage-parity.ts`:
 
 ```bash
-# the target
-DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres" \
-  PARITY_LABEL="supabase production (gttkaxbcdtpsusmconxm)" \
-  pnpm exec tsx scripts/lineage-parity.ts --out .lineage-parity/supabase-prod.json
+# the target — through the Management API. The pooler password in this workspace
+# has been stale since 2026-10-10, and `--supabase` does not need it: it reads
+# projectRef + managementToken from the gitignored .supabase-setup.json.
+pnpm exec tsx scripts/lineage-parity.ts --supabase --out .lineage-parity/supabase-prod.json
 
 # the canonical lineage, from scratch, on an embedded Postgres
 pnpm exec tsx scripts/lineage-parity.ts --fresh --out .lineage-parity/fresh.json
 
 pnpm exec tsx scripts/lineage-parity.ts --diff .lineage-parity/fresh.json .lineage-parity/supabase-prod.json
+
+# As of 2026-10-11 this diff is clean: 0 unexpected differences against the 164
+# documented ones. Expectedness is provenanced — a function difference counts as
+# environment only when the side that has it attributes it to one of the five
+# documented extensions, or it is one of the three Supabase bootstrap functions
+# `0049` names — so anything else still fails the diff.
 ```
 
 | | fresh lineage | production |
