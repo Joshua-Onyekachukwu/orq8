@@ -35,6 +35,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # The asset half of this verification is now `scripts/verify-live-assets.mjs`,
+      # which reads the repository to learn what to probe — so the repository has
+      # to be here. It was not before, and that is part of why the check named
+      # files by hand: a curl-only step has no list to derive one from.
+      - uses: actions/checkout@v4
+
       - name: Verify production serves this commit
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
