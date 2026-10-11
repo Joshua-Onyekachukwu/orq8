@@ -46,6 +46,8 @@ export interface EmployeeAgent {
   name: string;
   role: string;
   department: string | null;
+  /** FK to departments.id — the handle the department workspace is addressed by. */
+  departmentId?: string | null;
   departmentName?: string | null;
   teamName?: string | null;
   status: string;
@@ -328,7 +330,21 @@ export function EmployeeWorkspace({
             </span>
             <div className="min-w-0">
               <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-                {(agent.departmentName ?? agent.department ?? "Unassigned").toUpperCase()}
+                {/* The department name is the way back down from an employee to
+                    the unit that owns it. Only a real FK can be linked: an agent
+                    carrying only the legacy text column has no department row to
+                    open, so it stays plain text rather than a link that 404s. */}
+                {agent.departmentId ? (
+                  <Link
+                    href={`/app/departments/${agent.departmentId}`}
+                    className="underline-offset-2 transition-colors hover:text-brand-ink hover:underline"
+                    title="Open this employee's department workspace"
+                  >
+                    {(agent.departmentName ?? agent.department ?? "Unassigned").toUpperCase()}
+                  </Link>
+                ) : (
+                  (agent.departmentName ?? agent.department ?? "Unassigned").toUpperCase()
+                )}
                 {agent.teamName ? ` · ${agent.teamName}` : ""}
               </p>
               {renaming ? (
