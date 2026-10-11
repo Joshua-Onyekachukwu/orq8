@@ -10,9 +10,13 @@ export async function GET(request: NextRequest) {
   const token = getToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    // Authenticated, per-session read: never cached. `next: { revalidate: 10 }`
+    // here made the list stale for 10s after a mutation, so a founder who had
+    // just analyzed a company saw "No imports yet" while the row existed — and a
+    // per-user response has no business sitting in a shared cache (docs/78 A7).
     const res = await fetch(`${API_URL}/v1/business-imports`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 10 },
+      cache: "no-store",
     });
     return NextResponse.json(await res.json(), { status: res.status });
   } catch {

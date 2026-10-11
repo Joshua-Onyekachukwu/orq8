@@ -47,6 +47,10 @@
  */
 
 import { execFileSync } from "node:child_process";
+// Comment stripping is shared with `verify-no-store.mjs` — one implementation,
+// so the two source scans cannot disagree about what is code.
+import { stripComments } from "./lib/strip-comments.mjs";
+export { stripComments };
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -85,61 +89,6 @@ const REFERENCE_RE = new RegExp(
   `["'\`(](\\/[A-Za-z0-9._@%+\\-/]*\\.(?:${EXT_GROUP}))(?:[?#][^"'\`)\\s]*)?["'\`)]`,
   "gi",
 );
-
-/**
- * Drop comments before scanning. Comments are not references: this repository
- * documents asset decisions in prose (`.vercelignore` names the png/svg strip in
- * its own header, and the push hook explains why `/favicon.ico` was wrong), so a
- * scanner that reads comments fails the build on a comment — a false positive
- * that gets the whole gate deleted the first time it is inconvenient. String and
- * template contents are kept, because a path there is exactly what this looks
- * for, and `//` inside `"https://…"` is therefore left alone.
- */
-export function stripComments(text) {
-  let out = "";
-  let quote = null;
-  let i = 0;
-  while (i < text.length) {
-    const c = text[i];
-    const next = text[i + 1];
-    if (quote) {
-      out += c;
-      if (c === "\\") {
-        out += next ?? "";
-        i += 2;
-        continue;
-      }
-      if (c === quote) quote = null;
-      i++;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === "`") {
-      quote = c;
-      out += c;
-      i++;
-      continue;
-    }
-    if (c === "/" && next === "/") {
-      while (i < text.length && text[i] !== "\n") {
-        out += " ";
-        i++;
-      }
-      continue;
-    }
-    if (c === "/" && next === "*") {
-      i += 2;
-      while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) {
-        out += text[i] === "\n" ? "\n" : " ";
-        i++;
-      }
-      i += 2;
-      continue;
-    }
-    out += c;
-    i++;
-  }
-  return out;
-}
 
 const urlPathToFile = (publicDir, urlPath) => {
   let decoded = urlPath;

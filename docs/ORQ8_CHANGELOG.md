@@ -1,5 +1,36 @@
 # ORQ8 Changelog
 
+## 2026-10-12 — The forty cached proxy reads are swept, and the check is shown failing
+
+- **The sweep.** All 40 authenticated proxy reads that carried `next: { revalidate: N }` now say
+  `cache: "no-store"`, the two done earlier included. Per-session, per-tenant data was being held in
+  a cache; the product displayed it confidently while it was stale.
+- **Two checks, both shown failing on the real code** — a check that has never failed is a check that
+  cannot. `scripts/verify-no-store.mjs` (offline, 9 self-test cases): forbids `revalidate` anywhere in
+  `apps/web/app/api` (including `next: { revalidate: false }`, which reads like the off switch and is
+  the **infinite** cache in Next 15), `force-cache`, any `cache:` value but `no-store`/`private`, and a
+  `cache: "public"` opt-in on a tenant read. Reverting one route made it fail naming
+  `apps/web/app/api/goals/route.ts:18` with the fix on the next line. `scripts/proxy-cache-proof.mjs`
+  (against the built stack): a mutation is visible to the very next read through two routes, and no
+  read response carries a shared-cache directive.
+- **What the experiment settled** (measured, not recalled): restoring `next: { revalidate: 30 }` into a
+  rebuilt route kept the reads fresh and wrote nothing to the fetch cache (0 entries in 2h) — on
+  Next 15.5 that spelling is inert. The mechanism that actually produced the founder-visible stale
+  body is the `next.config.ts` rule that applied
+  `private, s-maxage=15, stale-while-revalidate=30` to `/api/(.*)`; Next applies config headers AFTER
+  the handler, so it overwrote every route's own `no-store`. That rule is already gone (next.config.ts
+  says why at length), and reintroducing it makes the proof fail by name on both routes — 4 of 12
+  assertions, with the offending header printed. So: the sweep removes a footgun, the static check
+  keeps it removed, and the behavioral check guards the property a founder actually feels.
+- **Wired in.** Three proofs — `no-store`, `no-store-verdicts` (offline) and `proxy-cache` (needs the
+  built stack; Next's caches do not exist in `next dev`, so a proof against dev proves nothing). The
+  comment-stripper both scanners need moved to `scripts/lib/strip-comments.mjs`: one implementation,
+  so the two scans cannot disagree about what is code.
+- **Still open.** `fetchWithToken`'s default (`next: { revalidate: 30 }`) for server components is the
+  same pattern one layer up and is still unprobed (docs/87 §5 item 11). And a stale local stack serves
+  a stale build: the harness reuses a healthy port, which is how the first restore-demo read the
+  pre-restore build — CI is unaffected (clean VM).
+
 ## 2026-10-11 (night) — The production verifier was red for eleven days, asserting a file that no longer exists
 
 - **The verifier.** `vercel-deploy.yml` ("Verify Vercel Production": every web-affecting push plus a

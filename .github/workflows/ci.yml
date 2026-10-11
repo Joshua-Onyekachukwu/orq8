@@ -363,7 +363,7 @@ jobs:
 
       - name: Route sweeps, theme walk, release gate and jobs canary on the review stack
         continue-on-error: false
-        run: node scripts/proofs.mjs --only routes,routes-375,themes,gate,canary --with-stack
+        run: node scripts/proofs.mjs --only routes,routes-375,themes,gate,canary,proxy-cache --with-stack
 
   docker:
     name: Docker build

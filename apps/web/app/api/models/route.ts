@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/models`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 60 },
+      // Authenticated, per-session read: never cached (docs/87 §5 item 11).
+      cache: "no-store",
     });
     if (!res.ok) return Response.json({ error: "Failed" }, { status: res.status });
     return Response.json(await res.json());

@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
         : `${API_URL}/v1/company-builder/state`;
     const res = await fetch(path, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 15 },
+      // Authenticated, per-session read: never cached (docs/87 §5 item 11).
+      cache: "no-store",
     });
     const data = await res.json().catch(() => null);
     return NextResponse.json(data, { status: res.status });

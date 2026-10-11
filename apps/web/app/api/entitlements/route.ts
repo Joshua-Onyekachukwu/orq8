@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/entitlements`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 15 },
+      // Authenticated, per-session read: never cached (docs/87 §5 item 11).
+      cache: "no-store",
     });
     return NextResponse.json(await res.json(), { status: res.status });
   } catch {

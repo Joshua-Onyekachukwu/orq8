@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_URL}/v1/tasks${qs ? `?${qs}` : ''}`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 30 },
+      // Authenticated, per-session read: never cached (docs/87 §5 item 11).
+      cache: "no-store",
     });
     if (!res.ok) {
       // Relay the API's precise message (e.g. which field failed validation);

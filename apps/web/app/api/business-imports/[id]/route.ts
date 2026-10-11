@@ -11,9 +11,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   try {
+    // Authenticated, per-session read: never cached (see the list route).
     const res = await fetch(`${API_URL}/v1/business-imports/${id}`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 10 },
+      cache: "no-store",
     });
     return NextResponse.json(await res.json(), { status: res.status });
   } catch {

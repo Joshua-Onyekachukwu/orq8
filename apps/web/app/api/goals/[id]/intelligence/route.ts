@@ -14,7 +14,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const res = await fetch(`${API_URL}/v1/goals/${id}/intelligence`, {
       headers: proxyAuthHeaders(token),
-      next: { revalidate: 30 },
+      // Authenticated, per-session read: never cached (docs/87 §5 item 11).
+      cache: "no-store",
     });
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: res.status });
     return NextResponse.json(await res.json());

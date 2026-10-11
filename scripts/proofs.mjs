@@ -170,6 +170,44 @@ const PROOFS = [
     needsStack: false,
   },
   {
+    // Source and behavior are separate on purpose: `no-store` proves no route
+    // *says* cache; this proves a write is visible to the very next read through
+    // the routes a page refetches — the founder-visible failure ("the task is
+    // now awaiting approval" while the badge still said PENDING). Needs the
+    // built stack: Next's fetch cache does not exist in `next dev`, so a proof
+    // against dev proves nothing about the build the founder gets.
+    id: "proxy-cache",
+    what: "a mutation is visible to the very next read through the proxy routes a page refetches",
+    protects: [
+      "MVP-012 (a board that moves on its own actions, not one that serves the pre-action body)",
+      "MVP-032 (a per-tenant read never sits in a shared cache)",
+    ],
+    command: "node scripts/proxy-cache-proof.mjs",
+    needsStack: true,
+  },
+  {
+    // Offline: the sweep of the forty routes that cached an authenticated read
+    // (docs/87 §5 item 11). A route that re-enables caching fails by name.
+    id: "no-store",
+    what: "no web proxy route caches an authenticated, per-session read",
+    protects: [
+      "MVP-032 (a per-tenant read never sits in a shared cache)",
+    ],
+    command: "node scripts/verify-no-store.mjs",
+    needsStack: false,
+  },
+  {
+    // The traps, pinned: `next: { revalidate: false }` reads like the off switch
+    // and is the infinite cache in Next 15; prose about caching is not code.
+    id: "no-store-verdicts",
+    what: "the cache check catches revalidate (including `revalidate: false`), force-cache and a public opt-in, and does not fail on prose",
+    protects: [
+      "MVP-032 (a per-tenant read never sits in a shared cache)",
+    ],
+    command: "node scripts/verify-no-store.mjs --self-test",
+    needsStack: false,
+  },
+  {
     // The self-test's hosts are fixtures written next to the rules they check;
     // this one reads the running API's *actual* envelopes, which is the check
     // that was missing when the canary first shipped inverted (it accepted the
