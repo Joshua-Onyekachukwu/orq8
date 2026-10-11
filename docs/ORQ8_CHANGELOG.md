@@ -1,6 +1,41 @@
 # ORQ8 Changelog
 
-## 2026-10-11 (latest) — A canary that names the stale secret instead of failing six times
+## 2026-10-11 (latest) — The RLS proof caught a backport that re-opened client writes
+
+- **A drift repair that went the wrong way.** `0052` was written to reconcile policy drift: production
+  carried seven org-member policies the lineage did not, so the lineage was changed to match
+  production. Those seven are exactly the policies `0033` had *dropped* — `approvals_org_member`,
+  `credit_{balances,transactions,alerts}_org_member`, `subscriptions_org_member`,
+  `password_reset_tokens_own` (all `FOR ALL`) and `memberships_insert_self` — and `0033`'s own header
+  says why: "Downgrades approvals from FOR ALL to member read-only", "Restricts
+  password_reset_tokens from FOR ALL to SELECT (the API owns writes)", "close the self-insert
+  escalation hole". The drift was real; the *direction* of the repair was the one thing `0052` did not
+  check.
+- **Why it mattered.** RLS is permissive and OR'd, so adding a `FOR ALL` policy cannot narrow
+  anything — it can only grant. On any database built from this lineage a plain member could, through
+  PostgREST with their own JWT: self-approve their own `approvals` row, `INSERT` an already-approved
+  one, rewrite `credit_balances.used_credits` and `INSERT` `credit_transactions`, set their own
+  `subscriptions.plan` to `enterprise`, `DELETE` their subscription, rewrite their own password-reset
+  token and insert their own `memberships` row. The repository's own blocking proof said all of that
+  must be refused and went red the moment `0052` landed — the fix was to make the database agree with
+  the proof, not to quiet the proof.
+- **Fixed forward, not by editing an applied migration.** `0055_reclose_client_write_surface.sql`
+  drops the seven, re-asserts `0033`'s narrow surface (member read on approvals/balances/
+  transactions/alerts/subscriptions, member `INSERT` of a *pending* approval only, own read of reset
+  tokens) and closes a second, unrelated `0054` defect in the same pass: `deals.account_id`,
+  `deals.owner_agent_id`, `tickets.account_id` and `tickets.assignee_agent_id` are foreign keys with
+  no *leading* index, which breaks the `0034` invariant the same proof checks.
+- **Verified, with the gate that found it.** `scripts/rls-security-e2e.ts`: six failures →
+  **59 passed, 0 failed**. `lineage-parity --check`: re-recorded, then clean — and the baseline diff is
+  exactly those 11 catalog entries plus the timestamp, nothing absorbed. `proofs.mjs` **5/5**
+  (vertical-slice, auth, rls, members, canary-verdicts); `pnpm test` green (api 989 passed / 3 skipped,
+  web 97, core 222, db 20, auth 5); `pnpm typecheck` clean across all 8 projects. No client path used
+  the removed writes: the API reaches every one of those tables through its BYPASSRLS pool, and
+  nothing in `apps/` writes them through PostgREST or supabase-js, so reads are untouched.
+- **Production apply owed.** Production is the side that carries the broad policies, so the deployment
+  still accepts those writes until `0055` runs there (`docs/87` §5 item 13, §4 item 1).
+
+## 2026-10-11 (later still) — A canary that names the stale secret instead of failing six times
 
 - **The one unchecked dependency of every scheduled job.** `orq8-jobs` (six jobs), `waitlist-drip`
   and the nightly rehearsal all curl `$API_URL` with `x-internal-token`, and none of them checked
