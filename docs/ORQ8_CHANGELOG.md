@@ -30,6 +30,17 @@
   `favicon.png` and `favicon.svg`; `/favicon.ico` answers 404 in production). Every notification thus
   drew its icon from a 404. It now uses `/favicon.png`: committed, the 192×192 asset the layout already
   declares, and a format the OS notification surface renders reliably where SVG is not.
+- **A CI flake that was not a flake.** This commit's own `Tests` job failed, then passed on an
+  immediate re-run of the same job on the same commit — and the two runs before it had passed the same
+  API code. The cause is a product defect, not a slow test: `ea-execution-budget` races the pipeline
+  against its wall-clock slice and calls the loser "abandoned … via best-effort cancellation", but
+  nothing cancels it. The in-flight run keeps writing to the task row, including `in_progress` about
+  six awaits in — after `convergeToPending` has returned the row to the honest `pending` the founder was
+  told about — and afterwards a terminal state with real cost. So a "deferred, 0 credits, re-run it"
+  task can read `in_progress` (the appears-to-hang state this module exists to prevent), can later be
+  marked completed and charged, and can be re-run while the abandoned run is still executing it.
+  Recorded as `docs/87` §5 item 15 with the mechanism and the evidence; **not fixed in this commit** —
+  the fix is a claim fence, and it deserves its own pass.
 - **Wired in.** Two proofs — `assets` (the reference half, offline) and `assets-verdicts` (18 cases,
   each a real tree and a real HTTP server) — in the default proof set; the live sweep replaces the
   hard-coded probes in `vercel-deploy.yml`. The release gate step is now `if: ${{ !cancelled() }}`, so a
