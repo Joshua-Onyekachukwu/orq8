@@ -1,5 +1,43 @@
 # ORQ8 Changelog
 
+## 2026-10-11 (night) — The production verifier was red for eleven days, asserting a file that no longer exists
+
+- **The verifier.** `vercel-deploy.yml` ("Verify Vercel Production": every web-affecting push plus a
+  two-hour staleness watchdog) asserted three things — the latest production deployment is `READY` and
+  was built from this sha, the domain serves that build, and **two named assets resolve**,
+  `/images/hero-bg.png` and `/images/icons/quote.svg`. `quote.svg` was deleted from the repository in
+  `a7d83b5` (2026-09-30).
+- **What that cost.** From that commit on the asset probe could never pass. The 15 most recent runs
+  (`gh run list`, back to 2026-10-08) are all failures, and the one whose log was read — 2026-10-11
+  19:09 — fails on `quote.svg=404` with `/=200 hero-bg.png=200`. Worse than the red: that step sat
+  immediately before **"Release gate — is production switched on?"**, so the gate that asks whether
+  production can send mail or reach a model (docs/69) never executed once in those eleven days. A
+  check that cannot pass took a load-bearing check down with it, silently.
+- **Repo-derived instead of hard-coded.** `scripts/verify-live-assets.mjs` asks
+  `git ls-files apps/web/public` for the list (65 assets today: 31 jpg, 24 svg, 9 png, 1 mp4), probes
+  every one with bounded concurrency and per-asset retries (a first edge request after a deploy can
+  legitimately 404), and reports failures **by extension class** — "24 .svg failed and every .jpg
+  served" is the actual diagnosis, and it is the `.vercelignore` extension-strip this guard was written
+  for in the first place. Measured against production: **65/65 in 8.8s**. A deleted asset can no longer
+  leave a permanent red, because nothing here is named by hand.
+- **The local half, so a pull request fails instead.** `--local` scans web source for root-relative
+  asset references and fails when one is missing from the tree — and when it is present but **not
+  committed**, which is a production 404 that every local check passes, because deployments ship
+  commits. Comments are stripped before scanning: prose that names a path is not a reference, and a gate
+  that fails on a comment is a gate that gets deleted.
+- **It found a real defect on its first run.** `apps/web/hooks/use-browser-push.ts` defaulted every
+  browser notification's icon to `/favicon.ico` — a file this app does not ship (`public/` has
+  `favicon.png` and `favicon.svg`; `/favicon.ico` answers 404 in production). Every notification thus
+  drew its icon from a 404. It now uses `/favicon.png`: committed, the 192×192 asset the layout already
+  declares, and a format the OS notification surface renders reliably where SVG is not.
+- **Wired in.** Two proofs — `assets` (the reference half, offline) and `assets-verdicts` (18 cases,
+  each a real tree and a real HTTP server) — in the default proof set; the live sweep replaces the
+  hard-coded probes in `vercel-deploy.yml`. The release gate step is now `if: ${{ !cancelled() }}`, so a
+  failure above it can never hide it again.
+- **Not the same as verified.** The web deployment and all 65 assets serve. The API still has no
+  production host, so `PRODUCTION_API_URL` stays unset and the gate still reports **NOT RUN** rather
+  than green (docs/68 MVP-001).
+
 ## 2026-10-11 (latest) — Playwright finally runs in CI, where the browser sweeps can pass
 
 - **Two audits that could not pass.** `audits` ran `route-sweep --width 375` and `theme-walk` as

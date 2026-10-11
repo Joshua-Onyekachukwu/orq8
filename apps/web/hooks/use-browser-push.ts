@@ -59,7 +59,13 @@ export function useBrowserPush(options: { enabled?: boolean } = {}) {
       try {
         const notification = new Notification(title, {
           body: options?.body,
-          icon: options?.icon ?? '/favicon.ico',
+          // `/favicon.ico` is not a file this app ships — `public/` has
+          // `favicon.png` and `favicon.svg` — so every notification drawn with
+          // the default icon rendered broken (and requested a 404). The OS paints
+          // notification icons and is unreliable with SVG, so the default is the
+          // 192×192 PNG the layout already declares. `scripts/verify-live-assets.mjs`
+          // fails the build if a reference like this stops resolving.
+          icon: options?.icon ?? '/favicon.png',
           tag: options?.tag, // Prevents duplicate notifications with same tag
           requireInteraction: options?.requireInteraction ?? false,
           silent: options?.silent ?? false,

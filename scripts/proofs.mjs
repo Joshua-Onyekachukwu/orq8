@@ -142,6 +142,34 @@ const PROOFS = [
     needsStack: false,
   },
   {
+    // Offline, so it runs on every commit: the reference half of the asset
+    // verifier. The live half cannot be a proof — it needs the deployed domain,
+    // not a review stack — so it runs in `.github/workflows/vercel-deploy.yml`.
+    // This is the half a pull request can fail.
+    id: "assets",
+    what: "every asset the web app references exists in the tree it ships from",
+    protects: [
+      "MVP-001 (a reachable deployed product that serves what it references)",
+    ],
+    command: "node scripts/verify-live-assets.mjs --local",
+    needsStack: false,
+  },
+  {
+    // The verdicts, proven against real trees and real HTTP servers: the two
+    // failures this file exists for are both checks that *could not fail* — a
+    // probe naming a deleted file, and a scanner that would pass a tree with
+    // nothing in it — so both are pinned as cases, along with the .vercelignore
+    // class-strip that started it.
+    id: "assets-verdicts",
+    what: "the asset verifier fails a deleted, uncommitted or stripped asset and a silent domain, and passes a clean tree",
+    protects: [
+      "MVP-001 (a reachable deployed product that serves what it references)",
+      "MVP-021 (a smoke check gates a release)",
+    ],
+    command: "node scripts/verify-live-assets.mjs --self-test",
+    needsStack: false,
+  },
+  {
     // The self-test's hosts are fixtures written next to the rules they check;
     // this one reads the running API's *actual* envelopes, which is the check
     // that was missing when the canary first shipped inverted (it accepted the
