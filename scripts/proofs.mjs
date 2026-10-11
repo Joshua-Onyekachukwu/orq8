@@ -102,6 +102,33 @@ const PROOFS = [
     command: "node scripts/release-gate-proof.mjs",
     needsStack: true,
   },
+  {
+    // Offline: every case is a real HTTP server answering one of the shapes a
+    // configured host can have — the API envelope, the web app's envelope, a
+    // deleted Railway edge, HTML, a refused token, nothing at all.
+    id: "canary-verdicts",
+    what: "the scheduled-jobs canary classifies the API, the web app, a deleted host and a missing secret correctly",
+    protects: [
+      "MVP-005 (scheduled jobs and cron run against a live API)",
+    ],
+    command: "node scripts/jobs-canary.mjs --self-test",
+    needsStack: false,
+  },
+  {
+    // The self-test's hosts are fixtures written next to the rules they check;
+    // this one reads the running API's *actual* envelopes, which is the check
+    // that was missing when the canary first shipped inverted (it accepted the
+    // web app's `{status,service:orq8-web}` and rejected the API's nested
+    // `{data:{status,service:orq8-api}}`).
+    id: "canary",
+    what: "the canary reads the real API's health and readiness envelopes and clears them",
+    protects: [
+      "MVP-005 (scheduled jobs and cron run against a live API)",
+      "MVP-001 (a reachable deployed product: the API's own /healthz and /v1/readiness)",
+    ],
+    command: `node scripts/jobs-canary.mjs --api-url http://127.0.0.1:${process.env.REVIEW_API_PORT ?? 3111} --token ${process.env.REVIEW_INTERNAL_TOKEN ?? "review-stack-internal-token"}`,
+    needsStack: true,
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -7,18 +7,37 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Same reason as `orq8-jobs.yml`: this workflow's only dependency is one
+  # secret pair, and when that host was deleted the drip went red every 30
+  # minutes with an error that named the endpoint instead of the secret. The
+  # canary fails first, names `API_URL`, and stops the run there.
+  canary:
+    name: Canary — is API_URL still the live API?
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the configured host and internal token
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: node scripts/jobs-canary.mjs
+
   process-due:
     name: Process due waitlist emails
     runs-on: ubuntu-latest
+    needs: canary
     steps:
       - name: Call process-due endpoint
         env:
           API_URL: ${{ secrets.API_URL }}
           INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
         run: |
+          # The canary job already proved these exist; skipping silently would
+          # mean the drip quietly stops (a cron that does nothing at exit 0).
           if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
-            echo "::warning::API_URL/INTERNAL_TOKEN secrets not set — skipping drip run"
-            exit 0
+            echo "::error::SCHEDULED-JOBS CANARY: the API_URL/INTERNAL_TOKEN secrets are not set — fix the `API_URL` secret (and `INTERNAL_TOKEN`) to the deployed API origin and its token."
+            exit 1
           fi
           status=$(curl -s -o /tmp/drip.json -w "%{http_code}" -m 60 \
             -X POST -H "content-type: application/json" \

@@ -1,5 +1,37 @@
 # ORQ8 Changelog
 
+## 2026-10-11 (latest) — A canary that names the stale secret instead of failing six times
+
+- **The one unchecked dependency of every scheduled job.** `orq8-jobs` (six jobs), `waitlist-drip`
+  and the nightly rehearsal all curl `$API_URL` with `x-internal-token`, and none of them checked
+  that the host still exists. When the Railway application that secret named was deleted they went
+  red for days, each failure naming its own endpoint, so one stale secret read as a pile of
+  unrelated product bugs. `scripts/jobs-canary.mjs` asks the shared question first — does `API_URL`
+  still answer as `orq8-api` on `/healthz`, and does it still accept `INTERNAL_TOKEN` on
+  `/v1/readiness`? — and when the answer is no it names the *secret*, not the endpoint.
+- **Three verdicts, because "missing" and "broken" are different facts.** 0 pass; 1 configured but
+  broken (deleted host, wrong app, refused token); 2 not armed (a secret is absent). The scheduled
+  workflows gate on it: a new `canary` job that every other job `needs`, so a stale host fails the
+  run once instead of six times, and the nightly rehearsal asks it before running six suites so the
+  issue that job opens names the cause. CI runs it too, where the not-armed verdict is a visible
+  notice rather than a failure — a fork pull request never receives repository secrets and should
+  not be failed for one it cannot see. The old silent skips (`::warning` + `exit 0`, a cron that
+  did nothing looking exactly like a cron with nothing to do) are hard failures naming the secret.
+- **The canary's first version was inverted, and running it is what caught it.** It keyed on a
+  top-level `status`: the API nests `{"data":{"status":"ok","service":"orq8-api"}}` while the
+  web app answers flat `{"status":"ok","service":"orq8-web"}`, so it *passed* the web app and
+  *failed* the live API — the exact inversion of its job. Identity now comes from the `service`
+  field, confirmed by the token-gated readiness call that only the API serves. A second defect in
+  the same class: the failure path carried no exit code, so a stale host would have exited **0**.
+  Both are pinned by the self-test, which asserts each verdict *and* its exit code (13/13), plus a
+  live proof that reads the running API's real envelopes — the check a fixture-based self-test
+  cannot make.
+- **Verified:** `--self-test` 13/13, exit 0; the deleted Railway host exits 1 naming `API_URL`; an
+  unset secret exits 2 naming it; the live stack exits 0 reporting `5 ready, 9
+  configuration-required, 1 blocking`; `proofs.mjs --only canary-verdicts` and `--only canary` both
+  pass; all four workflow files parse with `canary` gating the jobs that need it and no silent-skip
+  blocks left.
+
 ## 2026-10-11 (later) — The bulk page migration starts, and `pageConfig.sections` finally renders
 
 - **Two pages rebased onto the shared `os/` layer, worst-first (`docs/87` §4 item 6).**

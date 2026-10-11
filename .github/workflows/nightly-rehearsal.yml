@@ -43,6 +43,16 @@ jobs:
           if [ -n "$DEMO_ENV" ]; then printf '%s\n' "$DEMO_ENV" > scripts/.env.demo.local; else echo "::warning::DEMO_ENV_LOCAL secret not set — demo-org suites will fail"; fi
           ls -la scripts/.env.*.local 2>/dev/null || true
 
+      # Every suite below calls `$API_URL`. Asking the canary first turns a
+      # stale secret from a pile of suite failures into one named cause — in the
+      # log and in the issue this job opens — which is the difference between
+      # "the deployment moved" and "six features regressed".
+      - name: Canary — is API_URL still the live API?
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: node scripts/jobs-canary.mjs
+
       - name: Run the verification suite
         working-directory: scripts
         env:

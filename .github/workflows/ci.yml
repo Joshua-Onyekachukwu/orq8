@@ -69,6 +69,48 @@ jobs:
       - name: Fresh lineage matches the committed baseline
         run: pnpm exec tsx scripts/lineage-parity.ts --check
 
+  # The scheduled workflows (`orq8-jobs`, `waitlist-drip`, `nightly-rehearsal`)
+  # all depend on one thing this repository never checked: that the `API_URL`
+  # secret still points at a live ORQ8 API. When that host was deleted they went
+  # red for days across six workflows, each failure reading like its own product
+  # bug — which is exactly what a stale secret looks like from the outside.
+  #
+  # `scripts/jobs-canary.mjs` answers that one question and names the secret to
+  # fix. Its three verdicts are 0 pass, 1 configured-but-broken, 2 not armed:
+  #   exit 1  fails this job — a deleted host, a wrong app (it reads the API's
+  #           `service` id, so the web app's `/healthz` cannot pass for it) or a
+  #           refused token is a real outage of every scheduled job.
+  #   exit 2  a visible notice, not a failure: a fork pull request never
+  #           receives repository secrets, so its author cannot fix this and
+  #           should not be failed for it. The scheduled workflows treat the
+  #           same verdict as a failure, because there the secret *is* theirs.
+  # Dependency-free (plain node, no install) so the check cannot be skipped
+  # because a package failed to resolve.
+  jobs-canary:
+    name: Scheduled jobs canary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Is API_URL still the live API?
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          node scripts/jobs-canary.mjs
+          code=$?
+          if [ "$code" -eq 2 ]; then
+            echo "::notice::Scheduled-jobs canary not armed here: repository secrets are not exposed to this run (expected on fork pull requests). The scheduled workflows gate on it, so a stale API_URL still fails there."
+            exit 0
+          fi
+          exit $code
+
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -307,9 +349,9 @@ jobs:
       #
       # Blocking: it held green across the hardening cycles (docs/82), and an
       # advisory founder-loop is a founder-loop nobody reads.
-      - name: Route sweep and release gate on the review stack
+      - name: Route sweep, release gate and jobs canary on the review stack
         continue-on-error: false
-        run: node scripts/proofs.mjs --only routes,gate --with-stack
+        run: node scripts/proofs.mjs --only routes,gate,canary --with-stack
 
   docker:
     name: Docker build
