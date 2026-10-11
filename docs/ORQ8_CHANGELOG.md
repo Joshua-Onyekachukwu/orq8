@@ -1,6 +1,21 @@
 # ORQ8 Changelog
 
-## 2026-10-11 (latest) — The RLS proof caught a backport that re-opened client writes
+## 2026-10-11 (latest) — Playwright finally runs in CI, where the browser sweeps can pass
+
+- **Two audits that could not pass.** `audits` ran `route-sweep --width 375` and `theme-walk` as
+  blocking steps, in a job that installs no browser and boots no stack — so every run failed on
+  "Please run the following command to download new browsers". Worse, `route-sweep`'s default base is
+  **production** (`https://orq8.vercel.app`) and it logs in as the demo founder: run it there and it
+  reports 37 route failures that say nothing about the commit, because production has no demo account
+  (verified locally, `docs/87` §4 item 7).
+- **Moved to where a stack exists.** Both are now proofs — `routes-375` (every `/app` route at 375px)
+  and `themes` (both console themes, every route) — in `founder-loop`, which already builds the web app,
+  boots the review stack for `routes`/`gate`/`canary` and now installs chromium with the same command
+  the nightly rehearsal uses. `audits` keeps the two genuinely dependency-light checks, contrast and
+  the RSC boundary scan. Verified: `proofs.mjs --only routes-375,themes --with-stack` passes,
+  **74/74 route-theme pairs clean**.
+
+## 2026-10-11 (evening) — The RLS proof caught a backport that re-opened client writes
 
 - **A drift repair that went the wrong way.** `0052` was written to reconcile policy drift: production
   carried seven org-member policies the lineage did not, so the lineage was changed to match

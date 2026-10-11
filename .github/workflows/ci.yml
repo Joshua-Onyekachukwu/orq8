@@ -256,11 +256,14 @@ jobs:
       - name: RSC boundary scan
         run: node scripts/scan-rsc-boundary.mjs
 
-      - name: Route sweep (375px viewport)
-        run: node scripts/route-sweep.mjs --width 375
-
-      - name: Theme walk
-        run: node scripts/theme-walk.mjs
+      # The route sweep and the theme walk used to run here and could never
+      # pass: both drive a real browser and a running app, and this job installs
+      # no browser and boots no stack. They failed for that reason on every run
+      # — and the sweep's default base is *production*, which has no demo
+      # account to log in with, so even with a browser it would have reported
+      # 37 route failures that said nothing about this commit. They are now
+      # proofs (`routes-375`, `themes`) in the `founder-loop` job, which already
+      # builds the web app and boots the review stack for `routes` and `gate`.
 
   brand:
     name: Brand surface audit
@@ -349,9 +352,17 @@ jobs:
       #
       # Blocking: it held green across the hardening cycles (docs/82), and an
       # advisory founder-loop is a founder-loop nobody reads.
-      - name: Route sweep, release gate and jobs canary on the review stack
+      # Browsers for the sweeps. `scripts/` owns its own package.json (playwright,
+      # pg), so it installs there — the same command the nightly rehearsal uses.
+      - name: Install Playwright
+        run: |
+          cd scripts
+          npm install --no-fund --no-audit
+          npx playwright install --with-deps chromium
+
+      - name: Route sweeps, theme walk, release gate and jobs canary on the review stack
         continue-on-error: false
-        run: node scripts/proofs.mjs --only routes,gate,canary --with-stack
+        run: node scripts/proofs.mjs --only routes,routes-375,themes,gate,canary --with-stack
 
   docker:
     name: Docker build

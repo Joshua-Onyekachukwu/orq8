@@ -103,6 +103,33 @@ const PROOFS = [
     needsStack: true,
   },
   {
+    // The same sweep as `routes`, at the width where layout actually breaks.
+    // It was a step in the `audits` job, which boots no stack and installs no
+    // browser, so it could only ever fail there (and did, in CI, every run).
+    // It belongs where a stack already exists.
+    id: "routes-375",
+    what: "every /app route renders real content at 375px without overflow",
+    protects: [
+      "MVP-007 (create a company and reach the dashboard)",
+      "MVP-026 (the founder can operate without a developer)",
+    ],
+    command: `node scripts/route-sweep.mjs --base http://localhost:${process.env.REVIEW_WEB_PORT ?? 3112} --width 375`,
+    needsStack: true,
+  },
+  {
+    // Both console themes, every /app route — the check that caught the pages
+    // which ignored the ink theme (docs/86 §17). Also needs a browser and a
+    // stack, so it lives here rather than in the dependency-light audits job.
+    id: "themes",
+    what: "every /app route reads cleanly in both console themes",
+    protects: [
+      "docs/87 §4 item 8 (three widths and both themes, measured)",
+      "docs/86 §17 (the console has one visual language, in both themes)",
+    ],
+    command: `node scripts/theme-walk.mjs --base http://localhost:${process.env.REVIEW_WEB_PORT ?? 3112}`,
+    needsStack: true,
+  },
+  {
     // Offline: every case is a real HTTP server answering one of the shapes a
     // configured host can have — the API envelope, the web app's envelope, a
     // deleted Railway edge, HTML, a refused token, nothing at all.
