@@ -12,7 +12,7 @@ import { chromium } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const BASE = "https://orq8.vercel.app";
-const API = "https://orq8api-production.up.railway.app";
+const API = "https://orq8api-production-062a.up.railway.app";
 const env = Object.fromEntries(
   readFileSync(new URL("./.env.demo.local", import.meta.url), "utf8")
     .split(/\r?\n/)

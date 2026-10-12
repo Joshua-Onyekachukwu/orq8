@@ -30,12 +30,11 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
+import { killStaleEmbeddedPostgres } from "./lib/embedded-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DB_DIR = path.join(ROOT, ".auth-e2e-pg");
-/** Escaped data-dir path for the Win32_Process CommandLine filter. */
-const PGDATA_ESC = DB_DIR.replace(/\\/g, "\\\\");
 const DB_NAME = "orq8_auth_e2e";
 // Ports are chosen at runtime: a leftover dev server or postmaster from an
 // interrupted run would otherwise squat the fixed port, and a STALE web server
@@ -268,31 +267,12 @@ async function main(): Promise<void> {
   }) as typeof fetch;
 
   try {
-    // Windows: a crashed prior run can leave a postmaster (or a forkchild io
-    // worker, whose command line lacks the data dir) holding the shared memory
-    // key, which makes every later boot fail with "pre-existing shared memory
-    // block is still in use". Kill only processes running the npm embedded
-    // distribution (binary path contains @embedded-postgres — never true of a
-    // user-installed Postgres), then give the OS a moment to release the key.
-    const { execSync } = await import("node:child_process");
-    if (process.platform === "win32") {
-      try {
-        // -EncodedCommand sidesteps nested-quote mangling through cmd.exe.
-        const ps =
-          `Get-CimInstance Win32_Process -Filter "name='postgres.exe'" | ` +
-          `Where-Object { $_.CommandLine -like '*@embedded-postgres*' -or $_.CommandLine -like '*${PGDATA_ESC}*' } | ` +
-          `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
-        const b64 = Buffer.from(ps, "utf16le").toString("base64");
-        const out = execSync(`powershell -NoProfile -EncodedCommand ${b64}`, {
-          timeout: 20_000,
-          stdio: "ignore",
-        });
-        void out;
-      } catch {
-        /* nothing to kill */
-      }
-      await new Promise((r) => setTimeout(r, 2_000));
-    }
+    // Windows: a crashed prior run can leave a postmaster holding the shared
+    // memory key, which makes every later boot fail with "pre-existing shared
+    // memory block is still in use". Kill only THIS harness's postmasters
+    // (scoped to our data dir): the old unscoped kill matched every
+    // @embedded-postgres process and took down running review stacks.
+    await killStaleEmbeddedPostgres(".auth-e2e-pg");
     console.log("[1/6] booting embedded Postgres + production migrations…");
     await pg.initialise();
     await pg.start();

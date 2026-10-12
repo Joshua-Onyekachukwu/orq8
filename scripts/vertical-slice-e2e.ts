@@ -422,9 +422,13 @@ async function main(): Promise<number> {
         [blockedTaskId],
       )
     ).rows[0];
+    // The activity feed carries the human-readable block message (the executor
+    // records `Execution blocked: …` in `reason`; the category fallback only
+    // fires when the message is empty). Assert the recorded vocabulary, not a
+    // label the product never promised.
     check(
       "activity records the governance reason",
-      (blockedActivity?.reason ?? "").includes("governance"),
+      (blockedActivity?.reason ?? "").includes("does not have permission to execute tasks"),
       blockedActivity?.reason ?? "no activity row",
     );
     const blockedCharge = await pg.pool.query("select 1 from credit_transactions where reference_id = $1", [blockedTaskId]);
@@ -463,7 +467,7 @@ async function main(): Promise<number> {
     ).rows[0];
     check(
       "blocked task records the credit pre-check reason",
-      exhaustedActivity?.reason === "Pre-execution credit check",
+      (exhaustedActivity?.reason ?? "").includes("Work Credits exhausted"),
       exhaustedActivity?.reason ?? "no activity row",
     );
     const exhaustedCharge = await pg.pool.query("select 1 from credit_transactions where reference_id = $1", [exhaustedTaskId]);

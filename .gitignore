@@ -67,6 +67,11 @@ Thumbs.db
 .vercel
 secrets.env
 
+# Production Supabase credentials for this workspace. Already covered by the
+# `.env.*` rule above; named explicitly so the intent survives any change to that
+# pattern — a secret key here bypasses RLS on production.
+.env.supabase.local
+
 # Migration-parity fingerprints and probes (local evidence, never committed)
 .lineage-parity/
 

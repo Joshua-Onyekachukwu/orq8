@@ -639,6 +639,221 @@ async function main(): Promise<void> {
     capabilities: ["market_researcher", "growth", "outreach", "campaigns"],
   });
 
+  // ── The five templated departments, and the rows their boards read ────────
+  // docs/86 §6 gives engineering, marketing, finance, sales and customer
+  // success a focus read-model, and every one of them is GATED ON THE
+  // DEPARTMENT'S TEMPLATE SLUG. The base seed above creates workflow-shaped
+  // departments with no slug, so without this block the review stack cannot
+  // show a single focus panel — the reviewer is told the panels exist and sees
+  // nothing, which is exactly the gap docs/87 listed as item 6 ("verify the
+  // four focus panels in a browser — never run").
+  //
+  // Four existing departments are labelled with their template; Finance and
+  // Customer Success are added because nothing in the base seed plays those
+  // roles. `pageConfig` comes from the product's own `defaultPageConfig`, so the
+  // seeded blueprint is the one activation would have written rather than a
+  // hand-made lookalike.
+  const { defaultPageConfig } = await import("../apps/api/src/services/departments.js");
+  const blueprint = async (
+    id: string,
+    slug: string,
+    roles: string[],
+    kpis: string[],
+    typicalGoals: string[],
+  ): Promise<void> => {
+    await pg.pool.query(
+      `update departments
+          set settings = coalesce(settings, '{}'::jsonb) || $2::jsonb, updated_at = now()
+        where id = $1`,
+      [
+        id,
+        JSON.stringify({
+          templateSlug: slug,
+          roles: roles.map((name) => ({ name })),
+          kpis: kpis.map((name) => ({ name })),
+          typicalGoals: typicalGoals.map((name) => ({ name })),
+          pageConfig: defaultPageConfig(slug),
+        }),
+      ],
+    );
+  };
+
+  await blueprint(
+    engineering,
+    "engineering",
+    ["engineering_lead", "software_engineer", "operations_manager"],
+    ["Lead time", "Change failure rate", "Test coverage"],
+    ["Ship the pricing page", "Cut the p95 build time"],
+  );
+  await blueprint(
+    communications,
+    "marketing",
+    ["communications_agent", "content_writer"],
+    ["Assets published", "Briefing delivery rate"],
+    ["Ship the launch announcement", "Grow the waitlist"],
+  );
+  await blueprint(
+    growth,
+    "sales",
+    ["market_researcher", "sales_representative"],
+    ["Pipeline value", "Win rate", "Deals closed"],
+    ["Convert the waitlist to paid pilots"],
+  );
+
+  const finDept = (
+    await pg.pool.query<{ id: string }>(
+      `insert into departments (org_id, name, description, budget)
+       values ($1, 'Finance', 'Budgets, spend and the credit ledger of the company.', 500000)
+       returning id`,
+      [orgId],
+    )
+  ).rows[0]!.id;
+  const csDept = (
+    await pg.pool.query<{ id: string }>(
+      `insert into departments (org_id, name, description)
+       values ($1, 'Customer Success', 'Customer support, escalations and the response SLA.')
+       returning id`,
+      [orgId],
+    )
+  ).rows[0]!.id;
+  await blueprint(
+    finDept,
+    "finance",
+    ["financial_analyst"],
+    ["Budget burn", "Cost per task", "Runway"],
+    ["Keep monthly AI spend inside the budget"],
+  );
+  await blueprint(
+    csDept,
+    "customer_success",
+    ["customer_success_manager", "support_agent"],
+    ["First response time", "Tickets resolved", "SLA breaches"],
+    ["Answer every pilot customer within a working day"],
+  );
+
+  const fran = await hire("Fran", "financial_analyst", "execute_with_approval", {
+    departmentId: finDept,
+    currentTask: "Monthly credit reconciliation",
+    creditsUsed: 31200,
+    weeklyCost: 31200,
+    tasksCompleted: 8,
+    persona:
+      "You are Fran, the Financial Analyst of Northwind Labs. You own the company's budget: what was planned, what was spent and what is left. You reconcile the credit ledger against real usage, you name every variance with its cause, and you propose spend increases for approval instead of taking them.",
+    capabilities: ["financial_analyst", "budgeting", "reconciliation", "analysis"],
+  });
+  const cleo = await hire("Cleo", "customer_success_manager", "execute_with_approval", {
+    departmentId: csDept,
+    currentTask: "Triage the escalated pilot ticket",
+    creditsUsed: 16400,
+    weeklyCost: 16400,
+    tasksCompleted: 12,
+    tasksFailed: 0,
+    persona:
+      "You are Cleo, the Customer Success lead of Northwind Labs. You own every pilot customer's outcome: you answer first, you escalate when the answer needs engineering, and you never close a ticket without telling the customer what happened. You keep the SLA honest and report breaches instead of hiding them.",
+    capabilities: ["customer_success_manager", "support", "escalations", "onboarding"],
+  });
+
+  // Two real customer accounts, so the boards' account list is not empty and a
+  // deal or a ticket can point at the entity rather than only at a name.
+  const [acmeId, beaconId] = (
+    await pg.pool.query<{ id: string }>(
+      `insert into knowledge_entities (org_id, type, name, summary, source)
+       values
+         ($1, 'customer', 'Acme Collective', 'Twelve-agency pilot cohort, monthly reporting.', 'business_import'),
+         ($1, 'customer', 'Beacon Labs', 'Evaluating the studio plan; needs SSO before signing.', 'agent')
+       returning id`,
+      [orgId],
+    )
+  ).rows.map((r) => r.id);
+
+  // A real pipeline (migration 0054) so the sales board shows deals rather than
+  // an empty shell. Two are expected to close soon, one last month closed won
+  // and one lost — enough for a win rate that is not 0% or 100%.
+  await pg.pool.query(
+    `insert into deals
+       (org_id, account_id, account_name, title, stage, value_cents, probability,
+        owner_agent_id, next_step, expected_close_at, closed_at)
+     values
+       ($1, $2, 'Acme Collective', 'Acme pilot to studio upgrade', 'proposal', 1450000, 60, $4,
+        'Send the revised studio pricing', now() + interval '12 days', null),
+       ($1, $3, 'Beacon Labs', 'Beacon Labs first order', 'negotiation', 480000, 45, $4,
+        'Confirm SSO timeline, then send the order form', now() + interval '21 days', null),
+       ($1, $2, 'Acme Collective', 'Acme starter pilot', 'won', 290000, 100, $4,
+        null, null, now() - interval '9 days'),
+       ($1, $3, 'Beacon Labs', 'Beacon Labs add-on seats', 'lost', 120000, 0, $4,
+        null, null, now() - interval '14 days'),
+       ($1, $3, 'Beacon Labs', 'Inbound enterprise enquiry', 'qualifying', 990000, 15, null,
+        'Nobody owns this yet — assign it', now() + interval '30 days', null)`,
+    [orgId, acmeId, beaconId, milo],
+  );
+
+  // A real support queue, including one open ticket past its SLA and one
+  // resolved — so "past SLA" and "resolved in 30 days" are both non-zero and
+  // the difference between a live breach and history is visible.
+  await pg.pool.query(
+    `insert into tickets
+       (org_id, account_id, account_name, subject, body, status, priority, channel,
+        assignee_agent_id, sla_due_at, first_response_at, resolved_at)
+     values
+       ($1, $2, 'Acme Collective', 'Login broken for two of our agencies',
+        'SSO redirect loops after the last deploy. Blocking their Monday reports.',
+        'escalated', 'urgent', 'email', $4, now() - interval '3 hours',
+        now() - interval '5 hours', null),
+       ($1, $3, 'Beacon Labs', 'Invoice copy for our finance team',
+        'They need last month invoice as PDF.',
+        'open', 'low', 'portal', $4, now() + interval '2 days', null, null),
+       ($1, $2, 'Acme Collective', 'Onboarding call went well',
+        'Three agencies onboarded; two still need their brand colour.',
+        'resolved', 'normal', 'chat', $4, now() - interval '20 days',
+        now() - interval '21 days', now() - interval '19 days'),
+       ($1, $3, 'Beacon Labs', 'Unassigned inbound question about SSO',
+        'Nobody is on this ticket yet.', 'open', 'high', 'email', null,
+        now() + interval '8 hours', null, null)`,
+    [orgId, acmeId, beaconId, cleo],
+  );
+
+  // Marketing assets belong to the employee who produced them, which is what
+  // the marketing focus reads (`files.agent_id`).
+  await pg.pool.query(
+    `insert into files (org_id, name, key, mime_type, size, agent_id)
+     values
+       ($1, 'pricing-announcement.md', 'marketing/pricing-announcement.md', 'text/markdown', 6144, $2),
+       ($1, 'waitlist-launch-email.html', 'marketing/waitlist-launch-email.html', 'text/html', 12288, $2),
+       ($1, 'launch-briefing.pdf', 'marketing/launch-briefing.pdf', 'application/pdf', 34816, $2)`,
+    [orgId, ember],
+  );
+
+  // Finance's board reads the credit ledger, so it needs real spend to show.
+  // Without these rows the panel is honest and empty, which reviews nothing.
+  await pg.pool.query(
+    `insert into credit_transactions (org_id, type, amount, description, agent_id, created_at)
+     values
+       ($1, 'usage',   -4200, 'Monthly credit reconciliation', $2, now() - interval '2 hours'),
+       ($1, 'usage',   -1800, 'Variance analysis across departments', $2, now() - interval '1 day'),
+       ($1, 'usage',   -900,  'Cost per task report', $2, now() - interval '4 days'),
+       ($1, 'purchase', 100000, 'Credit top-up — Studio plan', null, now() - interval '12 days')`,
+    [orgId, fran],
+  );
+  // A live hold and an unread low-balance alert, so "held for work in flight"
+  // and the alerts strip are both non-empty rather than theoretical.
+  await pg.pool.query(
+    `insert into credit_reservations (org_id, agent_id, estimate_credits, status, expires_at)
+     values ($1, $2, 4500, 'active', now() + interval '30 minutes')`,
+    [orgId, fran],
+  );
+  await pg.pool.query(
+    `insert into credit_alerts (org_id, type, threshold, message)
+     values ($1, 'low_balance', 80, 'You have used 80% of this month''s credit budget.')`,
+    [orgId],
+  );
+
+  console.log(
+    "[review] templated departments established: Engineering, Marketing (Communications), Sales (Growth), Finance and Customer Success — each with its focus read-model gated on the template slug",
+  );
+  console.log(
+    "[review] boards seeded: 5 deals (1 won, 1 lost, 1 unowned) with 2 customer accounts; 4 tickets (1 escalated past SLA, 1 unassigned, 1 resolved); 3 marketing assets; Finance budget 500,000 cr",
+  );
+
   // ── Goals, tasks, approvals: one live week ─────────────────────────────
   const goal1 = (
     await pg.pool.query<{ id: string }>(

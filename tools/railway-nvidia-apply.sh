@@ -21,7 +21,7 @@ set -eu
 SERVICE="@orq8/api"
 ENV="production"
 ENV_FILE="apps/api/.env"
-HEALTH_URL="https://orq8api-production.up.railway.app/healthz"
+HEALTH_URL="https://orq8api-production-062a.up.railway.app/healthz"
 
 [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE" >&2; exit 1; }
 set -a

@@ -32,7 +32,7 @@ const env = Object.fromEntries(
 
 const baseIdx = process.argv.indexOf("--base");
 const argBase = baseIdx !== -1 ? process.argv[baseIdx + 1] : undefined;
-const API = argBase || env.API_URL || "https://orq8api-production.up.railway.app";
+const API = argBase || env.API_URL || "https://orq8api-production-062a.up.railway.app";
 
 let pass = 0, fail = 0;
 const results = [];

@@ -182,7 +182,7 @@ const PROOFS = [
       "MVP-012 (a board that moves on its own actions, not one that serves the pre-action body)",
       "MVP-032 (a per-tenant read never sits in a shared cache)",
     ],
-    command: "node scripts/proxy-cache-proof.mjs",
+    command: `node scripts/proxy-cache-proof.mjs --web http://localhost:${process.env.REVIEW_WEB_PORT ?? 3112} --api http://127.0.0.1:${process.env.REVIEW_API_PORT ?? 3111}`,
     needsStack: true,
   },
   {

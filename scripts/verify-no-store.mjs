@@ -66,6 +66,33 @@ const FORBIDDEN = [
 const ALLOWED_CACHE_VALUES = new Set(['"no-store"', "'no-store'", '"private"', "'private'"]);
 
 /**
+ * The server-component helper `apps/web/lib/api.ts` (`fetchWithToken`) carries
+ * every authenticated, per-tenant read a server component makes — the half of
+ * docs/87 §5 item 11 the route sweep did not touch. It must default to
+ * `no-store`. The check is narrow so it cannot false-positive on the two
+ * things that file legitimately contains: the single documented opt-in
+ * (`options?.revalidate` wired to `next: { revalidate }`), and the prose in
+ * its block comment (already stripped). Any other caching reintroduced here
+ * is a regression this check must catch by name.
+ */
+const TOKEN_HELPER = "apps/web/lib/api.ts";
+
+/**
+ * Is this the server-component helper file, where the narrower rule applies?
+ *
+ * Matched by path SUFFIX, not exact equality: the self-test writes fixtures
+ * under a tempdir, so their repo-relative path is `../../..<tmp>/apps/web/lib/api.ts`
+ * and an exact match would never fire there — the rule would be silently
+ * untested while passing on the real file by coincidence of its path.
+ * Suffix matching makes the fixture drive detection the same way the real
+ * file does, so "passes when clean" and "fails when regressed" are both real.
+ */
+function isTokenHelper(relPath) {
+  const normalized = relPath.split(path.sep).join("/");
+  return normalized === TOKEN_HELPER || normalized.endsWith(`/${TOKEN_HELPER}`);
+}
+
+/**
  * Scan one directory of route handlers. Returns violations with file:line and
  * the fetch-call count, so a caller can tell "clean" from "scanner saw nothing".
  */
@@ -94,13 +121,32 @@ export function scanProxyCache({ webDir }) {
       const rel = path.relative(repoRoot, full).split(path.sep).join("/");
       const lines = code.split("\n");
 
+      // The server-component helper (fetchWithToken) carries every
+      // authenticated per-tenant read a server component makes — the half of
+      // docs/87 §5 item 11 the route sweep did not touch. Its fetch MUST default
+      // to cache: "no-store". A regression removes that default (or wraps the
+      // fetch in an unconditional next.revalidate). Enforced as a whole-file
+      // rule after the line scan, because the default is a property of the
+      // whole fetchInit, not of one line.
+      const helper = isTokenHelper(rel);
+
       lines.forEach((line, i) => {
         const at = `${rel}:${i + 1}`;
         if (/\bfetch\s*\(/.test(line)) fetchCalls++;
+        if (helper) fetchCalls++;
 
         let forbiddenHit = false;
         for (const { id, why } of FORBIDDEN) {
           if (new RegExp(`\\b${id}\\b`).test(line)) {
+            // In the server-component helper, `revalidate` appears on the
+            // explicit opt-in wiring line (`options?.revalidate` →
+            // `next: { revalidate: ... }`); that one is legal because the
+            // default below is `cache: "no-store"` and `revalidate` is only
+            // ever a caller-controlled opt-in, never a default. The real
+            // regression — a fetch that is no longer defaulted to no-store —
+            // is caught by the whole-file rule after this loop, so there is no
+            // per-line exception to get wrong here.
+            if (helper && id === "revalidate") continue;
             violations.push({ at, id, why, line: line.trim() });
             forbiddenHit = true;
           }
@@ -119,6 +165,19 @@ export function scanProxyCache({ webDir }) {
           });
         }
       });
+
+      // Whole-file rule for the helper: its fetch must default to cache:
+      // "no-store". A regression removes that default (the shape fetchWithToken
+      // shipped with — an unconditional `next: { revalidate: N }`), which is a
+      // property of the whole file, not of one line.
+      if (helper && !/cache\s*:\s*["']no-store["']/.test(code)) {
+        violations.push({
+          at: `${rel}:fetchWithToken`,
+          id: "helper-default-not-no-store",
+          why: "fetchWithToken must default its fetch to cache: \"no-store\" — a per-tenant read must never be cached (docs/87 §5 item 11)",
+          line: "fetchWithToken no longer defaults to cache: \"no-store\"",
+        });
+      }
     }
   };
 
@@ -254,6 +313,43 @@ function selfTest() {
     // The scanner must not pass a tree it cannot see into.
     const empty = scanProxyCache({ webDir: path.join(root, "nothing-here") });
     ok("an empty tree is reported as a broken scanner", empty.fetchCalls === 0 && report(empty, path.join(root, "nothing-here")) === false);
+
+    // 8. The server-component helper guard. `fetchWithToken`'s default must be
+    //    no-store; its single documented opt-in is allowed. These fixtures sit
+    //    at the helper's real repo-relative path so `isTokenHelper` fires.
+    //    A clean helper (no-store default + the one opt-in line) passes…
+    const putRel = (relPath, body) => {
+      const full = path.join(root, relPath);
+      mkdirSync(path.dirname(full), { recursive: true });
+      writeFileSync(full, body);
+      return full;
+    };
+    putRel("apps/web/lib/api.ts", `
+      const init = {
+        ...(isWrite
+          ? {}
+          : options?.revalidate !== undefined && options.revalidate !== false
+            ? { next: { revalidate: options?.revalidate } }
+            : { cache: "no-store" as const }),
+      };
+      const res = await fetch(\`${'${API_URL}'}${'${path}'}\`, init);
+    `);
+    const helperClean = scanProxyCache({ webDir: path.join(root, "apps/web/lib") });
+    ok("a no-store helper default passes, opt-in line allowed", helperClean.violations.length === 0, helperClean.violations[0]?.id ?? "");
+
+    // …and a helper that no longer defaults to no-store — the regression the
+    // guard exists to catch (the shape fetchWithToken shipped with before the
+    // fix: an unconditional 30s revalidate, no no-store default anywhere).
+    putRel("apps/web/lib/api.ts", `
+      const init = {
+        ...(isWrite ? {} : { next: { revalidate: 30 } }),
+      };
+      const res = await fetch(\`${'${API_URL}'}${'${path}'}\`, init);
+    `);
+    const helperStale = scanProxyCache({ webDir: path.join(root, "apps/web/lib") });
+    ok("a helper that regressed off the no-store default is caught", helperStale.violations.length >= 1, helperStale.violations.map((v) => v.id).join(", ") || "(none)");
+    ok("the helper failure is named", helperStale.violations.some((v) => /revalidate|helper-default/.test(v.id)), helperStale.violations.map((v) => v.id).join(", "));
+    ok("the helper failure names the file", helperStale.violations.some((v) => /apps\/web\/lib\/api\.ts/.test(v.at)), helperStale.violations[0]?.at);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
