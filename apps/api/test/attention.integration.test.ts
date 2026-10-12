@@ -19,6 +19,8 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { createSession } from '../src/services/sessions.js';
+import { appendAudit } from '../src/services/audit.js';
+import { classifyFencedRun } from '../src/services/attention.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
 
@@ -437,6 +439,83 @@ run("founder's attention aggregation — real rows, org scoping and actions", ()
     const attention = await getAttention(orgA);
     expect(attention.quiet).toBe(true);
     expect(attention.items).toEqual([]);
+  });
+
+  it('addresses the EA by the org’s own renamed name in Ask actions', async () => {
+    // An isolated org so the rename cannot leak into the shared fixtures.
+    const renamed = await createOrgFixture('attention-renamed');
+    fixtures.push(renamed);
+    await deps.db
+      .update(organizations)
+      .set({ settings: { eaName: 'Vera' } })
+      .where(eq(organizations.id, renamed.orgId));
+
+    const stale = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    await deps.db.insert(tasks).values({
+      orgId: renamed.orgId,
+      title: 'Stuck migration',
+      status: 'in_progress',
+      priority: 'urgent',
+      createdAt: stale,
+      updatedAt: stale,
+    });
+
+    const attention = await getAttention(renamed);
+    const askActions = attention.items.flatMap((i) =>
+      (i.actions as Array<{ kind: string; label?: string }>).filter((a) => a.kind === 'ask_ea'),
+    );
+    expect(askActions.length).toBeGreaterThan(0);
+    for (const action of askActions) {
+      expect(action.label).toBe('Ask Vera');
+    }
+  });
+
+  it('pins the fenced-run classifier: a discarded run reads as a reviewable failure', () => {
+    const item = classifyFencedRun(
+      {
+        auditId: '42',
+        taskId: 'task-1',
+        title: 'Draft the investor update',
+        priority: 'high',
+        resultRef: 'discarded (row re-owned); would have been completed',
+        occurredAt: new Date('2026-10-12T00:00:00Z'),
+        agentName: 'Atlas',
+      },
+      'Vera',
+    );
+    expect(item.id).toBe('failure:fenced:42');
+    expect(item.source).toBe('failure');
+    expect(item.entity).toEqual({ type: 'task', id: 'task-1' });
+    expect(item.why).toMatch(/re-run or reset/i);
+    expect(item.actions.some((a) => a.kind === 'retry')).toBe(true);
+    expect(item.actions.some((a) => a.kind === 'ask_ea' && a.label === 'Ask Vera')).toBe(true);
+  });
+
+  it('surfaces a fenced-out run in the attention feed, not only in the audit trail', async () => {
+    // An isolated org so the audit row cannot leak into the shared fixtures.
+    const fenced = await createOrgFixture('attention-fenced');
+    fixtures.push(fenced);
+    const [taskRow] = await deps.db
+      .insert(tasks)
+      .values({ orgId: fenced.orgId, title: 'Fenced task', status: 'pending', priority: 'normal' })
+      .returning();
+    await appendAudit(deps.db, {
+      orgId: fenced.orgId,
+      actorType: 'agent',
+      action: 'task.execution.fenced',
+      tool: 'llm',
+      taskId: taskRow!.id,
+      cost: 0,
+      outcome: 'failure',
+      resultRef: 'discarded (row re-owned); would have been completed',
+    });
+
+    const attention = await getAttention(fenced);
+    const item = attention.items.find((i) => i.entity.id === taskRow!.id);
+    expect(item).toBeTruthy();
+    expect(item!.id).toMatch(/^failure:fenced:/);
+    expect(item!.source).toBe('failure');
+    expect(item!.actions.some((a) => a.kind === 'retry')).toBe(true);
   });
 
   it('never lets one org act on another org rows', async () => {

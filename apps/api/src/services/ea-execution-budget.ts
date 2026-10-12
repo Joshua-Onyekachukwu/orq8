@@ -131,7 +131,14 @@ export async function executeTasksWithBudget(
   // (the work did not complete and can be re-run).
   const convergeToPending = async (taskId: string): Promise<void> => {
     try {
-      await db.update(tasks).set({ status: 'pending' }).where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)));
+      // Clearing execution_lock also revokes the abandoned run (docs/87 §5
+      // item 15): the executor's later fenced writes find the row re-owned
+      // and write nothing, so this honest `pending` cannot be stomped back
+      // to `in_progress` by the run we just gave up on.
+      await db
+        .update(tasks)
+        .set({ status: 'pending', executionLock: null, executionHeartbeatAt: null })
+        .where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)));
     } catch {
       // Non-fatal: leave the true state rather than guess.
     }

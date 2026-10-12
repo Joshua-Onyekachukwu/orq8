@@ -24,7 +24,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import type { AppDeps } from '../src/types.js';
 import { createSession } from '../src/services/sessions.js';
-import { enqueueJob, jobsHealth, retryJob } from '../src/services/jobs.js';
+import { claimJob, completeJob, enqueueJob, failJob, jobsHealth, retryJob } from '../src/services/jobs.js';
+import { sql } from 'drizzle-orm';
 import { startJobWorker } from '../src/services/job-worker.js';
 
 const config = loadConfig({
@@ -373,6 +374,49 @@ run('agent_jobs queue', () => {
           .where(and(eq(users.id, org.userId)));
         await forceStatus(id, 'done');
       }
+    });
+
+    it('a reaped run cannot settle over the run that replaced it', async () => {
+      // docs/87 §5 item 15, jobs half: the queue's claim is (locked_by,
+      // attempts), and every settle is conditional on still holding it.
+      const taskId = await seedTask('pending');
+      const { id } = await enqueueJob(deps.db, {
+        orgId: org.orgId,
+        type: 'task.execute',
+        payload: { taskId },
+        taskId,
+      });
+
+      const claimA = await claimJob(deps.db, 'fence-worker-a', { orgId: org.orgId });
+      expect(claimA?.id).toBe(id);
+
+      // The reaper revokes A's claim mid-flight (running → pending); B claims
+      // the requeued row. Scoped to this row: reapStaleJobs is global and the
+      // test database is shared with every other test file.
+      await deps.db.execute(
+        sql`update agent_jobs set status = 'pending', locked_at = null, locked_by = null, updated_at = now() where id = ${id}`,
+      );
+      const claimB = await claimJob(deps.db, 'fence-worker-b', { orgId: org.orgId });
+      expect(claimB?.id).toBe(id);
+      expect(claimB!.attempts).toBeGreaterThan(claimA!.attempts);
+
+      // A's late complete carries the old attempts: zero rows, job stays B's.
+      expect(await completeJob(deps.db, id, { lockedBy: 'fence-worker-a', attempts: claimA!.attempts })).toBe(false);
+      const mid = await readJob(id);
+      expect(mid?.status).toBe('running');
+      expect(mid?.lockedBy).toBe('fence-worker-b');
+
+      // A's late failure lands the same way — the newer run is not failed
+      // underneath itself by a run that no longer owns the job.
+      expect(await failJob(deps.db, id, claimA!.attempts, 3, new Error('late failure from A'), {
+        lockedBy: 'fence-worker-a',
+        attempts: claimA!.attempts,
+      })).toBe('fenced');
+      expect((await readJob(id))?.status).toBe('running');
+
+      // B's own settle lands: the fence blocks the stranger, not the owner.
+      expect(await completeJob(deps.db, id, { lockedBy: 'fence-worker-b', attempts: claimB!.attempts })).toBe(true);
+      expect((await readJob(id))?.status).toBe('done');
     });
 
     it('the admin queue reads require a platform admin too', async () => {

@@ -105,7 +105,11 @@ async function preflightTaskJob(
   // is authoritative, and a payload that ever pointed at a foreign task must
   // read as gone rather than be executed under the wrong tenant.
   const [task] = await db
-    .select({ status: tasks.status })
+    .select({
+      status: tasks.status,
+      executionHeartbeatAt: tasks.executionHeartbeatAt,
+      updatedAt: tasks.updatedAt,
+    })
     .from(tasks)
     .where(and(eq(tasks.id, job.taskId), eq(tasks.orgId, job.orgId)))
     .limit(1);
@@ -115,6 +119,17 @@ async function preflightTaskJob(
   }
   if (task.status === 'cancelled' || task.status === 'rejected') {
     return { skip: `the task is ${task.status}; it was settled by the founder` };
+  }
+  // A task row with a fresh pulse is a LIVE run — this job is a duplicate
+  // claim (reaped job re-queued while the original execution still beats),
+  // and running it would execute the same work twice. The task fence would
+  // discard the loser, but not before two LLM runs were charged. Skip while
+  // the heart beats; a stale pulse is a zombie and may be taken over.
+  if (task.status === 'in_progress') {
+    const pulse = task.executionHeartbeatAt ?? task.updatedAt;
+    if (pulse && Date.now() - new Date(pulse).getTime() < STALE_LOCK_SECONDS * 1000) {
+      return { skip: 'the task is already running with a live heartbeat — it will not be run twice' };
+    }
   }
 
   const [other] = await db
@@ -140,7 +155,11 @@ export type ClaimedJobOutcome =
   | { kind: 'empty' }
   | { kind: 'done'; jobId: string; taskId: string | null }
   | { kind: 'skipped'; jobId: string; taskId: string | null; reason: string }
-  | { kind: 'failed'; jobId: string; taskId: string | null; dead: boolean; error: string };
+  | { kind: 'failed'; jobId: string; taskId: string | null; dead: boolean; error: string }
+  // The job was reaped and re-claimed mid-flight: this run's settle matched
+  // zero rows, so the newer run's state stands and this one reports the
+  // discard instead of counting a completion or a failure it did not own.
+  | { kind: 'fenced'; jobId: string; taskId: string | null; reason: string };
 
 /**
  * Claim ONE pending job and take it through the shared preflight → dispatch →
@@ -162,14 +181,24 @@ export async function claimAndRunOne(
     orgId: opts.orgId,
   });
   if (!job) return { kind: 'empty' };
+  // The claim this run settles against (docs/87 §5 item 15, jobs half): every
+  // settle below is conditional on still holding it. A reaped-then-reclaimed
+  // job carries a newer (locked_by, attempts), so this run's late settle
+  // matches zero rows and the newer run's state stands.
+  const claim = { lockedBy: workerId, attempts: job.attempts };
   const started = Date.now();
+  const fenced = (reason: string): ClaimedJobOutcome => {
+    logger.warn({ jobId: job.id, type: job.type, taskId: job.taskId, reason }, 'job-worker: run fenced — the job was re-owned mid-flight');
+    return { kind: 'fenced', jobId: job.id, taskId: job.taskId, reason };
+  };
   try {
     const verdict = await preflightTaskJob(db, job);
     if (verdict && 'dead' in verdict) {
       throw new NotRetryableError(verdict.dead);
     }
     if (verdict && 'skip' in verdict) {
-      await skipJob(db, job.id, verdict.skip);
+      const settled = await skipJob(db, job.id, verdict.skip, claim);
+      if (!settled) return fenced('skip settle matched zero rows — the job was re-owned before the skip landed');
       logger.warn(
         { jobId: job.id, type: job.type, taskId: job.taskId, reason: verdict.skip },
         'job-worker: job skipped — the work was not run again',
@@ -193,7 +222,8 @@ export async function claimAndRunOne(
       `job exceeded JOB_TIMEOUT_MS (${config.JOB_TIMEOUT_MS}ms)`,
     );
 
-    await completeJob(db, job.id);
+    const completed = await completeJob(db, job.id, claim);
+    if (!completed) return fenced('complete settle matched zero rows — the job was reaped and re-claimed mid-flight');
     logger.info(
       { jobId: job.id, type: job.type, taskId: job.taskId, ms: Date.now() - started },
       'job-worker: job done',
@@ -203,14 +233,16 @@ export async function claimAndRunOne(
     const message = (err as Error)?.message ?? String(err);
     const notRetryable = err instanceof NotRetryableError || err instanceof JobTimeoutError;
     if (notRetryable) {
-      await deadLetterJob(db, job.id, err);
+      const settled = await deadLetterJob(db, job.id, err, claim);
+      if (!settled) return fenced('dead-letter settle matched zero rows — the job was re-owned before the verdict landed');
       logger.error(
         { jobId: job.id, type: job.type, taskId: job.taskId, reason: message },
         'job-worker: job dead-lettered (not retryable)',
       );
       return { kind: 'failed', jobId: job.id, taskId: job.taskId, dead: true, error: message };
     }
-    const outcome = await failJob(db, job.id, job.attempts, job.maxAttempts, err);
+    const outcome = await failJob(db, job.id, job.attempts, job.maxAttempts, err, claim);
+    if (outcome === 'fenced') return fenced('fail settle matched zero rows — the job was re-owned before the failure landed');
     logger.warn(
       { jobId: job.id, type: job.type, taskId: job.taskId, attempts: job.attempts, outcome, err },
       'job-worker: job failed',
@@ -295,6 +327,9 @@ export function startJobWorker(
         stats.lastClaimAt = new Date();
         if (outcome.kind === 'done') stats.done += 1;
         if (outcome.kind === 'skipped') stats.skipped += 1;
+        // A fenced run settled nothing: the newer owner's state stands. It is
+        // neither done nor failed — counting it as either would lie about
+        // what this worker actually completed. The warn above carries it.
         if (outcome.kind === 'failed') {
           stats.failed += 1;
           stats.lastError = outcome.error;

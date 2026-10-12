@@ -210,8 +210,30 @@ export async function claimJob(
  * owns it — but "done, and did nothing" is exactly the kind of row an operator
  * asks about, so the reason is stored rather than only logged.
  */
-export async function skipJob(db: Db, jobId: string, reason: string): Promise<void> {
-  await db.execute(sql`
+/**
+ * The claim a worker settles against (docs/87 §5 item 15, jobs half).
+ *
+ * `claimJob` sets `locked_by = workerId` and bumps `attempts` in the same
+ * atomic statement, so (locked_by, attempts) names exactly one claim: a late
+ * settle from a reaped run carries the old attempts and matches zero rows
+ * instead of writing over the run that owns the job now.
+ */
+export interface JobClaim {
+  lockedBy: string;
+  attempts: number;
+}
+
+/** True when the caller still owned the job and the settle landed. */
+type SettleResult = boolean;
+
+function claimGuard(claim: JobClaim | undefined): ReturnType<typeof sql> | null {
+  if (!claim) return null;
+  return sql`and locked_by = ${claim.lockedBy} and attempts = ${claim.attempts}`;
+}
+
+export async function skipJob(db: Db, jobId: string, reason: string, claim?: JobClaim): Promise<SettleResult> {
+  const guard = claimGuard(claim);
+  const result = await db.execute(sql`
     update agent_jobs set
       status = 'done',
       last_error = ${`skipped: ${reason}`.slice(0, 1000)},
@@ -219,7 +241,10 @@ export async function skipJob(db: Db, jobId: string, reason: string): Promise<vo
       locked_by = null,
       updated_at = now()
     where id = ${jobId}
+    ${guard ?? sql``}
   `);
+  const n = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  return n > 0;
 }
 
 /**
@@ -229,9 +254,10 @@ export async function skipJob(db: Db, jobId: string, reason: string): Promise<vo
  * dispatcher, or a malformed payload. Retrying those three times only delays
  * the operator's ability to see them, so they land where triage happens.
  */
-export async function deadLetterJob(db: Db, jobId: string, reason: unknown): Promise<void> {
+export async function deadLetterJob(db: Db, jobId: string, reason: unknown, claim?: JobClaim): Promise<SettleResult> {
   const message = String((reason as Error)?.message ?? reason).slice(0, 1000);
-  await db.execute(sql`
+  const guard = claimGuard(claim);
+  const result = await db.execute(sql`
     update agent_jobs set
       status = 'dead',
       last_error = ${message},
@@ -239,28 +265,51 @@ export async function deadLetterJob(db: Db, jobId: string, reason: unknown): Pro
       locked_by = null,
       updated_at = now()
     where id = ${jobId}
+    ${guard ?? sql``}
   `);
+  const n = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  return n > 0;
 }
 
-export async function completeJob(db: Db, jobId: string): Promise<void> {
-  await db.execute(sql`
+export async function completeJob(db: Db, jobId: string, claim?: JobClaim): Promise<SettleResult> {
+  const guard = claimGuard(claim);
+  const result = await db.execute(sql`
     update agent_jobs set status = 'done', locked_at = null, locked_by = null, updated_at = now()
     where id = ${jobId}
+    ${guard ?? sql``}
   `);
+  const n = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  return n > 0;
 }
 
-/** Backoff doubles per attempt (5s, 10s, 20s …); dead after max_attempts. */
-export async function failJob(db: Db, jobId: string, attempts: number, maxAttempts: number, error: unknown): Promise<'retry' | 'dead'> {
+/**
+ * Backoff doubles per attempt (5s, 10s, 20s …); dead after max_attempts.
+ *
+ * Returns 'fenced' when the caller no longer owns the job (reaped and
+ * re-claimed mid-flight): the settle matches zero rows and the newer run's
+ * state stands. Callers must NOT count a fenced settle as a failure.
+ */
+export async function failJob(
+  db: Db,
+  jobId: string,
+  attempts: number,
+  maxAttempts: number,
+  error: unknown,
+  claim?: JobClaim,
+): Promise<'retry' | 'dead' | 'fenced'> {
   const message = String((error as Error)?.message ?? error).slice(0, 1000);
+  const guard = claimGuard(claim);
   if (attempts >= maxAttempts) {
-    await db.execute(sql`
+    const result = await db.execute(sql`
       update agent_jobs set status = 'dead', last_error = ${message}, locked_at = null, locked_by = null, updated_at = now()
       where id = ${jobId}
+      ${guard ?? sql``}
     `);
-    return 'dead';
+    const n = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+    return n > 0 ? 'dead' : 'fenced';
   }
   const backoffMs = 5_000 * 2 ** Math.max(0, attempts - 1);
-  await db.execute(sql`
+  const result = await db.execute(sql`
     update agent_jobs set
       status = 'pending',
       run_at = now() + (${backoffMs} || ' milliseconds')::interval,
@@ -269,8 +318,10 @@ export async function failJob(db: Db, jobId: string, attempts: number, maxAttemp
       locked_by = null,
       updated_at = now()
     where id = ${jobId}
+    ${guard ?? sql``}
   `);
-  return 'retry';
+  const n = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  return n > 0 ? 'retry' : 'fenced';
 }
 
 /**

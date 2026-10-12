@@ -569,6 +569,18 @@ export const tasks = pgTable(
     // recursion guard can bound how deep and how wide a delegation tree grows.
     parentTaskId: uuid('parent_task_id'),
     result: text('result'), // execution result when completed
+    // docs/87 §5 item 15 (migration 0056): claim token of the run that owns the
+    // in_progress row. executeTask mints it with the in_progress transition and
+    // every later write of that run — estimate, gates, terminal status+cost —
+    // is conditional on it. convergeToPending (budget abandon), the orphan
+    // reaper and retryTask set it NULL, which revokes an in-flight run: its
+    // remaining writes match zero rows instead of stomping a re-run.
+    executionLock: uuid('execution_lock'),
+    // docs/87 §5 item 15, follow-up (migration 0057): liveness of the run
+    // holding execution_lock. Stamped with the claim, refreshed while the
+    // owner runs; the orphan reaper judges coalesce(heartbeat, updated_at).
+    // NULL when no run is in flight (pending, finished, revoked).
+    executionHeartbeatAt: timestamp('execution_heartbeat_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -264,9 +264,13 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       if (decided.taskId) {
         if (parsed.data.status === 'rejected') {
           const reason = `Rejected by founder: ${parsed.data.note}`;
+          // Clearing execution_lock is the revocation half of docs/87 §5
+          // item 15: a rejection is a founder's "stop", and nothing — least
+          // of all a still-fenced run that was mid-flight when they decided —
+          // may write over `cancelled`.
           await db
             .update(tasksTable)
-            .set({ status: 'cancelled', result: reason.slice(0, 2000), updatedAt: new Date() })
+            .set({ status: 'cancelled', result: reason.slice(0, 2000), executionLock: null, executionHeartbeatAt: null, updatedAt: new Date() })
             .where(and(eq(tasksTable.id, decided.taskId), eq(tasksTable.orgId, ctx.orgId)));
           await db.insert(activityEventsTable).values({
             orgId: ctx.orgId,

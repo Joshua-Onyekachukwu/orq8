@@ -9,10 +9,15 @@
  * result after a gateway 502 killed the request.)
  *
  * The reaper marks such rows failed with an honest reason and an activity
- * event. Staleness bound: tasks claimed recently (within STALE_MS) are left
+ * event. Staleness bound: runs beating recently (within STALE_MS) are left
  * alone — a genuinely running task takes minutes, not hours.
+ *
+ * Liveness is the heartbeat (migration 0057), not write-silence: the executor
+ * beats `execution_heartbeat_at` while it owns the row (claim, reservation,
+ * pre-LLM, each tool round, pre-terminal), so a long honest run with no task-
+ * row write is alive. Legacy rows without a pulse fall back to `updated_at`.
  */
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { tasks, activityEvents } from '@orq8/db';
 import type { Db } from '@orq8/db';
 import { createLogger } from '@orq8/core';
@@ -28,7 +33,12 @@ export async function reapOrphanedExecutions(db: Db, config: AppConfig): Promise
     const stale = await db
       .select({ id: tasks.id, title: tasks.title, orgId: tasks.orgId, updatedAt: tasks.updatedAt })
       .from(tasks)
-      .where(and(eq(tasks.status, 'in_progress'), lt(tasks.updatedAt, cutoff)))
+      .where(
+        and(
+          eq(tasks.status, 'in_progress'),
+          sql`coalesce(${tasks.executionHeartbeatAt}, ${tasks.updatedAt}) < ${cutoff}`,
+        ),
+      )
       .limit(50);
 
     if (stale.length === 0) return 0;
@@ -36,9 +46,13 @@ export async function reapOrphanedExecutions(db: Db, config: AppConfig): Promise
     for (const t of stale) {
       const reason =
         'Execution interrupted: the worker process was restarted or timed out mid-run. Marked failed by the system — retry from the task page.';
+      // Clearing execution_lock is the revocation half (docs/87 §5 item 15):
+      // if the "dead" run is in fact a stalled zombie that later returns, its
+      // fenced writes match zero rows — this reaped state cannot be undone by
+      // the run being reaped.
       await db
         .update(tasks)
-        .set({ status: 'failed', result: reason, updatedAt: new Date() })
+        .set({ status: 'failed', result: reason, executionLock: null, executionHeartbeatAt: null, updatedAt: new Date() })
         .where(and(eq(tasks.id, t.id), eq(tasks.orgId, t.orgId)));
 
       await db.insert(activityEvents).values({

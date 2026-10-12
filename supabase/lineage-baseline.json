@@ -1,6 +1,6 @@
 {
   "source": "committed baseline (supabase/lineage-baseline.json)",
-  "capturedAt": "2026-10-11T15:14:41.143Z",
+  "capturedAt": "2026-10-12T06:48:35.815Z",
   "extensions": [
     "pgcrypto",
     "plpgsql"
@@ -822,6 +822,8 @@
     "tasks.description": "text | YES | no default",
     "tasks.due_date": "timestamp with time zone | YES | no default",
     "tasks.estimated_credits": "integer | YES | no default",
+    "tasks.execution_heartbeat_at": "timestamp with time zone | YES | no default",
+    "tasks.execution_lock": "uuid | YES | no default",
     "tasks.goal_id": "uuid | YES | no default",
     "tasks.id": "uuid | NO | gen_random_uuid()",
     "tasks.initiative_id": "uuid | YES | no default",

@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { ROLE_PROMPT_FALLBACK } from './agent-personas.js';
 import { agents, approvals, tasks, activityEvents, companyMemory, type Db } from '@orq8/db';
 import { chat } from './llm.js';
@@ -110,12 +111,30 @@ async function persistPreExecutionBlock(
   task: { id: string; agentId: string | null; title: string },
   reason: string,
   agentName: string,
-  governanceReason = 'Pre-execution governance check (agent state, authority, or autonomy level)',
+  opts: {
+    governanceReason?: string;
+    /** Fences this write to the run that owns the row (docs/87 §5 item 15). */
+    executionLock?: string;
+  } = {},
 ): Promise<TaskExecutionResult> {
-  await db
+  const governanceReason =
+    opts.governanceReason ?? 'Pre-execution governance check (agent state, authority, or autonomy level)';
+  // Fenced like every owned write: if the row was re-owned since this run
+  // claimed it, the block must not land on the new owner's row.
+  const [blockedRow] = await db
     .update(tasks)
-    .set({ status: 'failed', result: reason.slice(0, 2000), cost: 0, updatedAt: new Date() })
-    .where(eq(tasks.id, task.id));
+    .set({ status: 'failed', result: reason.slice(0, 2000), cost: 0, executionLock: null, executionHeartbeatAt: null, updatedAt: new Date() })
+    .where(
+      opts.executionLock
+        ? and(eq(tasks.id, task.id), eq(tasks.executionLock, opts.executionLock))
+        : eq(tasks.id, task.id),
+    )
+    .returning({ id: tasks.id });
+
+  if (!blockedRow) {
+    // The row moved on — report the block to the caller, write nothing.
+    return { taskId: task.id, status: 'failed', result: reason, cost: 0, tokensUsed: 0, llmUsed: false };
+  }
 
   // The employee's failure counter belongs to the same contract as the task row.
   // The ordinary failure path increments it (step 7 below); a governance block
@@ -192,6 +211,7 @@ async function stopForToolApproval(
   approvalId: string | undefined,
   reason: string,
   prior?: { toolsUsed: string[]; costCredits: number },
+  executionLock?: string,
 ): Promise<TaskExecutionResult> {
   const base = `Awaiting founder approval: ${agentName} asked to use the "${toolId}" tool for "${task.title}". ${reason}`;
   // A tool that already ran before this stop is part of what happened: the
@@ -203,10 +223,15 @@ async function stopForToolApproval(
       ? `${base}\n\nTools used before stopping: ${prior.toolsUsed.join('; ')}`
       : base;
 
+  // Fenced to the run that owns the row (docs/87 §5 item 15): a stop must not
+  // land on a row that was re-owned while this execution was in flight.
+  const ownedWhere = executionLock
+    ? and(eq(tasks.id, task.id), eq(tasks.executionLock, executionLock))
+    : eq(tasks.id, task.id);
   await db
     .update(tasks)
     .set({ status: 'awaiting_approval', result: text.slice(0, 2000), updatedAt: new Date() })
-    .where(eq(tasks.id, task.id));
+    .where(ownedWhere);
 
   await db.insert(activityEvents).values({
     orgId,
@@ -223,7 +248,7 @@ async function stopForToolApproval(
   // ran are on the task row, so "cost" and the ledger agree at the moment the
   // founder is asked. The tool that is waiting has not been charged.
   if (prior && prior.costCredits > 0) {
-    await db.update(tasks).set({ cost: prior.costCredits }).where(eq(tasks.id, task.id));
+    await db.update(tasks).set({ cost: prior.costCredits }).where(ownedWhere);
   }
 
   broadcastToOrg(orgId, { type: 'task.cancelled', taskId: task.id, reason });
@@ -246,6 +271,7 @@ async function gateTaskOnApproval(
   task: { id: string; agentId: string | null; title: string },
   agentName: string,
   reason: string,
+  executionLock?: string,
 ): Promise<TaskExecutionResult> {
   const text = `Awaiting founder approval: ${reason}`;
 
@@ -279,10 +305,15 @@ async function gateTaskOnApproval(
     notifyAttentionChanged(orgId, 'approval.created');
   }
 
+  // Fenced to the run that owns the row (docs/87 §5 item 15): a stop must not
+  // land on a row that was re-owned while this execution was in flight.
+  const ownedWhere = executionLock
+    ? and(eq(tasks.id, task.id), eq(tasks.executionLock, executionLock))
+    : eq(tasks.id, task.id);
   await db
     .update(tasks)
     .set({ status: 'awaiting_approval', result: text.slice(0, 2000), updatedAt: new Date() })
-    .where(eq(tasks.id, task.id));
+    .where(ownedWhere);
 
   await db.insert(activityEvents).values({
     orgId,
@@ -334,9 +365,12 @@ export async function retryTask(
     return { refused: `Only a failed task can be retried (this one is ${task.status}).`, status: task.status };
   }
 
+  // Clearing execution_lock revokes any run that still believes it owns this
+  // row (docs/87 §5 item 15): the retry is a deliberate restart. The heartbeat
+  // goes with it — a re-run beats its own pulse from its own claim.
   await db
     .update(tasks)
-    .set({ status: 'pending', result: null, updatedAt: new Date() })
+    .set({ status: 'pending', result: null, executionLock: null, executionHeartbeatAt: null, updatedAt: new Date() })
     .where(eq(tasks.id, taskId));
 
   return { result: await executeTask(config, db, orgId, taskId) };
@@ -374,6 +408,38 @@ export async function executeTask(
     };
   }
 
+  // 1b. CLAIM the row before anything expensive runs (docs/87 §5 item 15,
+  //     migration 0056). The token travels with every later write this run
+  //     makes, so an execution that loses the row — a budget abandon, an
+  //     orphan reap, a founder re-run — writes nothing: its terminal write
+  //     matches zero rows instead of stomping state someone else set, and it
+  //     charges nothing onto a row it no longer owns. Claiming BEFORE the
+  //     credit reservation (it used to happen after, ~six awaits in) is what
+  //     makes the fence hold: the abandoned run could write `in_progress`
+  //     AFTER the abandon had already returned the row to `pending`.
+  const executionLock = randomUUID();
+  const claimBeat = new Date();
+  const [claimed] = await db
+    .update(tasks)
+    .set({ status: 'in_progress', executionLock, executionHeartbeatAt: claimBeat, updatedAt: new Date() })
+    .where(and(eq(tasks.id, taskId), eq(tasks.orgId, orgId)))
+    .returning({ id: tasks.id });
+  // Liveness (migration 0057): the reaper judges the heartbeat, not write
+  // silence. Refresh it on every owned write; the 60s timer below covers the
+  // blocking LLM await where no owned write happens.
+  const beat = (): Promise<unknown> =>
+    db
+      .update(tasks)
+      .set({ executionHeartbeatAt: new Date() })
+      .where(and(eq(tasks.id, taskId), eq(tasks.executionLock, executionLock)))
+      .catch(() => undefined);
+
+  if (!claimed) {
+    // The row is gone (deleted between load and claim). Nothing is owned, so
+    // nothing is written anywhere — not the row, not the ledger, not memory.
+    return { taskId, status: 'failed', result: 'Task not found', cost: 0, tokensUsed: 0, llmUsed: false };
+  }
+
   // 2. Load the assignee once — every governance check below reads this row,
   //    never a client-supplied copy of it.
   let assignee:
@@ -395,6 +461,7 @@ export async function executeTask(
       db, orgId, task,
       `Execution blocked: agent is ${verb}. Archived employees no longer receive work.`,
       assignee.name,
+      { executionLock },
     );
   }
 
@@ -406,6 +473,7 @@ export async function executeTask(
         db, orgId, task,
         'Execution blocked: agent does not have permission to execute tasks.',
         assignee.name,
+        { executionLock },
       );
     }
   }
@@ -419,6 +487,7 @@ export async function executeTask(
         db, orgId, task,
         `Execution blocked by autonomy level: ${decision.reason}`,
         assignee.name,
+        { executionLock },
       );
     }
     // `requiresApproval` used to be computed here and then dropped on the floor:
@@ -446,7 +515,7 @@ export async function executeTask(
               actualCallHash: taskDecisionToken(taskId),
             }),
           });
-          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required');
+          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required', executionLock);
         }
         await markGateReleased(db, grant.id);
         await appendAudit(db, {
@@ -458,7 +527,7 @@ export async function executeTask(
           resultRef: `task:${taskId} → approval:${grant.id}`,
         });
       } else {
-        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason);
+        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason, executionLock);
       }
     }
   }
@@ -499,7 +568,7 @@ export async function executeTask(
             actualCallHash: taskDecisionToken(taskId),
           }),
         });
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock);
       }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {
@@ -515,6 +584,7 @@ export async function executeTask(
         db, orgId, task,
         assignee?.name ?? 'Unassigned',
         `The estimated cost (${estimate.estimate} credits) is above the task ceiling (${estimate.ceiling} credits). Approve it to run.`,
+        executionLock,
       );
     }
   }
@@ -534,7 +604,7 @@ export async function executeTask(
       // yes: consume it once, then take the hold with `approved` set.
       const grant = await findGrantedGate(db, orgId, taskId);
       if (!grant) {
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail);
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail, executionLock);
       }
       if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
         // A budget-approval grant bound to another call is not spendable for
@@ -552,7 +622,7 @@ export async function executeTask(
             actualCallHash: taskDecisionToken(taskId),
           }),
         });
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required');
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock);
       }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {
@@ -577,31 +647,34 @@ export async function executeTask(
         db, orgId, task,
         `Execution blocked by budget: ${err.detail}`,
         assignee?.name ?? 'Unassigned',
-        'Pre-execution budget check (docs/80 Phase 2)',
+        { governanceReason: 'Pre-execution budget check (docs/80 Phase 2)', executionLock },
       );
     } else if (err instanceof CreditExhaustedError) {
       return persistPreExecutionBlock(
         db, orgId, task,
         `Execution blocked: Work Credits exhausted (${err.remaining} available, ${err.required} required). Top up or change plan to resume work.`,
         assignee?.name ?? 'Unassigned',
-        'Pre-execution credit check',
+        { governanceReason: 'Pre-execution credit check', executionLock },
       );
     } else {
       throw err;
     }
   }
   // Record the estimate on the task row so it can show estimate vs actual.
+  // Fenced: the claim above is what owns this row now. The heartbeat moves
+  // with it — the reservation await is already minutes of write-silence.
   await db
     .update(tasks)
-    .set({ estimatedCredits: taskReservation.estimateCredits, updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
-
-  // 3. Mark as in_progress
-  await db
-    .update(tasks)
-    .set({ status: 'in_progress', updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
-
+    .set({ estimatedCredits: taskReservation.estimateCredits, executionHeartbeatAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(tasks.id, taskId), eq(tasks.executionLock, executionLock)));
+  // Across the model call no owned write happens, so beat once before the
+  // blocking await: a slow model is still a live run, and the reaper must
+  // see the pulse rather than write-silence. Every beat is fenced — a
+  // revoked run stops beating the moment it loses the row. Long tool chains
+  // beat once per round (see the tool loop below); a single model call that
+  // hangs past the reaper bound with no beat is dead by any honest
+  // definition, and reaping it is correct.
+  await beat().catch(() => undefined);
   // Update agent's current task
   if (task.agentId) {
     await db
@@ -840,10 +913,14 @@ export async function executeTask(
             // entry before it already ran (and was charged), so those belong
             // on the record even though this run stops here.
             { toolsUsed: toolCalls.slice(0, -1), costCredits: toolCredits },
+            executionLock,
           );
         }
 
         toolCredits += execution.creditsConsumed;
+        // Each tool round is minutes of model + tool time with no task-row
+        // write — beat so the reaper sees a live run, not silence.
+        await beat().catch(() => undefined);
         const answer = await askFollowUp(formatToolResultForPrompt(pending.toolId, execution));
         if (!answer) break;
         result = answer;
@@ -873,16 +950,76 @@ export async function executeTask(
   const modelCost = taskSucceeded ? Math.max(1, Math.ceil(tokensUsed / 1000)) : 0; // 1 credit per 1K tokens
   const cost = modelCost + toolCredits;
 
-  // 6. Mark task as completed or failed
-  await db
+  // 6. Mark task as completed or failed — CONDITIONAL on still owning the row.
+  //    docs/87 §5 item 15: an abandoned run (budget slice expired, orphan reap,
+  //    a founder re-run) must not write its terminal state onto a row someone
+  //    else now owns — that is how a "deferred, 0 credits, re-run it" task later
+  //    read `in_progress` and was charged twice. Zero rows back means this run
+  //    lost the claim: nothing below runs, the reservation is RELEASED (the
+  //    same 0-credits contract a deferred task gets), and the discard is
+  //    audited rather than silently dropped.
+  // One last pulse before the terminal write: the tool loop above can run
+  // minutes without touching the task row, and the reaper must see a live
+  // run rather than write-silence.
+  await beat().catch(() => undefined);
+  const [terminalRow] = await db
     .update(tasks)
     .set({
       status: taskSucceeded ? 'completed' : 'failed',
       cost,
       result: resultWithTools,
+      // A finished row has no pulse and no owner (migration 0056/0057):
+      // clearing both is what lets a later retry claim cleanly.
+      executionLock: null,
+      executionHeartbeatAt: null,
       updatedAt: new Date(),
     })
-    .where(eq(tasks.id, taskId));
+    .where(and(eq(tasks.id, taskId), eq(tasks.executionLock, executionLock)))
+    .returning({ id: tasks.id });
+
+  if (!terminalRow) {
+    if (taskReservation) {
+      await releaseReservation(db, taskReservation.id, 'execution_fenced').catch(() => undefined);
+    }
+    const discardSummary = `Discarded run for "${task.title}" — the task was re-run or reset mid-flight, so this result was not applied and its model credits were released.`;
+    await appendAudit(db, {
+      orgId,
+      actorType: 'agent',
+      actorId: task.agentId,
+      agentId: task.agentId,
+      taskId: task.id,
+      action: 'task.execution.fenced',
+      tool: 'llm',
+      cost: 0,
+      outcome: 'failure',
+      resultRef: `discarded (row re-owned); would have been ${taskSucceeded ? 'completed' : 'failed'}; model credits released; tool credits charged during the run stay charged`.slice(0, 500),
+    }).catch(() => undefined);
+    // Visible, not just audited: the task row honestly still reads whatever
+    // the newer run set (usually `pending`), so without this the founder
+    // sees nothing — a run vanished and nobody said so. The attention feed
+    // reads `task.execution.fenced` audit rows (attention.ts), and the
+    // activity row carries the same story for the timeline.
+    await db.insert(activityEvents).values({
+      orgId,
+      agentId: task.agentId,
+      taskId: task.id,
+      type: 'task.fenced',
+      summary: discardSummary.slice(0, 500),
+      reason: 'task.execution.fenced',
+      cost: 0,
+      department: null,
+    }).catch(() => undefined);
+    notifyAttentionChanged(orgId, 'task.execution.fenced');
+    return {
+      taskId,
+      status: 'failed',
+      result:
+        'Discarded: this task was re-run or reset while this execution was still in flight, so this run\u2019s result was not applied and its model credits were released. The current state of the task belongs to the newer run.',
+      cost: 0,
+      tokensUsed: 0,
+      llmUsed: false,
+    };
+  }
 
   // Broadcast: task completed or failed
   if (taskSucceeded) {

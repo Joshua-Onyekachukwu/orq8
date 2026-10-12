@@ -14,6 +14,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { collectAttention } from '../services/attention.js';
+import { resolveOrgEaName } from '../services/orgs.js';
 import type { AppDeps } from '../types.js';
 
 export function registerAttentionRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -25,8 +26,11 @@ export function registerAttentionRoutes(app: FastifyInstance, deps: AppDeps): vo
     const requested = parseInt(url.searchParams.get('limit') ?? '50', 10);
     const limit = Math.min(Math.max(Number.isFinite(requested) ? requested : 50, 1), 200);
 
+    // The "Ask {name}" prompts address the EA by name — use the org's own
+    // name, not the deployment default, so a rename propagates here too.
+    const eaName = await resolveOrgEaName(db, ctx.orgId, deps.config.EA_DISPLAY_NAME);
     const result = await collectAttention(db, ctx.orgId, {
-      eaName: deps.config.EA_DISPLAY_NAME,
+      eaName,
       limits: { total: limit },
     });
 

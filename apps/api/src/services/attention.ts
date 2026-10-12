@@ -19,6 +19,7 @@ import { and, desc, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import {
   agents,
   approvals,
+  auditEvents,
   creditAlerts,
   decisions,
   goals,
@@ -432,6 +433,62 @@ export function classifyFailedTask(row: TaskRow, now: Date, eaName: string): Att
   };
 }
 
+export interface FencedRunRow {
+  auditId: string;
+  taskId: string;
+  title: string;
+  priority: string;
+  resultRef: string | null;
+  occurredAt: Date;
+  agentName: string | null;
+}
+
+/**
+ * A run the claim fence discarded (docs/87 §5 item 15): the task was re-run
+ * or reset mid-flight, so this run's result was not applied and its model
+ * credits were released. The task row itself still reads whatever the newer
+ * run set — this item is how the founder learns a run vanished, and what to
+ * do about it (leave the newer run to it, or retry). Pure, like the other
+ * classifiers, so it stays unit-testable without a database.
+ */
+export function classifyFencedRun(row: FencedRunRow, eaName: string): AttentionItem {
+  const who = row.agentName ?? 'Unassigned';
+  const detail = excerpt(row.resultRef, 200);
+  return {
+    id: `failure:fenced:${row.auditId}`,
+    source: 'failure',
+    severity: 'warning',
+    what: row.title,
+    why: detail
+      ? `A run was discarded after the task was re-run or reset: ${detail}`
+      : 'A run was discarded after the task was re-run or reset mid-flight — its result was not applied and its model credits were released.',
+    who,
+    authority: 'The newer run owns the task now; this discarded run changed nothing and charged no model credits.',
+    impact: `${urgencyLabel(row.priority)} had a run set aside`,
+    next: 'Leave the newer run to it, or retry the task.',
+    entity: { type: 'task', id: row.taskId },
+    createdAt: row.occurredAt.toISOString(),
+    dueAt: null,
+    actions: [
+      {
+        kind: 'retry',
+        label: 'Retry',
+        endpoint: `/v1/commands/tasks/${row.taskId}/retry`,
+        method: 'POST',
+        payload: {},
+      },
+      {
+        kind: 'cancel',
+        label: 'Cancel task',
+        endpoint: `/v1/tasks/${row.taskId}`,
+        method: 'PATCH',
+        payload: { status: 'cancelled' },
+      },
+      askEa(eaName, `Task "${row.title}" had a run discarded after a re-run or reset. Should I leave the newer run to it?`),
+    ],
+  };
+}
+
 export interface CreditAlertRow {
   id: string;
   type: string;
@@ -665,8 +722,54 @@ export async function collectAttention(
     .orderBy(desc(tasks.updatedAt))
     .limit(limits.failures + 1);
 
-  const failureItems = cap(failedTaskRows, limits.failures)
-    .map((row) => classifyFailedTask(row, now, eaName));
+  // 3b. Fenced-out runs: executions the claim fence discarded because the row
+  //     was re-owned mid-flight (budget abandon, orphan reap, founder re-run).
+  //     The task row honestly still reads whatever the newer run set — usually
+  //     `pending` — so without this the founder sees nothing: a run vanished
+  //     and nobody said so. Surfaced here under `failure` (it needs a review
+  //     decision: re-run or leave the newer run to it), newest first, alongside
+  //     the audit row the executor already wrote.
+  const fencedRows = await db
+    .select({
+      auditId: auditEvents.id,
+      taskId: auditEvents.taskId,
+      occurredAt: auditEvents.occurredAt,
+      resultRef: auditEvents.resultRef,
+      title: tasks.title,
+      priority: tasks.priority,
+      agentName: agents.name,
+    })
+    .from(auditEvents)
+    .leftJoin(tasks, eq(auditEvents.taskId, tasks.id))
+    .leftJoin(agents, eq(tasks.agentId, agents.id))
+    .where(
+      and(
+        eq(auditEvents.orgId, orgId),
+        eq(auditEvents.action, 'task.execution.fenced'),
+        sql`${auditEvents.occurredAt} > ${failureSince.toISOString()}`,
+      ),
+    )
+    .orderBy(desc(auditEvents.occurredAt))
+    .limit(limits.failures + 1);
+
+  const fencedItems = fencedRows
+    .filter((row) => row.taskId !== null)
+    .map((row) =>
+      classifyFencedRun(
+        {
+          auditId: String(row.auditId),
+          taskId: row.taskId as string,
+          title: row.title ?? 'A task run',
+          priority: row.priority ?? 'normal',
+          resultRef: row.resultRef,
+          occurredAt: row.occurredAt,
+          agentName: row.agentName,
+        },
+        eaName,
+      ),
+    );
+
+  const failureItems = cap([...fencedItems, ...failedTaskRows.map((row) => classifyFailedTask(row, now, eaName))], limits.failures);
 
   // 4. Credit alerts the founder has not acknowledged.
   const alertRows = await db

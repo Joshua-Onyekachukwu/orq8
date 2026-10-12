@@ -1,5 +1,43 @@
 # ORQ8 Changelog
 
+## 2026-10-12 (fence follow-ups) — The jobs queue is fenced, the reaper reads a pulse, and discards reach the founder
+
+- **The jobs half of the race, audited and pinned.** `claimJob` was atomic, but every
+  settle (`completeJob`, `skipJob`, `deadLetterJob`, `failJob`) was `where id = ?` —
+  unconditional. A job reaped mid-flight and re-claimed by a second worker could have its
+  `running` row completed, failed or dead-lettered underneath itself by the first run's late
+  settle: the audit found both directions (stale complete marks `done` while the replacement
+  still runs; stale fail re-queues or dead-letters a live job). The fix is the same claim
+  pattern as the task fence: the claim is `(locked_by, attempts)` — the claim statement already
+  sets both atomically — and every settle is conditional on still holding it. A late settle
+  matches zero rows and reports `fenced` instead of counting a completion or failure it did
+  not own; the tick loop logs it and counts neither. Preflight also skips a task row with a
+  live heartbeat, so a reaped job does not start a second LLM run beside the first (the task
+  fence would discard the loser, but only after two runs were charged). Pinned by a new case
+  in `agent-jobs.integration.test.ts`: A claims, the reaper revokes, B claims, A's late
+  complete AND late fail both match zero rows while the job stays B's `running`, and B's own
+  settle lands.
+- **Liveness instead of silence.** The reaper judged `updated_at`, which only moves on
+  writes — a long honest run (big tool chain, slow model) looked exactly like a dead one.
+  `0057_task_execution_heartbeat.sql` adds `tasks.execution_heartbeat_at`: stamped with the
+  claim, refreshed at the reservation, pre-LLM, every tool round and pre-terminal (all fenced —
+  a revoked run stops beating the moment it loses the row), and the reaper judges
+  `coalesce(execution_heartbeat_at, updated_at)` so legacy rows keep their old semantics. All
+  revocation paths clear it with the lock; the terminal write clears both. Pinned by a new
+  case in `task-execution-lock.integration.test.ts`: a beating heart with a 40-minute-stale
+  write is spared, and the same row reaped once the heart stops too.
+- **Discards reach the founder.** A fenced run wrote one audit row and nothing else — the
+  task row honestly still read whatever the newer run set, so a vanished run was invisible.
+  The executor now also writes an activity row and nudges attention, and `collectAttention`
+  surfaces recent `task.execution.fenced` audit rows as `failure` items (retry/cancel/Ask-EA
+  actions, newest first) — a quiet company still reads quiet, a discarded run reads as one
+  reviewable row. Pinned by two cases in `attention.integration.test.ts`: the pure classifier
+  shape and an end-to-end feed read off a real audit row in an isolated org.
+- **Verified.** API typecheck clean, db typecheck clean; targeted suites 20/20
+  (`agent-jobs` 9, `attention` 8, `task-execution-lock` 3 — the teardown `done is not a
+  function` noise is the known embedded-postgres cosmetic from docs/87 item 9, exit status
+  correct).
+
 ## 2026-10-12 (final) — Production is repointed and the data-path canary is green
 
 - **The lever the canary named was pulled.** The Vercel project's `API_URL` now points at the live
@@ -25,6 +63,45 @@
   with verification ON and the canary skips its `/api/org` read by design; and logout answers
   the web proxy with something other than 204 — the canary reports that rather than failing on
   it (the session is left to expire).
+
+## 2026-10-12 (latest) — The claim fence: a run that loses its task row writes nothing, charges nothing
+
+- **The race docs/87 §5 item 15 named, closed with a fence.** `task-executor` wrote
+  `status: 'in_progress'` about six awaits into the pipeline and its terminal write
+  (`completed`/`failed` + `cost`) was unconditional, so anything that moved the row in between —
+  the interactive budget abandoning a slow task, the orphan reaper, a founder retry — got its
+  state stomped by the very run it had just given up on. The live shape: a founder was told
+  "deferred, 0 credits, re-run it" while the row read `in_progress` again, and the re-run meant
+  two runs, one row, two charges.
+- **What the fix is.** `0056_task_execution_lock.sql` adds `tasks.execution_lock` (uuid,
+  nullable). `executeTask` claims the row with a fresh token BEFORE the credit reservation —
+  the old `in_progress` write sat after the reservation, which is exactly why an abandoned run
+  could write `in_progress` after the abandon had already returned the row to `pending`. Every
+  owned write (pre-execution block, approval gate, tool-approval stop, estimate, terminal) is
+  conditional on still holding the token; a run that lost it gets zero rows back, releases its
+  reservation, audits `task.execution.fenced`, and reports the discard instead of applying it.
+  Every deliberate re-own clears the token — that is the revocation half: `convergeToPending`,
+  the orphan reaper, `retryTask`, a rejection's cancel, and the gate-expiry pause. Approvals
+  need no clear: approved work re-enters through the queue and the executor's claim is an
+  unconditional takeover by design.
+- **Pinned so it cannot silently regress.** `task-execution-lock.integration.test.ts` stubs the
+  LLM boundary to BLOCK, so the interleaving is deterministic rather than timing-based: run A
+  claims and parks mid-call, the budget abandons the row (asserting the lock is cleared), then
+  the test releases run A and asserts the row still reads `pending` and the run reports
+  `Discarded` at 0 credits. Removing the fence from the terminal write — or
+  `executionLock: null` from converge or the reaper — fails it: shown 2/2 red, restored 2/2
+  green. The reaper case backdates its row under a session-scoped
+  `session_replication_role = replica`, because the `tasks_set_updated_at` trigger quietly
+  forces `updated_at = now()` on every update and a naive backdate makes the row never stale —
+  which is also why the reaper's 35-minute bound measures silence since the last real write.
+- **The last `revalidate` default is swept.** `fetchWithToken`'s server-component default
+  (`next: { revalidate: 30 }`) — the open tail of the forty-route sweep below — now sends
+  `cache: "no-store"`; the verifier's self-test grew to 13 cases, the helper's allowed spelling
+  matched by path suffix so the fixture proves the rule rather than the repo layout, and the
+  real scan is clean.
+- **Verified.** Full API suite 991 passed / 3 skipped (the fence touched no green path);
+  lineage baseline re-recorded (941 columns, parity check reports no drift); web typecheck
+  clean; `verify-no-store` self-test 13/13.
 
 ## 2026-10-12 (later) — The canary that signs a founder up, because nothing else asked whether the product works
 
@@ -86,8 +163,9 @@
   built stack; Next's caches do not exist in `next dev`, so a proof against dev proves nothing). The
   comment-stripper both scanners need moved to `scripts/lib/strip-comments.mjs`: one implementation,
   so the two scans cannot disagree about what is code.
-- **Still open.** `fetchWithToken`'s default (`next: { revalidate: 30 }`) for server components is the
-  same pattern one layer up and is still unprobed (docs/87 §5 item 11). And a stale local stack serves
+- **Closed since.** `fetchWithToken`'s default (`next: { revalidate: 30 }`) — the same pattern one
+  layer up — was swept two entries later (2026-10-12, latest): `cache: "no-store"`, verifier
+  self-test grown to 13 cases, real scan clean. Still open: a stale local stack serves
   a stale build: the harness reuses a healthy port, which is how the first restore-demo read the
   pre-restore build — CI is unaffected (clean VM).
 

@@ -197,9 +197,13 @@ export async function expireOpenGates(
     expired.push({ approvalId: gate.id, orgId: gate.orgId, taskId: gate.taskId });
 
     if (gate.taskId) {
+      // The pause is a deliberate state change, so it also revokes any run
+      // still holding execution_lock (docs/87 §5 item 15): an expiry pause
+      // must not be later overwritten by a fenced write from the run that
+      // raised this gate.
       await db
         .update(tasks)
-        .set({ status: 'paused', updatedAt: now })
+        .set({ status: 'paused', executionLock: null, executionHeartbeatAt: null, updatedAt: now })
         .where(and(eq(tasks.id, gate.taskId), eq(tasks.orgId, gate.orgId), eq(tasks.status, 'awaiting_approval')));
     }
   }
