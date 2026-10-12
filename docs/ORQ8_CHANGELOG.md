@@ -1,5 +1,39 @@
 # ORQ8 Changelog
 
+## 2026-10-12 (later) — The canary that signs a founder up, because nothing else asked whether the product works
+
+- **The blind spot.** When the Vercel project's `API_URL` pointed at the deleted Railway
+  application, every data read in the deployed product failed — and the two existing canaries had
+  nothing to say about it. `jobs-canary` checks a **GitHub secret** named `API_URL` (configuration
+  in GitHub); the release gate checks `PRODUCTION_API_URL` (unset, so it honestly reports NOT
+  RUN). Neither is the product. The founder's first five minutes — sign up, get a session, read a
+  row back — were exercised by nothing.
+- **The new canary asks the product itself.** `scripts/data-path-canary.mjs` signs a throwaway
+  founder up on the deployed web app (`POST /api/auth/register`), reads their row back on their
+  own session (`GET /api/auth/me`, plus `GET /api/org` when email verification is off), and logs
+  out. It needs no secrets — it goes through the public internet, the way a founder does.
+- **Four verdicts, each naming what to change.** Dead upstream (502/504 "Could not reach the
+  ORQ8 API") → the **web project's** `API_URL` on Vercel (deliberately not blamed on the GitHub
+  secret of the same name — they are two different places, and only this one is the product's).
+  Foreign upstream (a bare 404 with no API `error.code` — the deleted host's relayed shape, or an
+  HTML page) → same lever, stale host. Cross-session read (the read-back echoes another user's
+  email or org — the exact failure the forty-route no-store sweep exists to prevent, now measured
+  from *outside* the product) → the proxy cache. Stale build (`email_not_verified` on
+  `/v1/auth/me`, which the current code allowlists for unconfirmed sessions) → deploy the current
+  API.
+- **Proven both ways, like everything else here.** 21 self-test cases against real local servers
+  shaped like real deployments — including the two this repository actually shipped while every
+  other check reported nothing (the dead upstream and the deleted host's relayed 404) — wired as
+  the `data-path-canary-verdicts` proof in `scripts/proofs.mjs`. The self-test caught a real bug
+  in the canary itself before it shipped (the cookie parser was handed an array and looked for a
+  function, so every healthy signup "lost" its session).
+- **Measured live, 2026-10-12: it fails against today's production** — exit 1, naming the web
+  project's `API_URL` and quoting the deleted host's relayed 404 (`{"ok":false,"error":"Your
+  company could not be created…"}` with no API envelope). That is the outage the other two checks
+  could not see, caught by the product's own journey. The live half runs every 6 hours
+  (`.github/workflows/data-path-canary.yml`) and on dispatch; each run creates one org named
+  `ORQ8 Canary <timestamp>` so they are greppable and deletable. docs/87 §5 item 16.
+
 ## 2026-10-12 — The forty cached proxy reads are swept, and the check is shown failing
 
 - **The sweep.** All 40 authenticated proxy reads that carried `next: { revalidate: N }` now say

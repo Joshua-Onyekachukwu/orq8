@@ -48,6 +48,7 @@ different environment.
 | `journey-outcome.mjs` | Decision outcome feedback loop: file outcome on the real council decision, read back verdict + signals. |
 | `rehearse-departments.mjs` | Marketing / Product / Finance workflows end-to-end: task creation assigned to a real department agent → **real LLM execution with QA evaluation** → result persisted on readback → honest failure reporting. |
 | `rehearsal-56.mjs` | §56 full-company journey (EA → org build → verification). |
+| `data-path-canary.mjs` | Scheduled production canary: signs a throwaway founder up on the deployed web app, reads their row back on their own session, logs out. Fails (exit 1) on a dead upstream, a foreign upstream (the deleted host's relayed 404), a cross-session read, or a stale build; NOT ARMED (exit 2) with no `ORQ8_WEB_URL`. Creates one org per run. Runs every 6h (`.github/workflows/data-path-canary.yml`); `--self-test` proves the verdicts offline. |
 
 ## Conventions
 

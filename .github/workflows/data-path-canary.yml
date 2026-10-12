@@ -1,0 +1,58 @@
+name: Production data-path canary
+
+# The question none of the other checks ask: can the DEPLOYED WEB APP reach
+# the API, sign a founder up, and read their row back?
+#
+# Three checks now sit between a broken production and the founder, and each
+# asks a different question in a different system:
+#
+#   jobs-canary (orq8-jobs.yml)   Is the GitHub secret `API_URL` the live API?
+#                                 Configuration in GitHub.
+#   release gate (vercel-deploy)  Is production switched on (health, readiness,
+#                                 mail)? Needs `PRODUCTION_API_URL`; reports
+#                                 NOT RUN until that secret exists.
+#   this canary                   Does the product WORK, as a founder uses it,
+#                                 over the public internet? Needs no secrets.
+#
+# When the Vercel project's `API_URL` pointed at a deleted Railway app, the
+# first two had nothing to say about it — one checks a different variable in a
+# different system, the other was unarmed — and every data read in the
+# deployed product failed. This is the check that would have gone red that
+# same day.
+#
+# It signs a real throwaway founder up on the deployed product (one user, one
+# org named `ORQ8 Canary <timestamp>`, one session it tries to revoke), reads
+# their row back on their own session, and logs out. Four runs a day, four
+# greppable throwaway orgs — the cost of knowing within hours instead of days.
+#
+# Dependency-free (plain node, no install): a production canary must not be
+# skippable because a package failed to resolve.
+
+on:
+  schedule:
+    # Every 6 hours, off the hour (free-cron stampede).
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  data-path:
+    name: Sign up a founder on production and read their row back
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Exercise the deployed data path
+        env:
+          # Optional override via the ORQ8_WEB_URL repo variable. `||` matters:
+          # an unset vars.X interpolates to an empty string, which would land in
+          # the canary as "configured but blank" (NOT ARMED, exit 2) instead of
+          # falling back to the default — a red run for a reason that is not an
+          # outage. `||` keeps an unset variable on the default origin.
+          ORQ8_WEB_URL: ${{ vars.ORQ8_WEB_URL || 'https://orq8.vercel.app' }}
+        run: node scripts/data-path-canary.mjs

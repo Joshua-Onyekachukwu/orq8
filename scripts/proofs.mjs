@@ -208,6 +208,25 @@ const PROOFS = [
     needsStack: false,
   },
   {
+    // Offline: the data-path canary's verdicts, proven against real local
+    // servers shaped like real deployments — including the two this
+    // repository actually shipped while every other check reported nothing:
+    // the dead upstream (502 "Could not reach the ORQ8 API") and the deleted
+    // host's relayed 404 (bare status, no API envelope). The live half runs
+    // on a schedule (`.github/workflows/data-path-canary.yml`), because it
+    // signs a real founder up on the deployed product; this half is what a
+    // pull request can fail.
+    id: "data-path-canary-verdicts",
+    what: "the data-path canary passes a healthy signup+read-back and fails a dead upstream, a foreign upstream, a cross-session read and a stale build",
+    protects: [
+      "MVP-001 (a reachable deployed product — the web app can reach its own API)",
+      "MVP-032 (a per-tenant read never reaches another session)",
+      "MVP-021 (a smoke check gates a release — the check that needs no unset secret)",
+    ],
+    command: "node scripts/data-path-canary.mjs --self-test",
+    needsStack: false,
+  },
+  {
     // The self-test's hosts are fixtures written next to the rules they check;
     // this one reads the running API's *actual* envelopes, which is the check
     // that was missing when the canary first shipped inverted (it accepted the
