@@ -102,17 +102,20 @@ jobs:
           API_URL_VALUE: ${{ inputs.api_url }}
         run: node scripts/set-vercel-env.mjs
 
-      # Republish from the connected repository's main — the deployment the
-      # founder's browser actually gets. (No push is involved, so this cannot
-      # race a native Git-integration build the way a /v13 POST on every push
-      # once did; the step above just proved nothing is in flight.)
+      # Republish — the deployment the founder's browser actually gets. (No
+      # push is involved, so this cannot race a native Git-integration build
+      # the way a /v13 POST on every push once did; the step above just
+      # proved nothing is in flight.)
       #
-      # The git block is not decoration: a bare {name,target} POST is treated
-      # as a direct upload and fails with `"files" field should be an array`
-      # (measured, run 38196938145) — a git-connected project republishes by
-      # naming its repo and ref. The repo id comes from the latest
-      # deployment's own meta, so it cannot drift from the project's link.
-      - name: Republish production from main
+      # HOW, measured across runs 38196938145 and 38197281175: POSTing a new
+      # deployment to /v13/deployments is treated as a DIRECT UPLOAD for this
+      # git-connected project — with `{name,target}` and again with
+      # `git:{repoId,ref}` — and fails with `"files" field should be an
+      # array`. The endpoint that works is the redeploy of the latest
+      # production deployment: it rebuilds that deployment's own git source
+      # with the project's CURRENT env, which is exactly the semantics this
+      # workflow needs (new API_URL, same commit).
+      - name: Republish production (redeploy the latest deployment)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
@@ -120,16 +123,16 @@ jobs:
           set -u
           LATEST=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=1")
-          REPO_ID=$(echo "$LATEST" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0].get('meta',{}).get('githubRepoId','') if ds else '')" 2>/dev/null || true)
-          if [ -z "$REPO_ID" ]; then
-            echo "::error::could not read the connected GitHub repo id from the latest deployment: $(echo "$LATEST" | head -c 300)"
+          DEPLOY_ID=$(echo "$LATEST" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print((ds[0].get('uid') or '') if ds else '')" 2>/dev/null || true)
+          if [ -z "$DEPLOY_ID" ]; then
+            echo "::error::no latest production deployment to redeploy: $(echo "$LATEST" | head -c 300)"
             exit 1
           fi
-          echo "connected repo id: $REPO_ID"
-          CREATE=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+          echo "redeploying $DEPLOY_ID — rebuilding its git source with the project's current env"
+          CREATE=$(curl -s -X POST "https://api.vercel.com/v13/deployments/$DEPLOY_ID/redeploy" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"orq8\",\"target\":\"production\",\"git\":{\"repoId\":\"$REPO_ID\",\"ref\":\"main\"}}")
+            -d '{}')
           ID=$(echo "$CREATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id') or d.get('uid') or '')" 2>/dev/null || true)
           if [ -z "$ID" ]; then
             echo "::error::could not create a production deployment: $(echo "$CREATE" | head -c 400)"
