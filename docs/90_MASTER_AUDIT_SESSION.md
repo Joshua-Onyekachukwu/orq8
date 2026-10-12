@@ -187,3 +187,31 @@ CI failures @ d773609: (1) jobs canary — API_URL pointed at deleted host, repo
 - Box memory now 0.3GB free (founder Firefox ~2GB + harness untouchable).
   Relaunching once; if the stack fails on memory symptoms again, verification
   blocks until the founder frees RAM — will escalate rather than flake-retry.
+
+## Release — 2026-10-12 ~10:00Z
+- Pushed 5 commits (d773609 → b327d41): fc16169 fence, ef388fe deps,
+  cbbb807 EA-rename+console migration, abf3b74 proof-harness, b327d41 session docs.
+- CI on b327d41: canary/typecheck/audits/security/parity/brand/proof-gate all
+  SUCCESS (the 3 prior failures resolved). Tests + founder-loop pending.
+- DB Migrate failed (ECONNRESET, pre-existing — never succeeded since 09-27).
+  Hand-applied 0056 (execution_lock uuid) + 0057 (execution_heartbeat_at
+  timestamptz) via supabase-sql Management-API path; both verified live with
+  correct types. 0053/0054/0055 confirmed already present.
+
+## Final release report — 2026-10-12 ~10:30Z
+- Commit: b327d41 (5 commits over d773609). Branch: main. Pushed, remote matches.
+- CI (run 38225205977): SUCCESS — 11/11 (canary, typecheck, UI audits,
+  security, lineage parity, brand, proof gate, tests, docker, build validation,
+  founder loop). The 3 prior failures are resolved in this tree.
+- DB Migrate: fails (pre-existing infra — ECONNRESET, never green since 09-27).
+  0056 + 0057 hand-applied and verified live. Ledger still reads 0052; the
+  runner will record them whenever its connectivity is fixed (files idempotent).
+- Vercel: b327d41 built, READY, domain serves it, 65/65 assets 200. API on
+  Railway (-062a) live with the fence columns.
+- Local proof gate: 16/16 PASS on this tree (proofs8 + proxy-cache rerun).
+  `pnpm audit --audit-level=high` exits 0. API typecheck clean.
+- Known limitation / BLOCKED: production email capability — no mail provider
+  configured. Release gate reports BLOCKED on `email` + `mail delivers`.
+  Founder action: set RESEND_API_KEY (or SMTP_*), then re-run Verify Vercel
+  Production. Everything else is green.
+- Machine left clean: review-stack survivors and PG orphans reaped, 3113/3114 free.
