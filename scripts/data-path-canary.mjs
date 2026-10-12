@@ -96,9 +96,13 @@ function fail(code, lever, detail, fix) {
   return { verdict: code === EXIT.unarmed ? "unarmed" : "fail", code, lever, detail, fix };
 }
 
-/** The throwaway founder this run signs up. Unique per run, never reused. */
+/** The throwaway founder this run signs up. Unique per run, never reused.
+ *  The stamp is lowercased on purpose: the API stores emails lowercased
+ *  (correct — mailboxes are case-insensitive), and an uppercase `T`/`Z` from
+ *  the ISO timestamp made the read-back comparison below report a founder's
+ *  own row as a foreign one on the first live green run. */
 export function makeIdentity(now = new Date()) {
-  const stamp = now.toISOString().replace(/[:.]/g, "-");
+  const stamp = now.toISOString().replace(/[:.]/g, "-").toLowerCase();
   return {
     email: `canary-${stamp}-${randomBytes(3).toString("hex")}@example.com`,
     password: `canary-${randomBytes(12).toString("hex")}`,
@@ -335,9 +339,14 @@ export async function checkFounderDataPath({
   facts.readBackEmail = echoEmail;
   facts.readBackOrgs = echoOrgs;
 
-  if (echoEmail !== who.email || !echoOrgs.includes(who.orgName)) {
+  // Emails compare case-insensitively: the server lowercases on write (a
+  // correct implementation of mailboxes), and treating that normalization as
+  // a foreign row would fail every healthy deployment for doing it right.
+  if ((echoEmail ?? "").toLowerCase() !== who.email.toLowerCase() || !echoOrgs.includes(who.orgName)) {
     const mismatches = [];
-    if (echoEmail !== who.email) mismatches.push(`email: registered \`${who.email}\`, read back \`${echoEmail ?? "(none)"}\``);
+    if ((echoEmail ?? "").toLowerCase() !== who.email.toLowerCase()) {
+      mismatches.push(`email: registered \`${who.email}\`, read back \`${echoEmail ?? "(none)"}\``);
+    }
     if (!echoOrgs.includes(who.orgName)) {
       mismatches.push(`org: registered \`${who.orgName}\`, read back [${echoOrgs.map((n) => `\`${n}\``).join(", ") || "none"}]`);
     }
