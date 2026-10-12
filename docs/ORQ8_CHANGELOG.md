@@ -1,5 +1,31 @@
 # ORQ8 Changelog
 
+## 2026-10-12 (final) — Production is repointed and the data-path canary is green
+
+- **The lever the canary named was pulled.** The Vercel project's `API_URL` now points at the live
+  API (`https://orq8api-production-062a.up.railway.app` — the Railway API service was never
+  deleted; the web project was simply pointed elsewhere). There is no personal Vercel token in
+  this workspace, so the change went through CI's own `VERCEL_TOKEN`: the dispatch-only
+  `.github/workflows/set-vercel-env.yml` (+ `scripts/set-vercel-env.mjs`) waits for in-flight
+  builds, sets the env idempotently, republishes production, and ends by running the canary — one
+  auditable run for the change and its proof. Run 38198721240: every step green.
+- **The republish shape, measured four wrong ways first.** `{name,target}` and
+  `git:{repoId,ref}` both fall into DIRECT-UPLOAD mode (`"files" field should be an array`);
+  `/v13/deployments/{id}/redeploy` is 404; the project's `link` object gives this token no
+  usable connect id. The documented contract — a top-level
+  `gitSource:{type:"github",org,repo,ref}` (Vercel SDK examples) — is the one Vercel reads, and
+  each failure is recorded in the workflow's comments so the next reader does not re-pay for it.
+- **Green, twice live, plus the self-test.** Local canary against the republished deployment:
+  PASS — signup 2xx in ~4s, the throwaway's own email and org echoed on their own session. The
+  same canary as the workflow's final step. Self-test 21/21. The first live green also caught a
+  bug in the canary itself: the API lowercases emails on write (correct — mailboxes are
+  case-insensitive) and the ISO stamp's uppercase T/Z made a founder's own row read as a foreign
+  one; the comparison is now case-insensitive.
+- **Two honest notes.** The register answer carries `email_verified: false`, so production runs
+  with verification ON and the canary skips its `/api/org` read by design; and logout answers
+  the web proxy with something other than 204 — the canary reports that rather than failing on
+  it (the session is left to expire).
+
 ## 2026-10-12 (later) — The canary that signs a founder up, because nothing else asked whether the product works
 
 - **The blind spot.** When the Vercel project's `API_URL` pointed at the deleted Railway
