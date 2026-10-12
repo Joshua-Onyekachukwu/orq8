@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SettingsShell } from "../../components/settings-shell";
-import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell, Download, Mail, XCircle } from "lucide-react";
+import { EA_NAME } from "../../lib/ea";
+import { AlertCircle, RefreshCw, CheckCircle2, Loader2, Bell, Bot, Download, Mail, XCircle } from "lucide-react";
 
 // Mail delivery, as the API reports it (docs/66 §66.18). Key names only: this
 // type exists so the section can be honest about what is missing without ever
@@ -65,6 +66,7 @@ interface OrgData {
   name: string;
   slug: string;
   plan: string;
+  eaName?: string | null;
 }
 
 interface Membership {
@@ -104,8 +106,15 @@ export default function SettingsPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
+  // The Executive Agent's name is a per-org setting; owners/admins can rename
+  // it and every EA surface follows (dock, panel, dashboard copy).
+  const [eaName, setEaName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [timezone, setTimezone] = useState("");
+  // When the profile/org form last saved successfully in this session. The old
+  // hardcoded "Last updated: just now" was fake state — this only renders
+  // after a real save.
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
     emailOnApproval: true,
     emailOnTaskComplete: true,
@@ -117,6 +126,7 @@ export default function SettingsPage() {
   });
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
 
   // Mail delivery: the configuration is read once (it cannot change without a
   // redeploy), and the three-step proof runs only when the founder asks for it —
@@ -184,9 +194,10 @@ export default function SettingsPage() {
       setJobTitle(data.user.jobTitle ?? "");
       setTimezone(data.user.timezone ?? (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : ""));
 
-      // Set org name
+      // Set org name + Executive Agent name
       const activeOrg = data.memberships?.find((m) => m.org.id === data.active_org_id) ?? data.memberships?.[0];
       setCompany(activeOrg?.org.name ?? "");
+      setEaName(activeOrg?.org.eaName?.trim() || EA_NAME);
 
       // Load notification preferences
       try {
@@ -232,12 +243,17 @@ export default function SettingsPage() {
         }
       }
 
-      // Save organization name (owners/admins only)
-      if (org && company && company !== org.name) {
+      // Save organization name + Executive Agent name (owners/admins only)
+      const orgBody: Record<string, string> = {};
+      if (company && company !== org?.name) orgBody.name = company;
+      const eaNameTrimmed = eaName.trim();
+      const currentEaName = org?.eaName?.trim() || EA_NAME;
+      if (eaNameTrimmed && eaNameTrimmed !== currentEaName) orgBody.ea_name = eaNameTrimmed;
+      if (org && Object.keys(orgBody).length > 0) {
         const orgRes = await fetch("/api/org", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: company }),
+          body: JSON.stringify(orgBody),
         });
         if (!orgRes.ok) {
           const json = await orgRes.json().catch(() => null);
@@ -246,6 +262,7 @@ export default function SettingsPage() {
       }
 
       setSaveSuccess(true);
+      setLastSavedAt(new Date());
       setTimeout(() => setSaveSuccess(false), 3000);
       // Refresh profile so the displayed data reflects what was saved
       fetchData();
@@ -259,6 +276,7 @@ export default function SettingsPage() {
   const user = me?.user;
   const activeOrg = me?.memberships?.find((m) => m.org.id === me.active_org_id) ?? me?.memberships?.[0];
   const org = activeOrg?.org;
+  const canRenameEa = activeOrg?.role === "owner" || activeOrg?.role === "admin";
 
   if (loading) {
     return (
@@ -377,8 +395,32 @@ export default function SettingsPage() {
               type="text"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className={fieldClass}
+              disabled={!canRenameEa}
+              className={`${fieldClass}${canRenameEa ? "" : " cursor-not-allowed bg-canvas text-muted"}`}
             />
+            {!canRenameEa && (
+              <p className="mt-1 text-xs text-muted">Only an owner or admin can rename the organization.</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="ea-name" className={labelClass}>
+              Executive Agent name
+            </label>
+            <input
+              id="ea-name"
+              type="text"
+              value={eaName}
+              onChange={(e) => setEaName(e.target.value)}
+              maxLength={60}
+              disabled={!canRenameEa}
+              placeholder={EA_NAME}
+              className={`${fieldClass}${canRenameEa ? "" : " cursor-not-allowed bg-canvas text-muted"}`}
+            />
+            <p className="mt-1 text-xs text-muted">
+              {canRenameEa
+                ? "What your Executive Agent calls itself everywhere — dock, panel and reports."
+                : "Only an owner or admin can rename the Executive Agent."}
+            </p>
           </div>
           <div>
             <label htmlFor="job-title" className={labelClass}>
@@ -404,6 +446,11 @@ export default function SettingsPage() {
               className={fieldClass}
             >
               <option value="">Not set</option>
+              {/* A set timezone outside the curated list stays visible and
+                  selectable instead of silently rendering as "Not set". */}
+              {timezone !== "" && !COMMON_TIMEZONES.includes(timezone) && (
+                <option value={timezone}>{timezone} (current)</option>
+              )}
               {COMMON_TIMEZONES.map((tz) => (
                 <option key={tz} value={tz}>{tz}</option>
               ))}
@@ -461,8 +508,10 @@ export default function SettingsPage() {
         </div>
 
         <div className="mt-8 flex items-center justify-between border-t border-hairline pt-6">
-          <p className="text-xs text-muted">
-            Last updated: just now
+          <p className="text-xs text-muted" aria-live="polite">
+            {lastSavedAt
+              ? `Last saved ${lastSavedAt.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+              : "Changes save when you press Save changes"}
           </p>
           <div className="flex items-center gap-3">
             {saveSuccess && (
@@ -645,6 +694,7 @@ export default function SettingsPage() {
                 className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs[key] ? "bg-mark-active" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
+                aria-label={title}
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface-white shadow transition-transform ${notifPrefs[key] ? "left-[22px]" : "left-0.5"}`} />
               </button>
@@ -732,6 +782,7 @@ export default function SettingsPage() {
                 className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${notifPrefs.soundEnabled ? "bg-mark-active" : "bg-disabled-surface"}`}
                 role="switch"
                 aria-checked={notifPrefs.soundEnabled}
+                aria-label="Sound alerts"
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface-white shadow transition-transform ${notifPrefs.soundEnabled ? "left-[22px]" : "left-0.5"}`} />
               </button>
@@ -739,22 +790,33 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {notifError && (
+          <p role="alert" className="mt-4 text-sm text-error-ink">{notifError}</p>
+        )}
         <div className="mt-6 flex justify-end">
           <button
             type="button"
             onClick={async () => {
               setNotifSaving(true);
               setNotifSaved(false);
+              setNotifError(null);
               try {
-                await fetch("/api/settings", {
+                const res = await fetch("/api/settings", {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ notifications: notifPrefs }),
                 });
+                if (!res.ok) {
+                  const json = await res.json().catch(() => null);
+                  throw new Error(json?.error?.message ?? "Could not save notification preferences.");
+                }
                 setNotifSaved(true);
                 setTimeout(() => setNotifSaved(false), 2000);
-              } catch { /* silent */ }
-              setNotifSaving(false);
+              } catch (err) {
+                setNotifError(err instanceof Error ? err.message : "Could not save notification preferences.");
+              } finally {
+                setNotifSaving(false);
+              }
             }}
             disabled={notifSaving}
             className="inline-flex items-center gap-2 rounded-md bg-warm px-5 py-2.5 text-sm font-semibold text-on-warm transition-opacity hover:opacity-90 disabled:opacity-50"

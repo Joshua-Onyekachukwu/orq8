@@ -229,6 +229,7 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -271,7 +272,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="animate-pulse space-y-6">
           <div className="h-40 rounded-xl bg-hairline" />
           <div className="h-64 rounded-xl bg-hairline" />
@@ -282,7 +283,7 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="flex items-center gap-3 rounded-xl border border-border-error bg-error-soft px-4 py-3">
           <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
           <p className="text-sm text-error-ink">{error}</p>
@@ -293,7 +294,7 @@ export default function ProfilePage() {
 
   return (
     <PageErrorBoundary pageName="Profile" backHref="/app">
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       {/* Cover card — welcome banner.
           Layout contract: the dark cover is PURELY DECORATIVE (no absolute
           text at its bottom edge). The identity row below lives in normal
@@ -319,7 +320,7 @@ export default function ProfilePage() {
               />
               <div className="min-w-0 pb-1">
                 {editing ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="text"
                       value={editName}
@@ -332,19 +333,24 @@ export default function ProfilePage() {
                       type="button"
                       onClick={async () => {
                         setSaving(true);
+                        setSaveError(null);
                         try {
                           const res = await fetch("/api/auth/me", {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ name: editName.trim() }),
                           });
-                          if (res.ok) {
-                            const json = await res.json();
+                          const json = await res.json().catch(() => null);
+                          if (res.ok && json?.data) {
                             setMe((prev) => prev ? { ...prev, user: { ...prev.user, name: json.data.name } } : prev);
                             setEditing(false);
                             setSaveSuccess(true);
                             setTimeout(() => setSaveSuccess(false), 2000);
+                          } else {
+                            setSaveError(json?.error?.message ?? "Could not save your name. Try again.");
                           }
+                        } catch {
+                          setSaveError("Could not reach the server. Check your connection and try again.");
                         } finally {
                           setSaving(false);
                         }
@@ -356,11 +362,15 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditing(false)}
+                      onClick={() => { setEditing(false); setSaveError(null); }}
                       className="rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink"
+                      aria-label="Cancel editing name"
                     >
                       <X className="h-4 w-4" />
                     </button>
+                    {saveError && (
+                      <p className="w-full text-xs text-error-ink" role="alert">{saveError}</p>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -381,6 +391,9 @@ export default function ProfilePage() {
                     </p>
                     {saveSuccess && (
                       <p className="mt-1 text-xs text-brand-ink" role="status">Profile updated successfully</p>
+                    )}
+                    {saveError && (
+                      <p className="mt-1 text-xs text-error-ink" role="alert">{saveError}</p>
                     )}
                   </>
                 )}

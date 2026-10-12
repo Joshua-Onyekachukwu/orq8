@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 interface MeData {
   user: { id: string; name: string | null };
   memberships: {
-    org: { id: string; name: string; slug: string; plan: string; isDemo?: boolean };
+    org: { id: string; name: string; slug: string; plan: string; isDemo?: boolean; eaName?: string | null };
     role: string;
   }[];
   active_org_id: string | null;
@@ -77,7 +77,6 @@ async function safeList<T>(path: string): Promise<T[]> {
   return safe<T[]>(path, []);
 }
 
-const EA = EA_NAME;
 
 export default async function CompanyHubPage() {
   const [me, builder, summary, attention, agents, departments, tasks, goals, activity, memory] =
@@ -98,6 +97,9 @@ export default async function CompanyHubPage() {
     me?.memberships.find((m) => m.org.id === me.active_org_id) ?? me?.memberships[0];
   const companyName = activeOrg?.org.name ?? "Your company";
   const isDemo = !!activeOrg?.org.isDemo;
+  // The org's own EA name (Settings → Account), falling back to the
+  // deployment default when the founder never renamed it.
+  const EA = activeOrg?.org.eaName?.trim() || EA_NAME;
   const firstName = me?.user.name?.trim().split(/\s+/)[0] ?? null;
 
   // First-run stage: server-derived from persisted onboarding state, never
@@ -161,7 +163,7 @@ export default async function CompanyHubPage() {
           .join(" · ");
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <EAStageRegistrar stage={stage} route="/app/company/overview" pageName="Company Hub" />
 
       <header className="flex flex-wrap items-start justify-between gap-4">

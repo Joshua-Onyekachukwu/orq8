@@ -251,6 +251,8 @@ export function weeklyReportEmail(input: {
   founderName: string;
   weekStart: string;
   weekEnd: string;
+  /** The org's own Executive Agent name — rendered as the report byline. */
+  eaName?: string | null;
   stats: {
     tasksCompleted: number;
     tasksPending: number;
@@ -262,7 +264,8 @@ export function weeklyReportEmail(input: {
   };
   highlights: string[];
 }): { subject: string; text: string; html: string } {
-  const { orgName, founderName, weekStart, weekEnd, stats, highlights } = input;
+  const { orgName, founderName, weekStart, weekEnd, stats, highlights, eaName } = input;
+  const byline = eaName?.trim() ? `Prepared by ${eaName.trim()}, your Executive Agent.` : null;
   const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
 
   const subject = `[ORQ8] Weekly Report — ${weekStart} to ${weekEnd}`;
@@ -281,6 +284,7 @@ export function weeklyReportEmail(input: {
     '',
     `View full report: ${appUrl}/app/report`,
     '',
+    ...(byline ? [byline, ''] : []),
     'ORQ8 — the AI organization operating system.',
   ].join('\n');
 
@@ -322,6 +326,7 @@ export function weeklyReportEmail(input: {
       ...highlights.map((h) => p(`· ${h}`)),
 
       cta(`${appUrl}/app/report`, 'View Full Report'),
+      ...(byline ? [p(`<span style="color:${MUTED};font-size:13px;">${byline}</span>`)] : []),
     ].join(''),
   );
 

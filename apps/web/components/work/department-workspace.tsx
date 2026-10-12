@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -36,6 +36,7 @@ import { OsEmptyPanel, OsFacts, OsMetricRow, OsSection, OsTabs, type OsMetric } 
 import {
   blueprintLabels,
   departmentMetrics,
+  resolveBlockOrder,
   resolvePageConfig,
 } from "./department-focus";
 import { departmentHealth } from "../../lib/health-score";
@@ -483,6 +484,166 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
     };
   }, [detail.members]);
 
+  // ── The department's own section order (docs/86 §4) ──────────────────────
+  //
+  // `pageConfig.sections` is written by `setDepartmentBlueprint` at activation
+  // and used to be contract metadata: the API resolved it and the web ignored
+  // it, so Executive, Engineering and Finance stacked the same blocks in the
+  // same hardcoded order. These three blocks are built here and rendered in the
+  // order this department's blueprint asks for; `workflows`, the pinned header
+  // and the tab group stay put because every template places them after these
+  // (see `resolveBlockOrder`).
+  const blockOrder = resolveBlockOrder(resolvePageConfig(department.settings).sections);
+
+  const focusBlock =
+    detail.focus?.engineering || detail.focus?.marketing || detail.focus?.finance || detail.focus?.sales || detail.focus?.success ? (
+      <>
+        {detail.focus?.engineering ? (
+          <DepartmentFocusPanel
+            focus={detail.focus.engineering}
+            departmentName={department.name}
+            agentNameById={memberNameById}
+          />
+        ) : null}
+        {detail.focus?.marketing ? (
+          <MarketingFocusPanel
+            focus={detail.focus.marketing}
+            departmentName={department.name}
+            agentNameById={memberNameById}
+          />
+        ) : null}
+        {detail.focus?.finance ? (
+          <FinanceFocusPanel
+            focus={detail.focus.finance}
+            departmentName={department.name}
+            agentNameById={memberNameById}
+          />
+        ) : null}
+        {detail.focus?.sales ? (
+          <SalesFocusPanel
+            focus={detail.focus.sales}
+            departmentName={department.name}
+            agentNameById={memberNameById}
+          />
+        ) : null}
+        {detail.focus?.success ? (
+          <SuccessFocusPanel
+            focus={detail.focus.success}
+            departmentName={department.name}
+            agentNameById={memberNameById}
+          />
+        ) : null}
+      </>
+    ) : null;
+
+  const needsFounderBlock =
+    detail.needsFounder.length > 0 ? (
+      <section className="console-card p-4">
+        <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+          Needs founder
+        </h2>
+        <ul className="mt-2 space-y-2">
+          {detail.needsFounder.map((approval) => (
+            <li
+              key={approval.id}
+              className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-hairline-strong bg-elevated px-3.5 py-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-ink">{approval.action}</p>
+                {approval.description && (
+                  <p className="mt-0.5 line-clamp-2 text-xs text-muted">{approval.description}</p>
+                )}
+                <p className="mt-1 font-mono text-2xs uppercase tracking-wide text-muted">
+                  {approval.agentId ? (memberNameById.get(approval.agentId) ?? "Employee") : "Department"}
+                  {" · "}
+                  {approval.riskLevel} risk
+                  {approval.cost > 0 ? ` · ${formatCost(approval.cost)}` : ""}
+                  {" · "}
+                  {/* normal-case: the label above is uppercased, and "6M AGO"
+                      reads as six months for six minutes. */}
+                  <span className="normal-case">{formatTimeAgo(approval.createdAt)}</span>
+                </p>
+              </div>
+              <Link
+                href="/app/approvals"
+                className="shrink-0 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
+              >
+                Review
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+
+  const nowBlock = (
+    <section className="console-card p-4">
+      <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
+        Now
+      </h2>
+      {detail.now.length === 0 ? (
+        <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
+          <p className="text-sm text-ink">Nothing running.</p>
+          <p className="mt-1 text-xs text-muted">
+            {detail.members.length === 0
+              ? "This department has no employees yet. Hire one into it, or ask the Executive Agent to brief it."
+              : "Running work and anything waiting on your decision appears here; accepted-but-idle tasks live under Queued."}
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-2 divide-y divide-[var(--console-line)]">
+          {detail.now.map((task) => {
+            const status = taskLabel(task.status);
+            return (
+              <li key={task.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                <span className="state-dot" data-state={status.state} />
+                <Link
+                  href={`/app/tasks/${task.id}`}
+                  className="min-w-0 flex-1 truncate text-sm text-ink transition-colors hover:text-brand-ink"
+                >
+                  {task.title}
+                </Link>
+                <span className="font-mono text-2xs uppercase tracking-wide text-muted">
+                  {status.label}
+                </span>
+                <span className="font-mono text-2xs text-muted">
+                  {task.agentId ? (memberNameById.get(task.agentId) ?? "Employee") : "Unassigned"}
+                </span>
+                {task.cost > 0 && (
+                  <span className="font-mono text-2xs tabular-nums text-muted">
+                    {formatCost(task.cost)}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+
+  const workflowsBlock = (
+    <OsSection
+      id="workflows"
+      title="Workflows"
+      description="External events this department responds to: what fires, what it does, and who owns it."
+    >
+      <div className="console-card p-4">
+        <WorkflowEditor
+          rules={detail.workflows ?? []}
+          members={detail.members.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+        />
+      </div>
+    </OsSection>
+  );
+
+  const orderedBlocks: Record<string, React.ReactNode> = {
+    focus: focusBlock,
+    needsFounder: needsFounderBlock,
+    now: nowBlock,
+    workflows: workflowsBlock,
+  };
+
   return (
     <div className="space-y-4">
       <Link
@@ -595,46 +756,6 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
         </dl>
       </header>
 
-      {/* ── Focus (docs/86 §6) — the department's real work, when its
-          template ships a focus read-model. Rendered by pageConfig order when
-          the blueprint declares it, and immediately after the header
-          otherwise, so existing departments get it without re-activation. */}
-      {detail.focus?.engineering ? (
-        <DepartmentFocusPanel
-          focus={detail.focus.engineering}
-          departmentName={department.name}
-          agentNameById={memberNameById}
-        />
-      ) : null}
-      {detail.focus?.marketing ? (
-        <MarketingFocusPanel
-          focus={detail.focus.marketing}
-          departmentName={department.name}
-          agentNameById={memberNameById}
-        />
-      ) : null}
-      {detail.focus?.finance ? (
-        <FinanceFocusPanel
-          focus={detail.focus.finance}
-          departmentName={department.name}
-          agentNameById={memberNameById}
-        />
-      ) : null}
-      {detail.focus?.sales ? (
-        <SalesFocusPanel
-          focus={detail.focus.sales}
-          departmentName={department.name}
-          agentNameById={memberNameById}
-        />
-      ) : null}
-      {detail.focus?.success ? (
-        <SuccessFocusPanel
-          focus={detail.focus.success}
-          departmentName={department.name}
-          agentNameById={memberNameById}
-        />
-      ) : null}
-
       {/* ── Charter (docs/86 §4) — the blueprint the template carried in ──
           This is the department's own content, written at activation, not a
           generic block every department shares. It is what makes Executive and
@@ -701,104 +822,14 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
         );
       })()}
 
-      {/* ── Needs founder — never buried ─────────────────────────────────── */}
-      {detail.needsFounder.length > 0 && (
-        <section className="console-card p-4">
-          <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-            Needs founder
-          </h2>
-          <ul className="mt-2 space-y-2">
-            {detail.needsFounder.map((approval) => (
-              <li
-                key={approval.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-hairline-strong bg-elevated px-3.5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink">{approval.action}</p>
-                  {approval.description && (
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted">{approval.description}</p>
-                  )}
-                  <p className="mt-1 font-mono text-2xs uppercase tracking-wide text-muted">
-                    {approval.agentId ? (memberNameById.get(approval.agentId) ?? "Employee") : "Department"}
-                    {" · "}
-                    {approval.riskLevel} risk
-                    {approval.cost > 0 ? ` · ${formatCost(approval.cost)}` : ""}
-                    {" · "}
-                    {/* normal-case: the label above is uppercased, and "6M AGO"
-                        reads as six months for six minutes. */}
-                    <span className="normal-case">{formatTimeAgo(approval.createdAt)}</span>
-                  </p>
-                </div>
-                <Link
-                  href="/app/approvals"
-                  className="shrink-0 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
-                >
-                  Review
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* ── Now ──────────────────────────────────────────────────────────── */}
-      <section className="console-card p-4">
-        <h2 className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-          Now
-        </h2>
-        {detail.now.length === 0 ? (
-          <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
-            <p className="text-sm text-ink">Nothing running.</p>
-            <p className="mt-1 text-xs text-muted">
-              {detail.members.length === 0
-                ? "This department has no employees yet. Hire one into it, or ask the Executive Agent to brief it."
-                : "Running work and anything waiting on your decision appears here; accepted-but-idle tasks live under Queued."}
-            </p>
-          </div>
-        ) : (
-          <ul className="mt-2 divide-y divide-[var(--console-line)]">
-            {detail.now.map((task) => {
-              const status = taskLabel(task.status);
-              return (
-                <li key={task.id} className="flex flex-wrap items-center gap-3 py-2.5">
-                  <span className="state-dot" data-state={status.state} />
-                  <Link
-                    href={`/app/tasks/${task.id}`}
-                    className="min-w-0 flex-1 truncate text-sm text-ink transition-colors hover:text-brand-ink"
-                  >
-                    {task.title}
-                  </Link>
-                  <span className="font-mono text-2xs uppercase tracking-wide text-muted">
-                    {status.label}
-                  </span>
-                  <span className="font-mono text-2xs text-muted">
-                    {task.agentId ? (memberNameById.get(task.agentId) ?? "Employee") : "Unassigned"}
-                  </span>
-                  {task.cost > 0 && (
-                    <span className="font-mono text-2xs tabular-nums text-muted">
-                      {formatCost(task.cost)}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Workflows — the department's recurring processes (docs/85 P2) ── */}
-      <OsSection
-        id="workflows"
-        title="Workflows"
-        description="External events this department responds to: what fires, what it does, and who owns it."
-      >
-        <div className="console-card p-4">
-          <WorkflowEditor
-            rules={detail.workflows ?? []}
-            members={detail.members.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
-          />
-        </div>
-      </OsSection>
+      {/* ── The four blocks the blueprint orders (docs/86 §4) ──────────────
+          Rendered from `pageConfig.sections`, so Engineering leads with the work
+          in flight, Finance leads with what needs the founder, and Marketing
+          leads with what it shipped. A block the blueprint does not name is
+          appended, never dropped — see `resolveBlockOrder`. */}
+      {blockOrder.map((block) => (
+        <Fragment key={block}>{orderedBlocks[block]}</Fragment>
+      ))}
 
       {/* ── Workflow runs — what each workflow actually did (docs/85 §6 P3) ── */}
       <OsSection

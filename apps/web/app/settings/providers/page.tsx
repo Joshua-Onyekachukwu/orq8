@@ -37,7 +37,7 @@ export default async function SettingsProvidersPage() {
           </a>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <p className="text-sm text-muted">Settings</p>
         <h1 className="mt-1 text-2xl font-semibold text-ink">Model providers</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">

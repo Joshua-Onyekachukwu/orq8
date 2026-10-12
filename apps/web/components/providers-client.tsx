@@ -27,6 +27,11 @@ export type KeyItem = {
   last_tested_at: string | null;
   last_used_at: string | null;
   created_at: string;
+  // docs/80 Phase 4 — enforcement state from the API.
+  monthly_spend_ceiling: number | null;
+  month_to_date_spend_usd: number;
+  active_for_routing: boolean;
+  routing_blocked_reason: "over_ceiling" | "disabled" | "revoked" | null;
 };
 
 type Notice = { kind: "ok" | "err"; text: string } | null;
@@ -55,6 +60,11 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
   const [rotateValue, setRotateValue] = useState("");
   const [confirmRevokeFor, setConfirmRevokeFor] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+
+  // docs/80 Phase 4 — per-key spending controls (ceiling + model allow-list).
+  const [editControlsFor, setEditControlsFor] = useState<string | null>(null);
+  const [ceilingDraft, setCeilingDraft] = useState<string>("");
+  const [modelsDraft, setModelsDraft] = useState<string>("");
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/providers/keys");
@@ -89,7 +99,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       if (!res.ok) {
         setNotice({
           kind: "err",
-          text: data?.error?.message ?? "Failed to save key. Check the key is valid and the API is running on :3001.",
+          text: data?.error?.message ?? "Failed to save key. Check the key is valid and try again.",
         });
         return;
       }
@@ -99,7 +109,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       setNotice({ kind: "ok", text: `${data?.data?.provider_name ?? "Provider"} key saved (encrypted at rest).` });
       await refresh();
     } catch {
-      setNotice({ kind: "err", text: "Network error. Is the API running on :3001?" });
+      setNotice({ kind: "err", text: "Network error. Check your connection and try again." });
     } finally {
       setBusy(false);
     }
@@ -118,7 +128,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       if (!res.ok) {
         setNotice({
           kind: "err",
-          text: data?.error?.message ?? `${action} failed. Check the API is running on :3001.`,
+          text: data?.error?.message ?? `${action} failed. Try again.`,
         });
         return;
       }
@@ -138,7 +148,50 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
       }
       await refresh();
     } catch {
-      setNotice({ kind: "err", text: "Network error. Is the API running on :3001?" });
+      setNotice({ kind: "err", text: "Network error. Check your connection and try again." });
+    } finally {
+      setActionBusy(null);
+    }
+  }
+
+  function openControls(k: KeyItem) {
+    setEditControlsFor(editControlsFor === k.id ? null : k.id);
+    setCeilingDraft(k.monthly_spend_ceiling === null ? "" : String(k.monthly_spend_ceiling));
+    setModelsDraft(k.allowed_models.join(", "));
+  }
+
+  // PATCH the key's spending controls. An empty ceiling clears it (uncapped);
+  // an empty model list allows every model. Secrets are never sent here.
+  async function saveControls(id: string) {
+    setNotice(null);
+    setActionBusy(id);
+    try {
+      const trimmed = ceilingDraft.trim();
+      const body: Record<string, unknown> = {
+        monthly_spend_ceiling: trimmed === "" ? null : Number(trimmed),
+        allowed_models: modelsDraft
+          .split(",")
+          .map((m) => m.trim())
+          .filter(Boolean),
+      };
+      const res = await fetch(`/api/providers/keys/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotice({
+          kind: "err",
+          text: data?.error?.message ?? "Failed to update spending controls.",
+        });
+        return;
+      }
+      setEditControlsFor(null);
+      setNotice({ kind: "ok", text: "Spending controls updated." });
+      await refresh();
+    } catch {
+      setNotice({ kind: "err", text: "Network error. Check your connection and try again." });
     } finally {
       setActionBusy(null);
     }
@@ -300,7 +353,7 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                 <ul className="mt-3 space-y-3">
                   {orgKeys.map((k) => (
                     <li key={k.id} className="rounded-md bg-canvas p-3">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className={`h-2 w-2 rounded-full ${
@@ -318,10 +371,68 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                             {k.last_used_at ? ` · last used ${new Date(k.last_used_at).toLocaleDateString()}` : ""}
                             {k.last_tested_at ? ` · tested ${new Date(k.last_tested_at).toLocaleDateString()}` : " · not tested"}
                           </p>
+
+                          {/* docs/80 Phase 4 — whether this key actually routes, and its spend. */}
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${
+                                k.active_for_routing
+                                  ? "bg-brand-soft text-brand-ink"
+                                  : "bg-error-soft text-error-ink"
+                              }`}
+                            >
+                              {k.active_for_routing
+                                ? "Active for routing"
+                                : k.routing_blocked_reason === "over_ceiling"
+                                  ? "Blocked · over ceiling"
+                                  : k.routing_blocked_reason === "disabled"
+                                    ? "Blocked · disabled"
+                                    : k.routing_blocked_reason === "revoked"
+                                      ? "Blocked · revoked"
+                                      : "Not routing"}
+                            </span>
+                            <span className="text-muted">
+                              ${k.month_to_date_spend_usd.toFixed(2)} this month
+                              {k.monthly_spend_ceiling === null
+                                ? " · no ceiling"
+                                : ` of $${k.monthly_spend_ceiling.toFixed(2)}`}
+                            </span>
+                            {k.allowed_models.length > 0 && (
+                              <span className="text-muted">
+                                · {k.allowed_models.length} model{k.allowed_models.length === 1 ? "" : "s"} allowed
+                              </span>
+                            )}
+                          </div>
+                          {k.monthly_spend_ceiling !== null && (
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-disabled-surface">
+                              <div
+                                className={`h-full rounded-full ${
+                                  k.month_to_date_spend_usd >= k.monthly_spend_ceiling
+                                    ? "bg-error-fill"
+                                    : "bg-brand-deep"
+                                }`}
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.round(
+                                      (k.month_to_date_spend_usd / k.monthly_spend_ceiling) * 100,
+                                    ),
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        <div className="flex shrink-0 flex-wrap gap-2">
                           <button className={btnGhost} disabled={actionBusy === k.id} onClick={() => runAction(k.id, "test")}>
                             Test
+                          </button>
+                          <button
+                            className={btnGhost}
+                            disabled={actionBusy === k.id}
+                            onClick={() => openControls(k)}
+                          >
+                            {editControlsFor === k.id ? "Close" : "Controls"}
                           </button>
                           <button className={btnGhost} disabled={actionBusy === k.id} onClick={() => { setRotateFor(rotateFor === k.id ? null : k.id); setRotateValue(""); }}>
                             Rotate
@@ -358,6 +469,56 @@ export function ProvidersClient({ catalog, keys: initialKeys }: { catalog: Catal
                           <button type="submit" disabled={actionBusy === k.id} className={btnPrimary}>
                             Save new
                           </button>
+                        </form>
+                      )}
+                      {editControlsFor === k.id && (
+                        <form
+                          className="mt-3 space-y-3 border-t border-hairline pt-3"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            saveControls(k.id);
+                          }}
+                        >
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label htmlFor={`ceiling-${k.id}`} className={labelClass}>
+                                Monthly ceiling (USD)
+                              </label>
+                              <input
+                                id={`ceiling-${k.id}`}
+                                type="number"
+                                min={0}
+                                step="1"
+                                value={ceilingDraft}
+                                onChange={(e) => setCeilingDraft(e.target.value)}
+                                className={inputClass}
+                                placeholder="Uncapped"
+                              />
+                              <p className="mt-1 text-xs text-muted">
+                                Leave empty for uncapped. Routing skips this key once it is reached.
+                              </p>
+                            </div>
+                            <div>
+                              <label htmlFor={`models-${k.id}`} className={labelClass}>
+                                Allowed models
+                              </label>
+                              <input
+                                id={`models-${k.id}`}
+                                value={modelsDraft}
+                                onChange={(e) => setModelsDraft(e.target.value)}
+                                className={inputClass}
+                                placeholder="Empty = all models"
+                              />
+                              <p className="mt-1 text-xs text-muted">
+                                Comma-separated. Empty allows every model on this provider.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <button type="submit" disabled={actionBusy === k.id} className={btnPrimary}>
+                              {actionBusy === k.id ? "Saving…" : "Save controls"}
+                            </button>
+                          </div>
                         </form>
                       )}
                     </li>

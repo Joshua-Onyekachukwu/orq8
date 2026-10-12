@@ -11,6 +11,7 @@ import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 import { planRevisions, type Db, type PlanRevision } from '@orq8/db';
 import { AppError } from '@orq8/core';
 import { appendAudit } from './audit.js';
+import { resolveOrgEaName } from './orgs.js';
 
 // The five plan sections the mock's plan doc renders (docs/71 §W item 4 /
 // headquarters-mock-v2 screen-plan). Sections are free-form text; unknown keys
@@ -55,6 +56,9 @@ export interface CreatePlanRevisionInput {
   authorType?: 'user' | 'agent';
   authorId?: string | null;
   authorName?: string | null;
+  /** Deployment default EA name when the org has no rename. The route passes
+   *  config.EA_DISPLAY_NAME; the 'Atlas' literal is only the last resort. */
+  fallbackEaName?: string;
 }
 
 export async function createPlanRevision(
@@ -62,6 +66,14 @@ export async function createPlanRevision(
   orgId: string,
   input: CreatePlanRevisionInput,
 ): Promise<PlanRevision> {
+  // Agent-authored drafts carry the org's own EA name (not a stale deployment
+  // default) so generated reports stay in sync with a rename. Resolved once,
+  // outside the rev-claim retry loop.
+  const agentAuthorName =
+    input.authorName ??
+    (input.authorType === 'agent' || input.authorType === undefined
+      ? await resolveOrgEaName(db, orgId, input.fallbackEaName ?? 'Atlas')
+      : (input.fallbackEaName ?? 'Atlas'));
   return db.transaction(async (tx) => {
     // Rev numbers are per-org monotonic. The unique (org_id, rev) index is the
     // real guard under concurrency; the retry re-reads max(rev) after a tie.
@@ -84,7 +96,7 @@ export async function createPlanRevision(
             content: input.content ?? {},
             authorType: input.authorType ?? 'agent',
             authorId: input.authorId ?? null,
-            authorName: input.authorName ?? 'Atlas',
+            authorName: agentAuthorName,
             createdAt: new Date(),
           })
           .returning();

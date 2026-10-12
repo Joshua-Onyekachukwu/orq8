@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Target,
 } from "lucide-react";
-import { useExecutiveAgent, usePageContext } from "../executive-agent-context";
+import { useExecutiveAgent, useEaName, usePageContext } from "../executive-agent-context";
 import { OsEmptyPanel, OsTabs, OsZoneTitle } from "../os/structure";
 import { formatCost, taskOsStatus, type DotState } from "../os/primitives";
 import {
@@ -224,6 +224,7 @@ export function EmployeeWorkspace({
   const [error, setError] = useState<string | null>(null);
 
   const { openPanel } = useExecutiveAgent();
+  const eaName = useEaName();
   usePageContext({
     route: `/app/agents/${agent.id}`,
     pageName: `Employee — ${agent.name}`,
@@ -444,7 +445,7 @@ export function EmployeeWorkspace({
               className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
             >
               <Command aria-hidden="true" className="h-3.5 w-3.5" />
-              Ask Atlas
+              Ask {eaName}
             </button>
           </div>
         </div>
@@ -500,7 +501,7 @@ export function EmployeeWorkspace({
                   <div className="mt-2 rounded-md border border-dashed border-hairline px-4 py-5">
                     <p className="text-sm text-ink">Nothing running.</p>
                     <p className="mt-1 text-xs text-muted">
-                      Ask Atlas to brief this employee, or queue work from the Tasks board — it
+                      Ask {eaName} to brief this employee, or queue work from the Tasks board — it
                       picks up work through its department, never on its own schedule.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -513,7 +514,7 @@ export function EmployeeWorkspace({
                         }
                         className="rounded-md border border-hairline-strong px-3 py-1.5 text-xs text-ink transition-colors hover:bg-surface-secondary"
                       >
-                        Ask Atlas to brief {agent.name}
+                        Ask {eaName} to brief {agent.name}
                       </button>
                       <Link
                         href="/app/tasks"

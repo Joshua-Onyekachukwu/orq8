@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { useEaName } from "../../../components/executive-agent-context";
 import { RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 
 interface BriefingSection {
@@ -167,6 +168,7 @@ function BriefingCard({ row }: { row: BriefingRow }) {
 }
 
 export default function BriefingsPage() {
+  const eaName = useEaName();
   const [rows, setRows] = useState<BriefingRow[]>([]);
   const [kind, setKind] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -206,7 +208,8 @@ export default function BriefingsPage() {
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Briefings</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
-              Weekly and monthly reports, written by Atlas from real activity, acknowledged by you.
+              Weekly and monthly reports, written by {eaName} from real activity, acknowledged by
+              you.
             </p>
           </div>
           <button

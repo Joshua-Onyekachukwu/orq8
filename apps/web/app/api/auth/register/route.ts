@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(payload, { status: res.status });
     }
 
-    const token = (data as { data?: { token?: unknown } } | null)?.data?.token;
+    const payload = (data as { data?: { token?: unknown; email_verified?: unknown } } | null)?.data;
+    const token = payload?.token;
     if (typeof token !== "string" || token.length === 0) {
       return NextResponse.json(
         { ok: false, error: "The sign-up service returned an unexpected response. Try again." },
@@ -65,7 +66,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return attachSessionCookie(NextResponse.json({ ok: true }), token);
+    // email_verified tells the client whether to route through /check-email
+    // (verification required) or straight into the app (account active at
+    // signup because REQUIRE_EMAIL_VERIFICATION=false).
+    return attachSessionCookie(
+      NextResponse.json({ ok: true, email_verified: payload?.email_verified === true }),
+      token,
+    );
   } catch (err) {
     // Server-side only: the founder gets a plain message, the operator gets
     // the real reason (host refused, TLS, timeout) in the server logs.

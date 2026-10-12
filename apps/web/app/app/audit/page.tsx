@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { API_URL, SESSION_COOKIE } from "../../../lib/api";
+import { EA_NAME } from "../../../lib/ea";
 import { PageShell } from "../../../components/page-shell";
 import { AuditExport } from "./audit-export";
 
@@ -173,10 +174,12 @@ export default async function AuditPage({
   const domain = params.domain?.trim() || null;
   const query = domain ? `?limit=100&domain=${encodeURIComponent(domain)}` : "?limit=100";
 
-  const [trail, verification] = await Promise.all([
+  const [trail, verification, org] = await Promise.all([
     apiGet<{ data: AuditRow[]; meta: AuditMeta }>(`/v1/audit${query}`),
     apiGet<{ data: ChainVerification }>("/v1/audit/verify"),
+    apiGet<{ data: { ea_name?: string | null } }>("/v1/org"),
   ]);
+  const eaName = org?.data?.ea_name?.trim() || EA_NAME;
 
   const rows = trail?.data ?? [];
   const meta = trail?.meta ?? null;
@@ -192,8 +195,8 @@ export default async function AuditPage({
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Audit trail</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
-              Every row is append-only and hash-chained. Nothing here is editable, by anyone — not
-              you, not Atlas, not the platform.
+              Every row is append-only and hash-chained. Nothing here is editable, by anyone —
+              not you, not {eaName}, not the platform.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

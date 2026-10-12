@@ -12,8 +12,11 @@ import { describe, expect, it } from "vitest";
 import {
   CANONICAL_METRICS,
   CANONICAL_SECTIONS,
+  DEFAULT_BLOCK_ORDER,
+  ORDERABLE_BLOCKS,
   blueprintLabels,
   departmentMetrics,
+  resolveBlockOrder,
   resolvePageConfig,
   type DepartmentMetricsLike,
 } from "../components/work/department-focus";
@@ -48,6 +51,63 @@ describe("resolvePageConfig", () => {
   it("survives a null settings blob", () => {
     expect(resolvePageConfig(null).metrics).toEqual(CANONICAL_METRICS);
     expect(resolvePageConfig(undefined).sections).toEqual(CANONICAL_SECTIONS);
+  });
+});
+
+describe("resolveBlockOrder", () => {
+  it("renders the blocks in the department's declared order, not one hardcoded stack", () => {
+    // Engineering: now → needsFounder → focus (docs/86 §6, docs/85 §8)
+    expect(resolveBlockOrder(["now", "needsFounder", "focus", "employees", "workflows"])).toEqual([
+      "now",
+      "needsFounder",
+      "focus",
+      "workflows",
+    ]);
+    // Finance leads with what needs the founder.
+    expect(resolveBlockOrder(["needsFounder", "now", "focus"])).toEqual([
+      "needsFounder",
+      "now",
+      "focus",
+      "workflows",
+    ]);
+    // Marketing and Customer Success lead with the work itself.
+    expect(resolveBlockOrder(["now", "focus", "queued", "needsFounder"])).toEqual([
+      "now",
+      "focus",
+      "needsFounder",
+      "workflows",
+    ]);
+  });
+
+  it("keeps the department's own read-model at the front when the blueprint does not place it", () => {
+    // Executive Office and every pre-focus template: focus is not named, and
+    // docs/86 §6 still gives it the top of the page.
+    expect(resolveBlockOrder(["needsFounder", "now", "employees", "workflows"])).toEqual([
+      "focus",
+      "needsFounder",
+      "now",
+      "workflows",
+    ]);
+    expect(resolveBlockOrder(CANONICAL_SECTIONS)).toEqual(["focus", "now", "needsFounder", "workflows"]);
+    expect(resolveBlockOrder(null)).toEqual(["focus", "now", "needsFounder", "workflows"]);
+  });
+
+  it("is an order, never a filter — a block the blueprint forgot is appended, not dropped", () => {
+    for (const order of [["now"], ["metrics", "queued"], [] as string[]]) {
+      const resolved = resolveBlockOrder(order);
+      expect(resolved).toHaveLength(ORDERABLE_BLOCKS.length);
+      expect([...resolved].sort()).toEqual([...ORDERABLE_BLOCKS].sort());
+      expect([...resolved].sort()).toEqual([...DEFAULT_BLOCK_ORDER, "focus"].sort());
+    }
+  });
+
+  it("ignores unknown ids and duplicates instead of rendering a hole", () => {
+    expect(resolveBlockOrder(["now", "now", "charter", "nonsense", "needsFounder"])).toEqual([
+      "focus",
+      "now",
+      "needsFounder",
+      "workflows",
+    ]);
   });
 });
 

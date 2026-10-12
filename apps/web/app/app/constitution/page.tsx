@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { useEaName } from "../../../components/executive-agent-context";
 import { AlertTriangle, Check, Loader2, Plus, Save, X } from "lucide-react";
 
 /**
@@ -64,6 +65,7 @@ function ArticleHead({ n, title, count }: { n: number; title: string; count?: nu
 }
 
 export default function ConstitutionPage() {
+  const eaName = useEaName();
   const [constitution, setConstitution] = useState<Constitution>(defaultConstitution);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -159,7 +161,7 @@ export default function ConstitutionPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-6xl space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="console-card animate-pulse p-6">
             <div className="h-4 w-1/3 rounded bg-hairline" />
@@ -231,7 +233,7 @@ export default function ConstitutionPage() {
 
   return (
     <PageErrorBoundary pageName="Company Constitution" backHref="/app">
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-6xl space-y-4">
         <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
           <div>
             <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
@@ -268,8 +270,8 @@ export default function ConstitutionPage() {
         {/* The mock's banner: the constitution binds Atlas too. */}
         <div className="console-card flex flex-wrap items-baseline justify-between gap-2 p-4">
           <p className="text-sm text-ink">
-            The constitution binds Atlas too. Atlas cannot hire, spend or publish outside these
-            articles — anything not allowed here opens a gate for you.
+            The constitution binds {eaName} too. {eaName} cannot hire, spend or publish outside
+            these articles — anything not allowed here opens a gate for you.
           </p>
           <p className="font-mono text-2xs text-muted">
             {amended ? `Last amended ${amended}` : "Not yet amended"} · every change writes an audit event

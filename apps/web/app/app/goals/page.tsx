@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-import { fetchWithAuth } from "../../../lib/api";
+import { fetchWithAuth, fetchOrgEaName } from "../../../lib/api";
 import { GoalActions } from "../../../components/goal-actions";
 import { TaskActions } from "../../../components/task-actions";
 import { PageContainer } from "../../../components/layout/page-container";
@@ -256,12 +256,14 @@ function GoalRow({
   agentName,
   lineage,
   gatedSteps,
+  eaName,
 }: {
   goal: Goal;
   steps: Task[];
   agentName: (agentId: string | null) => string | null;
   lineage: GoalLineage | undefined;
   gatedSteps: Set<string>;
+  eaName: string;
 }) {
   const state = goalState(goal, steps, gatedSteps);
   const ordered = sortSteps(steps);
@@ -308,7 +310,7 @@ function GoalRow({
 
         {ordered.length === 0 ? (
           <p className="mt-2 text-xs text-muted">
-            Atlas has not broken this goal into steps yet. Ask it to plan the work from the{" "}
+            {eaName} has not broken this goal into steps yet. Ask it to plan the work from the{" "}
             <Link href="/app/tasks" className="text-ink transition-colors hover:text-brand-ink">
               task board
             </Link>
@@ -357,12 +359,13 @@ function GoalRow({
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default async function GoalsPage() {
-  const [goals, tasks, agents, lineage, openGates] = await Promise.all([
+  const [goals, tasks, agents, lineage, openGates, eaName] = await Promise.all([
     fetchGoals(),
     fetchTasks(),
     fetchAgents(),
     fetchLineage(),
     fetchOpenGates(),
+    fetchOrgEaName(),
   ]);
 
   const goalList = goals;
@@ -405,8 +408,11 @@ export default async function GoalsPage() {
           <div className="console-card p-8">
             <p className="text-sm font-medium text-ink">No goals yet</p>
             <p className="mt-1 max-w-xl text-xs text-muted">
-              A goal is a commitment — what the company is trying to make true, and by when. Atlas
-              breaks it into steps, assigns them to your AI employees, and reports progress here.
+              A goal is a commitment — what the company is trying to make true, and by when.{
+                " "
+              }
+              {eaName} breaks it into steps, assigns them to your AI employees, and reports progress
+              here.
             </p>
             <div className="mt-3">
               <GoalActions />
@@ -421,6 +427,7 @@ export default async function GoalsPage() {
                 steps={stepsByGoal.get(goal.id) ?? []}
                 lineage={lineageByGoal.get(goal.id)}
                 gatedSteps={gatedSteps}
+                eaName={eaName}
                 agentName={(agentId) => (agentId ? nameById.get(agentId) ?? null : null)}
               />
             ))}

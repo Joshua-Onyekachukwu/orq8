@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowUpRight } from "lucide-react";
 
 import { AgentDrawer, type AgentDrawerTarget, type DrawerDotState } from "../agents/agent-drawer";
+import { useEaName } from "../executive-agent-context";
 
 /**
  * "What's happening now" (brief §1–§4) — the live operational view of the
@@ -265,6 +266,7 @@ export function WhatsHappeningNow({
   departments?: HappeningDepartment[];
 }) {
   const [selected, setSelected] = useState<HappeningMember | null>(null);
+  const eaName = useEaName();
 
   const attention = members.filter((m) => ATTENTION_STATES.includes(m.state));
   const working = members.filter((m) => m.state === "working");
@@ -369,7 +371,7 @@ export function WhatsHappeningNow({
               <p className="mt-1 text-xs text-muted">
                 {rest.length > 0
                   ? `${rest.length} employee${rest.length === 1 ? "" : "s"} are available for the next task.`
-                  : "Assign work, or ask Atlas to plan the next move."}
+                  : `Assign work, or ask ${eaName} to plan the next move.`}
               </p>
             </div>
           ) : (

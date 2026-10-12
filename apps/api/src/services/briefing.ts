@@ -37,6 +37,7 @@ import { createEmailTransport } from '../email/transport.js';
 import { createNotification } from '../routes/notifications.js';
 import { getNotificationPrefs } from './notification-preferences.js';
 import { appendAudit } from './audit.js';
+import { eaNameFromSettings } from './orgs.js';
 
 export interface BriefingSection {
   heading: string;
@@ -372,7 +373,7 @@ export function isQuietContent(stats: BriefingContent['stats']): boolean {
   );
 }
 
-function briefingEmailHtml(orgName: string, label: string, content: BriefingContent): string {
+function briefingEmailHtml(orgName: string, label: string, content: BriefingContent, eaName: string | null): string {
   const parts = content.sections
     .map(
       (s) => `<h3 style="margin:18px 0 6px;font-size:13px;color:#0a1024;">${s.heading}</h3>
@@ -389,6 +390,7 @@ function briefingEmailHtml(orgName: string, label: string, content: BriefingCont
   </div>
   <div style="background:#ffffff;padding:28px;border:1px solid #e4e7ef;border-top:none;border-radius:0 0 12px 12px;">
     ${content.quiet ? '<p style="color:#5b6478;">No significant activity in this period.</p>' : parts}
+    ${eaName ? `<p style="margin:20px 0 0;color:#5b6478;font-size:13px;">Prepared by ${eaName}, your Executive Agent.</p>` : ''}
   </div>
 </div></body></html>`;
 }
@@ -396,9 +398,9 @@ function briefingEmailHtml(orgName: string, label: string, content: BriefingCont
 async function orgNameAndOwnerEmail(
   db: Db,
   orgId: string,
-): Promise<{ orgName: string; ownerEmail: string | null }> {
+): Promise<{ orgName: string; ownerEmail: string | null; eaName: string | null }> {
   const [orgRow] = await db
-    .select({ name: organizations.name })
+    .select({ name: organizations.name, settings: organizations.settings })
     .from(organizations)
     .where(eq(organizations.id, orgId))
     .limit(1);
@@ -408,7 +410,11 @@ async function orgNameAndOwnerEmail(
     .innerJoin(users, eq(users.id, memberships.userId))
     .where(and(eq(memberships.orgId, orgId), eq(memberships.role, 'owner')))
     .limit(1);
-  return { orgName: orgRow?.name ?? 'ORQ8', ownerEmail: rows[0]?.email ?? null };
+  return {
+    orgName: orgRow?.name ?? 'ORQ8',
+    ownerEmail: rows[0]?.email ?? null,
+    eaName: eaNameFromSettings(orgRow?.settings),
+  };
 }
 
 /**
@@ -480,16 +486,18 @@ export async function generateBriefing(
 
   try {
     const prefs = await getNotificationPrefs(db, orgId);
-    const { orgName, ownerEmail } = await orgNameAndOwnerEmail(db, orgId);
+    const { orgName, ownerEmail, eaName } = await orgNameAndOwnerEmail(db, orgId);
     if (prefs.emailOnWeeklyReport && ownerEmail) {
       const transport = createEmailTransport(config, logger);
+      const signoff = eaName ? `\n\nPrepared by ${eaName}, your Executive Agent.` : '';
       await transport.send({
         to: ownerEmail,
         subject: `[ORQ8] ${label} Briefing — ${orgName}`,
-        text: content.sections
-          .map((s) => `${s.heading}\n${s.items.map((i) => ` · ${i}`).join('\n')}`)
-          .join('\n\n'),
-        html: briefingEmailHtml(orgName, label, content),
+        text:
+          content.sections
+            .map((s) => `${s.heading}\n${s.items.map((i) => ` · ${i}`).join('\n')}`)
+            .join('\n\n') + signoff,
+        html: briefingEmailHtml(orgName, label, content, eaName),
       });
     }
   } catch (err) {

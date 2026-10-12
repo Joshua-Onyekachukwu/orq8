@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { fetchWithAuth } from "../../../lib/api";
+import { fetchWithAuth, fetchOrgEaName } from "../../../lib/api";
 import { PageContainer } from "../../../components/layout/page-container";
 import { EAOpenButton } from "../../../components/dashboard/ea-open-button";
 import {
@@ -11,7 +11,8 @@ import {
 
 export const metadata: Metadata = {
   title: "Tasks",
-  description: "Work planned from goals and by Atlas — what runs next, what is running, what is done.",
+  description:
+    "Work planned from goals and by your Executive Agent — what runs next, what is running, what is done.",
 };
 
 /**
@@ -24,10 +25,11 @@ export const metadata: Metadata = {
  * 200); the three reads are parallel.
  */
 export default async function TasksPage() {
-  const [tasks, agents, goals] = await Promise.all([
+  const [tasks, agents, goals, eaName] = await Promise.all([
     fetchWithAuth<WorkTask[]>("/v1/tasks?order=desc&limit=200", { revalidate: false }),
     fetchWithAuth<WorkAgent[]>("/v1/agents", { revalidate: false }),
     fetchWithAuth<WorkGoal[]>("/v1/goals", { revalidate: false }),
+    fetchOrgEaName(),
   ]);
 
   const list = tasks ?? [];
@@ -37,16 +39,15 @@ export default async function TasksPage() {
 
   return (
     <PageContainer
-      width="wide"
       kicker="Work"
       title="Tasks"
-      lede="Work is assigned from goals and by Atlas. Approvals pause work that needs you — nothing else does."
+      lede={`Work is assigned from goals and by ${eaName}. Approvals pause work that needs you — nothing else does.`}
       actions={
         <EAOpenButton
           prompt="Plan the work for "
           className="inline-flex items-center rounded-full border border-hairline-strong px-3.5 py-2 text-xs font-medium text-ink transition-colors hover:bg-elevated"
         >
-          Ask Atlas to plan work
+          Ask {eaName} to plan work
         </EAOpenButton>
       }
       pageName="Tasks"
@@ -65,8 +66,8 @@ export default async function TasksPage() {
         <div className="console-card mt-4 p-10 text-center">
           <p className="text-sm font-medium text-ink">No work yet</p>
           <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-            Give Atlas a direction and it will plan the work, assign it to your AI employees, and
-            show up here as it runs.
+            Give {eaName} a direction and it will plan the work, assign it to your AI employees,
+            and show up here as it runs.
           </p>
         </div>
       ) : (

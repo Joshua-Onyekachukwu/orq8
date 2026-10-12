@@ -610,7 +610,7 @@ function DecisionCouncilPage() {
 
   return (
     <PageErrorBoundary pageName="Decision Council" backHref="/app">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-ink">Decision Council</h1>

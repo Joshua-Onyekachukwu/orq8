@@ -16,7 +16,7 @@ type MeData = {
     emailVerified?: boolean;
   };
   memberships: {
-    org: { id: string; name: string; slug: string; plan: string };
+    org: { id: string; name: string; slug: string; plan: string; eaName?: string | null };
     role: string;
   }[];
   active_org_id: string | null;
@@ -131,9 +131,10 @@ export default async function AppLayout({
 
   const userRole = active?.role ?? "member";
   const platformRole = me?.platformRole ?? "user";
+  const eaName = active?.org.eaName ?? null;
 
   return (
-    <ExecutiveAgentShell userId={me?.user.id ?? null}>
+    <ExecutiveAgentShell userId={me?.user.id ?? null} eaName={eaName}>
       <div id="main" className="console min-h-screen bg-canvas" data-console-theme={consoleTheme}>
       <IdentifyUser
         userId={me?.user.id}

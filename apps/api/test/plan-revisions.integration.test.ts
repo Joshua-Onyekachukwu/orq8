@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
+import { createPlanRevision } from '../src/services/plan-revisions.js';
 import { createSession } from '../src/services/sessions.js';
 import { deleteOrg } from './helpers/delete-org.js';
 import type { AppDeps } from '../src/types.js';
@@ -303,6 +304,41 @@ run('plan revisions + ratify (docs/71 §R item 4)', () => {
     const listA = await app.inject({ method: 'GET', url: '/v1/plan-revisions', headers: authA() });
     const idsA = (listA.json() as { revisions: Array<{ id: string }> }).revisions.map((r) => r.id);
     expect(idsA).not.toContain(revB.id);
+  });
+
+  it('defaults agent-authored drafts to the org’s own EA name', async () => {
+    await deps.db
+      .update(organizations)
+      .set({ settings: { eaName: 'Vera' } })
+      .where(eq(organizations.id, orgB));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/plan-revisions',
+      headers: { ...authB(), 'content-type': 'application/json' },
+      payload: { title: 'EA-drafted plan', authorType: 'agent' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect((res.json() as { authorName: string }).authorName).toBe('Vera');
+  });
+
+  it('falls back to the deployment EA name when the org has no rename', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/plan-revisions',
+      headers: { ...authA(), 'content-type': 'application/json' },
+      payload: { title: 'EA-drafted plan, unnamed org', authorType: 'agent' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect((res.json() as { authorName: string }).authorName).toBe(config.EA_DISPLAY_NAME);
+  });
+
+  it('threads an explicit fallback name through the service', async () => {
+    const rev = await createPlanRevision(deps.db, orgA, {
+      title: 'Service-level fallback',
+      authorType: 'agent',
+      fallbackEaName: 'Custom',
+    });
+    expect(rev.authorName).toBe('Custom');
   });
 
   it('requires auth and rejects invalid bodies', async () => {

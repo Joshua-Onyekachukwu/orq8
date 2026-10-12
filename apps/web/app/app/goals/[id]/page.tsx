@@ -291,7 +291,7 @@ export default function GoalDetailPage() {
   if (loading && !goal) {
     return (
       <PageErrorBoundary pageName="Goal" backHref="/app/goals">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-6xl">
           <div className="animate-pulse space-y-4">
             <div className="h-5 w-32 rounded bg-hairline" />
             <div className="h-40 rounded-xl border border-hairline bg-white p-6" />
@@ -304,7 +304,7 @@ export default function GoalDetailPage() {
 
   return (
     <PageErrorBoundary pageName="Goal" backHref="/app/goals">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <Link
           href="/app/goals"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"

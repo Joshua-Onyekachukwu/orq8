@@ -82,11 +82,16 @@ export default function OrgPage() {
   const [data, setData] = useState<OrgData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Secondary sections that failed to load: shown as a warning instead of a
+  // fake "nothing here yet" empty state with a misleading create CTA.
+  const [loadWarnings, setLoadWarnings] = useState<string[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
   const fetchOrgData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLoadWarnings([]);
+    setSelectedAgent(null);
     try {
       const [agentsRes, goalsRes, teamsRes] = await Promise.all([
         fetch("/api/agents"),
@@ -94,7 +99,18 @@ export default function OrgPage() {
         fetch("/api/teams?all=true"),
       ]);
 
-      const agentsJson = agentsRes.ok ? await agentsRes.json() : { data: [] };
+      // Agents are the core of this page: a failed fetch must read as a
+      // failure, never as an empty org chart inviting hires.
+      if (!agentsRes.ok) {
+        setError("Could not load your agents. Check your connection and try again.");
+        return;
+      }
+      const warnings: string[] = [];
+      if (!goalsRes.ok) warnings.push("goals");
+      if (!teamsRes.ok) warnings.push("teams");
+      setLoadWarnings(warnings);
+
+      const agentsJson = await agentsRes.json();
       const goalsJson = goalsRes.ok ? await goalsRes.json() : { data: [] };
       const teamsJson = teamsRes.ok ? await teamsRes.json() : { data: [] };
 
@@ -151,7 +167,7 @@ export default function OrgPage() {
 
   return (
     <PageErrorBoundary pageName="Org Explorer" backHref="/app">
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
@@ -179,6 +195,12 @@ export default function OrgPage() {
           <AlertCircle className="h-4 w-4 shrink-0 text-error-ink" />
           <p className="text-sm text-error-ink">{error}</p>
         </div>
+      )}
+
+      {loadWarnings.length > 0 && !error && (
+        <p className="mt-4 rounded-xl border border-warm/30 bg-warm/10 px-4 py-2.5 text-sm text-warm-ink" role="status">
+          Could not load {loadWarnings.join(" and ")} — showing the rest of your organization.
+        </p>
       )}
 
       {loading && !data && (
@@ -251,13 +273,13 @@ export default function OrgPage() {
                         {deptAgentCount} agent{deptAgentCount !== 1 ? "s" : ""}
                       </span>
                     );
-                    const dot = wf.coverageStatus === 'healthy' ? '🟢'
-                      : wf.coverageStatus === 'near_capacity' ? '🟡'
-                      : wf.coverageStatus === 'over_capacity' ? '🔴'
-                      : '⚪';
+                    const dotClass = wf.coverageStatus === 'healthy' ? 'bg-brand-deep'
+                      : wf.coverageStatus === 'near_capacity' ? 'bg-warm'
+                      : wf.coverageStatus === 'over_capacity' ? 'bg-error-fill'
+                      : 'bg-hairline';
                     return (
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="text-xs">{dot}</span>
+                        <span className={`h-2 w-2 rounded-full ${dotClass}`} title={`Coverage: ${wf.coverageStatus}`} aria-hidden="true" />
                         <span className="font-mono text-3xs font-medium text-muted">
                           {wf.coveragePct}% · {wf.utilizationPct}% util · {wf.activeAgentCount} agents
                         </span>
@@ -427,7 +449,7 @@ export default function OrgPage() {
                 {data.goals.filter((g) => g.status === "active").map((goal) => (
                   <div key={goal.id} className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2.5">
                     <Target aria-hidden="true" className="h-4 w-4 shrink-0 text-ink" />
-                    <span className="flex-1 text-sm text-ink">{goal.title}</span>
+                    <span className="min-w-0 flex-1 break-words text-sm text-ink">{goal.title}</span>
                     <span className={`rounded-full px-2 py-0.5 font-mono text-3xs font-semibold uppercase ${
                       goal.priority === "urgent" ? "bg-error-soft text-error-ink" :
                       goal.priority === "high" ? "bg-warm-soft text-warm-ink" :
@@ -435,10 +457,10 @@ export default function OrgPage() {
                     }`}>
                       {goal.priority}
                     </span>
-                    <div className="h-2 w-16 rounded-full bg-muted/10 overflow-hidden">
-                      <div className="h-full rounded-full bg-brand-deep" style={{ width: `${goal.progress}%` }} />
+                    <div className="h-2 w-16 shrink-0 rounded-full bg-muted/10 overflow-hidden">
+                      <div className="h-full rounded-full bg-brand-deep" style={{ width: `${Math.min(100, Math.max(0, goal.progress))}%` }} />
                     </div>
-                    <span className="font-mono text-3xs text-muted w-8 text-right">{goal.progress}%</span>
+                    <span className="font-mono text-3xs text-muted w-8 shrink-0 text-right">{goal.progress}%</span>
                   </div>
                 ))}
               </div>

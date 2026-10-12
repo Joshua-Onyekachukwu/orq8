@@ -15,13 +15,16 @@ import { ExecutiveAgentPanel } from "./executive-agent-panel";
 
 export function ExecutiveAgentShell({
   userId,
+  eaName,
   children,
 }: {
   userId: string | null;
+  /** The active org's Executive Agent name (settings.eaName), if renamed. */
+  eaName?: string | null;
   children: ReactNode;
 }) {
   return (
-    <ExecutiveAgentProvider userId={userId}>
+    <ExecutiveAgentProvider userId={userId} eaName={eaName}>
       {children}
       <ExecutiveAgentPanel />
     </ExecutiveAgentProvider>

@@ -1,7 +1,26 @@
 "use client";
 
+/**
+ * Business Import (docs/76 Phase 3 migration, worst-first list).
+ *
+ * Rebased onto the shared `os/` structure layer. It used to hand-roll its own
+ * palette — `bg-white`, `text-muted-foreground`, `rounded-xl … shadow-sm`,
+ * `text-[11px]` — which is a different design language from `.console` and,
+ * because `bg-white` ignores the ink theme, these surfaces stayed white in dark
+ * mode. It also carried its own status colours and its own empty states.
+ *
+ * What is *unchanged*: every fetch, every status, every action and the order in
+ * which a founder does them. The page still refuses to apply anything without an
+ * explicit approval, and the approval controls still only appear while the
+ * import is really `pending_approval`.
+ *
+ * The one judgement call: status is now read through the shared nine-state
+ * vocabulary (`docs/85 §4`) instead of a local colour table, so an import that
+ * is waiting on the founder reads `waiting`/`review`, an applied one reads
+ * `done`, and a rejected one reads `paused` — a decision, not an error.
+ */
+
 import { useState, useEffect, useCallback } from "react";
-import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import {
   CheckCircle2,
   Globe,
@@ -12,6 +31,23 @@ import {
   ThumbsUp,
   XCircle,
 } from "lucide-react";
+import { PageContainer } from "../../../components/layout/page-container";
+import {
+  OsDataTable,
+  OsEmptyPanel,
+  OsErrorPanel,
+  OsLoadingRows,
+  OsMetricRow,
+  OsPanel,
+  OsSection,
+  OsStateBadge,
+  dateColumn,
+  monoColumn,
+  stateColumn,
+  type OsColumn,
+  type OsMetric,
+} from "../../../components/os/structure";
+import { type OsStatus } from "../../../components/os/primitives";
 
 /* ── Types ── */
 
@@ -47,14 +83,29 @@ interface BusinessImport {
   createdAt: string;
 }
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  analysis: { label: "Analyzed", cls: "bg-warm-soft text-warm-ink" },
-  pending_approval: { label: "Awaiting your approval", cls: "bg-brand-soft text-ink" },
-  approved: { label: "Approved", cls: "bg-brand-soft text-ink" },
-  applied: { label: "Applied", cls: "bg-brand-soft text-brand-ink" },
-  rejected: { label: "Rejected", cls: "bg-error-soft text-text-error" },
-  failed: { label: "Failed", cls: "bg-error-soft text-text-error" },
-};
+/* ── Status → the shared state vocabulary (docs/85 §4) ── */
+
+/**
+ * `analysis` means the facts are extracted and the *proposal* step is waiting
+ * on the founder; `pending_approval` means a proposal exists and the decision is
+ * theirs. Neither is a failure, so neither is painted red.
+ */
+function importOsStatus(status: string): OsStatus {
+  if (status === "analysis") return { label: "Analyzed", state: "waiting" };
+  if (status === "pending_approval") return { label: "Awaiting your approval", state: "review" };
+  if (status === "approved") return { label: "Approved", state: "active" };
+  if (status === "applied") return { label: "Applied", state: "done" };
+  if (status === "rejected") return { label: "Rejected", state: "paused" };
+  if (status === "failed") return { label: "Failed", state: "failed" };
+  return { label: status, state: "" };
+}
+
+/** Confidence is a number the API computed — it is shown, never rounded away to a tick. */
+function confidenceTone(confidence: number): string {
+  if (confidence >= 0.8) return "text-ink";
+  if (confidence >= 0.5) return "text-warm-ink";
+  return "text-muted";
+}
 
 function errorMessage(json: { error?: { message?: string } | string } | null, fallback: string): string {
   if (!json) return fallback;
@@ -63,6 +114,16 @@ function errorMessage(json: { error?: { message?: string } | string } | null, fa
   return e?.message ?? fallback;
 }
 
+/* ── Shared button shapes ── */
+
+const BTN_PRIMARY =
+  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-2xs font-semibold disabled:opacity-50";
+const BTN_SECONDARY =
+  "inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-2xs text-ink transition-colors hover:bg-surface-secondary disabled:opacity-50";
+const PRIMARY_STYLE = { backgroundColor: "var(--orq-warm)", color: "var(--orq-on-warm)" } as const;
+const INPUT =
+  "mt-1.5 w-full rounded-md border border-hairline bg-canvas px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-hairline-strong focus:outline-none";
+
 function BusinessImportDashboard() {
   const [description, setDescription] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -70,14 +131,20 @@ function BusinessImportDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState<BusinessImport | null>(null);
   const [history, setHistory] = useState<BusinessImport[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
     try {
-      const res = await fetch("/api/business-imports", { next: { revalidate: 10 } });
+      // `no-store`: the history has to be true immediately after a mutation, so
+      // a cached list is worse than a second request.
+      const res = await fetch("/api/business-imports", { cache: "no-store" });
       const json = await res.json();
       setHistory(json.data ?? []);
     } catch {
       // Non-fatal — history refreshes lazily.
+    } finally {
+      setHistoryLoading(false);
     }
   }, []);
 
@@ -130,253 +197,357 @@ function BusinessImportDashboard() {
     }
   }
 
-  const status = current ? STATUS_META[current.status] ?? { label: current.status, cls: "bg-muted text-muted-foreground" } : null;
+  /* ── Metrics — the numbers this page is actually judged on ── */
+
+  const awaiting = history.filter((h) => h.status === "pending_approval").length;
+  const applied = history.filter((h) => h.status === "applied").length;
+  const factsExtracted = history.reduce((sum, h) => sum + (h.facts?.length ?? 0), 0);
+
+  const metrics: OsMetric[] = [
+    { key: "imports", label: "Imports", value: history.length },
+    {
+      key: "awaiting",
+      label: "Awaiting your approval",
+      value: awaiting,
+      sub: awaiting > 0 ? "nothing is applied until you decide" : "nothing pending",
+      tone: awaiting > 0 ? "warn" : "default",
+    },
+    { key: "applied", label: "Applied", value: applied },
+    { key: "facts", label: "Facts extracted", value: factsExtracted, sub: "each with its source" },
+  ];
+
+  /* ── Fact columns — provenance is the point of this table ── */
+
+  const factColumns: Array<OsColumn<ImportFact>> = [
+    {
+      key: "fact",
+      header: "Fact",
+      cell: (f) => (
+        <div className="min-w-0">
+          <p className="truncate text-sm text-ink">{f.label}</p>
+          <p className="truncate font-mono text-3xs text-muted">{f.field}</p>
+        </div>
+      ),
+    },
+    {
+      key: "value",
+      header: "Value",
+      cell: (f) => <span className="text-sm break-words text-ink">{f.value}</span>,
+    },
+    {
+      key: "source",
+      header: "Source",
+      cell: (f) => (
+        <span className="font-mono text-3xs tracking-wide text-muted uppercase">
+          {f.sourceType === "website" ? "from website" : "founder description"}
+        </span>
+      ),
+    },
+    {
+      key: "confidence",
+      header: "Confidence",
+      cell: (f) => (
+        <span className={`font-mono text-2xs ${confidenceTone(f.confidence)}`}>
+          {Math.round(f.confidence * 100)}%
+        </span>
+      ),
+    },
+    {
+      key: "evidence",
+      header: "Evidence",
+      hideOnMobile: true,
+      cell: (f) => (
+        <div className="min-w-0 max-w-md">
+          {f.snippet ? (
+            <p className="line-clamp-2 text-2xs leading-relaxed text-muted italic">
+              “{f.snippet.slice(0, 220)}”
+            </p>
+          ) : (
+            <span className="text-2xs text-muted">no quoted evidence</span>
+          )}
+          {f.sourceUrl ? (
+            <p className="truncate font-mono text-3xs text-muted">{f.sourceUrl}</p>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
+  /* ── History columns — the whole row is a way back into that import ── */
+
+  const historyColumns: Array<OsColumn<BusinessImport>> = [
+    {
+      key: "import",
+      header: "Import",
+      cell: (imp) => (
+        <button
+          type="button"
+          onClick={() => {
+            setCurrent(imp);
+            setError(null);
+          }}
+          className="block min-w-0 max-w-sm text-left transition-colors hover:text-brand-ink"
+        >
+          <span className="block truncate text-sm text-ink">
+            {imp.websiteTitle ?? imp.websiteUrl ?? imp.description?.slice(0, 80) ?? "Company import"}
+          </span>
+          <span className="block truncate font-mono text-3xs text-muted">{imp.id.slice(0, 8)}</span>
+        </button>
+      ),
+    },
+    stateColumn<BusinessImport>("status", "State", (imp) => importOsStatus(imp.status)),
+    monoColumn<BusinessImport>("facts", "Facts", (imp) => imp.facts?.length ?? 0, {
+      hideOnMobile: true,
+    }),
+    monoColumn<BusinessImport>(
+      "proposal",
+      "Proposed model",
+      (imp) => imp.proposal?.recommendedPlaybookName ?? "—",
+      { hideOnMobile: true },
+    ),
+    dateColumn<BusinessImport>("created", "Created", (imp) => imp.createdAt),
+  ];
+
+  const currentStatus = current ? importOsStatus(current.status) : null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Business Import</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Give us a description of your company and a website URL. We fetch the site safely, extract
-          evidence-backed facts (each with a source and confidence), proposes an organization, and applies it{" "}
-          <span className="font-medium text-foreground">only after you approve</span>.
-        </p>
-      </div>
+    <PageContainer
+      kicker="Company"
+      title="Business Import"
+      lede="Describe the company (and optionally point at its website). Facts are extracted with their source and confidence, an organization is proposed, and nothing is applied until you approve it."
+      actions={
+        <button type="button" onClick={loadHistory} disabled={historyLoading} className={BTN_SECONDARY}>
+          {historyLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Refresh
+        </button>
+      }
+      pageName="Business Import"
+    >
+      <div className="flex flex-col gap-6">
+        {error ? (
+          <OsErrorPanel title="That did not go through." detail={error} onRetry={() => setError(null)} />
+        ) : null}
 
-      {/* Input */}
-      <div className="rounded-xl border bg-white p-5 shadow-sm">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="bi-desc">
-          Company description
-        </label>
-        <textarea
-          id="bi-desc"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          maxLength={4000}
-          placeholder="e.g. We run a subscription ecommerce brand selling sustainable fashion to consumers in Europe…"
-          className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
-        />
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="bi-url">
-              Website URL
+        {/* ── Input ── */}
+        <OsSection
+          id="analyze"
+          title="Analyze a company"
+          description="The website is fetched safely; if it cannot be read, the facts fall back to your description and the page says so rather than pretending it fetched anything."
+        >
+          <OsPanel>
+            <label htmlFor="bi-desc" className="block font-mono text-2xs tracking-wider text-muted uppercase">
+              Company description
             </label>
-            <input
-              id="bi-url"
-              type="text"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="https://yourcompany.com"
-              className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            <textarea
+              id="bi-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              maxLength={4000}
+              placeholder="e.g. We run a subscription ecommerce brand selling sustainable fashion to consumers in Europe…"
+              className={INPUT}
             />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={runAnalyze}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-background hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Analyze
-            </button>
-          </div>
-        </div>
-        {error && <p className="mt-3 text-sm text-text-error">{error}</p>}
-      </div>
-
-      {/* Current import detail */}
-      {current && (
-        <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold">
-                {current.websiteTitle ?? current.websiteUrl ?? "Company profile"}
-              </h2>
-              {status && <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${status.cls}`}>{status.label}</span>}
-            </div>
-            <button
-              onClick={() => {
-                setCurrent(null);
-                setDescription("");
-                setWebsiteUrl("");
-                setError(null);
-              }}
-              className="rounded-lg border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-            >
-              New import
-            </button>
-          </div>
-
-          {current.websiteError && (
-            <p className="mt-3 rounded-lg border border-warm bg-warm-soft p-3 text-xs text-warm-ink">
-              Website could not be read ({current.websiteError}) — facts below come from your description. You can retry later.
-            </p>
-          )}
-
-          {/* Facts */}
-          <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Structured facts with provenance
-          </h3>
-          {current.facts.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              No structured facts were extracted yet. Add a description or a reachable website and analyze again.
-            </p>
-          ) : (
-            <div className="mt-2 grid gap-2">
-              {current.facts.map((fact, i) => (
-                <div key={`${fact.field}-${i}`} className="rounded-lg border bg-white p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{fact.label}</span>
-                    <span className="text-sm text-foreground">{fact.value}</span>
-                    <span
-                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                        fact.sourceType === "website" ? "bg-brand-soft text-ink" : "bg-surface-secondary text-ink-muted"
-                      }`}
-                    >
-                      {fact.sourceType === "website" ? "from website" : "founder description"}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{Math.round(fact.confidence * 100)}% confidence</span>
-                  </div>
-                  {fact.snippet && (
-                    <p className="mt-1 text-xs italic text-muted-foreground">
-                      “{fact.snippet.slice(0, 220)}…”
-                    </p>
-                  )}
-                  {fact.sourceUrl && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">Source: {fact.sourceUrl}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Proposal */}
-          {current.proposal ? (
-            <div className="mt-5 rounded-lg border border-brand-soft bg-brand-soft/50 p-4">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-                <Sparkles className="h-4 w-4" /> Proposed organization
-              </h3>
-              <p className="mt-1 text-sm text-ink">
-                Recommended model: <span className="font-semibold">{current.proposal.recommendedPlaybookName}</span>
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-ink/80">
-                {current.proposal.reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-              <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
-                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-ink">Departments</p>
-                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.departments.length || "—"}</p>
-                </div>
-                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-ink">AI employees</p>
-                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.agents.length || "—"}</p>
-                </div>
-                <div className="rounded-lg border border-brand-soft bg-white p-2.5">
-                  <p className="font-semibold text-ink">Initial goals</p>
-                  <p className="mt-1 text-ink/70">{current.proposal.willCreate.goals.length || "—"}</p>
-                </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="min-w-0">
+                <label htmlFor="bi-url" className="block font-mono text-2xs tracking-wider text-muted uppercase">
+                  Website URL
+                </label>
+                <input
+                  id="bi-url"
+                  type="text"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  placeholder="https://yourcompany.com"
+                  className={INPUT}
+                />
+              </div>
+              <div className="flex items-end">
+                <button type="button" onClick={runAnalyze} disabled={busy} className={BTN_PRIMARY} style={PRIMARY_STYLE}>
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                  Analyze
+                </button>
               </div>
             </div>
-          ) : (
-            current.status === "analysis" && (
-              <button
-                onClick={() => runAction("propose")}
-                disabled={busy}
-                className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                Generate organization proposal
-              </button>
-            )
-          )}
+          </OsPanel>
+        </OsSection>
 
-          {/* Approval actions */}
-          {current.status === "pending_approval" && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+        {/* ── The import being worked on ── */}
+        {current ? (
+          <OsSection
+            id="current"
+            title={current.websiteTitle ?? current.websiteUrl ?? "Company profile"}
+            action={
               <button
-                onClick={() => runAction("approve")}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-deep px-3 py-2 text-xs font-semibold text-white hover:bg-brand-ink disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  setCurrent(null);
+                  setDescription("");
+                  setWebsiteUrl("");
+                  setError(null);
+                }}
+                className="text-2xs text-muted transition-colors hover:text-ink"
               >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsUp className="h-3.5 w-3.5" />}
-                Approve & apply organization
+                New import
               </button>
-              <button
-                onClick={() => runAction("reject")}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border-error px-3 py-2 text-xs font-semibold text-text-error hover:bg-error-soft disabled:opacity-50"
-              >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsDown className="h-3.5 w-3.5" />}
-                Reject proposal
-              </button>
-              <p className="text-[11px] text-muted-foreground">Nothing is applied until you approve. Owners and admins only.</p>
-            </div>
-          )}
-
-          {current.status === "applied" && (
-            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-brand-ink">
-              <CheckCircle2 className="h-4 w-4" /> Applied — the organization was built and the extracted facts were
-              recorded into Company Brain with their provenance.
-            </p>
-          )}
-          {current.status === "rejected" && (
-            <p className="mt-4 flex items-center gap-1.5 border-t pt-4 text-sm text-text-error">
-              <XCircle className="h-4 w-4" /> Rejected — nothing was applied or persisted to Company Brain.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* History */}
-      <div className="rounded-xl border bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Recent imports</h2>
-          <button
-            onClick={loadHistory}
-            className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+            }
           >
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </button>
-        </div>
-        {history.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">No imports yet. Analyze your company above to get started.</p>
-        ) : (
-          <div className="mt-3 grid gap-2">
-            {history.map((imp) => {
-              const meta = STATUS_META[imp.status] ?? { label: imp.status, cls: "bg-muted text-muted-foreground" };
-              return (
-                <button
-                  key={imp.id}
-                  onClick={() => setCurrent(imp)}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left hover:bg-muted/40"
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {currentStatus ? <OsStateBadge state={currentStatus.state} label={currentStatus.label} /> : null}
+              <span className="font-mono text-3xs text-muted">
+                created {new Date(current.createdAt).toLocaleString()}
+              </span>
+              {current.appliedAt ? (
+                <span className="font-mono text-3xs text-muted">
+                  applied {new Date(current.appliedAt).toLocaleString()}
+                </span>
+              ) : null}
+              {current.websiteUrl ? (
+                <a
+                  href={current.websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-2xs text-ink underline underline-offset-4"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {imp.websiteTitle ?? imp.websiteUrl ?? imp.description?.slice(0, 80) ?? "Company import"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {new Date(imp.createdAt).toLocaleString()} · {imp.facts.length} facts
-                      {imp.proposal ? ` · proposed ${imp.proposal.recommendedPlaybookName}` : ""}
-                    </p>
-                  </div>
-                  <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${meta.cls}`}>{meta.label}</span>
+                  {current.websiteUrl}
+                </a>
+              ) : null}
+            </div>
+
+            {current.websiteError ? (
+              <p className="rounded-lg border border-hairline bg-warm-soft px-3 py-2 text-2xs text-warm-ink">
+                Website could not be read ({current.websiteError}) — the facts below come from your description. You can
+                retry later.
+              </p>
+            ) : null}
+
+            {current.websiteSummary && !current.proposal ? (
+              <p className="text-2xs leading-relaxed text-muted">{current.websiteSummary}</p>
+            ) : null}
+
+            {/* Facts with provenance */}
+            <OsSection
+              id="facts"
+              title="Structured facts with provenance"
+              count={current.facts.length}
+              description="Every fact carries where it came from and how confident the extraction was. Nothing below is invented to fill a row."
+            >
+              <OsDataTable
+                columns={factColumns}
+                rows={current.facts}
+                rowKey={(f) => `${f.field}::${f.value.slice(0, 24)}`}
+                empty={
+                  <OsEmptyPanel
+                    title="No structured facts were extracted."
+                    hint="Add a description or a reachable website and analyze again."
+                  />
+                }
+              />
+            </OsSection>
+
+            {/* Proposal */}
+            {current.proposal ? (
+              <OsPanel className="border-brand-soft bg-brand-soft/40">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                  <Sparkles className="h-4 w-4" /> Proposed organization
+                </p>
+                <p className="mt-1 text-sm text-ink">
+                  Recommended model: <span className="font-semibold">{current.proposal.recommendedPlaybookName}</span>
+                </p>
+                {current.proposal.reasons.length > 0 ? (
+                  <ul className="mt-2 list-disc space-y-0.5 pl-5 text-2xs leading-relaxed text-muted">
+                    {current.proposal.reasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                <OsMetricRow
+                  className="mt-3 sm:grid-cols-3"
+                  metrics={[
+                    { key: "departments", label: "Departments", value: current.proposal.willCreate.departments.length },
+                    { key: "agents", label: "AI employees", value: current.proposal.willCreate.agents.length },
+                    { key: "goals", label: "Initial goals", value: current.proposal.willCreate.goals.length },
+                  ]}
+                />
+              </OsPanel>
+            ) : current.status === "analysis" ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => runAction("propose")}
+                  disabled={busy}
+                  className={BTN_PRIMARY}
+                  style={PRIMARY_STYLE}
+                >
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Generate organization proposal
                 </button>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            ) : null}
+
+            {/* The decision — only while the server really says pending_approval */}
+            {current.status === "pending_approval" ? (
+              <div className="flex flex-wrap items-center gap-3 border-t border-hairline pt-4">
+                <button type="button" onClick={() => runAction("approve")} disabled={busy} className={BTN_PRIMARY} style={PRIMARY_STYLE}>
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsUp className="h-3.5 w-3.5" />}
+                  Approve &amp; apply organization
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runAction("reject")}
+                  disabled={busy}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 text-2xs text-error-ink transition-colors hover:bg-error-soft disabled:opacity-50"
+                >
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsDown className="h-3.5 w-3.5" />}
+                  Reject proposal
+                </button>
+                <p className="text-2xs text-muted">Nothing is applied until you approve. Owners and admins only.</p>
+              </div>
+            ) : null}
+
+            {current.status === "applied" ? (
+              <p className="flex items-center gap-1.5 border-t border-hairline pt-4 text-2xs text-brand-ink">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Applied — the organization was built and the extracted facts
+                were recorded into Company Brain with their provenance.
+              </p>
+            ) : null}
+            {current.status === "rejected" ? (
+              <p className="flex items-center gap-1.5 border-t border-hairline pt-4 text-2xs text-muted">
+                <XCircle className="h-3.5 w-3.5" /> Rejected — nothing was applied or persisted to Company Brain.
+              </p>
+            ) : null}
+          </OsSection>
+        ) : null}
+
+        {/* ── History ── */}
+        <OsSection
+          id="history"
+          title="Recent imports"
+          count={history.length}
+          description="Open any import to see its facts, its proposal and what happened to it."
+        >
+          {historyLoading && history.length === 0 ? (
+            <OsLoadingRows rows={3} />
+          ) : history.length === 0 ? (
+            <OsEmptyPanel
+              title="No imports yet."
+              hint="Analyze your company above; the result is kept here with its decision."
+            />
+          ) : (
+            <>
+              <OsMetricRow metrics={metrics} />
+              <OsDataTable
+                columns={historyColumns}
+                rows={history}
+                rowKey={(imp) => imp.id}
+              />
+            </>
+          )}
+        </OsSection>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
 export default function BusinessImportPage() {
-  return (
-    <PageErrorBoundary pageName="Business Import">
-      <BusinessImportDashboard />
-    </PageErrorBoundary>
-  );
+  return <BusinessImportDashboard />;
 }

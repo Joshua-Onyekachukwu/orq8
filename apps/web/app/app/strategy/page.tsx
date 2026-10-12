@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { useEaName } from "../../../components/executive-agent-context";
 import {
   Target,
   Plus,
@@ -500,6 +501,7 @@ function diffSections(rev: PlanRevision, prev: PlanRevision | null): Array<{ lab
 }
 
 function PlanRevisionsBlock({ onToast }: { onToast: (msg: string) => void }) {
+  const eaName = useEaName();
   const [payload, setPayload] = useState<PlanRevisionsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -630,7 +632,7 @@ function PlanRevisionsBlock({ onToast }: { onToast: (msg: string) => void }) {
           </div>
           {revisions.length === 0 ? (
             <p className="mt-4 text-xs text-muted">
-              No revisions yet. Draft one, or ask Atlas to redraft the plan.
+              No revisions yet. Draft one, or ask {eaName} to redraft the plan.
             </p>
           ) : (
             <ul className="mt-3 space-y-1">
@@ -963,7 +965,7 @@ export default function StrategyPage() {
 
   return (
     <PageErrorBoundary pageName="Strategy" backHref="/app">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

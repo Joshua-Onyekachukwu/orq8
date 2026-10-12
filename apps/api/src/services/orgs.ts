@@ -30,17 +30,28 @@ export async function createMembership(
     .values({ orgId: input.orgId, userId: input.userId, role: input.role, status: 'active' });
 }
 
-export async function updateOrg(db: Db, orgId: string, input: { name?: string; isDemo?: boolean }) {
+export async function updateOrg(
+  db: Db,
+  orgId: string,
+  input: { name?: string; isDemo?: boolean; eaName?: string },
+) {
   const updates: Record<string, unknown> = {};
   if (input.name !== undefined) updates.name = input.name.trim();
-  // Demo labeling (§58 no-fake-success): an org flagged isDemo presents its
-  // staged content as demo data in the UI. Stored in the org's settings JSONB.
-  if (input.isDemo !== undefined) {
+  // Org-scoped JSONB settings. Both keys live here so one read/merge keeps
+  // them from clobbering each other:
+  //   isDemo  (§58 no-fake-success) — the org presents its staged content as demo data.
+  //   eaName  — what the Executive Agent calls itself for this company. It is
+  //             the agent's own identity (editable like any other agent), not
+  //             a deployment-wide constant.
+  if (input.isDemo !== undefined || input.eaName !== undefined) {
     const [current] = await db
       .select({ settings: organizations.settings })
       .from(organizations)
       .where(eq(organizations.id, orgId));
-    updates.settings = { ...(current?.settings ?? {}), isDemo: input.isDemo };
+    const settings = { ...((current?.settings as Record<string, unknown>) ?? {}) };
+    if (input.isDemo !== undefined) settings.isDemo = input.isDemo;
+    if (input.eaName !== undefined) settings.eaName = input.eaName.trim();
+    updates.settings = settings;
   }
   const [row] = await db
     .update(organizations)
@@ -49,6 +60,32 @@ export async function updateOrg(db: Db, orgId: string, input: { name?: string; i
     .returning();
   if (!row) throw new Error('updateOrg returned no row');
   return row;
+}
+
+/** The Executive Agent's name for an org, or null when it keeps the default. */
+export function eaNameFromSettings(settings: unknown): string | null {
+  const value = (settings as { eaName?: unknown } | null)?.eaName;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+/**
+ * Resolve the name the Executive Agent goes by for an org: the org's own
+ * `settings.eaName` when renamed, otherwise the deployment default. Every
+ * surface that addresses the EA by name (attention prompts, report bylines,
+ * email sign-offs) must go through here so a rename never leaves a stale
+ * "Atlas" behind.
+ */
+export async function resolveOrgEaName(
+  db: Db,
+  orgId: string,
+  fallback: string,
+): Promise<string> {
+  const [row] = await db
+    .select({ settings: organizations.settings })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  return eaNameFromSettings(row?.settings) ?? fallback;
 }
 
 export async function findMembershipsByUser(db: Db, userId: string) {

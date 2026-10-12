@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { EA_NAME } from "./ea";
 
 // Server-side helpers for talking to the ORQ8 API (docs/06, 35).
 // Sessions are server-side opaque tokens (ADR-007). The API accepts the token
@@ -231,16 +232,24 @@ export async function fetchWithToken<T>(
       ...(options?.body ? { "content-type": "application/json" } : {}),
     },
     body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
-    // Cache GET requests for 30s by default (reduces cold-start latency on
-    // repeated navigations). Writes always bypass cache. Pass
-    // revalidate: false to opt out entirely, or a custom seconds value.
+    // Reads are uncached by default, and the default was expensive to learn.
+    // This call carries the caller's session token, so every response is one
+    // company's per-tenant data that changes when that company acts. Caching
+    // it produced the same founder-visible failure the proxy-route sweep
+    // (docs/87 §5 item 11) removed: a board that reads stale after its own
+    // mutation, and a `public`-ish shared cache invited to hold one tenant's
+    // row. Default to `cache: "no-store"`.
+    //
+    // A caller that genuinely wants the old 30s revalidation must opt IN with
+    // an explicit `revalidate: <seconds>`; the default is never a cache.
     // NOTE: in Next 15 `next: { revalidate: false }` means INFINITE cache, not
-    // "no cache", so the opt-out is expressed as cache: "no-store".
+    // "no cache", so the opt-out (and the default) is expressed as
+    // `cache: "no-store"` rather than a `next.revalidate` flag.
     ...(isWrite
       ? {}
-      : options?.revalidate === false
-        ? { cache: "no-store" as const }
-        : { next: { revalidate: options?.revalidate ?? 30 } }),
+      : options?.revalidate !== undefined && options.revalidate !== false
+        ? { next: { revalidate: options.revalidate } }
+        : { cache: "no-store" as const }),
   };
   const res = await apiFetch(path, init, !isWrite);
   if (res.status === 401) redirect("/login");
@@ -278,6 +287,20 @@ export async function fetchWithAuth<T>(
     redirect("/login");
   }
   return fetchWithToken<T>(token, path, options);
+}
+
+/**
+ * The org's Executive Agent name for server components: the org's own
+ * `ea_name` when renamed, otherwise the deployment default. Client components
+ * should use `useEaName()` instead — this exists because server components
+ * cannot read the EA context.
+ */
+export async function fetchOrgEaName(): Promise<string> {
+  // `revalidate: false` here was the INFINITE-cache spelling (Next 15), not
+  // the intended "no cache". Reads now default to no-store; drop the opt-out
+  // so this reads the org's current EA name rather than a cached first read.
+  const org = await fetchWithAuth<{ ea_name?: string | null }>("/v1/org");
+  return org?.ea_name?.trim() || EA_NAME;
 }
 
 // ─── Utility functions ───

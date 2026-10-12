@@ -110,7 +110,7 @@ export default function ReportPage() {
 
   return (
     <PageErrorBoundary pageName="Weekly Report" backHref="/app">
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">

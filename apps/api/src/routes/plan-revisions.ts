@@ -25,7 +25,8 @@ const createRevisionBody = z.object({
   title: z.string().trim().min(1).max(300),
   summary: z.string().trim().max(2000).optional().nullable(),
   content: planContentSchema,
-  // Atlas drafts as an agent; the founder can also author directly.
+  // The Executive Agent drafts as an agent (under the org's own EA name);
+  // the founder can also author directly.
   authorType: z.enum(['user', 'agent']).optional(),
   authorId: z.string().uuid().optional().nullable(),
   authorName: z.string().trim().min(1).max(120).optional().nullable(),
@@ -57,7 +58,10 @@ export function registerPlanRevisionRoutes(app: FastifyInstance, deps: AppDeps):
       content: body.content ?? {},
       authorType: body.authorType ?? 'user',
       authorId: body.authorId ?? (body.authorType === 'agent' ? null : ctx.userId),
-      authorName: body.authorName ?? ctx.email,
+      // Agent-authored drafts with no explicit name resolve to the org's EA
+      // name inside the service; founder-authored drafts default to email.
+      authorName: body.authorName ?? (body.authorType === 'agent' ? null : ctx.email),
+      fallbackEaName: deps.config.EA_DISPLAY_NAME,
     });
     reply.code(201);
     return revision;

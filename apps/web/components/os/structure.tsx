@@ -24,7 +24,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { type DotState, StateDot } from "./primitives";
+import { type DotState, type OsStatus, StateDot, formatDate } from "./primitives";
 
 // ── Status chips (all nine states, token-driven) ───────────────────────────
 
@@ -345,6 +345,99 @@ export interface OsColumn<T> {
   hideOnMobile?: boolean;
 }
 
+// ── Column builders ───────────────────────────────────────────────────────
+//
+// The console's tables are mostly the same four columns in a different order: a
+// state chip, a mono value, a date, and a leading icon + label. Spelling those
+// out per table costs more lines than the raw <td> markup they replaced, and it
+// lets two pages disagree about what a "State" column is. A builder takes the
+// column's identity and an accessor; the shape lives here, once.
+
+/** Shared options for the column builders below. */
+export interface OsColumnOpts {
+  className?: string;
+  /** Detail rather than signal — hidden below `sm`. */
+  hideOnMobile?: boolean;
+}
+
+/** A state chip, reading its label and dot from the shared state vocabulary. */
+export function stateColumn<T>(
+  key: string,
+  header: React.ReactNode,
+  read: (row: T) => OsStatus,
+  opts: OsColumnOpts = {},
+): OsColumn<T> {
+  return {
+    key,
+    header,
+    className: opts.className,
+    hideOnMobile: opts.hideOnMobile,
+    cell: (row) => {
+      const status = read(row);
+      return <OsStateBadge state={status.state} label={status.label} />;
+    },
+  };
+}
+
+/** A mono micro-value: ids, branches, commands, exit codes, autonomy levels. */
+export function monoColumn<T>(
+  key: string,
+  header: React.ReactNode,
+  read: (row: T) => React.ReactNode,
+  opts: OsColumnOpts = {},
+): OsColumn<T> {
+  return {
+    key,
+    header,
+    className: opts.className,
+    hideOnMobile: opts.hideOnMobile,
+    cell: (row) => <span className="font-mono text-3xs text-muted">{read(row)}</span>,
+  };
+}
+
+/** A timestamp rendered short ("Mar 4"). Detail, so hidden below `sm`. */
+export function dateColumn<T>(
+  key: string,
+  header: React.ReactNode,
+  read: (row: T) => string | Date | null | undefined,
+  opts: OsColumnOpts = {},
+): OsColumn<T> {
+  return {
+    key,
+    header,
+    className: opts.className,
+    hideOnMobile: opts.hideOnMobile ?? true,
+    cell: (row) => <span className="text-2xs text-muted">{formatDate(read(row))}</span>,
+  };
+}
+
+/**
+ * A leading icon plus a label — the first column of most tables. The icon is
+ * passed whole (each one is sized differently); only the layout is shared.
+ */
+export function iconTextColumn<T>(
+  key: string,
+  header: React.ReactNode,
+  icon: React.ReactNode,
+  read: (row: T) => React.ReactNode,
+  opts: OsColumnOpts & { mono?: boolean } = {},
+): OsColumn<T> {
+  return {
+    key,
+    header,
+    className: opts.className,
+    hideOnMobile: opts.hideOnMobile,
+    cell: (row) => (
+      <div className="flex min-w-0 items-center gap-2">
+        {icon}
+        <span className={cn("truncate text-ink", opts.mono ? "font-mono text-2xs" : "text-sm")}>
+          {read(row)}
+        </span>
+      </div>
+    ),
+  };
+}
+
 /**
  * The console's table. Dense (32px rows), mono headers, hairline rules, first
  * column primary. Use it for anything list-shaped that has more than three
@@ -560,6 +653,71 @@ export function OsDrawer({
   );
 }
 
+// ── Modal (the console's dialog) ──────────────────────────────────────────
+
+/**
+ * The one dialog. Ten pages hand-rolled the same `fixed inset-0 … bg-white
+ * shadow-2xl` overlay (docs/86 §5 records the audit), which is why a modal in
+ * one corner of the console ignored the ink theme while another respected it.
+ * Sized by intent, closed by the button, the backdrop or Escape.
+ */
+export function OsModal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  size = "md",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+}) {
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  const width = size === "sm" ? "max-w-sm" : size === "lg" ? "max-w-2xl" : "max-w-md";
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label={typeof title === "string" ? title : undefined}
+    >
+      <button
+        type="button"
+        aria-label="Close dialog"
+        onClick={onClose}
+        className="fixed inset-0 bg-overlay"
+      />
+      <div className={cn("relative z-10 w-full rounded-lg border border-hairline bg-canvas shadow-2xl", width)}>
+        <div className="flex items-start justify-between gap-4 border-b border-hairline px-4 py-3">
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-md border border-hairline px-2 py-0.5 text-2xs text-muted transition-colors hover:text-ink"
+          >
+            Close
+          </button>
+        </div>
+        <div className="px-4 py-4">{children}</div>
+        {footer ? <div className="border-t border-hairline px-4 py-3">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 // ── States: empty / loading / error (truthful, never fake) ────────────────
 
 export function OsEmptyPanel({
@@ -569,19 +727,24 @@ export function OsEmptyPanel({
 }: {
   title: React.ReactNode;
   hint?: React.ReactNode;
-  action?: { label: string; href: string };
+  /** A link, or a real control when the empty state's next step is local. */
+  action?: { label: string; href: string } | { label: string; onClick: () => void };
 }) {
+  const actionClass = "mt-2.5 inline-block text-sm text-brand-ink underline underline-offset-4";
   return (
     <div className="rounded-lg border border-dashed border-hairline bg-canvas p-6 text-center">
       <p className="text-sm text-muted">{title}</p>
       {hint ? <p className="mt-1 text-2xs text-muted">{hint}</p> : null}
       {action ? (
-        <Link
-          href={action.href}
-          className="mt-2.5 inline-block text-sm text-brand-ink underline underline-offset-4"
-        >
-          {action.label}
-        </Link>
+        "href" in action ? (
+          <Link href={action.href} className={actionClass}>
+            {action.label}
+          </Link>
+        ) : (
+          <button type="button" onClick={action.onClick} className={actionClass}>
+            {action.label}
+          </button>
+        )
       ) : null}
     </div>
   );

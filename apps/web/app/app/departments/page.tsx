@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { useEaName } from "../../../components/executive-agent-context";
 import {
   AlertCircle,
   Archive,
@@ -155,6 +156,7 @@ function fmtCr(cents: number | null | undefined): string {
 }
 
 export default function DepartmentsPage() {
+  const eaName = useEaName();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -481,7 +483,7 @@ export default function DepartmentsPage() {
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Departments</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted">
-              Each department is a team Atlas staffs and directs. Budgets and leads are set by
+              Each department is a team {eaName} staffs and directs. Budgets and leads are set by
               authority rules.
             </p>
           </div>
@@ -741,7 +743,8 @@ export default function DepartmentsPage() {
                     onClick={() => askAtlasToHire(dept)}
                     className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-hairline-strong px-3 py-2 text-xs text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                   >
-                    <Plus aria-hidden="true" className="h-3.5 w-3.5" /> Ask Atlas to hire into {dept.name ?? "department"}
+                    <Plus aria-hidden="true" className="h-3.5 w-3.5" /> Ask {eaName} to hire into{" "}
+                    {dept.name ?? "department"}
                   </button>
                 </li>
               );

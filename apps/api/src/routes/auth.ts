@@ -378,7 +378,11 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
           emailVerified: !!user.emailVerifiedAt,
         },
         memberships: memberships.map((m) => ({
-          org: { ...m.org, isDemo: (m.org.settings as { isDemo?: boolean } | null)?.isDemo === true },
+          org: {
+            ...m.org,
+            isDemo: (m.org.settings as { isDemo?: boolean } | null)?.isDemo === true,
+            eaName: orgs.eaNameFromSettings(m.org.settings),
+          },
           role: m.membership.role,
         })),
         active_org_id: ctx.orgId,
@@ -397,6 +401,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       data: {
         ...current.org,
         role: current.membership.role,
+        ea_name: orgs.eaNameFromSettings(current.org.settings),
       },
     };
   });
@@ -441,7 +446,10 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       // Demo labeling (§58): owner-controlled flag that marks the org's staged
       // content as demo data. Audited like any consequential org change.
       isDemo: z.boolean().optional(),
-    }).refine((v) => v.name !== undefined || v.isDemo !== undefined, {
+      // The Executive Agent's own name for this company. Editing it here is the
+      // founder renaming an employee, not a deployment-wide setting.
+      ea_name: z.string().trim().min(1).max(60).optional(),
+    }).refine((v) => v.name !== undefined || v.isDemo !== undefined || v.ea_name !== undefined, {
       message: 'Nothing to update',
     }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
@@ -453,20 +461,35 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
       throw forbidden('Only owners and admins can update organization details');
     }
 
-    const updated = await orgs.updateOrg(db, ctx.orgId, { name: parsed.data.name, isDemo: parsed.data.isDemo });
+    const updated = await orgs.updateOrg(db, ctx.orgId, {
+      name: parsed.data.name,
+      isDemo: parsed.data.isDemo,
+      eaName: parsed.data.ea_name,
+    });
     await appendAudit(db, {
       orgId: ctx.orgId,
       actorType: 'user',
       actorId: ctx.userId,
-      action: parsed.data.isDemo !== undefined ? 'org.demo_flag_changed' : 'org.renamed',
+      action:
+        parsed.data.ea_name !== undefined
+          ? 'org.ea_renamed'
+          : parsed.data.isDemo !== undefined
+            ? 'org.demo_flag_changed'
+            : 'org.renamed',
       outcome: 'success',
-      inputRef: parsed.data.isDemo !== undefined ? `isDemo=${parsed.data.isDemo}` : null,
+      inputRef:
+        parsed.data.ea_name !== undefined
+          ? `eaName=${parsed.data.ea_name}`
+          : parsed.data.isDemo !== undefined
+            ? `isDemo=${parsed.data.isDemo}`
+            : null,
     });
 
     return {
       data: {
         ...updated,
         role: current.membership.role,
+        ea_name: orgs.eaNameFromSettings(updated.settings),
       },
     };
   });

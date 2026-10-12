@@ -31,6 +31,7 @@ export interface TransactionalEmailer {
     email: string;
     orgName: string;
     founderName: string;
+    eaName?: string | null;
     weekStart: string;
     weekEnd: string;
     stats: {

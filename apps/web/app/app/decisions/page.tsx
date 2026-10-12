@@ -463,7 +463,7 @@ export default function DecisionsPage() {
 
   return (
     <PageErrorBoundary pageName="Decision Memory" backHref="/app">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

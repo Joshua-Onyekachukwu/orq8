@@ -1,5 +1,5 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, onboardingStates, type Db } from '@orq8/db';
+import { agents, departments, teams, goals, tasks, approvals, activityEvents, companyMemory, onboardingStates, organizations, type Db } from '@orq8/db';
 import { chatJson, getServedProvider, popNvidiaDiagnostics, type NVIDIAFunctionNotFoundDiagnostic } from './llm.js';
 import { classifyTask } from './model-intelligence.js';
 import { selectMeasuredModel } from './model-selector.js';
@@ -24,6 +24,7 @@ import { getTraceSummary, type LLMTraceSummary } from './llm-tracer.js';
 import { getDecisionContext } from './decision-memory.js';
 import { getLineageContext } from './lineage.js';
 import { listCapabilities, resolveCapabilityRequest } from './capability-registry.js';
+import { eaNameFromSettings } from './orgs.js';
 import type { AppConfig } from '@orq8/core';
 import type { Agent } from '@orq8/db';
 
@@ -61,6 +62,9 @@ export interface ExecutiveContext {
   orgId: string;
   userId: string;
   orgName?: string;
+  // What the Executive Agent calls itself for this company. The founder can
+  // rename the EA like any other employee; the default comes from config.
+  eaName?: string;
   agents: Agent[];
   orgStructure: OrgStructure;
   activeGoals: Array<{ id: string; title: string; status: string; priority: string; progress: number }>;
@@ -649,6 +653,11 @@ export function formatOrgStructure(structure: OrgStructure): string {
 
 export async function buildContext(db: Db, orgId: string, opts: { query?: string; config?: AppConfig } = {}): Promise<ExecutiveContext> {
   const orgAgents = await db.select().from(agents).where(eq(agents.orgId, orgId));
+  const [orgRow] = await db
+    .select({ settings: organizations.settings })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
   const [orgGoals, orgTasks, orgApprovals, orgMemory, orgStructure] = await Promise.all([
     db.select().from(goals).where(eq(goals.orgId, orgId)).orderBy(desc(goals.createdAt)).limit(10),
     db.select().from(tasks).where(eq(tasks.orgId, orgId)).orderBy(desc(tasks.createdAt)).limit(20),
@@ -687,6 +696,7 @@ export async function buildContext(db: Db, orgId: string, opts: { query?: string
   const ctx: ExecutiveContext = {
     orgId,
     userId: '',
+    eaName: eaNameFromSettings(orgRow?.settings) ?? undefined,
     agents: orgAgents,
     orgStructure,
     activeGoals: orgGoals.map(g => ({
@@ -947,7 +957,9 @@ export async function analyzeIntent(
   db?: Db,
 ): Promise<IntentAnalysis> {
   const contextPrompt = buildContextPrompt(ctx);
-  const fullSystemPrompt = `${buildSystemPrompt(config.EA_DISPLAY_NAME)}\n\n${contextPrompt}`;
+  // The founder can rename the EA for their company; that name wins over the
+  // deployment default so the agent introduces itself consistently.
+  const fullSystemPrompt = `${buildSystemPrompt(ctx.eaName ?? config.EA_DISPLAY_NAME)}\n\n${contextPrompt}`;
 
   // Context-aware commands: if the founder is viewing a goal/agent/page, make
   // the intent analysis aware of it so "break this down" resolves correctly.

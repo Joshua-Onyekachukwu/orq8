@@ -231,7 +231,7 @@ export default function LineagePage() {
 
   return (
     <PageErrorBoundary pageName="Strategic Lineage" backHref="/app">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div>
           <h1 className="text-xl font-semibold text-ink">Strategic Lineage</h1>

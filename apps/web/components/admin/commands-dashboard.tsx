@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useEaName } from "../executive-agent-context";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -132,6 +133,7 @@ export function CommandsDashboard({
   initialDeadLetter: CommandJob[];
   initialMode: string;
 }) {
+  const eaName = useEaName();
   const [health, setHealth] = useState(initialHealth);
   const [recent, setRecent] = useState(initialRecent);
   const [deadLetter, setDeadLetter] = useState(initialDeadLetter);
@@ -433,7 +435,7 @@ export function CommandsDashboard({
         {shownRecent.length === 0 ? (
           <p className="mt-2 rounded-lg border border-dashed border-hairline px-4 py-5 text-xs text-ink-muted">
             {statusFilter === "all"
-              ? "The queue is empty. Jobs appear here the moment a founder or Atlas queues work."
+              ? `The queue is empty. Jobs appear here the moment a founder or ${eaName} queues work.`
               : `No ${STATUS_LABEL[statusFilter] ?? statusFilter} jobs right now.`}
           </p>
         ) : (

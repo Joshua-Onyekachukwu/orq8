@@ -78,6 +78,55 @@ export function resolvePageConfig(settings: DepartmentSettingsLike | null | unde
   };
 }
 
+// ── Section order (docs/86 §4) ──────────────────────────────────────────────
+//
+// `pageConfig.sections` was contract metadata: the API resolved it, the web
+// exposed it on `resolvePageConfig`, and no page consumed it — every department
+// stacked the same four blocks in the same hardcoded order, which is exactly
+// the "same page, different name" problem the blueprint exists to prevent.
+//
+// These are the four blocks the workspace can actually move. The other ids a
+// blueprint names (`employees`, `queued`, `done`, `decisions`, `memory`,
+// `tools`, `resources`, `activity`) live inside the tab bar, which is one block
+// by design (docs/85 §3.3), and the pinned header and Charter carry template
+// content rather than a section id.
+
+/** The blocks `pageConfig.sections` can order on the department page. */
+export const ORDERABLE_BLOCKS = ["now", "needsFounder", "focus", "workflows"] as const;
+
+export type OrderableBlock = (typeof ORDERABLE_BLOCKS)[number];
+
+/**
+ * Where a block the blueprint does not name falls back to — derived from
+ * `CANONICAL_SECTIONS` so "no blueprint" has one source of truth instead of two.
+ * `focus` is deliberately absent: docs/86 §6 gives it the front of the page
+ * whenever a blueprint does not place it, so a department whose template
+ * predates the focus read-model still shows its real work first (see
+ * `resolveBlockOrder`).
+ */
+export const DEFAULT_BLOCK_ORDER: OrderableBlock[] = CANONICAL_SECTIONS.filter(
+  (section): section is OrderableBlock => (ORDERABLE_BLOCKS as readonly string[]).includes(section),
+);
+
+/**
+ * Apply a department's section order to the blocks this page renders.
+ *
+ * The blueprint's list is an ORDER, never a filter: a block it does not name is
+ * appended rather than dropped, so a stale or partial blueprint can never hide
+ * a department's work. Ordering is stable and duplicates are ignored.
+ */
+export function resolveBlockOrder(sections: string[] | null | undefined): OrderableBlock[] {
+  const named: OrderableBlock[] = [];
+  for (const section of sections ?? []) {
+    if ((ORDERABLE_BLOCKS as readonly string[]).includes(section) && !named.includes(section as OrderableBlock)) {
+      named.push(section as OrderableBlock);
+    }
+  }
+  const unnamed = DEFAULT_BLOCK_ORDER.filter((block) => !named.includes(block));
+  // A blueprint that does not place `focus` still gets it, and gets it first.
+  return named.includes("focus") ? [...named, ...unnamed] : ["focus", ...named, ...unnamed];
+}
+
 /**
  * Turn the department's emphasised metric keys into renderable, toned stats.
  * Tone is honest: failures are only red when something actually failed, and a

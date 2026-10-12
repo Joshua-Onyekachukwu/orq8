@@ -49,10 +49,14 @@ import {
   OsSection,
   OsStateBadge,
   OsToolbar,
+  dateColumn,
+  iconTextColumn,
+  monoColumn,
+  stateColumn,
   type OsColumn,
   type OsMetric,
 } from "../../../components/os/structure";
-import { employeeOsStatus, type DotState } from "../../../components/os/primitives";
+import { employeeOsStatus, formatDate, type DotState } from "../../../components/os/primitives";
 import {
   prState,
   runState,
@@ -171,11 +175,6 @@ const RISK_TONE: Record<string, string> = {
 
 function riskTone(risk: string): string {
   return RISK_TONE[risk] ?? "text-muted";
-}
-
-function fmtDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 /* ── Main component ── */
@@ -385,24 +384,13 @@ function EngineeringDashboard() {
         </div>
       ),
     },
-    {
-      key: "status",
-      header: "State",
-      cell: (a) => {
-        const s = employeeOsStatus(a.status, null);
-        return <OsStateBadge state={s.state} label={s.label} />;
-      },
-    },
-    {
-      key: "autonomy",
-      header: "Autonomy",
-      hideOnMobile: true,
-      cell: (a) => (
-        <span className="font-mono text-3xs text-muted">
-          {(a.autonomyLevel ?? "—").replace(/_/g, " ")}
-        </span>
-      ),
-    },
+    stateColumn<Agent>("status", "State", (a) => employeeOsStatus(a.status, null)),
+    monoColumn<Agent>(
+      "autonomy",
+      "Autonomy",
+      (a) => (a.autonomyLevel ?? "—").replace(/_/g, " "),
+      { hideOnMobile: true },
+    ),
     {
       key: "capabilities",
       header: "Capabilities",
@@ -428,20 +416,8 @@ function EngineeringDashboard() {
         </div>
       ),
     },
-    {
-      key: "status",
-      header: "State",
-      cell: (t) => {
-        const s = workState(t.status);
-        return <OsStateBadge state={s.state} label={s.label} />;
-      },
-    },
-    {
-      key: "branch",
-      header: "Branch",
-      hideOnMobile: true,
-      cell: (t) => <span className="font-mono text-3xs text-muted">{t.branch}</span>,
-    },
+    stateColumn<EngineeringTask>("status", "State", (t) => workState(t.status)),
+    monoColumn<EngineeringTask>("branch", "Branch", (t) => t.branch, { hideOnMobile: true }),
     {
       key: "pr",
       header: "PR",
@@ -449,77 +425,36 @@ function EngineeringDashboard() {
       cell: (t) =>
         t.prId ? <GitPullRequest className="h-3.5 w-3.5 text-brand-ink" /> : <span className="text-muted">—</span>,
     },
-    {
-      key: "created",
-      header: "Created",
-      hideOnMobile: true,
-      cell: (t) => <span className="text-2xs text-muted">{fmtDate(t.createdAt)}</span>,
-    },
+    dateColumn<EngineeringTask>("created", "Created", (t) => t.createdAt),
   ];
 
   const repoColumns: Array<OsColumn<Repository>> = [
-    {
-      key: "name",
-      header: "Repository",
-      cell: (r) => (
-        <div className="flex min-w-0 items-center gap-2">
-          <Database className="h-3.5 w-3.5 shrink-0 text-muted" />
-          <span className="truncate text-sm text-ink">{r.name}</span>
-        </div>
-      ),
-    },
-    {
-      key: "provider",
-      header: "Provider",
-      cell: (r) => <span className="font-mono text-3xs text-muted">{r.provider}</span>,
-    },
-    {
-      key: "branch",
-      header: "Default branch",
+    iconTextColumn<Repository>(
+      "name",
+      "Repository",
+      <Database className="h-3.5 w-3.5 shrink-0 text-muted" />,
+      (r) => r.name,
+    ),
+    monoColumn<Repository>("provider", "Provider", (r) => r.provider),
+    monoColumn<Repository>("branch", "Default branch", (r) => r.defaultBranch ?? "—", {
       hideOnMobile: true,
-      cell: (r) => <span className="font-mono text-3xs text-muted">{r.defaultBranch ?? "—"}</span>,
-    },
-    {
-      key: "updated",
-      header: "Synced",
-      hideOnMobile: true,
-      cell: (r) => <span className="text-2xs text-muted">{fmtDate(r.updatedAt)}</span>,
-    },
+    }),
+    dateColumn<Repository>("updated", "Synced", (r) => r.updatedAt),
   ];
 
   const runColumns: Array<OsColumn<SandboxRun>> = [
-    {
-      key: "command",
-      header: "Command",
-      cell: (r) => (
-        <div className="flex min-w-0 items-center gap-2">
-          <Play className="h-3 w-3 shrink-0 text-muted" />
-          <span className="truncate font-mono text-2xs text-ink">{r.command}</span>
-        </div>
-      ),
-    },
-    {
-      key: "state",
-      header: "State",
-      cell: (r) => {
-        const s = runState(r.state);
-        return <OsStateBadge state={s.state} label={s.label} />;
-      },
-    },
-    {
-      key: "exit",
-      header: "Exit",
+    iconTextColumn<SandboxRun>(
+      "command",
+      "Command",
+      <Play className="h-3 w-3 shrink-0 text-muted" />,
+      (r) => r.command,
+      { mono: true },
+    ),
+    stateColumn<SandboxRun>("state", "State", (r) => runState(r.state)),
+    monoColumn<SandboxRun>("exit", "Exit", (r) => (r.exitCode === null ? "—" : r.exitCode), {
       hideOnMobile: true,
-      cell: (r) => (
-        <span className="font-mono text-3xs text-muted">{r.exitCode === null ? "—" : r.exitCode}</span>
-      ),
-    },
-    {
-      key: "started",
-      header: "Started",
-      hideOnMobile: true,
-      cell: (r) => <span className="text-2xs text-muted">{fmtDate(r.startedAt)}</span>,
-    },
+    }),
+    dateColumn<SandboxRun>("started", "Started", (r) => r.startedAt),
   ];
 
   const prColumns: Array<OsColumn<OrgPr>> = [
@@ -535,14 +470,7 @@ function EngineeringDashboard() {
         </div>
       ),
     },
-    {
-      key: "status",
-      header: "State",
-      cell: (pr) => {
-        const s = prState(pr.status);
-        return <OsStateBadge state={s.state} label={s.label} />;
-      },
-    },
+    stateColumn<OrgPr>("status", "State", (pr) => prState(pr.status)),
     {
       key: "risk",
       header: "Risk",
@@ -1077,9 +1005,9 @@ function EngineeringDashboard() {
               columns={2}
               items={[
                 { label: "State", value: prState(reviewPr.status).label },
-                { label: "Opened", value: fmtDate(reviewPr.createdAt) },
+                { label: "Opened", value: formatDate(reviewPr.createdAt) },
                 { label: "Approved by", value: reviewPr.approvedBy ?? "—" },
-                { label: "Merged", value: fmtDate(reviewPr.mergedAt) },
+                { label: "Merged", value: formatDate(reviewPr.mergedAt) },
                 {
                   label: "Risk assessment",
                   value:

@@ -188,7 +188,7 @@ function BuyCredits() {
   }
 
   return (
-    <div id="main" className="mx-auto max-w-5xl px-6 py-10">
+    <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted">Governance</p>

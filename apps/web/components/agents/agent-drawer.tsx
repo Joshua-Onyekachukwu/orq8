@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { Drawer } from "../layout/drawer";
+import { useEaName } from "../executive-agent-context";
 
 /**
  * The agent detail drawer (brief §5). Opened from the dashboard's
@@ -207,6 +208,7 @@ export function AgentDrawer({
   target: AgentDrawerTarget | null;
   onClose: () => void;
 }) {
+  const eaName = useEaName();
   const [data, setData] = useState<DrawerData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -422,7 +424,8 @@ export function AgentDrawer({
             </div>
             {openTasks.length === 0 ? (
               <p className="mt-2 text-xs text-muted">
-                No open tasks. This employee picks up work when the founder or Atlas assigns it.
+                No open tasks. This employee picks up work when the founder or {eaName} assigns
+                it.
               </p>
             ) : (
               <ul className="mt-2 space-y-1.5">

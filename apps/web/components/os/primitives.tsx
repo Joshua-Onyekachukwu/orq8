@@ -77,6 +77,14 @@ export function formatCost(cents: number): string {
   return `$${((cents ?? 0) / 100).toFixed(2)}`;
 }
 
+/** Short month + day, for dense table cells and fact rows. `—` when absent. */
+export function formatDate(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function formatTimeAgo(iso?: string | Date | null): string {
   if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
