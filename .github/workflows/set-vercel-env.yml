@@ -107,33 +107,25 @@ jobs:
       # the way a /v13 POST on every push once did; the step above just
       # proved nothing is in flight.)
       #
-      # HOW, measured across runs 38196938145, 38197281175 and 38197835800:
+      # HOW, measured across runs 38196938145, 38197281175, 38197835800 and
+      # 38198335238 — every wrong shape falls back to DIRECT UPLOAD mode:
       #   • POST /v13/deployments with {name,target}          → `"files" field
-      #     should be an array` (treated as a direct upload).
-      #   • POST /v13/deployments with git:{repoId,ref}       → same error —
-      #     repoId+ref alone is not recognized as a git source.
+      #     should be an array`.
+      #   • POST with git:{repoId,ref}                        → same error.
       #   • POST /v13/deployments/{id}/redeploy               → 404 not_found.
-      # The shape Vercel wants for a git-connected project names the
-      # CONNECTION too: git:{ref, repoId, repoConnectId}, where repoConnectId
-      # is the project's `link.id` from GET /v9/projects — it identifies the
-      # installed Vercel↔GitHub connection, not just the repository.
-      - name: Republish production from main (git source, connected)
+      #   • the project's link object carries no usable connect id for this
+      #     token (the extraction guard failed on the project JSON).
+      # The documented contract (Vercel SDK examples → "Create a
+      # deployment") is a top-level `gitSource`: {type, org, repo, ref}.
+      - name: Republish production from main (gitSource)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
         run: |
           set -u
-          LINK=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects/$PROJECT_ID")
-          read -r REPO_ID CONNECT_ID <<< "$(echo "$LINK" | python3 -c "import json,sys; l=json.load(sys.stdin).get('link') or {}; print((l.get('repoId') or ''), (l.get('id') or ''))" 2>/dev/null || true)"
-          if [ -z "$REPO_ID" ] || [ -z "$CONNECT_ID" ]; then
-            echo "::error::could not read the project's git link (repoId/connect id): $(echo "$LINK" | head -c 300)"
-            exit 1
-          fi
-          echo "connected repo id: $REPO_ID, connect id: $CONNECT_ID"
           CREATE=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"orq8\",\"target\":\"production\",\"git\":{\"repoId\":\"$REPO_ID\",\"repoConnectId\":\"$CONNECT_ID\",\"ref\":\"main\"}}")
+            -d '{"name":"orq8","target":"production","gitSource":{"type":"github","repo":"orq8","org":"Joshua-Onyekachukwu","ref":"main"}}')
           ID=$(echo "$CREATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id') or d.get('uid') or '')" 2>/dev/null || true)
           if [ -z "$ID" ]; then
             echo "::error::could not republish production: $(echo "$CREATE" | head -c 400)"
