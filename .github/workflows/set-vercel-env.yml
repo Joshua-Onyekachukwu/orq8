@@ -1,0 +1,144 @@
+name: Set Vercel API_URL and republish production
+
+# The web project's `API_URL` is the one lever that decides whether the
+# deployed product can reach its API, and it lives ONLY in Vercel's project
+# settings — no file in this repository can reach it. When it pointed at the
+# deleted Railway application, every data read in production failed while the
+# jobs canary (a GitHub secret of the same name) and the release gate (an
+# unset `PRODUCTION_API_URL`) both had nothing to say about it.
+#
+# There is no personal Vercel token in this workspace (docs/82, known gaps),
+# but CI already holds a working VERCEL_TOKEN — the same secret
+# `vercel-deploy.yml` verifies deployments with. So the settings change is
+# made from THIS dispatch-only workflow: the token never leaves GitHub, the
+# change is auditable as a run, and the run ends by asking the product the
+# same question the data-path canary asks — so "redeployed" and "founder can
+# sign up" are never two separate hopes.
+#
+# Manual by design: nothing here runs on a schedule or a push. It republishes
+# production, so it asks for the literal word `production` as a confirm input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "The live API origin to point API_URL at (https, no path, no trailing slash)"
+        required: true
+        default: "https://orq8api-production-062a.up.railway.app"
+      confirm:
+        description: 'Type "production" to confirm republishing the production deployment'
+        required: true
+        default: ""
+
+jobs:
+  set-and-verify:
+    name: Point API_URL at the live API, republish, prove the data path
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Guard — the confirm input and the origin's shape
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          API_URL_INPUT: ${{ inputs.api_url }}
+        run: |
+          set -u
+          if [ "$CONFIRM" != "production" ]; then
+            echo "::error::Type 'production' in the confirm input to republish production. Got '$CONFIRM'."
+            exit 1
+          fi
+          case "$API_URL_INPUT" in
+            https://*) ;;
+            *)
+              echo "::error::api_url must be an https origin (got '$API_URL_INPUT')."
+              exit 1 ;;
+          esac
+
+      # A settings change applies to the NEXT build; a build that is already
+      # in flight would publish the old env after our new one. Wait it out
+      # (bounded), same discipline as vercel-deploy.yml.
+      - name: Wait for any in-flight production build to settle
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
+        run: |
+          set -u
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set — CI cannot reach the Vercel project."
+            exit 1
+          fi
+          for i in $(seq 1 40); do
+            RESP=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=1")
+            D=$(echo "$RESP" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print((ds[0].get('uid') or '') if ds else '')" 2>/dev/null || true)
+            if [ -z "$D" ]; then
+              echo "attempt $i: no production deployment listed yet — nothing in flight."
+              exit 0
+            fi
+            STATE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$D" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin).get('readyState',''))" 2>/dev/null || true)
+            echo "attempt $i: latest production deployment=$D state=$STATE"
+            case "$STATE" in
+              READY) exit 0 ;;
+              ERROR|CANCELED)
+                echo "::warning::latest deployment $STATE; continuing — republishing below supersedes it anyway."
+                exit 0 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::an in-flight production build never settled; not safe to change env mid-build. Re-run."
+          exit 1
+
+      - name: Point API_URL (and NEXT_PUBLIC_API_URL, if present) at the live API
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
+          API_URL_VALUE: ${{ inputs.api_url }}
+        run: node scripts/set-vercel-env.mjs
+
+      # Republish from the connected repository's main — the deployment the
+      # founder's browser actually gets. (No push is involved, so this cannot
+      # race a native Git-integration build the way a /v13 POST on every push
+      # once did; the step above just proved nothing is in flight.)
+      - name: Republish production from main
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
+        run: |
+          set -u
+          CREATE=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"orq8","target":"production"}')
+          ID=$(echo "$CREATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id') or d.get('uid') or '')" 2>/dev/null || true)
+          if [ -z "$ID" ]; then
+            echo "::error::could not create a production deployment: $(echo "$CREATE" | head -c 400)"
+            exit 1
+          fi
+          echo "created deployment $ID"
+          for i in $(seq 1 60); do
+            META=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$ID")
+            STATE=$(echo "$META" | python3 -c "import json,sys; print(json.load(sys.stdin).get('readyState',''))" 2>/dev/null || true)
+            echo "attempt $i: deployment $ID state=$STATE"
+            case "$STATE" in
+              READY) echo "production deployment READY"; exit 0 ;;
+              ERROR|CANCELED)
+                echo "::error::deployment $STATE — check the Vercel build logs for $ID."
+                exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "::error::deployment $ID never reached READY in 20 minutes."
+          exit 1
+
+      # The point of the whole run: the founder's own journey against the
+      # deployment that now exists. A green job here means the product works,
+      # not that a setting was saved.
+      - name: Prove the data path (the canary, live, against production)
+        run: node scripts/data-path-canary.mjs
