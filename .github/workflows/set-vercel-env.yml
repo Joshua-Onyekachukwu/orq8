@@ -106,16 +106,30 @@ jobs:
       # founder's browser actually gets. (No push is involved, so this cannot
       # race a native Git-integration build the way a /v13 POST on every push
       # once did; the step above just proved nothing is in flight.)
+      #
+      # The git block is not decoration: a bare {name,target} POST is treated
+      # as a direct upload and fails with `"files" field should be an array`
+      # (measured, run 38196938145) — a git-connected project republishes by
+      # naming its repo and ref. The repo id comes from the latest
+      # deployment's own meta, so it cannot drift from the project's link.
       - name: Republish production from main
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PROJECT_ID: prj_apiN6ei5QfGK4Dev4toYXLrjDmVl
         run: |
           set -u
+          LATEST=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$PROJECT_ID&target=production&limit=1")
+          REPO_ID=$(echo "$LATEST" | python3 -c "import json,sys; ds=json.load(sys.stdin).get('deployments',[]); print(ds[0].get('meta',{}).get('githubRepoId','') if ds else '')" 2>/dev/null || true)
+          if [ -z "$REPO_ID" ]; then
+            echo "::error::could not read the connected GitHub repo id from the latest deployment: $(echo "$LATEST" | head -c 300)"
+            exit 1
+          fi
+          echo "connected repo id: $REPO_ID"
           CREATE=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"name":"orq8","target":"production"}')
+            -d "{\"name\":\"orq8\",\"target\":\"production\",\"git\":{\"repoId\":\"$REPO_ID\",\"ref\":\"main\"}}")
           ID=$(echo "$CREATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('id') or d.get('uid') or '')" 2>/dev/null || true)
           if [ -z "$ID" ]; then
             echo "::error::could not create a production deployment: $(echo "$CREATE" | head -c 400)"
