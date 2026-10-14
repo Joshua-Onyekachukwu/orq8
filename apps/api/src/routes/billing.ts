@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import { agents } from '@orq8/db';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -32,6 +32,9 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
   /** Create a Stripe Checkout Session for a new subscription. */
   app.post('/v1/billing/checkout', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Org money: subscriptions and credit purchases are owner/admin moves,
+    // the same gate as buying credit packs and the AI-spend kill switch.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage billing.');
     const parsed = checkoutBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -64,6 +67,7 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
   /** Create a Stripe Customer Portal session for managing subscription. */
   app.post('/v1/billing/portal', async (request) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage billing.');
 
     try {
       const result = await billing.createPortalSession(config, db, ctx.orgId);

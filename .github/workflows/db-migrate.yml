@@ -37,6 +37,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Preflight first: a bad SUPABASE_DATABASE_URL surfaces from pg as a raw
+      # `read ECONNRESET` with no actionable detail (the retired Railway TCP
+      # proxy's signature is accept-then-drop). The probe distinguishes empty
+      # secret / wrong host / TCP / TLS stages and never prints secret material.
+      - name: Preflight database connectivity
+        run: node scripts/db-preflight.mjs
+
       # The supabase lineage runner is idempotent — it skips the auth shim when
       # auth.uid() already exists, and scoped drops make re-runs safe. It also
       # records what it applied in supabase_migrations.schema_migrations, so a

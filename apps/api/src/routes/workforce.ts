@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { eq, and, or, sql } from 'drizzle-orm';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { departmentTemplates, teamTemplates, agentTemplates, agents } from '@orq8/db';
@@ -289,6 +289,13 @@ export function registerWorkforceRoutes(app: FastifyInstance, deps: AppDeps): vo
       )
       .limit(1);
     if (!template) return reply.status(404).send({ error: 'Template not found' });
+
+    // Agent governance: a template suggesting autonomous execution mints an
+    // agent that acts without approval (see R-001 hire gate in
+    // routes/agents.ts). Members may hire safe templates only.
+    if (template.suggestedAutonomy === 'autonomous' && ctx.role !== 'owner' && ctx.role !== 'admin') {
+      throw forbidden('Only owners and admins can hire agents with autonomous execution.');
+    }
 
     // Enforce agent limits
     try {

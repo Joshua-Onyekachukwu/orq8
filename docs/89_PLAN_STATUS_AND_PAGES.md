@@ -25,7 +25,7 @@ named piece is missing. **Left**: not implemented, or implemented and unreachabl
 | 5 | Scheduled jobs / cron against a live API (MVP-005) | briefings, drip, rehearsal on a schedule | **Left (one secret)** | the host exists; every scheduled run fails `404 Application not found` because the GitHub `API_URL` secret names the deleted application |
 | 6 | Signup, email confirm, login, logout, recover (MVP-006) | getting in | **Done** | verified live; mail provider only in production gap |
 | 7 | Create a company and reach the dashboard (MVP-007) | first run | **Done** | founder loop run end to end |
-| 8 | Onboarding to first value (MVP-008) | guide a new founder to the first hire/command | **Partial** | the loop works when driven; nothing guides it |
+| 8 | Onboarding to first value (MVP-008) | guide a new founder to the first hire/command | **Done (review stack 14/14)** | Company Hub four-step checklist, proven across all four states from server-rendered HTML; production signup pass pending |
 | 9 | Executive Agent (MVP-009) | natural-language org management | **Done** | 54/54 batch; **this session: live command returned `status=error`** in the review stack — the deployed model key needs checking, not the pipeline |
 | 10 | Departments: templates, create, configure (MVP-010) | the org chart | **Done** | plus `0050` blueprints, P1/P2 |
 | 11 | AI employees: hire, edit, authority, pause, history (MVP-011) | the workforce | **Done** | live hire in the founder loop |
@@ -37,7 +37,7 @@ named piece is missing. **Left**: not implemented, or implemented and unreachabl
 | 17 | Audit trail, hash-chained (MVP-017) | proof of what happened | **Done** | chain verifies; exports |
 | 18 | Member invites and roles (MVP-018) | more than one human | **Done** | 20/20; removal revokes sessions |
 | 19 | One working external integration (MVP-019) | the company touches the outside | **Left (keys)** | `/v1/readiness` reports `configuration_required` |
-| 20 | One-click demo company (MVP-020) | a prospect sees it working | **Partial** | the review stack seeds it; no product control |
+| 20 | One-click demo company (MVP-020) | a prospect sees it working | **Done (review stack)** | `POST /v1/demo-company` + hub `SeedDemoButton`, proven live end to end; production pass pending |
 | 21 | Production smoke check gating releases (MVP-021) | a deploy is not good until the product is on | **Partial** | the gate is proven both ways; the `PRODUCTION_API_URL` secret is still unset (checked 2026-10-11), so it reports *not run* instead of gating |
 | 22 | Proof harnesses in CI (MVP-022) | the claims are checked automatically | **Done** | `proofs` is a blocking job |
 | 23 | Env surface documented and drift-guarded (MVP-023) | a deployer can learn the surface | **Done** | `env-surface.test.ts` |

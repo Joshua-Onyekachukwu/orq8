@@ -148,10 +148,35 @@ function targetLabel(): string {
  * Applied migrations, read without creating anything: a database that has never
  * been recorded reports an empty ledger, which reads as "everything pending".
  */
+/** Host:port only — never user, password, or the full URL (logs are shared). */
+function targetFingerprint(): string {
+  try {
+    const u = new URL(databaseUrl);
+    return `${u.hostname}:${u.port || '5432'}`;
+  } catch {
+    return '(unparseable DATABASE_URL)';
+  }
+}
+
 async function readLedger(pool: Pool): Promise<LedgerRow[]> {
-  const present = await pool.query<{ present: boolean }>(
-    `select to_regclass('supabase_migrations.schema_migrations') is not null as present`,
-  );
+  let present;
+  try {
+    present = await pool.query<{ present: boolean }>(
+      `select to_regclass('supabase_migrations.schema_migrations') is not null as present`,
+    );
+  } catch (err) {
+    // The first query is also the connectivity check: a bad
+    // SUPABASE_DATABASE_URL (e.g. the retired Railway TCP proxy, whose
+    // signature is accept-then-drop → ECONNRESET) lands here. Say which
+    // host failed and what it should look like instead of rethrowing raw pg.
+    const code = err instanceof Error && 'code' in err ? String((err as { code: unknown }).code) : 'unknown';
+    throw new Error(
+      `cannot reach database at ${targetFingerprint()} (${code}). ` +
+        `Expected the Supabase session-mode pooler (*.pooler.supabase.com:5432) — ` +
+        `run scripts/db-preflight.mjs to diagnose, then check SUPABASE_DATABASE_URL ` +
+        `(docs/64_SUPABASE_SETUP.md). Original: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
   if (!present.rows[0]?.present) return [];
   const rows = await pool.query<LedgerRow>(
     `select version, checksum from supabase_migrations.schema_migrations`,

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createLogger, loadConfig } from '@orq8/core';
+import { createLogger, initTracing, loadConfig } from '@orq8/core';
 import { createDb } from '@orq8/db';
 import { startJobWorker } from '@orq8/api/worker';
 import { jobsHealth } from '@orq8/api/jobs';
@@ -30,6 +30,10 @@ async function main(): Promise<void> {
   const once = process.argv.includes('--once');
   const config = loadConfig();
   const logger = createLogger(config);
+  // Same tested no-ops as the API until endpoint/DSN + SDKs are configured.
+  await initTracing(config.OTEL_EXPORTER_OTLP_ENDPOINT, (msg) => logger.warn(msg));
+  const { initErrorReporting } = await import('@orq8/api/error-reporting.js');
+  await initErrorReporting(config, logger);
 
   if (config.JOB_QUEUE_MODE !== 'workers') {
     // A worker that does not drain is worse than no worker: the queue fills,

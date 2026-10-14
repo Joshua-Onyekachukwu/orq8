@@ -6,6 +6,7 @@
  * PATCH /v1/roi/rate — Update hourly rate
  */
 
+import { forbidden } from '@orq8/core';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -36,6 +37,8 @@ export function registerWorkforceROIRoutes(app: FastifyInstance, deps: AppDeps):
   /** PATCH /v1/roi/rate — Update hourly rate */
   app.patch('/v1/roi/rate', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Org financial configuration. Reads stay open to every member.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can set the ROI hourly rate.');
     const body = rateBody.parse(request.body);
     await setHourlyRate(db, ctx.orgId, body.hourlyRate);
     return { hourlyRate: body.hourlyRate, currency: 'USD' };

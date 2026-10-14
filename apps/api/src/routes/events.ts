@@ -34,6 +34,7 @@ import {
 } from '../services/webhooks.js';
 import { consolidateAllOrgs, orgIdsWithMemory } from '../services/consolidate-memory.js';
 import { scanOrgAnomalies } from '../services/anomaly-detector.js';
+import { scanSecuritySignals } from '../services/security-monitor.js';
 import { runBriefings, runDailyBriefings } from '../services/briefing.js';
 import { runOutcomeFeedbackLoop } from '../services/decision-feedback.js';
 import { runSignalSync } from '../services/decision-signals.js';
@@ -251,6 +252,9 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.put('/v1/event-rules', async (request) => {
     const ctx = await requireAuth(request, deps);
+    // Automation governance: rules trigger agent work and can disable
+    // approval. Members must not create or change them.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage event rules.');
     const parsed = ruleBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -287,6 +291,7 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.delete<{ Params: { id: string } }>('/v1/event-rules/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage event rules.');
     const deleted = await deleteRule(db, ctx.orgId, request.params.id);
     if (!deleted) {
       reply.code(404);
@@ -396,6 +401,60 @@ export function registerEventRoutes(app: FastifyInstance, deps: AppDeps): void {
           orgsProcessed: r.length,
           detail: {
             anomalies: r.reduce((s, x) => s + x.anomalies, 0),
+            failedOrgs: r.filter((x) => x.error).length,
+          },
+        }),
+      },
+    );
+    return { data: { orgs: results.length, results } };
+  });
+
+  /**
+   * Run the security-signal scan across orgs (cron: daily, Phase 7 R-009).
+   *
+   * Reads the audit trail per org and surfaces brute-force campaigns,
+   * lockouts, tool-denial probing, and approval-rejection runs. High-severity
+   * signals are ALSO written back as audit rows (`security.signal_raised`)
+   * so they survive in the tamper-evident ledger the founder can query — the
+   * scanner itself never writes anything else.
+   */
+  app.post('/v1/internal/security/scan', async (request, reply) => {
+    if (!internalTokenGuard(deps, request.headers['x-internal-token'])) {
+      reply.code(deps.config.INTERNAL_TOKEN ? 401 : 404);
+      return { error: { code: 'unauthorized', message: 'Invalid internal token' } };
+    }
+    const orgs = await db.select({ id: organizations.id }).from(organizations);
+    const results = await trackJobRun(
+      db,
+      'security_scan',
+      async () => {
+        const out: Array<{ orgId: string; signals: number; high: number; error?: string }> = [];
+        for (const org of orgs) {
+          try {
+            const signals = await scanSecuritySignals(db, org.id);
+            const high = signals.filter((s) => s.severity === 'high');
+            for (const signal of high) {
+              await appendAudit(db, {
+                orgId: org.id,
+                actorType: 'system',
+                action: 'security.signal_raised',
+                outcome: 'success',
+                resultRef: `${signal.type}:${signal.count}`,
+              });
+            }
+            out.push({ orgId: org.id, signals: signals.length, high: high.length });
+          } catch (err) {
+            out.push({ orgId: org.id, signals: 0, high: 0, error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' });
+          }
+        }
+        return out;
+      },
+      {
+        summarize: (r) => ({
+          orgsProcessed: r.length,
+          detail: {
+            signals: r.reduce((s, x) => s + x.signals, 0),
+            highSeverity: r.reduce((s, x) => s + x.high, 0),
             failedOrgs: r.filter((x) => x.error).length,
           },
         }),

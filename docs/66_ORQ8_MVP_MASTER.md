@@ -210,7 +210,7 @@ that must not quietly lose members.
 | MVP-005 | Scheduled jobs and cron run against a live API | 1 | **BROKEN (one secret away)** — every scheduled run of 2026-10-11 fails with `404 {"code":404,"message":"Application not found"}` on `orq8-jobs`, `waitlist-drip` and `nightly-rehearsal`, because the GitHub `API_URL` secret still targets the deleted application; point it at the Railway API (and confirm `INTERNAL_TOKEN` matches) and the runs have a host |
 | MVP-006 | Sign up, confirm email, log in, log out, recover password | 2 | REAL |
 | MVP-007 | Create a company and reach the dashboard | 2 | REAL (prove end to end after deploy) |
-| MVP-008 | Onboarding to first value (first hire, first command) | 2 | PARTIAL |
+| MVP-008 | Onboarding to first value (first hire, first command) | 2 | REAL (review stack 2026-10-13: `first-value-proof.mjs` 14/14; production signup pass still pending) |
 | MVP-009 | Executive Agent: context, intent, plan, delegation, honest refusal | 3 | REAL |
 | MVP-010 | Departments: templates, create, configure, pause/resume | 4 | REAL |
 | MVP-011 | AI employees: templates, hire, custom, edit, rename, authority, mode, tools, pause/resume, history, delete | 5 | REAL |
@@ -225,7 +225,7 @@ that must not quietly lose members.
 | MVP-034 | A running deployment can say what it can and cannot do, by configuration rather than by a developer reading the source | 1 | **REAL** — `capabilityReadiness` in `@orq8/core`, `GET /readyz` (counts, public, nameless) and `GET /v1/readiness` (named, by session or by `x-internal-token` in constant time); 7/7 + 11/11 tests (68 §1) |
 | MVP-035 | Mail delivery is provable: the founder can check the configured provider and be told exactly what failed and what to change | 1 | **REAL** — `GET /v1/settings/mail` (configuration, names only) and `POST /v1/settings/mail/test` (three verdicts, owner/admin, audited as `mail.delivery_checked`); 18/18 + 5/5 tests, and the settings page renders delivering/not-delivering, the failing step, the cause and the fix. This row was missing from the register until 2026-10-11 — the matrix carried it, the ID-stable list did not |
 | MVP-019 | One working external integration end to end | 7 | EXTERNAL |
-| MVP-020 | One-click demo company for a prospect | 7 | PARTIAL |
+| MVP-020 | One-click demo company for a prospect | 7 | REAL (review stack 2026-10-13: seed 201, guards 409/403, badge live; production pass pending) |
 | MVP-021 | Production smoke check gating releases | 13 | **PARTIAL** — `scripts/release-gate.mjs` checks web + API `/healthz`, `/readyz`, `/v1/readiness` **and `/v1/readiness/mail-check`** (which sends one real message, so *mail delivers* is proven rather than inferred from `SMTP_HOST` being set) and fails the release on a blocking capability, naming what to set; proven on the local review stack both ways (red on a stack with no mail provider — the mail step naming `RESEND_API_KEY`/`SMTP_HOST` — green on one whose mail capability is genuinely activated and accepts a message), and wired into `vercel-deploy.yml` where it goes blocking the moment `PRODUCTION_API_URL` exists. Confirmed 2026-10-11: the secret is **still unset**, so the gate reports *NOT RUN*; the host (MVP-001) is live, and mail remains the only red capability |
 | MVP-022 | The proof harnesses run in CI (slice, auth, RLS, routes) | 13 | **REAL / PARTIAL** — `proofs` is a blocking job that names the MVP id each proof protects; the stack proofs stay advisory (69 §12) |
 | MVP-023 | Env surface documented and guarded against drift | 1 | **REAL** (this cycle) |

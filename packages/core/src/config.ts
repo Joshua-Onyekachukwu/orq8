@@ -168,6 +168,10 @@ const envSchema = z.object({
 
   // Observability (docs/39)
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  // Error monitoring — unset = errors stay in process logs only. The Sentry
+  // SDK is an optional peer: loaded by dynamic import only when set.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 
   // Email transport — Resend (preferred) or SMTP.
   // RESEND_API_KEY unset + SMTP unset = dev mode: emails logged, not sent.

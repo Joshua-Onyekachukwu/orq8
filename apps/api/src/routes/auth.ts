@@ -126,6 +126,17 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
           policy_ref: 'docs/37',
         },
       });
+      // Detection blind spot closed (Phase 7, R-009): a lockout with no audit
+      // row is invisible to the security scanner. Best-effort org attribution,
+      // same pattern as auth.login_failed below — unknown emails stay pre-org.
+      try {
+        const locked = await users.findByEmail(db, email);
+        const lockMemberships = locked ? await orgs.findMembershipsByUser(db, locked.id) : [];
+        const lockOrgId = lockMemberships[0]?.org.id;
+        if (lockOrgId && locked) {
+          await appendAudit(db, { orgId: lockOrgId, actorType: 'user', actorId: locked.id, action: 'auth.account_locked', outcome: 'denied' });
+        }
+      } catch { /* audit failure must not break the lockout response */ }
       return reply;
     }
 

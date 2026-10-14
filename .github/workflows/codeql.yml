@@ -1,0 +1,48 @@
+# ORQ8 static application security testing (Phase 8).
+#
+# CodeQL analyzes the JavaScript/TypeScript on every push, pull request, and
+# weekly on the default branch. Findings appear as code-scanning alerts;
+# `security-extended` adds the auth/crypto/injection query suites most
+# relevant to this codebase (sessions, tool execution, encryption).
+# Triage rule: a finding in launch-critical scope (auth, tenant isolation,
+# agent execution, credentials) blocks merge until fixed or risk-accepted
+# with a documented disposition in ORQ8_RISK_REGISTER.md.
+name: CodeQL SAST
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 7 * * 1" # weekly Monday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze JavaScript/TypeScript
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

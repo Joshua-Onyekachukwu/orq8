@@ -82,8 +82,10 @@ export function registerMigrationRoutes(app: FastifyInstance, deps: AppDeps): vo
    */
   app.post('/v1/internal/migrate', async (request, reply) => {
     const token = (request.headers as Record<string, string>)['x-internal-token'];
-    const expected = config.INTERNAL_TOKEN || 'orq8-internal-migrate-2026';
-
+    // Fail closed: with no INTERNAL_TOKEN configured there is no safe
+    // default — a hardcoded fallback token would be a public password on a
+    // raw-DDL endpoint (found by the 2026-10-13 codebase review).
+    const expected = config.INTERNAL_TOKEN;
     if (!expected || token !== expected) {
       reply.code(403);
       return { error: 'Forbidden' };
@@ -124,8 +126,8 @@ export function registerMigrationRoutes(app: FastifyInstance, deps: AppDeps): vo
    */
   app.post('/v1/internal/migrate/verify', async (request, reply) => {
     const token = (request.headers as Record<string, string>)['x-internal-token'];
-    const expected = config.INTERNAL_TOKEN || 'orq8-internal-migrate-2026';
-
+    // Fail closed — see /v1/internal/migrate above.
+    const expected = config.INTERNAL_TOKEN;
     if (!expected || token !== expected) {
       reply.code(403);
       return { error: 'Forbidden' };

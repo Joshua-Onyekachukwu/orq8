@@ -120,6 +120,28 @@ jobs:
           cat /tmp/anomalies.json; echo
           if [ "$status" != "200" ]; then exit 1; fi
 
+  security-scan:
+    name: Security signal scan across all orgs
+    runs-on: ubuntu-latest
+    needs: canary
+    steps:
+      - name: Call security scan endpoint
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          INTERNAL_TOKEN: ${{ secrets.INTERNAL_TOKEN }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$INTERNAL_TOKEN" ]; then
+            echo "::error::SCHEDULED-JOBS CANARY: the API_URL/INTERNAL_TOKEN secrets are not set for this job — fix the `API_URL` secret (and `INTERNAL_TOKEN`) to the deployed API origin and its token."
+            exit 1
+          fi
+          status=$(curl -s -o /tmp/security.json -w "%{http_code}" -m 180 \
+            -X POST -H "content-type: application/json" \
+            -H "x-internal-token: $INTERNAL_TOKEN" \
+            "$API_URL/v1/internal/security/scan")
+          echo "security HTTP $status"
+          cat /tmp/security.json; echo
+          if [ "$status" != "200" ]; then exit 1; fi
+
   weekly-briefing:
     name: Weekly executive briefing (Mondays)
     runs-on: ubuntu-latest

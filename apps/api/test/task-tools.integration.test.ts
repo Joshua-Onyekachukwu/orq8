@@ -80,7 +80,7 @@ let dbUp = false;
 try {
   const probe = new (await import('pg')).Pool({
     connectionString: config.DATABASE_URL,
-    connectionTimeoutMillis: 1500,
+    connectionTimeoutMillis: 10_000 /* 2026-10-13: 1.5s tripped under full-suite load, silently skipping files */,
   });
   await probe.query('SELECT 1');
   await probe.end();

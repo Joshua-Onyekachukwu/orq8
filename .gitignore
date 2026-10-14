@@ -8,6 +8,9 @@ build/
 .next/
 out/
 *.tsbuildinfo
+# Stale committed bundle (untracked 2026-10-13; deploys run tsx src/index.ts).
+# Regenerable build output — never commit.
+apps/api/api/
 
 # Env / secrets
 .env

@@ -1,4 +1,4 @@
-import { AesGcmCipher, conflict, notFound, validation } from '@orq8/core';
+import { AesGcmCipher, conflict, forbidden, notFound, validation } from '@orq8/core';
 import {
   rotateProviderKeyBody,
   saveProviderKeyBody,
@@ -108,6 +108,9 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
   // docs/23.4.1 — add a key: validate → encrypt → mask → store + audit
   app.post('/v1/providers/keys', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Credential governance: keys control AI spend and decrypt to plaintext
+    // for execution. Members must not add, rotate, or revoke them.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage provider API keys.');
     const parsed = saveProviderKeyBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -199,6 +202,7 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
   // never accidentally replace a key.
   app.patch('/v1/providers/keys/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage provider API keys.');
     const { id } = request.params as { id: string };
     const parsed = updateProviderKeyBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
@@ -251,6 +255,7 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
   // docs/23.4.4 — rotate: new key replaces the encrypted payload in place
   app.post('/v1/providers/keys/:id/rotate', async (request) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage provider API keys.');
     const { id } = request.params as { id: string };
     const parsed = rotateProviderKeyBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
@@ -290,6 +295,7 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
   // docs/23.4.5 — revoke: immediate; row stays for audit, no key material exposed
   app.post('/v1/providers/keys/:id/revoke', async (request) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage provider API keys.');
     const { id } = request.params as { id: string };
 
     const row = await providersService.findKeyById(db, id, ctx.orgId);
@@ -321,6 +327,7 @@ export function registerProviderRoutes(app: FastifyInstance, deps: AppDeps): voi
   // docs/23.4.3 — test connection: decrypt once, probe the provider, record the read
   app.post('/v1/providers/keys/:id/test', async (request) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage provider API keys.');
     const { id } = request.params as { id: string };
 
     const row = await providersService.findKeyById(db, id, ctx.orgId);

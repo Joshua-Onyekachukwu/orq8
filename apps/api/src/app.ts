@@ -39,6 +39,7 @@ import { registerAvatarRoutes } from './routes/avatars.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerGoalRoutes } from './routes/goals.js';
 import { registerOnboardingRoutes } from './routes/onboarding.js';
+import { registerDemoCompanyRoutes } from './routes/demo-company.js';
 import { registerWaitlistRoutes } from './routes/waitlist.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
 import { registerConstitutionRoutes } from './routes/constitution.js';
@@ -326,6 +327,7 @@ export async function buildApp(
   registerAvatarRoutes(app, deps);
   registerAdminRoutes(app, deps);
   registerOnboardingRoutes(app, deps);
+  registerDemoCompanyRoutes(app, deps);
   registerWaitlistRoutes(app, deps);
   registerNotificationRoutes(app, deps);
   registerConstitutionRoutes(app, deps);

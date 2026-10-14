@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Check } from "lucide-react";
 
 import { fetchWithAuth, formatTimeAgo } from "../../../../lib/api";
 import { EA_NAME } from "../../../../lib/ea";
 import type { AttentionSnapshot } from "../../../../lib/attention";
 import { EAOpenButton } from "../../../../components/dashboard/ea-open-button";
+import { SeedDemoButton } from "../../../../components/company-hub/seed-demo-button";
 import { EAStageRegistrar } from "../../../../components/dashboard/ea-stage-registrar";
 import type { FounderStage } from "../../../../components/executive-agent-context";
 import { CompanyOrbit } from "../../../../components/company-hub/company-orbit";
@@ -95,6 +97,7 @@ export default async function CompanyHubPage() {
 
   const activeOrg =
     me?.memberships.find((m) => m.org.id === me.active_org_id) ?? me?.memberships[0];
+  const canSeedDemo = activeOrg?.role === "owner" || activeOrg?.role === "admin";
   const companyName = activeOrg?.org.name ?? "Your company";
   const isDemo = !!activeOrg?.org.isDemo;
   // The org's own EA name (Settings → Account), falling back to the
@@ -142,6 +145,47 @@ export default async function CompanyHubPage() {
   // Agent unchanged so its greeting matches the dashboard at /app.
   const hasStructure = employees > 0 || activeGoals > 0 || departments.length > 0;
   const showFirstRun = !hasStructure && stage !== "active";
+
+  // First value (MVP-008): the loop is hire → goal → task → completed task.
+  // The welcome above covers a company with no structure; once there is
+  // structure but no task has ever completed, this checklist guides the
+  // founder through the remaining steps. Every step is derived from real
+  // rows, so it dismisses itself the moment the first task completes — no
+  // frontend state, no extra endpoint. Hidden while the builder state is
+  // unknown (stage "new" with no structure) so a failed fetch never shows
+  // an all-undone list.
+  const completedTasks = tasks.filter((t) => normalize(t.status) === "completed").length;
+  const showFirstValue = completedTasks === 0 && (hasStructure || stage !== "new");
+  const firstValueSteps = [
+    {
+      title: "Hire your first AI employee",
+      detail: "Pick a role — the employee works inside your departments.",
+      done: employees > 0,
+      href: "/app/agents",
+      cta: employees > 0 ? "View workforce" : "Hire",
+    },
+    {
+      title: "Set your first goal",
+      detail: "A goal is what work gets planned from.",
+      done: goals.length > 0,
+      href: "/app/goals",
+      cta: goals.length > 0 ? "View goals" : "Set a goal",
+    },
+    {
+      title: "Put the first work in motion",
+      detail: `Ask ${EA} to plan it — tasks appear on the board as they run.`,
+      done: tasks.length > 0,
+      href: null as string | null,
+      cta: "Plan work",
+    },
+    {
+      title: "See the first task through",
+      detail: "Approve what needs you in the attention queue; the rest runs itself.",
+      done: false,
+      href: "/app/tasks",
+      cta: "Open tasks",
+    },
+  ];
 
   const primaryActionClass =
     "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep";
@@ -224,6 +268,9 @@ export default async function CompanyHubPage() {
             >
               {stage === "new" ? `Tell ${EA} what you are building` : `Ask ${EA} what remains`}
             </EAOpenButton>
+            {canSeedDemo ? (
+              <SeedDemoButton className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-60" />
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -241,6 +288,57 @@ export default async function CompanyHubPage() {
           </p>
           <span className="text-2xs font-semibold text-warm-ink">Open queue</span>
         </Link>
+      ) : null}
+
+      {showFirstValue ? (
+        <section aria-label="Getting to first value" className="rounded-2xl border border-hairline bg-white p-6">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-muted">
+            First value
+          </p>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight text-ink">
+            {tasks.length > 0 ? "Almost there — close the loop" : "Four steps to a running company"}
+          </h2>
+          <ol className="mt-4 space-y-3">
+            {firstValueSteps.map((step) => (
+              <li key={step.title} className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span
+                    className={
+                      step.done
+                        ? "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-white"
+                        : "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-hairline-strong text-muted"
+                    }
+                  >
+                    {step.done ? <Check className="h-3 w-3" /> : null}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">
+                      {step.title}
+                      {step.done ? <span className="ml-2 text-xs font-normal text-muted">Done</span> : null}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">{step.detail}</p>
+                  </div>
+                </div>
+                {step.done && step.href ? (
+                  <Link href={step.href} className={secondaryActionClass}>
+                    {step.cta}
+                  </Link>
+                ) : !step.done && step.href ? (
+                  <Link href={step.href} className={primaryActionClass}>
+                    {step.cta}
+                  </Link>
+                ) : !step.done ? (
+                  <EAOpenButton
+                    prompt={`Plan the work for ${companyName}: break the current goal into tasks and assign them.`}
+                    className={primaryActionClass}
+                  >
+                    {step.cta}
+                  </EAOpenButton>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
       ) : null}
 
       <CompanyOrbit

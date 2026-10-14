@@ -339,6 +339,50 @@ async function main() {
       `missing ${hotPaths.rows[0]?.missing}`,
     );
 
+    // STEP 4.4: 0055 write-surface. The behavior checks below prove a member
+    // cannot self-approve / forge credits / self-upgrade billing /
+    // self-insert — but they test writes, not the catalog. A future
+    // migration could restore the exact broad policies 0052 added and 0055
+    // dropped (the wrong-direction backport), and nothing would name the
+    // regression until a behavior check tripped. So assert the catalog
+    // directly: the broad seven are absent, the narrow seven are present.
+    const broad = await adminPool.query(
+      `select tablename, policyname from pg_policies
+        where schemaname = 'public' and policyname in (
+          'approvals_org_member',
+          'credit_alerts_org_member',
+          'credit_balances_org_member',
+          'credit_transactions_org_member',
+          'subscriptions_org_member',
+          'password_reset_tokens_own',
+          'memberships_insert_self'
+        ) order by tablename`,
+    );
+    check(
+      "0055 broad member-write policies absent (7 dropped)",
+      broad.rows.length === 0,
+      broad.rows.length === 0
+        ? undefined
+        : broad.rows.map((r: { tablename: string; policyname: string }) => `${r.tablename}.${r.policyname}`).join(", "),
+    );
+    const narrow = await adminPool.query(
+      `select policyname from pg_policies
+        where schemaname = 'public' and policyname in (
+          'approvals_org_select',
+          'approvals_org_insert',
+          'credit_balances_org_select',
+          'credit_transactions_org_select',
+          'credit_alerts_org_select',
+          'subscriptions_org_select',
+          'password_reset_tokens_select_own'
+        )`,
+    );
+    check(
+      "0055 narrow client read surface present (7 policies)",
+      narrow.rows.length === 7,
+      `found ${narrow.rows.length}/7`,
+    );
+
     console.log("[2/4] fixture: two companies, one member each + one outsider…");
 
     // Fixture as superuser (setup only). auth.users needs rows for the FK.
@@ -495,6 +539,35 @@ async function main() {
        ON CONFLICT DO NOTHING`,
       [orgB],
     );
+    // One file + one invitation per company for the 3.1 cross-org matrix.
+    // files: FOR ALL member policy (0002); invitations: SELECT-only member
+    // policy, writes service-role-only (0035).
+    const fileA = "aaaaaaaa-7777-4000-8000-00000000aaaa";
+    const fileB = "bbbbbbbb-7777-4000-8000-00000000bbbb";
+    for (const [orgId, fileId, fname] of [
+      [orgA, fileA, "A secret file"],
+      [orgB, fileB, "B secret file"],
+    ] as const) {
+      await adminPool.query(
+        `INSERT INTO files (id, org_id, name, key, mime_type, size)
+         VALUES ($1, $2, $3, $4, 'text/plain', 42)
+         ON CONFLICT DO NOTHING`,
+        [fileId, orgId, fname, `rls-test/${fileId}`],
+      );
+    }
+    const inviteA = "aaaaaaaa-8888-4000-8000-00000000aaaa";
+    const inviteB = "bbbbbbbb-8888-4000-8000-00000000bbbb";
+    for (const [orgId, inviteId, invitedBy, email] of [
+      [orgA, inviteA, users.a, "invite-a@rls-test.example"],
+      [orgB, inviteB, users.b, "invite-b@rls-test.example"],
+    ] as const) {
+      await adminPool.query(
+        `INSERT INTO invitations (id, org_id, email, role, token_hash, invited_by, status, expires_at)
+         VALUES ($1, $2, $3, 'member', $4, $5, 'pending', now() + interval '7 days')
+         ON CONFLICT DO NOTHING`,
+        [inviteId, orgId, email, `rls-token-${inviteId.slice(0, 8)}`, invitedBy],
+      );
+    }
 
     // Fixture sanity (as superuser): the checks below are only meaningful if
     // the fixture actually landed.
@@ -529,12 +602,21 @@ async function main() {
     // ── 3.1 Cross-company isolation on every tenant surface ────────────────
     // User A must see nothing of Company B's rows; vice versa. Include
     // "guessed UUID" semantics: A queries B's rows by their exact ids.
+    // Matrix: tasks, approvals, company_memory, departments, agents, files,
+    // invitations, organizations (+ audit/credits below).
     const crossChecks: Array<{ table: string; idCol: string; bRowId: string; writeCol: string; writeVal: string }> = [
       { table: "tasks", idCol: "id", bRowId: taskB, writeCol: "title", writeVal: "'hacked'" },
       { table: "approvals", idCol: "id", bRowId: "bbbbbbbb-4444-4000-8000-00000000bbbb", writeCol: "status", writeVal: "'approved'" },
       { table: "company_memory", idCol: "id", bRowId: "bbbbbbbb-5555-4000-8000-00000000bbbb", writeCol: "category", writeVal: "'hacked'" },
       { table: "departments", idCol: "id", bRowId: deptB, writeCol: "name", writeVal: "'hacked'" },
       { table: "agents", idCol: "id", bRowId: agentB, writeCol: "name", writeVal: "'hacked'" },
+      { table: "files", idCol: "id", bRowId: fileB, writeCol: "name", writeVal: "'hacked'" },
+      // invitations: SELECT-only member policy (0035) — reads denied
+      // cross-org; writes have no client policy at all (default deny).
+      { table: "invitations", idCol: "id", bRowId: inviteB, writeCol: "status", writeVal: "'revoked'" },
+      // organizations: SELECT member / UPDATE owner (0001) — A is in
+      // neither role for org B; DELETE/INSERT have no policy (default deny).
+      { table: "organizations", idCol: "id", bRowId: orgB, writeCol: "name", writeVal: "'hacked'" },
     ];
     for (const c of crossChecks) {
       await act(adminPool, users.a, async (q) => {
@@ -572,6 +654,12 @@ async function main() {
       check("A can still read own company tasks (no lockout)", Number(sel.rows[0]?.n ?? 0) === 1, `got ${sel.rows[0]?.n}`);
       const own = await q(`SELECT count(*)::int AS n FROM audit_events WHERE org_id = $1`, [orgA]);
       check("A can still read own audit ledger", Number(own.rows[0]?.n ?? 0) === 1, `got ${own.rows[0]?.n}`);
+      const org = await q(`SELECT count(*)::int AS n FROM organizations WHERE id = $1`, [orgA]);
+      check("A can still read own organization row", Number(org.rows[0]?.n ?? 0) === 1, `got ${org.rows[0]?.n}`);
+      const files = await q(`SELECT count(*)::int AS n FROM files WHERE org_id = $1`, [orgA]);
+      check("A can still read own company files", Number(files.rows[0]?.n ?? 0) === 1, `got ${files.rows[0]?.n}`);
+      const invites = await q(`SELECT count(*)::int AS n FROM invitations WHERE org_id = $1`, [orgA]);
+      check("A can still read own company invitations", Number(invites.rows[0]?.n ?? 0) === 1, `got ${invites.rows[0]?.n}`);
     });
 
     // ── 3.2 No membership self-escalation ─────────────────────────────────
@@ -631,7 +719,7 @@ async function main() {
     const protectedTables = [
       "tasks", "approvals", "company_memory", "audit_events", "agents",
       "departments", "credit_balances", "files", "notifications",
-      "agent_jobs",
+      "agent_jobs", "invitations", "organizations",
     ];
     for (const t of protectedTables) {
       await act(adminPool, null, async (q) => {

@@ -241,6 +241,18 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const parsed = hireBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
+    // Agent governance (docs/37): hiring an agent with pre-granted authority
+    // or an elevated autonomy level lets a non-admin mint an actor that can
+    // spend, modify resources, or run without approval. Members may hire with
+    // safe defaults only; granting power requires owner/admin.
+    if (
+      (parsed.data.authority !== undefined || parsed.data.autonomyLevel !== undefined) &&
+      ctx.role !== 'owner' &&
+      ctx.role !== 'admin'
+    ) {
+      throw forbidden('Only owners and admins can grant an agent authority or set its autonomy level.');
+    }
+
     // Plan enforcement: central entitlement engine (agent cap, archived excluded)
     await enforceResourceLimit(db, ctx.orgId, 'agents');
 
@@ -356,6 +368,20 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       }
       const parsed = patchBody.safeParse(request.body);
       if (!parsed.success) throw validation(parsed.error.flatten());
+
+      // Agent governance: authority, autonomy level, and execution status
+      // (active/paused/archived) decide what an agent may do and whether it
+      // runs. Only owner/admin may change them; members keep benign profile
+      // edits (name, role label, capabilities, department assignment).
+      if (
+        (parsed.data.status !== undefined ||
+          parsed.data.autonomyLevel !== undefined ||
+          parsed.data.authority !== undefined) &&
+        ctx.role !== 'owner' &&
+        ctx.role !== 'admin'
+      ) {
+        throw forbidden("Only owners and admins can change an agent's authority, autonomy level, or status.");
+      }
 
       const agent = await agents.findById(db, ctx.orgId, request.params.id);
       if (!agent) {
@@ -473,6 +499,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
    */
   app.post<{ Params: { id: string } }>('/v1/agents/:id/performance-action', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Governance workflow: every action here changes execution status
+    // (confirm/improve activate, replace archives) or the autonomy level.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') {
+      throw forbidden('Only owners and admins can apply agent performance actions.');
+    }
     const parsed = performanceActionBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -574,6 +605,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
    */
   app.post('/v1/agents/resume-all', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Resume re-arms execution: the privileged direction of the kill switch.
+    // (Emergency-stop itself stays open to every member by design.)
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') {
+      throw forbidden('Only owners and admins can resume agents.');
+    }
     const { resumeAllAgents } = await import('../services/emergency-stop.js');
     const result = await resumeAllAgents(db, ctx.orgId, ctx.userId);
     reply.code(200);
@@ -585,6 +621,9 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
    */
   app.post<{ Params: { id: string } }>('/v1/agents/:id/resume', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') {
+      throw forbidden('Only owners and admins can resume agents.');
+    }
     const { resumeAgent } = await import('../services/emergency-stop.js');
     const resumed = await resumeAgent(db, ctx.orgId, request.params.id, ctx.userId);
     if (!resumed) {

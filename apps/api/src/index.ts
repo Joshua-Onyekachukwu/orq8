@@ -7,8 +7,11 @@ import { startOrphanReaper } from './services/orphaned-executions.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  initTracing(config.OTEL_EXPORTER_OTLP_ENDPOINT);
   const logger = createLogger(config);
+  // Both are tested no-ops until configured (endpoint/DSN + SDK installed).
+  await initTracing(config.OTEL_EXPORTER_OTLP_ENDPOINT, (msg) => logger.warn(msg));
+  const { initErrorReporting } = await import('./services/error-reporting.js');
+  await initErrorReporting(config, logger);
   const { db, pool } = createDb(config.DATABASE_URL);
   const redis = getRedis(config, logger);
 

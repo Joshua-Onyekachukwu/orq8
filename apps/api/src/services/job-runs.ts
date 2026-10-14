@@ -18,6 +18,7 @@ export type JobKey =
   | 'events_process_pending'
   | 'memory_consolidate'
   | 'anomaly_scan'
+  | 'security_scan'
   | 'briefing_daily'
   | 'briefing_weekly'
   | 'briefing_monthly'

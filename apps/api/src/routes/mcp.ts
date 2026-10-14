@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { enforceResourceLimit } from '../services/entitlements.js';
@@ -59,6 +59,9 @@ export function registerMcpRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** Register a connector-backed (or custom) MCP server. */
   app.post('/v1/mcp/servers', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // External-tool governance: a server gives agents new fetch/execution
+    // powers. Members must not register, reconfigure, or remove them.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage MCP servers.');
     const parsed = serverBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -88,6 +91,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** Update a server (status, risk, allowlist, enabled). */
   app.patch<{ Params: { id: string } }>('/v1/mcp/servers/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage MCP servers.');
     const parsed = updateBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -102,6 +106,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: AppDeps): void {
   /** Delete a server (and its tools via cascade). */
   app.delete<{ Params: { id: string } }>('/v1/mcp/servers/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage MCP servers.');
     const removed = await deleteMcpServer(db, ctx.orgId, request.params.id);
     if (!removed) {
       reply.code(404);

@@ -29,7 +29,7 @@ let pool: Pool | null = null;
 let dbUp = false;
 let hasTable = false;
 try {
-  pool = new Pool({ connectionString: config.DATABASE_URL, connectionTimeoutMillis: 1500 });
+  pool = new Pool({ connectionString: config.DATABASE_URL, connectionTimeoutMillis: 10_000 /* 2026-10-13: 1.5s tripped under full-suite load, silently skipping files */ });
   await pool.query('SELECT 1');
   dbUp = true;
   const r = await pool.query(`select to_regclass('public.capability_registry') as t`);

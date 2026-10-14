@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/services/job-worker.ts",
-    "./jobs": "./src/services/jobs.ts"
+    "./jobs": "./src/services/jobs.ts",
+    "./error-reporting": "./src/services/error-reporting.ts"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",

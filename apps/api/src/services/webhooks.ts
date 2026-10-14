@@ -27,6 +27,7 @@ import {
   type WebhookEvent,
 } from '@orq8/db';
 import { decryptSecret, encryptSecret } from './crypto.js';
+import { stripToolBlocks } from './task-tools.js';
 import { appendAudit } from './audit.js';
 import { createNotification } from '../routes/notifications.js';
 
@@ -378,12 +379,19 @@ export interface ProcessResult {
 
 const MAX_RETRIES = 5;
 
-/** Interpolate {placeholders} in a task title template from the event payload. */
+/**
+ * Interpolate {placeholders} in a task title template from the event payload.
+ *
+ * Payload values are attacker-influenceable (issue titles, message bodies),
+ * and the title becomes a task the executor prompts on — so interpolated
+ * values are stripped of machine-readable tool blocks first (Phase 3.1,
+ * R-003). The template's own literal text is the founder's and is untouched.
+ */
 export function interpolateTemplate(template: string, payload: Record<string, unknown>): string {
   return template.replace(/\{(\w+)\}/g, (_match, key: string) => {
     const v = payload[key];
     if (v === undefined || v === null) return `{${key}}`;
-    return String(v);
+    return stripToolBlocks(String(v));
   });
 }
 

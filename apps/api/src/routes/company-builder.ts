@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as builder from '../services/company-builder.js';
@@ -94,6 +94,10 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
   /** Activate the approved plan — create everything through real services. */
   app.post('/v1/company-builder/activate', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Activation provisions departments and agents org-wide from a plan that
+    // may carry elevated autonomy. Members may explore (analyze/plan); only
+    // owners and admins may activate.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can activate a company plan.');
     const parsed = activateBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 

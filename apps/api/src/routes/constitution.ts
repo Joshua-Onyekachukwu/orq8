@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import { appendAudit } from '../services/audit.js';
@@ -70,6 +70,9 @@ export function registerConstitutionRoutes(app: FastifyInstance, deps: AppDeps):
   /** Update the constitution. */
   app.patch('/v1/constitution', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Org-policy governance: the constitution carries budget policy, agent
+    // policies, and risk tolerance. Members must not rewrite it.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can update the organization constitution.');
     const parsed = updateConstitutionBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 

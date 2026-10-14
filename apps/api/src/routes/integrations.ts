@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { validation } from '@orq8/core';
+import { forbidden, validation } from '@orq8/core';
 import {
   type Db,
   type NewIntegrationProvider,
@@ -134,6 +134,9 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.post('/v1/integrations', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // External-access governance: connecting an integration stores org-wide
+    // credentials/tokens. Members must not connect, reconfigure, or remove them.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can connect integrations.');
     const parsed = providerBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -157,6 +160,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.patch<{ Params: { id: string } }>('/v1/integrations/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage integrations.');
     const provider = await getProvider(db, ctx.orgId, request.params.id);
     if (!provider) {
       reply.code(404);
@@ -176,6 +180,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.delete<{ Params: { id: string } }>('/v1/integrations/:id', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can disconnect integrations.');
     const deleted = await deleteProvider(db, ctx.orgId, request.params.id);
     if (!deleted) {
       reply.code(404);
@@ -483,6 +488,9 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.post('/v1/integration-capabilities', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Capability policy decides what integrations may do and what needs
+    // approval — a member must not loosen it.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can manage integration capabilities.');
     const parsed = capabilityBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -508,6 +516,8 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.post('/v1/agent-integration-access', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    // Granting an agent integration access hands it external powers.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can grant agents integration access.');
     const parsed = agentAccessBody.safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
@@ -522,6 +532,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
 
   app.delete('/v1/agent-integration-access', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can revoke agent integration access.');
     const body = request.body as { agentId: string; providerId: string };
     if (!body.agentId || !body.providerId) {
       reply.code(400);

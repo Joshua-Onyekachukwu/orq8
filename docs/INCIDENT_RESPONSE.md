@@ -72,13 +72,19 @@ This document defines ORQ8's procedures for detecting, responding to, and recove
 
 ### Phase 5: Notification
 
-**GDPR Requirements (72-hour notification):**
-- If personal data breach: notify supervisory authority within 72 hours
-- If high risk to individuals: notify affected users without undue delay
-- Document all notification decisions
+**Nigeria NDPA (primary context):** a qualifying personal-data breach must be
+notified to the NDPC within 72 hours of becoming aware, where the conditions
+in the Act and implementation directive are met; keep the acknowledgment on
+record. **GDPR/UK GDPR (where in scope):** supervisory-authority notification
+within 72 hours where applicable, plus direct notice to affected individuals
+without undue delay where there is high risk. Triggers, thresholds, and
+filing routes differ by regime — confirm with qualified counsel per incident;
+never auto-send legal notifications. Record every notification decision (and
+decision NOT to notify, with reasons) in the breach decision log (§9).
 
 **Notification contacts:**
-- Supervisory authority: [Your EU DPA]
+- NDPC: [founder to file: portal + case ID here]
+- EU/UK DPA (if in scope): [TBD by counsel]
 - Users: Email + in-app notification
 - Internal: Founder + team
 
@@ -117,7 +123,8 @@ Within 7 days of incident resolution:
 
 | Scenario | Who to Notify | When |
 |----------|---------------|------|
-| Personal data breach (GDPR) | Supervisory authority | Within 72 hours |
+| Qualifying personal-data breach (NDPA) | NDPC | Within 72 hours of awareness (confirm trigger with counsel) |
+| Personal data breach (GDPR, where in scope) | Supervisory authority | Within 72 hours |
 | High-risk personal data breach | Affected users | Without undue delay |
 | Tenant isolation breach | Affected organizations | Within 24 hours |
 | Service outage | All users (status page) | Immediately |
@@ -178,11 +185,16 @@ During any incident:
 
 | Role | Contact | When to Escalate |
 |------|---------|------------------|
-| Founder/CEO | [Founder contact] | All P0/P1 incidents |
-| DPO | dpo@orq8.com | Data breaches |
-| Legal | legal@orq8.com | Breach notifications, regulatory inquiries |
-| Infrastructure | Railway support | Infrastructure-level incidents |
+| Founder/CEO | [FOUNDER: name + phone + backup channel] | All P0/P1 incidents |
+| DPO / DPCO | [FOUNDER: name or `dpo@orq8.com` owner + engagement letter ref] | Data breaches |
+| Legal (Nigeria) | [FOUNDER: counsel name + retainer ref; required before notifications] | Breach notifications, regulatory inquiries |
+| Infrastructure | Vercel support (web/API) | Hosting/deployment incidents |
 | Database | Supabase support | Database-level incidents |
+| Object storage | S3-compatible provider support | File-storage incidents |
+
+> Bracketed contacts are founder-owned setup items: this plan is DRAFT until
+> they are filled. Railway was removed from the escalation path 2026-10-12
+> (legacy infra; Vercel + Supabase are production).
 
 ---
 
@@ -198,7 +210,30 @@ Every incident must produce:
 
 ---
 
-## 9. Testing & Drills
+## 9. Breach Decision Log (template — copy per incident)
+
+| Field | Entry |
+|-------|-------|
+| Incident ID / date opened | |
+| Severity (P0–P3) | |
+| Systems + data categories affected | |
+| Cross-tenant exposure? (orgs affected) | |
+| Containment time | |
+| NDPA trigger met? (counsel ref) | |
+| NDPC notified? (date, case ID) | |
+| GDPR/UK GDPR trigger met? (counsel ref) | |
+| Authority notified? (date, ref) | |
+| Individuals notified? (date, channel) | |
+| Decision NOT to notify (reasons) | |
+| Credentials rotated (per rotation log) | |
+| Report filed (≤7 days) | |
+
+Do not send legal notifications automatically: every row above needs human
+assessment and (for notifications) counsel confirmation first.
+
+---
+
+## 10. Testing & Drills
 
 - Review this plan quarterly
 - Conduct tabletop exercises semi-annually
@@ -212,6 +247,7 @@ Every incident must produce:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | September 8, 2026 | Initial version |
+| 1.1 | October 12, 2026 | NDPA notification track, decision log, real escalation path (Vercel/Supabase/S3; Railway removed), rotation-procedure link, contact placeholders flagged founder-owned |
 
 **Owner:** Founder/CEO
 **Review Cycle:** Quarterly

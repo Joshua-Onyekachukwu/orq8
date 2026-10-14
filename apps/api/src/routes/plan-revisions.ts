@@ -5,6 +5,7 @@
  * and audited. Ratifying is the founder's move: draft → direction.
  */
 
+import { forbidden } from '@orq8/core';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -69,6 +70,8 @@ export function registerPlanRevisionRoutes(app: FastifyInstance, deps: AppDeps):
 
   app.post('/v1/plan-revisions/:id/ratify', async (request) => {
     const ctx = await requireAuth(request, deps);
+    // Ratifying is the founder's move: draft → direction. Members may draft.
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can ratify plan revisions.');
     const { id } = request.params as { id: string };
     const body = ratifyBody.parse(request.body ?? {});
     return ratifyPlanRevision(db, ctx.orgId, id, {
@@ -80,6 +83,7 @@ export function registerPlanRevisionRoutes(app: FastifyInstance, deps: AppDeps):
 
   app.post('/v1/plan-revisions/:id/reject', async (request) => {
     const ctx = await requireAuth(request, deps);
+    if (ctx.role !== 'owner' && ctx.role !== 'admin') throw forbidden('Only owners and admins can reject plan revisions.');
     const { id } = request.params as { id: string };
     const body = rejectBody.parse(request.body ?? {});
     return rejectPlanRevision(db, ctx.orgId, id, {
