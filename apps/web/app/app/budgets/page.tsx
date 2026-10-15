@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { MoneyTabs } from "../../../components/work/money-tabs";
 import { AlertTriangle, RefreshCw, Wallet } from "lucide-react";
 
 /**
@@ -189,6 +190,8 @@ export default function BudgetsPage() {
   return (
     <PageErrorBoundary pageName="Budgets" backHref="/app">
       <div className="space-y-4">
+        {/* AUD-006: one Money — balance, spend, caps and real money as lenses. */}
+        <MoneyTabs />
         <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
           <div>
             <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">

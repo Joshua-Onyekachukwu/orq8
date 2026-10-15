@@ -311,7 +311,7 @@ export default function LearningPage() {
 
                   {/* Recent decision predictions */}
                   {summary.recentDecisions.length > 0 && (
-                    <div className="mt-5 overflow-hidden rounded-lg border border-hairline">
+                    <div className="mt-5 overflow-x-auto rounded-lg border border-hairline">
                       <table className="w-full">
                         <thead>
                           <tr className="bg-canvas">
@@ -422,7 +422,7 @@ export default function LearningPage() {
                 </p>
               ) : (
                 <>
-                  <div className="mt-4 overflow-hidden rounded-lg border border-hairline">
+                  <div className="mt-4 overflow-x-auto rounded-lg border border-hairline">
                     <table className="w-full">
                       <thead>
                         <tr className="bg-canvas">

@@ -6,8 +6,6 @@ import { useState, useEffect, useRef } from "react";
 import {
   Activity,
   BadgeCheck,
-  Banknote,
-  Boxes,
   Brain,
   Building2,
   CalendarClock,
@@ -15,25 +13,18 @@ import {
   Code2,
   Command,
   Compass,
-  DollarSign,
-  FileText,
-  Gauge,
-  Gavel,
   GitBranch,
   Globe,
   GraduationCap,
   HeartPulse,
-  History,
   Inbox,
   KeyRound,
   Landmark,
   LayoutTemplate,
-  Layers,
   LayoutDashboard,
   ListChecks,
   LogOut,
   Network,
-  Newspaper,
   Plug,
   Scale,
   ScrollText,
@@ -41,11 +32,9 @@ import {
   Shield,
   ShieldCheck,
   Target,
-  TrendingUp,
   User,
   Users,
   Wallet,
-  CreditCard,
   Wrench,
   X,
   Zap,
@@ -85,9 +74,6 @@ const navAreas: NavArea[] = [
     title: "Company",
     items: [
       { label: "Overview", href: "/app", icon: LayoutDashboard },
-      // Temporary while the Company Hub is under review: it becomes Overview and
-      // replaces /app once the founder approves the design (docs/63).
-      { label: "Company Hub", href: "/app/company/overview", icon: Network },
       { label: "Health", href: "/app/health", icon: HeartPulse },
       { label: "Activity", href: "/app/activity", icon: Activity },
     ],
@@ -102,13 +88,10 @@ const navAreas: NavArea[] = [
         ],
       },
       {
+        // AUD-010: one Reports — Weekly hosts Performance/ROI/Briefings as
+        // tabs. The routes stay live for deep links and audit scripts.
         title: "Reports",
-        items: [
-          { label: "Weekly Report", href: "/app/report", icon: ScrollText },
-          { label: "Performance", href: "/app/performance", icon: TrendingUp },
-          { label: "AI Workforce ROI", href: "/app/roi", icon: DollarSign },
-          { label: "Briefings", href: "/app/briefings", icon: Newspaper },
-        ],
+        items: [{ label: "Reports", href: "/app/report", icon: ScrollText }],
       },
     ],
   },
@@ -127,9 +110,10 @@ const navAreas: NavArea[] = [
       { label: "AI Employees", href: "/app/agents", icon: Users },
       { label: "Departments", href: "/app/departments", icon: Building2 },
       { label: "Department Templates", href: "/app/departments/templates", icon: LayoutTemplate },
-      { label: "Teams", href: "/app/teams", icon: Network },
-      { label: "Squads", href: "/app/squads", icon: Layers },
-      { label: "Org Explorer", href: "/app/org", icon: Boxes },
+      // AUD-005: one grouping concept — Teams owns the standing groups and
+      // hosts the Mission-squads / Organization lenses as tabs. The routes
+      // stay live for deep links and audit scripts.
+      { label: "Teams & Squads", href: "/app/teams", icon: Network },
       { label: "Business Import", href: "/app/business-import", icon: Globe },
       { label: "Members", href: "/app/members", icon: User },
     ],
@@ -137,16 +121,17 @@ const navAreas: NavArea[] = [
   {
     title: "Decisions",
     items: [
-      { label: "Decision Center", href: "/app/decisions", icon: Scale },
-      { label: "Decision Council", href: "/app/council", icon: Gavel },
+      // AUD-008: one decision queue — the Center hosts the Council as a tab.
+      // The /app/council route stays live for deep links and audit scripts.
+      { label: "Decisions", href: "/app/decisions", icon: Scale },
     ],
   },
   {
     title: "Resources",
     items: [
-      { label: "Files", href: "/app/files", icon: FileText },
+      // AUD-007: one Knowledge — Knowledge hosts Files + Memory as tabs.
+      // The routes stay live for deep links and audit scripts.
       { label: "Knowledge", href: "/app/knowledge", icon: Brain },
-      { label: "Company Memory", href: "/app/memory", icon: History },
       { label: "Integrations", href: "/app/integrations", icon: Plug },
       { label: "Tools & MCP", href: "/app/mcp", icon: Wrench },
     ],
@@ -155,10 +140,10 @@ const navAreas: NavArea[] = [
     title: "Governance",
     items: [
       { label: "Approvals", href: "/app/approvals", icon: ShieldCheck },
-      { label: "Budgets", href: "/app/budgets", icon: Wallet },
-      { label: "Finance", href: "/app/finance", icon: Banknote },
-      { label: "Usage & Credits", href: "/app/usage", icon: Gauge },
-      { label: "Buy Credits", href: "/app/credits", icon: CreditCard },
+      // AUD-006: one Money — Usage hosts the Buy/Budgets/Finance lenses as
+      // tabs. The routes stay live for deep links, Stripe return URLs and
+      // audit scripts.
+      { label: "Money", href: "/app/usage", icon: Wallet },
       { label: "Audit Trail", href: "/app/audit", icon: Shield },
       { label: "Constitution", href: "/app/constitution", icon: Landmark },
     ],

@@ -905,6 +905,19 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                               no outcome recorded
                             </span>
                           )}
+                          {/* Retry visibility: failed runs retry on the 5-minute
+                              processing pass; dead runs are exhausted and need a
+                              re-send. The count and cause used to live only in
+                              the database. */}
+                          {(run.status === "failed" || run.status === "dead") && (
+                            <span className="w-full text-2xs text-muted">
+                              retry {run.retryCount}
+                              {run.lastError ? ` · ${run.lastError}` : ""}
+                              {run.status === "dead"
+                                ? " — no more retries; fix the rule, then re-send the event"
+                                : " — retries automatically"}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>

@@ -174,7 +174,7 @@ export function registerCommandStreamRoutes(app: FastifyInstance, deps: AppDeps)
         type: 'error',
         error: {
           code: 'executive_agent.failed',
-          message: 'The Executive Agent encountered an error. Please try again or rephrase your command.',
+          message: 'The Executive Agent encountered an error after your command started, so nothing was re-run. Check Tasks and Activity to see what completed before asking again.'
         },
       });
     } finally {

@@ -238,6 +238,10 @@ export default function LineagePage() {
           <p className="mt-1 text-sm text-muted">
             Trace every task back to company strategy. See how work connects to goals.
           </p>
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-hairline bg-canvas px-2.5 py-1 text-2xs text-muted">
+            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-brand-deep" />
+            Live data — every figure below is computed from your actual tasks, goals and links. Nothing here is projected or simulated.
+          </p>
         </div>
 
         {/* Score + Stats */}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, Wallet } from "lucide-react";
 import { fetchWithAuth } from "../../../lib/api";
 import { PageShell } from "../../../components/page-shell";
+import { MoneyTabs } from "../../../components/work/money-tabs";
 
 export const metadata: Metadata = {
   title: "Finance",
@@ -46,6 +47,8 @@ export default async function FinancePage() {
 
   return (
     <PageShell pageName="Finance" backHref="/app">
+      {/* AUD-006: one Money — balance, spend, caps and real money as lenses. */}
+      <MoneyTabs />
       <div>
         <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
           Economics

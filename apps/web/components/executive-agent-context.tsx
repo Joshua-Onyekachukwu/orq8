@@ -106,6 +106,12 @@ export interface ExecutiveAgentContextValue {
   loading: boolean;
   /** Transport/processing error for the latest request. */
   error: string | null;
+  /**
+   * The last send dropped its stream AFTER the pipeline started: work may
+   * have run, so the panel offers "what happened?" recovery instead of a
+   * blind retry (re-sending could double-execute). Cleared on next send.
+   */
+  recoverableDrop: boolean;
 }
 
 const ExecutiveAgentCtx = createContext<ExecutiveAgentContextValue | null>(null);
@@ -130,6 +136,7 @@ export function ExecutiveAgentProvider({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recoverableDrop, setRecoverableDrop] = useState(false);
   const loadingRef = useRef(false);
   // The rename lands here first (the settings page calls setEaName after a
   // successful PATCH) so every EA surface updates without a page reload.
@@ -217,6 +224,7 @@ export function ExecutiveAgentProvider({
       setMessages((prev) => [...prev, userMsg]);
       setLoading(true);
       setError(null);
+      setRecoverableDrop(false);
 
       try {
         // Streaming first: live pipeline progress while the Executive Agent
@@ -271,11 +279,18 @@ export function ExecutiveAgentProvider({
       } catch (err) {
         const errMsg =
           err instanceof Error ? err.message : "Unknown error occurred";
+        // A drop after the pipeline started means work may already have run:
+        // say so explicitly and point at recovery, never a blind retry.
+        const dropped =
+          err instanceof CommandStreamError && err.pipelineStarted;
+        setRecoverableDrop(dropped);
         setError(errMsg);
         const errorMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `I couldn't process that request: ${errMsg}`,
+          content: dropped
+            ? `The connection dropped after your command started, so I did not run it again — re-sending could repeat work. Check Activity and the attention queue to see what completed, or ask me "what happened to my last command?" and I'll look into it. (Technical detail: ${errMsg})`
+            : `I couldn't process that request: ${errMsg}`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -307,6 +322,7 @@ export function ExecutiveAgentProvider({
         sendMessage,
         loading,
         error,
+        recoverableDrop,
       }}
     >
       {children}

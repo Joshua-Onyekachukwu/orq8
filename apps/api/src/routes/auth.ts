@@ -11,6 +11,7 @@ import { appendAudit } from '../services/audit.js';
 import * as emailVerification from '../services/email-verification.js';
 import { createEmailTransport } from '../email/transport.js';
 import * as orgs from '../services/orgs.js';
+import { deleteOrgCompletely } from '../services/org-deletion.js';
 import * as sessions from '../services/sessions.js';
 import * as users from '../services/users.js';
 import { checkLoginAllowed, recordFailedLogin, resetFailedLogins } from '../plugins/brute-force.js';
@@ -503,6 +504,50 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AppDeps): void {
         ea_name: orgs.eaNameFromSettings(updated.settings),
       },
     };
+  });
+
+  /**
+   * DELETE /v1/org — close the company (AUD-004, docs/38.4).
+   *
+   * Owner only. Staging is the typed slug confirmation: `confirm` must equal
+   * the org slug exactly, so a stray click can never erase a company. Export
+   * first via GET /v1/settings/export — the response below carries that
+   * snapshot's counts, the per-table purge counts, and the (purged) audit
+   * entry's receipt. The caller's own session dies with the org.
+   */
+  app.delete('/v1/org', async (request) => {
+    const ctx = await requireAuth(request, deps);
+    const parsed = z
+      .object({ confirm: z.string().trim().min(1).max(200) })
+      .safeParse(request.body);
+    if (!parsed.success) throw validation(parsed.error.flatten());
+
+    const all = await orgs.findMembershipsByUser(db, ctx.userId);
+    const current = all.find((m) => m.org.id === ctx.orgId);
+    if (!current) throw unauthorized();
+    if (current.membership.role !== 'owner') {
+      throw forbidden('Only the organization owner can close the company');
+    }
+    if (parsed.data.confirm !== current.org.slug) {
+      throw validation({
+        formErrors: [
+          `Confirmation does not match. Type the company slug "${current.org.slug}" to close it.`,
+        ],
+      });
+    }
+
+    try {
+      const receipt = await deleteOrgCompletely(db, deps.redis ?? null, deps.config, logger, {
+        orgId: ctx.orgId,
+        actorUserId: ctx.userId,
+      });
+      return { data: { ...receipt, signedOut: true } };
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ORG_NOT_FOUND') {
+        throw unauthorized();
+      }
+      throw err;
+    }
   });
 
   /** PATCH /v1/auth/me — Update user profile (name, email). */

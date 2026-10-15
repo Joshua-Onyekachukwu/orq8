@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { KnowledgeTabs } from "../../../components/work/knowledge-tabs";
 import {
   FileText,
   Upload,
@@ -182,6 +183,8 @@ export default function FilesPage() {
   return (
     <PageErrorBoundary pageName="Files" backHref="/app">
       <div className="space-y-4">
+        {/* AUD-007: one Knowledge — files, graph and memory as lenses. */}
+        <KnowledgeTabs />
         <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
           <div>
             <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">

@@ -68,9 +68,7 @@ describe('scrubEvent strips request-shaped and secret-shaped fields', () => {
       message: 'failed',
       contexts: { run: { owner: 'boss@acme.test', retries: 2 } },
     })!;
-    const run = (event.contexts as Record<string, Record<string, unknown>>).run;
-    expect(run.owner).toBe(REDACTED);
-    expect(run.retries).toBe(2);
+    expect(event.contexts).toMatchObject({ run: { owner: REDACTED, retries: 2 } });
   });
 });
 

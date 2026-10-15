@@ -75,6 +75,7 @@ export function ExecutiveAgentPanel() {
     sendMessage,
     loading,
     error,
+    recoverableDrop,
   } = useExecutiveAgent();
   const EA_NAME = useEaName();
   const [input, setInput] = useState("");
@@ -285,6 +286,23 @@ export function ExecutiveAgentPanel() {
               {error && (
                 <div className="rounded-lg border border-border-error bg-error-soft px-4 py-2 text-xs text-error-ink">
                   {error}
+                </div>
+              )}
+
+              {/* A dropped stream after work started: offer recovery, never a
+                  blind retry that could double-execute. */}
+              {recoverableDrop && !loading && (
+                <div className="flex justify-start">
+                  <button
+                    onClick={() =>
+                      sendMessage(
+                        "What happened to my last command? Check the activity log and the attention queue and report back.",
+                      )
+                    }
+                    className="rounded-full border border-warm/40 bg-warm/10 px-3 py-1.5 text-xs font-medium text-warm-ink transition-colors hover:bg-warm/20"
+                  >
+                    What happened to my last command?
+                  </button>
                 </div>
               )}
 

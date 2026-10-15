@@ -111,6 +111,10 @@ export function subscribeRealtime(subscriber: Subscriber): () => void {
   subscribers.add(subscriber);
   if (!eventSource) {
     retryDelay = 1000;
+    // Teardown parks the client (manuallyClosed) so it stops retrying with
+    // nobody listening. A new subscriber means somebody listens again —
+    // revive, or the stream stays dead until a page reload.
+    manuallyClosed = false;
     connect();
   }
   return () => {

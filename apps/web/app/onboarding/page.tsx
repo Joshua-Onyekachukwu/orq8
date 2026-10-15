@@ -116,7 +116,6 @@ export default function OnboardingPage() {
   const [progressLabel, setProgressLabel] = useState("");
   const [isLoadingState, setIsLoadingState] = useState(true);
   const [editedAnalysis, setEditedAnalysis] = useState<CompanyAnalysis | null>(null);
-  const typingRef = useRef<number | null>(null);
 
   // Department catalog (post-activation expansion from the system template catalog)
   const [catalogDepts, setCatalogDepts] = useState<Array<{ id: string; name: string; mission: string | null; description: string | null; teams: Array<{ name: string }> }>>([]);
@@ -168,10 +167,12 @@ export default function OnboardingPage() {
   // Industry playbooks — offer a ready-made operating model before the
   // describe/analyze flow, so time-to-first-win stays under 10 minutes.
   const [playbooksList, setPlaybooksList] = useState<PlaybookMeta[]>([]);
+  const [playbooksLoading, setPlaybooksLoading] = useState(false);
   const [seedingPlaybook, setSeedingPlaybook] = useState<string | null>(null);
 
   useEffect(() => {
     if (phase !== "playbook") return;
+    setPlaybooksLoading(true);
     fetch("/api/company-builder?action=playbooks")
       .then(res => res.json())
       .then(json => {
@@ -181,7 +182,8 @@ export default function OnboardingPage() {
       .catch(() => {
         // Fall back to the describe flow if playbooks are unavailable.
         setPlaybooksList([]);
-      });
+      })
+      .finally(() => setPlaybooksLoading(false));
   }, [phase]);
 
   const seedPlaybook = async (slug: string) => {
@@ -214,7 +216,9 @@ export default function OnboardingPage() {
           result.activation.goals?.length ?? 0,
         );
         const catalogCount = await fetchCatalog();
-        scheduleRedirect(catalogCount > 0 ? 6500 : 2200);
+        // No auto-redirect race: with catalog departments to consider the
+        // founder stays and continues explicitly; otherwise hand over shortly.
+        if (catalogCount === 0) scheduleRedirect(2200);
       } else {
         // Already seeded — straight to the dashboard.
         router.push("/app");
@@ -250,18 +254,6 @@ export default function OnboardingPage() {
     }
   }, [description, sourceType]);
 
-  // Debounced auto-analyze while typing (min length)
-  useEffect(() => {
-    if (phase !== "describe" || !sourceType) return;
-    if (description.trim().length < 10) return;
-    if (typingRef.current) window.clearTimeout(typingRef.current);
-    typingRef.current = window.setTimeout(() => {
-      runAnalyze();
-    }, 1400);
-    return () => {
-      if (typingRef.current) window.clearTimeout(typingRef.current);
-    };
-  }, [description, phase, sourceType, runAnalyze]);
 
   const generatePlan = async () => {
     if (!analysis) return;
@@ -342,7 +334,9 @@ export default function OnboardingPage() {
         act?.goals?.length ?? 0,
       );
       const catalogCount = await fetchCatalog();
-      scheduleRedirect(catalogCount > 0 ? 6500 : 2200);
+      // No auto-redirect race: with catalog departments to consider the
+      // founder stays and continues explicitly; otherwise hand over shortly.
+      if (catalogCount === 0) scheduleRedirect(2200);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to activate your company");
       setPhase("plan");
@@ -440,7 +434,21 @@ export default function OnboardingPage() {
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {playbooksList.map(p => (
+              {playbooksLoading && playbooksList.length === 0
+                ? [0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      aria-hidden="true"
+                      className="animate-pulse rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+                    >
+                      <div className="h-10 w-10 rounded-xl bg-white/10" />
+                      <div className="mt-4 h-4 w-2/3 rounded bg-white/10" />
+                      <div className="mt-2 h-3 w-1/2 rounded bg-white/[0.07]" />
+                      <div className="mt-3 h-3 w-full rounded bg-white/[0.07]" />
+                      <div className="mt-1 h-3 w-5/6 rounded bg-white/[0.07]" />
+                    </div>
+                  ))
+                : playbooksList.map(p => (
                 <button
                   key={p.slug}
                   onClick={() => seedPlaybook(p.slug)}
@@ -494,9 +502,6 @@ export default function OnboardingPage() {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                onBlur={() => {
-                  if (description.trim().length >= 10) runAnalyze();
-                }}
                 placeholder={
                   sourceType === "idea"
                     ? "e.g. I'm building a SaaS platform that helps small businesses manage their finances..."
@@ -509,7 +514,7 @@ export default function OnboardingPage() {
                 <span>{description.trim().length} characters</span>
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-ink-accent" />
-                  ORQ8 analyzes as you describe — no forms needed
+                  Review before anything runs — nothing activates until you approve it
                 </span>
               </div>
             </div>
@@ -531,7 +536,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="mt-8 flex items-center justify-between">
-              <span className="text-sm text-white/40">ORQ8 continues automatically after you describe your company.</span>
+              <span className="text-sm text-white/40">You review the understanding before ORQ8 designs anything.</span>
               <button
                 onClick={runAnalyze}
                 disabled={description.trim().length < 10}
@@ -866,18 +871,24 @@ export default function OnboardingPage() {
               <Stat label="Goals" value={activation.goals.length} />
               <Stat label="Tasks" value={activation.tasks.length} />
             </div>
-            <Loader2 className="mt-10 h-5 w-5 animate-spin text-ink-accent" />
-            <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
+            {catalogDepts.length > 0 ? (
+              <>
+                <button
+                  onClick={() => router.push("/app")}
+                  className="mt-10 rounded-xl bg-ink-accent px-8 py-3.5 text-sm font-semibold text-ink-surface transition-all hover:bg-ink-accent/90"
+                >
+                  {stayedForCatalog ? "Done adding departments — go to dashboard →" : "Go to dashboard →"}
+                </button>
+                <p className="mt-2 text-sm text-white/40">Take your time — nothing here expires.</p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="mt-10 h-5 w-5 animate-spin text-ink-accent" />
+                <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
+              </>
+            )}
             {catalogDepts.length > 0 && (
               <div className="mt-8 w-full max-w-lg text-left">
-                {stayedForCatalog && (
-                  <button
-                    onClick={() => router.push("/app")}
-                    className="mb-3 rounded-lg bg-ink-accent px-4 py-2 text-xs font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
-                  >
-                    Done adding departments — go to dashboard →
-                  </button>
-                )}
                 <p className="text-sm font-medium text-white/70">Add another department from the catalog</p>
                 <div className="mt-3 space-y-2">
                   {catalogDepts.slice(0, 4).map((t) => (

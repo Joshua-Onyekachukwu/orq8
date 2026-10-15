@@ -100,8 +100,19 @@ interface SandboxRun {
   state: string;
   exitCode: number | null;
   usedCredits: number;
+  timeoutMs: number | null;
   startedAt: string | null;
   finishedAt: string | null;
+}
+
+/** Elapsed run time vs its limit, so a timeout reads as a cause, not a mystery. */
+function runDuration(run: SandboxRun): string {
+  const limit = run.timeoutMs ? Math.round(run.timeoutMs / 1000) : null;
+  if (!run.startedAt) return limit ? `limit ${limit}s` : "—";
+  const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
+  const secs = Math.max(0, Math.round((end - new Date(run.startedAt).getTime()) / 1000));
+  if (run.state === "timeout" && limit !== null) return `${secs}s of ${limit}s limit`;
+  return `${secs}s`;
 }
 
 interface Capability {
@@ -452,6 +463,9 @@ function EngineeringDashboard() {
     ),
     stateColumn<SandboxRun>("state", "State", (r) => runState(r.state)),
     monoColumn<SandboxRun>("exit", "Exit", (r) => (r.exitCode === null ? "—" : r.exitCode), {
+      hideOnMobile: true,
+    }),
+    monoColumn<SandboxRun>("time", "Time", (r) => runDuration(r), {
       hideOnMobile: true,
     }),
     dateColumn<SandboxRun>("started", "Started", (r) => r.startedAt),

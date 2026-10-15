@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { DecisionsTabs } from "../../../components/work/decisions-tabs";
 import {
   BookOpen,
   Plus,
@@ -464,6 +465,8 @@ export default function DecisionsPage() {
   return (
     <PageErrorBoundary pageName="Decision Memory" backHref="/app">
       <div className="mx-auto max-w-6xl">
+        {/* AUD-008: one decision queue — Center and Council are lenses, not rivals. */}
+        <DecisionsTabs />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

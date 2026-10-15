@@ -66,7 +66,8 @@ async function webRegister(email, password, orgName) {
 }
 
 async function overviewHtml(cookie) {
-  const res = await fetch(`${WEB}/app/company/overview`, {
+  // AUD-001: the hub merged into /app (the old route redirects there).
+  const res = await fetch(`${WEB}/app`, {
     headers: { cookie },
     redirect: "manual",
   });

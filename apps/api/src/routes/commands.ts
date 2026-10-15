@@ -164,7 +164,7 @@ export function registerCommandRoutes(app: FastifyInstance, deps: AppDeps): void
           },
           approvalRequest: null,
           status: 'error',
-          message: 'The Executive Agent encountered an error. Please try again or rephrase your command.',
+          message: 'The Executive Agent encountered an error after your command started, so nothing was re-run. Check Tasks and Activity to see what completed before asking again.',
           taskIds: [],
           agentResults: [],
           llmProvider: 'none',

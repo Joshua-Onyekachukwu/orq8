@@ -272,6 +272,7 @@ async function gateTaskOnApproval(
   agentName: string,
   reason: string,
   executionLock?: string,
+  notify?: { config: AppConfig },
 ): Promise<TaskExecutionResult> {
   const text = `Awaiting founder approval: ${reason}`;
 
@@ -303,6 +304,19 @@ async function gateTaskOnApproval(
       riskLevel: 'medium',
     });
     notifyAttentionChanged(orgId, 'approval.created');
+    // Email the owner (Wk2 Attention push): only on a NEW gate, pref-gated,
+    // never fatal. Reused open gates stay silent — the founder was told first.
+    if (notify && gate) {
+      try {
+        const { sendGateEmail } = await import('./approval-notify.js');
+        await sendGateEmail(db, notify.config, undefined, orgId, {
+          action: gate.action,
+          description: gate.description,
+          cost: gate.cost,
+          riskLevel: gate.riskLevel,
+        }, agentName);
+      } catch { /* email failure is non-fatal */ }
+    }
   }
 
   // Fenced to the run that owns the row (docs/87 §5 item 15): a stop must not
@@ -515,7 +529,7 @@ export async function executeTask(
               actualCallHash: taskDecisionToken(taskId),
             }),
           });
-          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required', executionLock);
+          return gateTaskOnApproval(db, orgId, task, assignee.name, 'decision token mismatch — re-approval required', executionLock, { config });
         }
         await markGateReleased(db, grant.id);
         await appendAudit(db, {
@@ -527,7 +541,7 @@ export async function executeTask(
           resultRef: `task:${taskId} → approval:${grant.id}`,
         });
       } else {
-        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason, executionLock);
+        return gateTaskOnApproval(db, orgId, task, assignee.name, decision.reason, executionLock, { config });
       }
     }
   }
@@ -568,7 +582,7 @@ export async function executeTask(
             actualCallHash: taskDecisionToken(taskId),
           }),
         });
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock);
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock, { config });
       }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {
@@ -604,7 +618,7 @@ export async function executeTask(
       // yes: consume it once, then take the hold with `approved` set.
       const grant = await findGrantedGate(db, orgId, taskId);
       if (!grant) {
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail, executionLock);
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', err.detail, executionLock, { config });
       }
       if (grant.callHash && grant.callHash !== taskDecisionToken(taskId)) {
         // A budget-approval grant bound to another call is not spendable for
@@ -622,7 +636,7 @@ export async function executeTask(
             actualCallHash: taskDecisionToken(taskId),
           }),
         });
-        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock);
+        return gateTaskOnApproval(db, orgId, task, assignee?.name ?? 'Unassigned', 'decision token mismatch — re-approval required', executionLock, { config });
       }
       await markGateReleased(db, grant.id);
       await appendAudit(db, {

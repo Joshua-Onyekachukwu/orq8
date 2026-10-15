@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { KnowledgeTabs } from "../../../components/work/knowledge-tabs";
+import { UnifiedKnowledgeSearch } from "../../../components/work/unified-knowledge-search";
 import {
   Boxes,
-  Brain,
   CheckCircle2,
   GitFork,
   Landmark,
@@ -12,9 +13,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
-  Search,
   Scale,
-  X,
 } from "lucide-react";
 
 /* ── Types ── */
@@ -52,12 +51,6 @@ interface CompanyDecision {
   actorType: string | null;
   createdAt: string;
   decidedAt: string | null;
-}
-
-interface SearchResult {
-  entities: KnowledgeEntity[];
-  relations: KnowledgeRelation[];
-  decisions: CompanyDecision[];
 }
 
 const ENTITY_TYPES = [
@@ -105,9 +98,6 @@ export default function KnowledgePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>("");
-  const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
 
   // Create forms
   const [showEntityForm, setShowEntityForm] = useState(false);
@@ -153,25 +143,6 @@ export default function KnowledgePage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const runSearch = useCallback(async () => {
-    if (!query.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    setSearching(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/knowledge?kind=search&query=${encodeURIComponent(query.trim())}&limit=12`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Search failed");
-      setSearchResults(json.data ?? { entities: [], relations: [], decisions: [] });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
-    } finally {
-      setSearching(false);
-    }
-  }, [query]);
 
   const saveEntity = async () => {
     if (!newEntity.name.trim()) return;
@@ -227,6 +198,8 @@ export default function KnowledgePage() {
   return (
     <PageErrorBoundary pageName="Knowledge Graph">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+        {/* AUD-007: one Knowledge — files, graph and memory as lenses. */}
+        <KnowledgeTabs />
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -269,83 +242,8 @@ export default function KnowledgePage() {
           </div>
         )}
 
-        {/* Search */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
-              placeholder="Search entities, relations and decisions — e.g. “customer onboarding”"
-              className="w-full rounded-lg border border-hairline bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-foreground/40"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => void runSearch()}
-            disabled={searching}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
-          >
-            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Search
-          </button>
-          {searchResults && (
-            <button
-              type="button"
-              onClick={() => { setSearchResults(null); setQuery(""); }}
-              className="inline-flex items-center gap-1 rounded-lg border border-hairline px-3 py-2 text-sm hover:bg-muted/10"
-            >
-              <X className="h-4 w-4" /> Clear
-            </button>
-          )}
-        </div>
-
-        {/* Search results */}
-        {searchResults && (
-          <div className="rounded-xl border border-hairline bg-card p-5">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Brain className="h-4 w-4" /> Search results for “{query.trim()}”
-            </h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Entities ({searchResults.entities.length})</p>
-                <ul className="mt-2 space-y-1.5">
-                  {searchResults.entities.length === 0 && <li className="text-sm text-muted">No matches</li>}
-                  {searchResults.entities.map((e) => (
-                    <li key={e.id} className="text-sm">
-                      <span className={`mr-1.5 inline-block rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${entityColor(e.type)}`}>{e.type}</span>
-                      {e.name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Decisions ({searchResults.decisions.length})</p>
-                <ul className="mt-2 space-y-1.5">
-                  {searchResults.decisions.length === 0 && <li className="text-sm text-muted">No matches</li>}
-                  {searchResults.decisions.map((d) => (
-                    <li key={d.id} className="text-sm">
-                      {d.title}
-                      <span className={`ml-1.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${d.outcome ? (OUTCOME_STYLES[d.outcome] ?? OUTCOME_STYLES.pending) : OUTCOME_STYLES.pending}`}>{d.outcome ?? "pending"}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Relations ({searchResults.relations.length})</p>
-                <ul className="mt-2 space-y-1.5">
-                  {searchResults.relations.length === 0 && <li className="text-sm text-muted">No matches</li>}
-                  {searchResults.relations.map((r) => (
-                    <li key={r.id} className="text-sm text-muted">
-                      <span className="text-foreground">{r.fromName}</span> <span className="text-xs italic">{r.relationType.replace(/_/g, " ")}</span> <span className="text-foreground">{r.toName}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Single search across graph, files and memory (AUD-007). */}
+        <UnifiedKnowledgeSearch />
 
         {/* Create forms */}
         {showEntityForm && (

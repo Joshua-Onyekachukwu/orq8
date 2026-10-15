@@ -747,6 +747,15 @@ body {
   html {
     @apply font-sans;
   }
+  /* AUD-011: every keyboard path gets a visible ring. Native outlines are
+     removed piecemeal across components (focus:outline-none), so the
+     fallback lives here once: a 2px ring in the AA-passing focus token.
+     Components with their own focus style (EA composer, inputs) keep it —
+     this only covers what nothing else does. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--orq-focus-ring);
+    outline-offset: 2px;
+  }
 }
 
 /* ---- Swiper Slider overrides (from apps/landing) ---- */

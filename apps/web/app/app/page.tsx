@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Bot, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Bot, Check, Zap } from "lucide-react";
 
 import { EAOpenButton } from "../../components/dashboard/ea-open-button";
 import {
@@ -13,9 +13,11 @@ import {
   type DepartmentOverviewRow,
 } from "../../components/dashboard/department-strip";
 import { EADock } from "../../components/dashboard/ea-dock";
+import { CompanyOrbit } from "../../components/company-hub/company-orbit";
+import { SeedDemoButton } from "../../components/company-hub/seed-demo-button";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import type { FounderStage } from "../../components/executive-agent-context";
-import { fetchWithAuth } from "../../lib/api";
+import { fetchWithAuth, formatTimeAgo } from "../../lib/api";
 import { EA_NAME } from "../../lib/ea";
 import { computeScore } from "../../lib/health-score";
 
@@ -195,6 +197,10 @@ const fetchActiveGoals = () =>
 // same rule the department page uses.
 const fetchDepartmentOverview = () =>
   fetchWithAuth<DepartmentOverviewRow[]>("/v1/departments/overview", FRESH).catch(() => null);
+// Company-orbit satellite: the memory count is decorative next to the gates
+// and goals figures, so it degrades to zero instead of failing the page.
+const fetchMemoryStats = () =>
+  fetchWithAuth<{ totalEntries: number }>("/v1/memory/stats", FRESH).catch(() => null);
 
 type DotState = "" | "working" | "waiting" | "blocked";
 
@@ -322,6 +328,7 @@ export default async function AppPage() {
     activeGoalsRes,
     pendingRevisionRes,
     departmentOverviewRes,
+    memoryStats,
   ] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
@@ -336,6 +343,7 @@ export default async function AppPage() {
     fetchActiveGoals(),
     fetchPendingRevision(),
     fetchDepartmentOverview(),
+    fetchMemoryStats(),
   ]);
 
   const agentList = agents ?? [];
@@ -613,6 +621,62 @@ export default async function AppPage() {
     cost: a.cost,
   }));
 
+  // ── First run + first value (merged from the Company Hub, AUD-001) ─────
+  // One home now: /app owns the welcome (no structure yet) and the
+  // hire → goal → task → completed checklist (structure but no completion).
+  // Both derive from real rows and dismiss themselves; no frontend state.
+  const activeRole =
+    orgInfo?.memberships?.find((m) => m.org.id === orgInfo.active_org_id)?.role ??
+    orgInfo?.memberships?.[0]?.role;
+  const canSeedDemo = activeRole === "owner" || activeRole === "admin";
+  const hasStructure =
+    agentList.length > 0 || totalGoals > 0 || departmentList.length > 0;
+  const showFirstRun = !hasStructure && founderStage !== "active";
+  const showFirstValue =
+    completedTasks === 0 && (hasStructure || founderStage !== "new");
+  const firstValueSteps = [
+    {
+      title: "Hire your first AI employee",
+      detail: "Pick a role — the employee works inside your departments.",
+      done: agentList.length > 0,
+      href: "/app/agents" as string | null,
+      cta: agentList.length > 0 ? "View workforce" : "Hire",
+    },
+    {
+      title: "Set your first goal",
+      detail: "A goal is what work gets planned from.",
+      done: totalGoals > 0,
+      href: "/app/goals" as string | null,
+      cta: totalGoals > 0 ? "View goals" : "Set a goal",
+    },
+    {
+      title: "Put the first work in motion",
+      detail: `Ask ${eaName} to plan it — tasks appear on the board as they run.`,
+      done: totalTasks > 0,
+      href: null as string | null,
+      cta: "Plan work",
+    },
+    {
+      title: "See the first task through",
+      detail: "Approve what needs you in the attention queue; the rest runs itself.",
+      done: false,
+      href: "/app/tasks" as string | null,
+      cta: "Open tasks",
+    },
+  ];
+  const primaryActionClass =
+    "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep";
+  const secondaryActionClass =
+    "inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-canvas";
+
+  // ── Company-orbit figures (merged from the Company Hub, AUD-001) ────────
+  const orbitWorking = happeningMembers.filter((m) => m.state === "working").length;
+  const orbitWaiting = happeningMembers.filter((m) => m.state === "needs_you").length;
+  const orbitBlocked = happeningMembers.filter((m) => m.state === "blocked").length;
+  const orbitLastActivityLabel = events[0]?.occurredAt
+    ? formatTimeAgo(events[0].occurredAt)
+    : null;
+
   // The banner morphs with company state (docs/71 §F): approvals first, then
   // blockers, then "all caught up".
   //
@@ -783,6 +847,92 @@ export default async function AppPage() {
       {/* ── Main grid: the company column + the Atlas dock ────────────── */}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
+
+      {/* ── First run (merged from the Company Hub, AUD-001) ─────────────── */}
+      {showFirstRun ? (
+        <section className="rounded-2xl border border-brand-deep/20 ink p-6 text-white">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
+            {founderStage === "new" ? "First run" : "In progress"}
+          </p>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight">
+            {founderStage === "new" ? "Let's get your company set up" : `Finish setting up ${orgName}`}
+          </h2>
+          <p className="mt-2 max-w-2xl text-2sm text-white/70">
+            {founderStage === "new"
+              ? `I am ${eaName}, your Executive Agent. Before I organize work I need to know what you are building, where you are today, and what you want to accomplish.`
+              : "What you have already given me is saved. I can pick up where we left off, and nothing is activated until you approve it."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/onboarding"
+              className="inline-flex items-center justify-center rounded-lg bg-ink-accent px-4 py-2 text-sm font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
+            >
+              {founderStage === "new" ? "Start onboarding" : "Continue onboarding"}
+            </Link>
+            <EAOpenButton
+              prompt={founderStage === "new" ? (firstName ? `I'm ${firstName}, and I'm building ` : "I'm building ") : "What is left to finish setting up my company?"}
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              {founderStage === "new" ? `Tell ${eaName} what you are building` : `Ask ${eaName} what remains`}
+            </EAOpenButton>
+            {canSeedDemo ? (
+              <SeedDemoButton className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-60" />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── First value checklist (merged from the Company Hub, AUD-001) ─── */}
+      {showFirstValue ? (
+        <section aria-label="Getting to first value" className="rounded-2xl border border-hairline bg-white p-6">
+          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-muted">
+            First value
+          </p>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight text-ink">
+            {totalTasks > 0 ? "Almost there — close the loop" : "Four steps to a running company"}
+          </h2>
+          <ol className="mt-4 space-y-3">
+            {firstValueSteps.map((step) => (
+              <li key={step.title} className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span
+                    className={
+                      step.done
+                        ? "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-white"
+                        : "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-hairline-strong text-muted"
+                    }
+                  >
+                    {step.done ? <Check className="h-3 w-3" /> : null}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">
+                      {step.title}
+                      {step.done ? <span className="ml-2 text-xs font-normal text-muted">Done</span> : null}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">{step.detail}</p>
+                  </div>
+                </div>
+                {step.done && step.href ? (
+                  <Link href={step.href} className={secondaryActionClass}>
+                    {step.cta}
+                  </Link>
+                ) : !step.done && step.href ? (
+                  <Link href={step.href} className={primaryActionClass}>
+                    {step.cta}
+                  </Link>
+                ) : !step.done ? (
+                  <EAOpenButton
+                    prompt={`Plan the work for ${orgName}: break the current goal into tasks and assign them.`}
+                    className={primaryActionClass}
+                  >
+                    {step.cta}
+                  </EAOpenButton>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
 
       {/* ── The morphing banner ──────────────────────────────────────────── */}
       <div className="console-card flex flex-wrap items-center gap-3 p-4">
@@ -997,6 +1147,22 @@ export default async function AppPage() {
           )}
         </section>
       </div>
+
+      {/* ── Company at a glance (merged from the Company Hub, AUD-001) ──── */}
+      <CompanyOrbit
+        companyName={orgName}
+        employees={agentList.length}
+        departments={departmentList.length}
+        working={orbitWorking}
+        waiting={orbitWaiting}
+        blocked={orbitBlocked}
+        pendingApprovals={pendingApprovals}
+        activeGoals={activeGoalsCount}
+        openTasks={totalTasks - completedTasks}
+        memories={memoryStats?.totalEntries ?? 0}
+        auditEvents={events.length}
+        lastActivityLabel={orbitLastActivityLabel}
+      />
 
       {/* ── From the Executive Agent ─────────────────────────────────────── */}
       {priorities !== null && (

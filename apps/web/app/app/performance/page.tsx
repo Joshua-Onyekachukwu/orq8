@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { ReportsTabs } from "../../../components/work/reports-tabs";
 import {
   Activity,
   AlertTriangle,
@@ -198,6 +199,8 @@ export default function PerformancePage() {
   return (
     <PageErrorBoundary pageName="Performance">
       <div className="mx-auto max-w-6xl">
+        {/* AUD-010: one Reports — weekly, performance, ROI and briefings as lenses. */}
+        <ReportsTabs />
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

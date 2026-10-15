@@ -97,7 +97,10 @@ export function runState(state: string): { state: DotState; label: string } {
   if (state === "running") return { state: "working", label: "Running" };
   if (state === "queued") return { state: "", label: "Queued" };
   if (state === "completed") return { state: "done", label: "Completed" };
-  if (state === "failed" || state === "timeout") return { state: "failed", label: state };
+  if (state === "failed") return { state: "failed", label: "Failed" };
+  // A timed-out run is a failed run with a specific cause: the command hit
+  // its time limit. Name it so a founder can tell "too slow" from "broke".
+  if (state === "timeout") return { state: "failed", label: "Timed out" };
   if (state === "cancelled") return { state: "paused", label: "Cancelled" };
   return { state: "", label: state };
 }

@@ -423,7 +423,7 @@ export default function ApprovalsPage() {
             })}
           </ul>
         ) : (
-          <div className="console-card overflow-hidden">
+          <div className="console-card overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-hairline">

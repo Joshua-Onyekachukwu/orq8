@@ -70,7 +70,7 @@ export default async function AdminOrganizationsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-hairline bg-white overflow-hidden">
+      <div className="rounded-xl border border-hairline bg-white overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-hairline bg-canvas">

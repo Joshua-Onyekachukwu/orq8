@@ -647,7 +647,7 @@ export default function IntegrationsPage() {
               Real provider operations by agents and by you — append-only.
             </p>
           </div>
-          <div className="console-card overflow-hidden">
+          <div className="console-card overflow-x-auto">
             {outcomes.length === 0 && !loading && (
               <div className="p-6 text-center text-sm text-muted">
                 No connector operations yet. Agent tool calls and founder-triggered actions are recorded here.

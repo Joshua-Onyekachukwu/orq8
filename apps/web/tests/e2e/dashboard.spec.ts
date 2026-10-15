@@ -17,7 +17,7 @@ test.describe("Dashboard (auth required)", () => {
 
   test("dashboard loads with company name", async ({ page }) => {
     await page.goto("/app");
-    await expect(page.locator("h1")).toBeVisible();
+    await expect(page.getByRole("heading").first()).toBeVisible();
   });
 
   test("sidebar navigation works", async ({ page }) => {
@@ -28,45 +28,45 @@ test.describe("Dashboard (auth required)", () => {
 
   test("departments page loads", async ({ page }) => {
     await page.goto("/app/departments");
-    await expect(page.locator("h1")).toContainText("Departments");
-    await expect(page.locator('button:has-text("Create department")')).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Departments", exact: true })).toBeVisible();
+    await expect(page.locator('button:has-text("New department")')).toBeVisible();
   });
 
   test("teams page loads", async ({ page }) => {
     await page.goto("/app/teams");
-    await expect(page.locator("h1")).toContainText("Teams");
+    await expect(page.getByRole("heading", { name: "Teams", exact: true })).toBeVisible();
     await expect(page.locator('button:has-text("Create team")')).toBeVisible();
   });
 
   test("agents page loads", async ({ page }) => {
     await page.goto("/app/agents");
-    await expect(page.locator("h1")).toContainText("AI Employees");
+    await expect(page.getByRole("heading", { name: "AI Workforce", exact: true })).toBeVisible();
   });
 
   test("goals page loads", async ({ page }) => {
     await page.goto("/app/goals");
-    await expect(page.locator("h1")).toContainText("Goals");
+    await expect(page.getByRole("heading", { name: "Goals", exact: true })).toBeVisible();
   });
 
   test("tasks page loads", async ({ page }) => {
     await page.goto("/app/tasks");
-    await expect(page.locator("h1")).toContainText("Tasks");
+    await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   });
 
   test("Executive Agent launcher is visible", async ({ page }) => {
     await page.goto("/app");
     // The floating launcher should be present
-    await expect(page.locator('[aria-label*="Executive Agent"], button:has-text("EA")')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /executive agent/i }).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("Hire from Template button on departments page", async ({ page }) => {
     await page.goto("/app/departments");
-    await expect(page.locator('button:has-text("Hire from Template")')).toBeVisible();
+    await expect(page.getByRole("button", { name: /hire from template/i }).first()).toBeVisible();
   });
 
   test("Hire from Template button on teams page", async ({ page }) => {
     await page.goto("/app/teams");
-    await expect(page.locator('button:has-text("Hire from Template")')).toBeVisible();
+    await expect(page.getByRole("button", { name: /hire from template/i }).first()).toBeVisible();
   });
 
   test("keyboard shortcut opens Executive Agent", async ({ page }) => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { OrgTabs } from "../../../components/work/org-tabs";
 import {
   AlertTriangle,
   Bot,
@@ -212,6 +213,7 @@ export default function SquadsPage() {
   return (
     <PageErrorBoundary pageName="Squads">
       <div className="mx-auto max-w-6xl">
+        <OrgTabs />
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

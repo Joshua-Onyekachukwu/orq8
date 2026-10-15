@@ -149,6 +149,17 @@ export function registerApprovalRoutes(app: FastifyInstance, deps: AppDeps): voi
       }
     } catch { /* notification failure is non-fatal */ }
 
+    // Email the owner (Wk2 Attention push): pref-gated, never fatal.
+    try {
+      const { sendGateEmail } = await import('../services/approval-notify.js');
+      await sendGateEmail(db, deps.config, deps.logger, ctx.orgId, {
+        action: approval.action,
+        description: approval.description,
+        cost: approval.cost,
+        riskLevel: approval.riskLevel,
+      }, null);
+    } catch { /* email failure is non-fatal */ }
+
     // The founder's attention queue gained an item.
     notifyAttentionChanged(ctx.orgId, 'approval.created');
 

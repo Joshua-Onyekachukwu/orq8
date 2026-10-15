@@ -38,7 +38,7 @@ export default async function AdminAgentsPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-hairline bg-white overflow-hidden">
+      <div className="rounded-xl border border-hairline bg-white overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-canvas text-left">

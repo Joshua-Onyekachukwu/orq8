@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { ReportsTabs } from "../../../components/work/reports-tabs";
 import {
   DollarSign,
   Clock,
@@ -173,6 +174,8 @@ export default function ROIPage() {
   return (
     <PageErrorBoundary pageName="AI Workforce ROI" backHref="/app">
       <div className="mx-auto max-w-6xl">
+        {/* AUD-010: one Reports — weekly, performance, ROI and briefings as lenses. */}
+        <ReportsTabs />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -352,7 +355,7 @@ export default function ROIPage() {
                     <p className="mt-1 text-xs text-muted">Hire AI employees to start generating ROI.</p>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-hairline bg-white overflow-hidden">
+                  <div className="rounded-xl border border-hairline bg-white overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-hairline bg-muted/5">

@@ -32,6 +32,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageContainer } from "../../../components/layout/page-container";
+import { OrgTabs } from "../../../components/work/org-tabs";
 import {
   OsEmptyPanel,
   OsErrorPanel,
@@ -376,6 +377,7 @@ export default function TeamsPage() {
         </>
       }
     >
+      <OrgTabs />
       <div className="flex flex-col gap-6">
         {/* A load failure with nothing on screen is the error panel; a failed
             action keeps the page and names itself. */}

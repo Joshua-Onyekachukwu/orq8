@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { OrgTabs } from "../../../components/work/org-tabs";
 import {
   Building2,
   Users,
@@ -168,6 +169,7 @@ export default function OrgPage() {
   return (
     <PageErrorBoundary pageName="Org Explorer" backHref="/app">
     <div className="mx-auto max-w-6xl">
+      <OrgTabs />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">

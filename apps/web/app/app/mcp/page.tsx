@@ -363,7 +363,7 @@ function McpPage() {
             No tools available for this AI employee. Register connector-backed MCP servers, then grant the agent the matching capabilities.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground">

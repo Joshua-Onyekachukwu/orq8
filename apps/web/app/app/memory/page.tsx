@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { KnowledgeTabs } from "../../../components/work/knowledge-tabs";
 import { PageContainer } from "../../../components/layout/page-container";
 import { Plus, Search, Trash2, AlertCircle, RefreshCw, X, Brain } from "lucide-react";
 
@@ -146,6 +147,8 @@ export default function MemoryPage() {
         lede="What the company knows and remembers. Only what actually happened is stored — nothing is pre-seeded."
         pageName="Memory"
       >
+        {/* AUD-007: one Knowledge — files, graph and memory as lenses. */}
+        <KnowledgeTabs />
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
               type="button"

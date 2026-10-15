@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   const logger = createLogger(config);
   // Same tested no-ops as the API until endpoint/DSN + SDKs are configured.
   await initTracing(config.OTEL_EXPORTER_OTLP_ENDPOINT, (msg) => logger.warn(msg));
-  const { initErrorReporting } = await import('@orq8/api/error-reporting.js');
+  const { initErrorReporting } = await import('@orq8/api/error-reporting');
   await initErrorReporting(config, logger);
 
   if (config.JOB_QUEUE_MODE !== 'workers') {

@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { DecisionsTabs } from "../../../components/work/decisions-tabs";
 import { LaunchPlanCta } from "../../../components/council/LaunchPlanCta";
 import { hasDelegationMarker } from "../../../lib/council-delegation";
 import {
@@ -611,6 +612,8 @@ function DecisionCouncilPage() {
   return (
     <PageErrorBoundary pageName="Decision Council" backHref="/app">
       <div className="mx-auto max-w-6xl">
+        {/* AUD-008: one decision queue — Center and Council are lenses, not rivals. */}
+        <DecisionsTabs />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-ink">Decision Council</h1>

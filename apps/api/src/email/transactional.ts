@@ -165,6 +165,49 @@ export function passwordResetEmail(input: {
   return { subject, text, html };
 }
 
+// ─── Approval Gates ─────────────────────────────────────────────────────────
+
+export function approvalEmail(input: {
+  orgName: string;
+  agentName: string | null;
+  action: string;
+  description: string | null;
+  costCents: number;
+  riskLevel: string;
+  approvalsUrl: string;
+}): { subject: string; text: string; html: string } {
+  const who = input.agentName ? `Your AI employee ${input.agentName}` : 'An AI employee';
+  const subject = `[ORQ8] Approval needed — ${input.action.slice(0, 80)}`;
+  const text = [
+    `${who} at ${input.orgName} is waiting on your decision:`,
+    '',
+    input.action,
+    ...(input.description ? ['', input.description] : []),
+    '',
+    `Risk: ${input.riskLevel} · Cost: $${(input.costCents / 100).toFixed(2)}`,
+    '',
+    'Nothing runs until you decide — silence never approves.',
+    `Review it here: ${input.approvalsUrl}`,
+    '',
+    'ORQ8. The AI organization operating system.',
+  ].join('\n');
+
+  const html = shell(
+    'approval gate · action needed',
+    [
+      p(`${who} at <strong>${input.orgName}</strong> is waiting on your decision:`),
+      p(`<strong>${input.action}</strong>`),
+      ...(input.description ? [p(input.description)] : []),
+      p(`Risk: <strong>${input.riskLevel}</strong> · Cost: <strong>$${(input.costCents / 100).toFixed(2)}</strong>`),
+      cta(input.approvalsUrl, 'Review the gate'),
+      divider(),
+      p(`<span style="color:${MUTED};font-size:13px;">Nothing runs until you decide — silence never approves.</span>`),
+    ].join(''),
+  );
+
+  return { subject, text, html };
+}
+
 // ─── Credit Alerts ──────────────────────────────────────────────────────────
 
 export function creditAlertEmail(input: {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { MoneyTabs } from "../../../components/work/money-tabs";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -189,6 +190,8 @@ function BuyCredits() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      {/* AUD-006: one Money — balance, spend, caps and real money as lenses. */}
+      <MoneyTabs />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted">Governance</p>
@@ -359,7 +362,7 @@ function BuyCredits() {
         {ledger.length === 0 ? (
           <p className="mt-4 text-sm text-muted">No credit activity yet this period.</p>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-xl border border-hairline bg-white">
+          <div className="mt-4 overflow-x-auto rounded-xl border border-hairline bg-white">
             <table className="w-full text-sm">
               <thead className="bg-canvas text-left text-xs uppercase tracking-wide text-muted">
                 <tr>

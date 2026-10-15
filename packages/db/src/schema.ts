@@ -211,7 +211,7 @@ export const waitlistSignups = pgTable(
     email: text('email').notNull(),
     name: text('name'), // design-partner application (marketing/design_partner_application.md §2.1)
     role: text('role'), // just_me | me_1_2 | small_team
-    source: text('source').notNull().default('landing'), // landing | design_partner | referral
+    source: text('source').notNull().default('landing'), // landing | design_partner | referral | producthunt (0058)
     status: text('status').notNull().default('pending'), // pending | invited | signed_up
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

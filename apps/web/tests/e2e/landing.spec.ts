@@ -4,7 +4,9 @@ test.describe("Landing Page", () => {
   test("loads the homepage", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/ORQ8/);
-    await expect(page.locator('img[alt="ORQ8"]').first()).toBeVisible();
+    // The navbar logo is an inline SVG (LogoMark), not an <img>: assert the
+    // labeled home link that wraps it instead.
+    await expect(page.locator('a[aria-label="ORQ8 home"]').first()).toBeVisible();
   });
 
   test("has navigation links", async ({ page }) => {

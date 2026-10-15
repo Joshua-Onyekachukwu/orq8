@@ -62,6 +62,8 @@ function statusConfig(status: string) {
       return { label: "Failed", cls: "bg-error-soft text-error-ink", icon: AlertCircle };
     case "cancelled":
       return { label: "Cancelled", cls: "bg-hairline text-muted", icon: AlertCircle };
+    case "awaiting_approval":
+      return { label: "Waiting on you", cls: "bg-warm-soft text-warm-ink", icon: Clock };
     default:
       return { label: "Pending", cls: "bg-warm-soft text-warm-ink", icon: Clock };
   }

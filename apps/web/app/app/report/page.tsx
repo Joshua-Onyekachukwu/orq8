@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { ReportsTabs } from "../../../components/work/reports-tabs";
 import {
   CalendarDays,
   AlertCircle,
@@ -111,6 +112,8 @@ export default function ReportPage() {
   return (
     <PageErrorBoundary pageName="Weekly Report" backHref="/app">
     <div className="mx-auto max-w-6xl">
+      {/* AUD-010: one Reports — weekly, performance, ROI and briefings as lenses. */}
+      <ReportsTabs />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-brand-ink">
@@ -297,7 +300,7 @@ export default function ReportPage() {
           {activeAgents.length > 0 && (
             <section className="mt-6 rounded-xl border border-hairline bg-white p-5">
               <h3 className="text-sm font-semibold text-ink">Agent performance</h3>
-              <div className="mt-3 overflow-hidden rounded-lg border border-hairline">
+              <div className="mt-3 overflow-x-auto rounded-lg border border-hairline">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-canvas">

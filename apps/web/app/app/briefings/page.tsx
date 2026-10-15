@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { ReportsTabs } from "../../../components/work/reports-tabs";
 import { useEaName } from "../../../components/executive-agent-context";
 import { RefreshCw, ChevronDown, Loader2 } from "lucide-react";
 
@@ -201,6 +202,8 @@ export default function BriefingsPage() {
   return (
     <PageErrorBoundary pageName="Briefings" backHref="/app">
       <div className="space-y-4">
+        {/* AUD-010: one Reports — weekly, performance, ROI and briefings as lenses. */}
+        <ReportsTabs />
         <header className="console-card flex flex-wrap items-end justify-between gap-4 p-5">
           <div>
             <p className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">

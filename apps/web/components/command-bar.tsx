@@ -123,11 +123,19 @@ export function CommandBar({ context }: { context?: CommandContext }) {
         setHistory((prev) => [newResult, ...prev].slice(0, 10));
       }
       analytics.commandCompleted(newResult?.status ?? "unknown", Math.round(performance.now() - startTime));
-    } catch {
+    } catch (err) {
       analytics.commandCompleted("error", Math.round(performance.now() - startTime));
+      // A drop after the pipeline started may mean work already ran: never
+      // invite a blind retry (double execution / double charge). Point at
+      // what actually shows the truth instead.
+      const started = err instanceof CommandStreamError && err.pipelineStarted;
       setResult({
         commandId: "", command, plan: { action: "error", description: "Failed to process command", agents: [], estimatedCost: 0, requiresApproval: false },
-        approvalRequest: null, status: "error", message: "Something went wrong. Please try again.", taskIds: [],
+        approvalRequest: null, status: "error",
+        message: started
+          ? "The connection dropped after your command started, so nothing was re-run. Check Tasks and Activity to see what completed before asking again."
+          : "The command could not reach the Executive Agent, so nothing ran. Check your connection and try again.",
+        taskIds: [],
       });
     } finally {
       setIsProcessing(false);

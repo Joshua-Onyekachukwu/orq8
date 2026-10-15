@@ -10,25 +10,22 @@ const testimonials = [
     id: 1,
     quote:
       "I used to spend my evenings catching up on operations. Now my Executive Agent handles the routine — research, scheduling, content drafts. I review and approve. That's my whole job.",
-    name: "Marcus Chen",
-    position: "Founder & CEO, Meridian Labs",
-    image: "/images/users/user1.jpg",
+    role: "SaaS founder",
+    initials: "SF",
   },
   {
     id: 2,
     quote:
       "The approval gates give me real control. AI proposes, I decide. Everything is audited, every dollar tracked. It feels like having a real operations team without the overhead.",
-    name: "Sarah Okonkwo",
-    position: "Creative Director, Vantage Studio",
-    image: "/images/users/user2.jpg",
+    role: "Creative director",
+    initials: "CD",
   },
   {
     id: 3,
     quote:
       "I hired a research agent for a competitive analysis project. It completed in 48 hours what would've taken my team two weeks. The output was thorough and the costs were transparent.",
-    name: "David Park",
-    position: "Managing Partner, NexStep Ventures",
-    image: "/images/users/user3.jpg",
+    role: "Venture partner",
+    initials: "VP",
   },
 ];
 
@@ -49,11 +46,11 @@ const Testimonials: React.FC = () => {
             Testimonials
           </span>
           <h2 className="!mb-0 !font-light !text-2xl md:!text-4xl lg:!text-[46px] -tracking-[1px] md:-tracking-[2px] lg:-tracking-[2.76px]">
-            Early users share their{" "}
-            <span className="text-brand-ink">experience</span>
+            How founders will use{" "}
+            <span className="text-brand-ink">ORQ8</span>
           </h2>
           <p className="text-ink text-2sm mt-[12px] !mb-0">
-            Demo profiles from our design process — real testimonials coming soon.
+            Illustrative scenarios from our design process — customer stories coming soon.
           </p>
         </div>
 
@@ -97,19 +94,18 @@ const Testimonials: React.FC = () => {
                     {t.quote}
                   </p>
                   <div className="flex items-center gap-[15px] mt-[20px] md:mt-[30px] xl:mt-[45px]">
-                    <Image
-                      src={t.image}
-                      className="rounded-full w-[44px]"
-                      alt={t.name}
-                      width={44}
-                      height={44}
-                    />
+                    <span
+                      aria-hidden="true"
+                      className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand-ink"
+                    >
+                      {t.initials}
+                    </span>
                     <div>
                       <h3 className="!text-base md:!text-md !font-semibold !mb-[5px]">
-                        {t.name}
+                        {t.role}
                       </h3>
                       <span className="block text-ink text-sm">
-                        {t.position}
+                        Illustrative scenario
                       </span>
                     </div>
                   </div>
@@ -143,7 +139,7 @@ const Testimonials: React.FC = () => {
                   />
                 ))}
               </div>
-              <span className="inline-flex items-center gap-[8px]"><span className="h-[6px] w-[6px] rounded-full bg-warm" aria-hidden="true" />EARLY USERS</span>
+              <span className="inline-flex items-center gap-[8px]"><span className="h-[6px] w-[6px] rounded-full bg-warm" aria-hidden="true" />EXAMPLE OUTCOMES</span>
             </div>
           </div>
         </div>
