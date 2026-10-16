@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 
 /**
- * AUD-001: the Company Hub merged into /app (one home). This route now
- * redirects so old links, bookmarks and the proof script's history keep
- * working. The hub's guides (first-run welcome, first-value checklist) and
- * the CompanyOrbit console live in apps/web/app/app/page.tsx.
+ * B6: the Company Hub moved out of /app to /app/company (its own profile /
+ * goals / org / metrics page). This route now redirects so old links,
+ * bookmarks and the proof script's history keep working.
  */
 export default function CompanyOverviewRedirect() {
-  redirect("/app");
+  redirect("/app/company");
 }

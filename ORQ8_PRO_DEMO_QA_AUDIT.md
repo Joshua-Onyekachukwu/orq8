@@ -142,6 +142,7 @@ te-limit, migration, oauth, waitlist.
 | Activation confirmation (F5) | `apps/web/app/app/departments/page.tsx` | Persistent `role="status"` banner from existing `justActivated` state, shown after catalog closes; dismissible; reuses `CheckCircle2` + `text-mark-active` language |
 | (Prior P5, already pushed) | budgets `/pricing` links, `files.ts` `dirname()`, org-deletion test fixes | See `docs/ORQ8_UX_FIX_PLAN.md` |
 | Cost-basis unification (B3/F3) | `apps/api/src/routes/activity.ts`, `apps/api/test/dashboard-weekly-spend.integration.test.ts` | `weekly_spend` = 7d `usage`-ledger sum (negated); pinning test covers window/type/activity-decoy |
+| Company-hub move (B6) | `apps/web/app/app/company/page.tsx` (new), `components/company-hub/company-welcome.tsx` + `first-value-checklist.tsx` (new), `components/dashboard/presence.ts` (new shared derivation), `app/app/page.tsx` (slimmed), sidebar, overview redirect | Hub moved, not rebuilt; dashboard and company page share one presence rule; sidebar Company → `/app/company` |
 
 ---
 
@@ -165,7 +166,7 @@ te-limit, migration, oauth, waitlist.
 | B3 | Cost-basis unification (F3) | P1 | DONE 2026-10-16 — dashboard `weekly_spend` reads the credit ledger (`usage`, 7d); pinning test green; mixed-unit activity column retired from money math |
 | B4 | Live Stripe proof (Cat. B) | P2 | Supply test-mode keys; run checkout + `stripe trigger` webhook against staging |
 | B5 | Integration OAuth proof (F8) | P3 | Supply sandbox credentials |
-| B6 | Company-hub move (UX rec. 1) | P3 | Founder sign-off on option 2 before moving anything |
+| B6 | Company-hub move (UX rec. 1) | P3 | DONE 2026-10-16 — founder approved option 2; hub (welcome, checklist, orbit, goals/depts snapshots) moved to `/app/company`, dashboard keeps decisions-blocked-active-next + company link card; sidebar Company entry; overview stub redirects; web tsc + 114 tests + build green |
 
 ---
 

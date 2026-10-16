@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Bot, Check, Zap } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Bot, Zap } from "lucide-react";
 
 import { EAOpenButton } from "../../components/dashboard/ea-open-button";
 import {
   WhatsHappeningNow,
   type HappeningDepartment,
-  type HappeningMember,
 } from "../../components/dashboard/whats-happening";
 import { EAStageRegistrar } from "../../components/dashboard/ea-stage-registrar";
 import {
@@ -13,11 +12,10 @@ import {
   type DepartmentOverviewRow,
 } from "../../components/dashboard/department-strip";
 import { EADock } from "../../components/dashboard/ea-dock";
-import { CompanyOrbit } from "../../components/company-hub/company-orbit";
-import { SeedDemoButton } from "../../components/company-hub/seed-demo-button";
+import { activityTag, derivePresence } from "../../components/dashboard/presence";
 import { ContrastSelfCheck } from "../../components/contrast-self-check";
 import type { FounderStage } from "../../components/executive-agent-context";
-import { fetchWithAuth, formatTimeAgo } from "../../lib/api";
+import { fetchWithAuth } from "../../lib/api";
 import { EA_NAME } from "../../lib/ea";
 import { computeScore } from "../../lib/health-score";
 
@@ -197,10 +195,6 @@ const fetchActiveGoals = () =>
 // same rule the department page uses.
 const fetchDepartmentOverview = () =>
   fetchWithAuth<DepartmentOverviewRow[]>("/v1/departments/overview", FRESH).catch(() => null);
-// Company-orbit satellite: the memory count is decorative next to the gates
-// and goals figures, so it degrades to zero instead of failing the page.
-const fetchMemoryStats = () =>
-  fetchWithAuth<{ totalEntries: number }>("/v1/memory/stats", FRESH).catch(() => null);
 
 type DotState = "" | "working" | "waiting" | "blocked";
 
@@ -259,30 +253,6 @@ function StatCard({
   );
 }
 
-/** Activity → the terminal's type tag and its colour (docs/73: colour = state). */
-function activityTag(type: string): { tag: string; color: string } {
-  const t = type.toLowerCase();
-  if (t.includes("fail") || t.includes("block") || t.includes("denied")) {
-    return { tag: "FAILED", color: "var(--orq-error)" };
-  }
-  if (t.includes("approv") || t.includes("gate") || t.includes("waiting")) {
-    return { tag: "GATE", color: "var(--orq-warm)" };
-  }
-  if (t.includes("complet") || t.includes("done") || t.includes("success")) {
-    return { tag: "DONE", color: "var(--orq-mark-active)" };
-  }
-  if (t.includes("tool")) return { tag: "TOOL", color: "var(--orq-text-secondary)" };
-  if (t.includes("created") || t.includes("hired")) return { tag: "NEW", color: "var(--orq-text-secondary)" };
-  if (t.includes("execut") || t.includes("run")) return { tag: "RUN", color: "var(--orq-text-secondary)" };
-  if (t.includes("analyz")) return { tag: "ANALYZE", color: "var(--orq-text-secondary)" };
-  if (t.includes("draft")) return { tag: "DRAFT", color: "var(--orq-text-secondary)" };
-  if (t.includes("review")) return { tag: "REVIEW", color: "var(--orq-text-secondary)" };
-  if (t.includes("paused")) return { tag: "PAUSED", color: "var(--orq-text-secondary)" };
-  // Unknown types: the first word, uppercased — never a word cut in half
-  // (a mid-word slice read as "EXECUTI" in the terminal).
-  const firstWord = t.split(/[^a-z]+/).filter(Boolean)[0] ?? "event";
-  return { tag: firstWord.toUpperCase().slice(0, 9), color: "var(--orq-text-secondary)" };
-}
 
 function formatClock(iso: string): string {
   const d = new Date(iso);
@@ -324,7 +294,6 @@ export default async function AppPage() {
     activeGoalsRes,
     pendingRevisionRes,
     departmentOverviewRes,
-    memoryStats,
   ] = await Promise.all([
     fetchDashboardData(),
     fetchAgents(),
@@ -339,7 +308,6 @@ export default async function AppPage() {
     fetchActiveGoals(),
     fetchPendingRevision(),
     fetchDepartmentOverview(),
-    fetchMemoryStats(),
   ]);
 
   const agentList = agents ?? [];
@@ -434,140 +402,28 @@ export default async function AppPage() {
   const pendingRevision = pendingRevisionRes?.pending ?? null;
 
   // ── The live organization ───────────────────────────────────────────────
-  // Status is derived from the employee's own rows, never invented: an
-  // archived employee is retired, a paused one is paused, a pending approval
-  // addressed to them means they need you, their newest event deciding
-  // "blocked" (so one old failure cannot label someone blocked forever), a
-  // current task means working, otherwise idle.
-  const pendingApprovalAgentIds = new Set(
-    approvalList.map((a) => a.agentId).filter((id): id is string => !!id),
+  // Presence derivation is shared with the company page (presence.ts): one
+  // rule for who is working / needs-you / blocked, no drift between pages.
+  const departmentById = new Map((departments ?? []).map((d) => [d.id, d]));
+  const presence = derivePresence(
+    agentList,
+    approvalList,
+    events,
+    (agent) => {
+      const department = agent.departmentId ? departmentById.get(agent.departmentId) : undefined;
+      return agent.departmentName ?? department?.name ?? agent.department ?? null;
+    },
+    (agent) => {
+      const department = agent.departmentId ? departmentById.get(agent.departmentId) : undefined;
+      return !!department?.head && department.head.toLowerCase() === agent.name.toLowerCase();
+    },
   );
-  const newestEventByAgent = new Map<string, ActivityEvent>();
-  for (const event of events) {
-    if (event.agentId && !newestEventByAgent.has(event.agentId)) {
-      newestEventByAgent.set(event.agentId, event);
-    }
-  }
-  const blockedAgentIds = new Set<string>();
-  for (const [agentId, event] of newestEventByAgent) {
-    const tag = activityTag(event.type).tag;
-    if (tag === "FAILED") blockedAgentIds.add(agentId);
-  }
-
-  function memberState(agent: Agent): { label: string; detail: string; state: DotState } {
-    if (agent.status === "archived") return { label: "Retired", detail: "Retired", state: "" };
-    if (agent.status !== "active") return { label: "Paused", detail: "Paused by you", state: "" };
-    if (pendingApprovalAgentIds.has(agent.id)) {
-      return { label: "Needs you", detail: "Waiting on approval", state: "waiting" };
-    }
-    if (blockedAgentIds.has(agent.id)) {
-      const newest = newestEventByAgent.get(agent.id);
-      // The event summary already names the failure ("Failed: Publish the
-      // launch post"); repeating the tag reads as a stutter, so the tag is
-      // stripped and the state dot carries it.
-      const reason = newest
-        ? newest.summary.replace(/^(failed|blocked|execution blocked):\s*/i, "")
-        : null;
-      return { label: "Blocked", detail: reason ?? "Blocked", state: "blocked" };
-    }
-    if (agent.currentTask) {
-      return { label: "Working", detail: agent.currentTask, state: "working" };
-    }
-    return { label: "Idle", detail: "Idle", state: "" };
-  }
+  const happeningMembers = presence.members;
 
   // ── "What's happening now" (§1–§4) ─────────────────────────────────────
   // One row per employee, derived from the employee's own row plus the org's
   // open approvals and the newest event it produced. Nothing here is invented:
   // a missing task or a missing event is shown as missing, never filled in.
-  const departmentById = new Map((departments ?? []).map((d) => [d.id, d]));
-  const approvalByAgent = new Map<string, Approval>();
-  for (const approval of approvalList) {
-    if (approval.agentId && !approvalByAgent.has(approval.agentId)) {
-      approvalByAgent.set(approval.agentId, approval);
-    }
-  }
-  const lastActiveLabel = (iso?: string | null): string | null => {
-    if (!iso) return null;
-    const diff = Date.now() - new Date(iso).getTime();
-    if (!Number.isFinite(diff)) return null;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-  const humanRole = (role: string): string =>
-    role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-  const happeningMembers: HappeningMember[] = agentList.map((agent) => {
-    const info = memberState(agent);
-    const newest = newestEventByAgent.get(agent.id) ?? null;
-    const approval = approvalByAgent.get(agent.id) ?? null;
-    const department = agent.departmentId ? departmentById.get(agent.departmentId) : undefined;
-    const state: HappeningMember["state"] =
-      info.label === "Needs you"
-        ? "needs_you"
-        : info.label === "Blocked"
-          ? "blocked"
-          : info.label === "Working"
-            ? "working"
-            : info.label === "Paused"
-              ? "paused"
-              : info.label === "Retired"
-                ? "retired"
-                : "idle";
-    const tag = newest ? activityTag(newest.type) : null;
-    // The terminal renderer strips the "<name>: " prefix because the row does
-    // not repeat the employee; the card header does, so the same strip keeps
-    // the summary from reading "Nova: Nova: …".
-    const summary = newest
-      ? newest.summary
-          .replace(/^(failed|blocked|execution blocked):\s*/i, "")
-          .replace(new RegExp(`^${agent.name}: `), "")
-      : null;
-    return {
-      id: agent.id,
-      name: agent.name,
-      roleLabel: humanRole(agent.role),
-      departmentName:
-        agent.departmentName ?? department?.name ?? agent.department ?? null,
-      isLead: !!department?.head && department.head.toLowerCase() === agent.name.toLowerCase(),
-      state,
-      stateLabel: info.label,
-      dotState: info.state,
-      currentTask: agent.currentTask ?? null,
-      latestChange:
-        newest && tag && summary
-          ? {
-              tag: tag.tag,
-              color: tag.color,
-              summary,
-              clock: formatClock(newest.occurredAt),
-            }
-          : null,
-      lastActiveLabel: lastActiveLabel(agent.lastActiveAt),
-      tasksCompleted: agent.tasksCompleted ?? 0,
-      tasksFailed: agent.tasksFailed ?? 0,
-      weeklyCostLabel:
-        (agent.weeklyCost ?? 0) > 0 ? `${(agent.weeklyCost ?? 0).toLocaleString()} credits/wk` : null,
-      ask: approval
-        ? `${approval.action}${approval.description ? ` — ${approval.description}` : ""}`
-        : state === "blocked"
-          ? info.detail
-          : null,
-      actionHref:
-        state === "needs_you"
-          ? "/app/approvals"
-          : newest?.taskId
-            ? `/app/tasks/${newest.taskId}`
-            : null,
-      actionLabel:
-        state === "needs_you" ? "Review the gate" : state === "blocked" ? "Open the task" : null,
-    };
-  });
-
   // Departments keep their place in the hierarchy (Founder → EA → Departments →
   // employees): one slim row of real counts, derived from the same members the
   // cards use, instead of the old full-width org-chart columns.
@@ -616,62 +472,6 @@ export default async function AppPage() {
     description: a.description,
     cost: a.cost,
   }));
-
-  // ── First run + first value (merged from the Company Hub, AUD-001) ─────
-  // One home now: /app owns the welcome (no structure yet) and the
-  // hire → goal → task → completed checklist (structure but no completion).
-  // Both derive from real rows and dismiss themselves; no frontend state.
-  const activeRole =
-    orgInfo?.memberships?.find((m) => m.org.id === orgInfo.active_org_id)?.role ??
-    orgInfo?.memberships?.[0]?.role;
-  const canSeedDemo = activeRole === "owner" || activeRole === "admin";
-  const hasStructure =
-    agentList.length > 0 || totalGoals > 0 || departmentList.length > 0;
-  const showFirstRun = !hasStructure && founderStage !== "active";
-  const showFirstValue =
-    completedTasks === 0 && (hasStructure || founderStage !== "new");
-  const firstValueSteps = [
-    {
-      title: "Hire your first AI employee",
-      detail: "Pick a role — the employee works inside your departments.",
-      done: agentList.length > 0,
-      href: "/app/agents" as string | null,
-      cta: agentList.length > 0 ? "View workforce" : "Hire",
-    },
-    {
-      title: "Set your first goal",
-      detail: "A goal is what work gets planned from.",
-      done: totalGoals > 0,
-      href: "/app/goals" as string | null,
-      cta: totalGoals > 0 ? "View goals" : "Set a goal",
-    },
-    {
-      title: "Put the first work in motion",
-      detail: `Ask ${eaName} to plan it — tasks appear on the board as they run.`,
-      done: totalTasks > 0,
-      href: null as string | null,
-      cta: "Plan work",
-    },
-    {
-      title: "See the first task through",
-      detail: "Approve what needs you in the attention queue; the rest runs itself.",
-      done: false,
-      href: "/app/tasks" as string | null,
-      cta: "Open tasks",
-    },
-  ];
-  const primaryActionClass =
-    "inline-flex items-center justify-center rounded-lg ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep";
-  const secondaryActionClass =
-    "inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-canvas";
-
-  // ── Company-orbit figures (merged from the Company Hub, AUD-001) ────────
-  const orbitWorking = happeningMembers.filter((m) => m.state === "working").length;
-  const orbitWaiting = happeningMembers.filter((m) => m.state === "needs_you").length;
-  const orbitBlocked = happeningMembers.filter((m) => m.state === "blocked").length;
-  const orbitLastActivityLabel = events[0]?.occurredAt
-    ? formatTimeAgo(events[0].occurredAt)
-    : null;
 
   // The banner morphs with company state (docs/71 §F): approvals first, then
   // blockers, then "all caught up".
@@ -844,91 +644,21 @@ export default async function AppPage() {
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
 
-      {/* ── First run (merged from the Company Hub, AUD-001) ─────────────── */}
-      {showFirstRun ? (
-        <section className="rounded-2xl border border-brand-deep/20 ink p-6 text-white">
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-ink-accent">
-            {founderStage === "new" ? "First run" : "In progress"}
+      {/* ── Company profile (B6: the hub lives at /app/company) ──────────── */}
+      <Link
+        href="/app/company"
+        className="console-card flex flex-wrap items-center gap-3 p-4 transition-colors hover:bg-surface-secondary"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ink">{orgName}</p>
+          <p className="mt-0.5 truncate text-xs text-muted">
+            {agentList.length} {agentList.length === 1 ? "employee" : "employees"} ·{" "}
+            {departmentList.length} {departmentList.length === 1 ? "department" : "departments"} ·{" "}
+            {activeGoalsCount} {activeGoalsCount === 1 ? "active goal" : "active goals"} — open the company profile
           </p>
-          <h2 className="mt-2 text-lg font-semibold tracking-tight">
-            {founderStage === "new" ? "Let's get your company set up" : `Finish setting up ${orgName}`}
-          </h2>
-          <p className="mt-2 max-w-2xl text-2sm text-white/70">
-            {founderStage === "new"
-              ? `I am ${eaName}, your Executive Agent. Before I organize work I need to know what you are building, where you are today, and what you want to accomplish.`
-              : "What you have already given me is saved. I can pick up where we left off, and nothing is activated until you approve it."}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center justify-center rounded-lg bg-ink-accent px-4 py-2 text-sm font-semibold text-ink-surface transition-colors hover:bg-ink-accent/90"
-            >
-              {founderStage === "new" ? "Start onboarding" : "Continue onboarding"}
-            </Link>
-            <EAOpenButton
-              prompt={founderStage === "new" ? (firstName ? `I'm ${firstName}, and I'm building ` : "I'm building ") : "What is left to finish setting up my company?"}
-              className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-            >
-              {founderStage === "new" ? `Tell ${eaName} what you are building` : `Ask ${eaName} what remains`}
-            </EAOpenButton>
-            {canSeedDemo ? (
-              <SeedDemoButton className="inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-60" />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {/* ── First value checklist (merged from the Company Hub, AUD-001) ─── */}
-      {showFirstValue ? (
-        <section aria-label="Getting to first value" className="rounded-2xl border border-hairline bg-white p-6">
-          <p className="font-mono text-3xs font-semibold uppercase tracking-[0.2em] text-muted">
-            First value
-          </p>
-          <h2 className="mt-2 text-lg font-semibold tracking-tight text-ink">
-            {totalTasks > 0 ? "Almost there — close the loop" : "Four steps to a running company"}
-          </h2>
-          <ol className="mt-4 space-y-3">
-            {firstValueSteps.map((step) => (
-              <li key={step.title} className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span
-                    className={
-                      step.done
-                        ? "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-white"
-                        : "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-hairline-strong text-muted"
-                    }
-                  >
-                    {step.done ? <Check className="h-3 w-3" /> : null}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink">
-                      {step.title}
-                      {step.done ? <span className="ml-2 text-xs font-normal text-muted">Done</span> : null}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">{step.detail}</p>
-                  </div>
-                </div>
-                {step.done && step.href ? (
-                  <Link href={step.href} className={secondaryActionClass}>
-                    {step.cta}
-                  </Link>
-                ) : !step.done && step.href ? (
-                  <Link href={step.href} className={primaryActionClass}>
-                    {step.cta}
-                  </Link>
-                ) : !step.done ? (
-                  <EAOpenButton
-                    prompt={`Plan the work for ${orgName}: break the current goal into tasks and assign them.`}
-                    className={primaryActionClass}
-                  >
-                    {step.cta}
-                  </EAOpenButton>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
+        </div>
+        <span className="shrink-0 text-xs font-semibold text-muted">Company →</span>
+      </Link>
 
       {/* ── The morphing banner ──────────────────────────────────────────── */}
       <div className="console-card flex flex-wrap items-center gap-3 p-4">
@@ -1138,22 +868,6 @@ export default async function AppPage() {
           )}
         </section>
       </div>
-
-      {/* ── Company at a glance (merged from the Company Hub, AUD-001) ──── */}
-      <CompanyOrbit
-        companyName={orgName}
-        employees={agentList.length}
-        departments={departmentList.length}
-        working={orbitWorking}
-        waiting={orbitWaiting}
-        blocked={orbitBlocked}
-        pendingApprovals={pendingApprovals}
-        activeGoals={activeGoalsCount}
-        openTasks={totalTasks - completedTasks}
-        memories={memoryStats?.totalEntries ?? 0}
-        auditEvents={events.length}
-        lastActivityLabel={orbitLastActivityLabel}
-      />
 
       {/* ── From the Executive Agent ─────────────────────────────────────── */}
       {priorities !== null && (

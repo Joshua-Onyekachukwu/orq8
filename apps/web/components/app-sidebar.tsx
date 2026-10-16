@@ -74,6 +74,8 @@ const navAreas: NavArea[] = [
     title: "Company",
     items: [
       { label: "Overview", href: "/app", icon: LayoutDashboard },
+      // B6: the company hub moved out of the dashboard to its own page.
+      { label: "Company", href: "/app/company", icon: Building2 },
       { label: "Health", href: "/app/health", icon: HeartPulse },
       { label: "Activity", href: "/app/activity", icon: Activity },
     ],
