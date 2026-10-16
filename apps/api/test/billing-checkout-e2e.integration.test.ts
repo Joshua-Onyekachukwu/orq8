@@ -4,10 +4,10 @@
  * No STRIPE_* keys exist in this environment and none may be invented, so the
  * E2E stubs exactly one boundary: the Stripe HTTP API.
  *
- * The `stripe` npm package is an *optional* dependency — billing.ts loads it
- * via `require('stripe')`, which the vitest mock registry cannot intercept
- * (verified: `vi.mock('stripe')` has zero effect on the CJS require path).
- * The seam is therefore explicit: `__setStripeClientForTests` injects a fake
+ * The `stripe` npm package is a hard dependency (static ESM import — the old
+ * dynamic `require('stripe')` threw in this `type: module` package and left
+ * Stripe silently unconfigured in every deployment). The seam is explicit:
+ * `__setStripeClientForTests` injects a fake
  * client whose shape (customers.create / checkout.sessions.create /
  * subscriptions.retrieve / webhooks.constructEvent) mirrors the SDK surface
  * the service uses. `STRIPE_WEBHOOK_SECRET` is set to a fixture string that

@@ -1,5 +1,10 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { subscriptions, organizations, webhookEvents, type Db } from '@orq8/db';
+import Stripe from 'stripe';
+// stripe is a hard dependency (apps/api/package.json). Static ESM import —
+// the previous dynamic `require('stripe')` threw in this `type: module`
+// package (tsx/node ESM has no `require`), silently leaving Stripe
+// unconfigured in every deployment (found live during the B4 proof).
 import { appendAudit } from './audit.js';
 import { addPurchasedCredits } from './credits.js';
 import type { AppConfig } from '@orq8/core';
@@ -196,16 +201,10 @@ function getStripe(config: AppConfig): any {
   if (stripeClient) return stripeClient;
   if (!config.STRIPE_SECRET_KEY) return null;
 
-  try {
-    // Dynamic import to avoid hard dependency when Stripe is not configured
-    const Stripe = require('stripe').default ?? require('stripe');
-    stripeClient = new Stripe(config.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-12-18.acacia',
-    });
-    return stripeClient;
-  } catch {
-    return null;
-  }
+  stripeClient = new Stripe(config.STRIPE_SECRET_KEY, {
+    apiVersion: '2026-09-30.endive',
+  });
+  return stripeClient;
 }
 
 // ─── Checkout Session ───────────────────────────────────────────────────────
