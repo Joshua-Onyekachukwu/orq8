@@ -179,6 +179,9 @@ run('account close (DELETE /v1/org)', () => {
     const memberEmail = `close-member-${randomUUID().slice(0, 8)}@test.example.com`;
     const memberReg = await app.inject({ method: 'POST', url: '/v1/auth/register', payload: { email: memberEmail, password: 'Test1234!', org_name: 'Member Org' } });
     expect(memberReg.statusCode).toBe(201);
+    // Same confirmation the owners get above: without it the switch 403s on
+    // email_not_verified and the test would prove nothing about the role gate.
+    await deps.db.update(usersTable).set({ emailVerifiedAt: new Date() }).where(eq(usersTable.email, memberEmail.trim().toLowerCase()));
     const memberToken = memberReg.json().data.token as string;
     // Move the member into org A as a viewer via direct membership.
     const [memberUser] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, memberEmail.trim().toLowerCase())).limit(1);
@@ -203,8 +206,11 @@ run('account close (DELETE /v1/org)', () => {
     expect(receipt.purgedTables['agents']).toBeGreaterThan(0);
     expect(receipt.filesRemoved).toBe(1);
 
-    // Org row gone; every seeded table empty for org A.
-    expect(await orgRowCount('organizations', a.orgId)).toBe(0);
+    // Org row gone (by its own PK — organizations has no org_id column);
+    // every seeded table empty for org A.
+    const { organizations: orgsTable } = await import('@orq8/db');
+    const orgGone = await db.select({ id: orgsTable.id }).from(orgsTable).where(eq(orgsTable.id, a.orgId)).limit(1);
+    expect(orgGone.length).toBe(0);
     for (const table of ['departments', 'teams', 'agents', 'goals', 'tasks', 'approvals', 'agent_jobs', 'company_memory', 'knowledge_entities', 'knowledge_relations', 'company_decisions', 'squads', 'squad_agents', 'mcp_servers', 'mcp_tools', 'integration_providers', 'simulations', 'notifications', 'briefings', 'activity_events', 'strategies', 'objectives', 'key_results', 'initiatives', 'decisions', 'deals', 'tickets', 'business_imports', 'capability_registry', 'onboarding_states', 'analytics_events', 'webhook_events', 'event_rules', 'llm_performance', 'credit_alerts', 'plan_revisions', 'subscriptions', 'credit_balances', 'credit_transactions', 'credit_reservations', 'files', 'audit_events', 'memberships', 'invitations', 'sessions']) {
       expect(await orgRowCount(table, a.orgId), `${table} should be purged`).toBe(0);
     }

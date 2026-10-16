@@ -34,7 +34,7 @@ export interface StorageBackend {
 // ─── Local Filesystem Backend ───────────────────────────────────────────────
 
 import { writeFile, readFile, unlink, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 class LocalStorageBackend implements StorageBackend {
@@ -50,8 +50,9 @@ class LocalStorageBackend implements StorageBackend {
 
   async upload(key: string, body: Buffer, _mimeType: string): Promise<string> {
     const filePath = join(this.baseDir, key);
-    const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-    await this.ensureDir(dir);
+    // dirname, not a '/' split: join emits '\' on Windows, where
+    // lastIndexOf('/') finds nothing and mkdir('') throws ENOENT.
+    await this.ensureDir(dirname(filePath));
     await writeFile(filePath, body);
     return `file://${filePath}`;
   }
