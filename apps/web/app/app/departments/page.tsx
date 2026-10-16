@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Archive,
   Building2,
+  CheckCircle2,
   Loader2,
   Plus,
   RefreshCw,
@@ -521,6 +522,21 @@ export default function DepartmentsPage() {
             <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             <p className="min-w-0 flex-1">{error}</p>
             <button type="button" onClick={() => setError(null)} className="shrink-0 text-xs text-error-ink hover:underline">
+              Dismiss
+            </button>
+          </div>
+        )}
+        {/* Activation confirmation survives the catalog closing — the catalog's
+            own "Activated" state is dismissed with it, which used to leave
+            founders unsure anything happened. */}
+        {!showDeptCatalog && justActivated && (
+          <div className="console-card flex items-start gap-3 border-mark-active/40 p-4 text-sm text-ink" role="status">
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-mark-active" />
+            <p className="min-w-0 flex-1">
+              <strong className="font-semibold">{justActivated}</strong> is active with its teams —
+              open its workspace to staff and direct it.
+            </p>
+            <button type="button" onClick={() => setJustActivated(null)} className="shrink-0 text-xs text-muted hover:underline">
               Dismiss
             </button>
           </div>

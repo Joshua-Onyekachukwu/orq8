@@ -35,11 +35,21 @@ interface Entitlements {
   resources: ResourceUsage[];
 }
 
+// Shape-tolerant: the API returns flat fields (total/used/remaining,
+// utilizationPercent, daysRemaining); older payloads nested them under
+// `balance`. Read both so a contract drift never renders 0 / 0 again.
 interface CreditBalance {
-  balance: { total: number; used: number; remaining: number };
-  utilization: number;
-  isLow: boolean;
-  isCritical: boolean;
+  total?: number;
+  used?: number;
+  remaining?: number;
+  available?: number;
+  utilizationPercent?: number;
+  utilization?: number;
+  isLow?: boolean;
+  isCritical?: boolean;
+  daysRemaining?: number;
+  daysLeft?: number;
+  balance?: { total?: number; used?: number; remaining?: number } | null;
 }
 
 const RESOURCE_ICONS: Record<ResourceUsage["resource"], typeof Users> = {
@@ -160,8 +170,9 @@ export default function UsagePage() {
 
   const reached = entitlements?.resources.filter((r) => r.reached) ?? [];
   const autonomyLabel = entitlements ? AUTONOMY_LABELS[entitlements.autonomy] ?? entitlements.autonomy : null;
-  const usedCredits = balance?.balance?.used ?? 0;
-  const totalCredits = balance?.balance?.total ?? 0;
+  const usedCredits = balance?.used ?? balance?.balance?.used ?? 0;
+  const totalCredits = balance?.total ?? balance?.balance?.total ?? 0;
+  const utilizationPct = balance?.utilizationPercent ?? balance?.utilization ?? null;
 
   return (
     <PageErrorBoundary pageName="Packages & Usage" backHref="/app">
@@ -258,7 +269,7 @@ export default function UsagePage() {
               {loading ? "—" : `${usedCredits.toLocaleString()} / ${totalCredits.toLocaleString()}`}
             </p>
             <p className="mt-0.5 text-xs text-muted">
-              {balance?.utilization != null ? `${balance.utilization.toFixed(0)}% used this period` : "—"}
+              {utilizationPct != null ? `${utilizationPct.toFixed(0)}% used this period` : "—"}
             </p>
           </div>
         </div>

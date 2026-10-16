@@ -19,13 +19,21 @@ import { AlertTriangle, ArrowUpRight, RefreshCw, Wallet } from "lucide-react";
  * meter with no source.
  */
 
+// Shape-tolerant like usage/page.tsx: the API returns flat fields, older
+// payloads nested them under `balance`.
 interface CreditBalance {
-  balance: { total: number; used: number; remaining: number };
-  utilization: number;
-  isLow: boolean;
-  isCritical: boolean;
-  daysLeft: number;
-  periodEnd: string;
+  total?: number;
+  used?: number;
+  remaining?: number;
+  available?: number;
+  utilizationPercent?: number;
+  utilization?: number;
+  isLow?: boolean;
+  isCritical?: boolean;
+  daysRemaining?: number;
+  daysLeft?: number;
+  periodEnd?: string;
+  balance?: { total?: number; used?: number; remaining?: number } | null;
 }
 
 interface UsageSummary {
@@ -166,12 +174,12 @@ export default function BudgetsPage() {
     fetchData();
   }, [fetchData]);
 
-  const remaining = balance?.balance?.remaining ?? 0;
-  const total = balance?.balance?.total ?? 0;
-  const utilization = balance?.utilization ?? 0;
+  const remaining = balance?.remaining ?? balance?.available ?? balance?.balance?.remaining ?? 0;
+  const total = balance?.total ?? balance?.balance?.total ?? 0;
+  const utilization = balance?.utilizationPercent ?? balance?.utilization ?? 0;
   const isLow = balance?.isLow ?? false;
   const isCritical = balance?.isCritical ?? false;
-  const daysLeft = balance?.daysLeft ?? 0;
+  const daysLeft = balance?.daysRemaining ?? balance?.daysLeft ?? 0;
   const periodTone = toneFor(utilization, isCritical, isLow);
 
   const goalTitleById = new Map(goals.map((g) => [g.id, g.title]));

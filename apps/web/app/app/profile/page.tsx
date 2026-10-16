@@ -62,8 +62,13 @@ interface MeData {
   active_org_id: string | null;
 }
 
+// Shape-tolerant like usage/budgets: the API returns flat fields, older
+// payloads nested them under `balance`.
 interface CreditBalance {
-  balance: { total: number; used: number; remaining: number };
+  remaining?: number;
+  total?: number;
+  used?: number;
+  balance?: { total?: number; used?: number; remaining?: number } | null;
 }
 
 /**
@@ -471,7 +476,7 @@ export default function ProfilePage() {
             Credits Remaining
           </p>
           <p className="mt-1 text-2xl font-semibold tracking-tight text-ink tabular-nums">
-            {credits?.balance?.remaining?.toLocaleString() ?? "—"}
+            {(credits?.remaining ?? credits?.balance?.remaining)?.toLocaleString() ?? "—"}
           </p>
           <p className="mt-0.5 text-xs text-muted">
             {org?.plan ?? "trial"} plan
