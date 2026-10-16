@@ -151,6 +151,7 @@ te-limit, migration, oauth, waitlist.
 - Web suite: 15/15 files, 114/114 tests, green after F4+F5 edits.
 - API suite untouched by this pass (display-only changes); full corpus green as of P5 (139 files, 0 fail).
 - **Live re-verification pending deploy:** F4/F5 fixes are committed to main; Vercel auto-deploys main (`.github/workflows/vercel-deploy.yml`). After deploy: reload /app/usage (expect “15 / 100”, “15% used”), reload /app/profile (expect “85”), activate a template (expect banner). These three checks are explicitly NOT yet done live.
+- **2026-10-16 deploy-branch finding (BLOCKS B3 live verification):** the Railway API service (`orq8api-production-062a`) deploys branch `feat/ai-cost-guardrails-and-worker-soak` @ `99c5661` (2026-10-16T10:44Z), whose tip is a strict ancestor of main — production API is ~11h stale and missing the B3 fix (live `weekly_spend` still `0.72` = old `activity/100` path; direct-DB ledger basis = `18`). Main-only pushes never reach the API. Decision needed: repoint Railway to `main`, merge main into the soak branch, or keep soaking (leaves B3 + any newer API code undeployed).
 - Production probes used: login, entitlements, tasks ×6, balance, subscription, usage, dashboard, activity, agents, integrations, approvals — all read-only except one template activation (QA-T6, documented in F7).
 
 ---
