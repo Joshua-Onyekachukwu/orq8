@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { MoneyTabs } from "../../../components/work/money-tabs";
-import { AlertTriangle, RefreshCw, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, RefreshCw, Wallet } from "lucide-react";
 
 /**
  * Budgets (docs/71 §L, marketing/headquarters-mock-v2.html `screen-budgets`).
@@ -258,6 +258,18 @@ export default function BudgetsPage() {
             <span>{used(usage, balance).toLocaleString()} used this period</span>
             <span>{utilization.toFixed(0)}% utilization</span>
           </div>
+          {/* C-01b sibling: the meter warns, so the meter must offer the way out. */}
+          {(isLow || isCritical) && !loading && (
+            <p className="mt-3 text-xs text-muted">
+              Credits are running low — exhaustion pauses work.{" "}
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-0.5 font-semibold text-ink underline decoration-hairline-strong underline-offset-2 transition-colors hover:text-brand-ink"
+              >
+                View plans <ArrowUpRight aria-hidden="true" className="h-3 w-3" />
+              </Link>
+            </p>
+          )}
         </div>
 
         {/* By goal — real spend under each commitment. */}
@@ -368,6 +380,12 @@ export default function BudgetsPage() {
               Work Credits are allocated when you subscribe to a plan. Start a free trial to begin
               using your AI workforce.
             </p>
+            <Link
+              href="/pricing"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-5 py-2 text-xs font-semibold text-ink transition-colors hover:bg-canvas"
+            >
+              View plans <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+            </Link>
           </div>
         )}
       </div>
