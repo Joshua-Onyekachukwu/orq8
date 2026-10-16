@@ -1,5 +1,5 @@
 import { eq, and, gte, sql } from 'drizzle-orm';
-import { goals, tasks, activityEvents, type Db } from '@orq8/db';
+import { goals, tasks, activityEvents, creditTransactions, type Db } from '@orq8/db';
 import { calculateCompanyProgress } from '../services/company-progress.js';
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
@@ -89,15 +89,22 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
       db.select({ count: sql<number>`count(*)::int` }).from(tasks).where(and(eq(tasks.orgId, ctx.orgId), eq(tasks.status, 'completed'))),
     ]);
 
-    // Calculate actual weekly spend from this week's activity events
+    // Weekly spend comes from the credit ledger (`usage` rows, signed amounts
+    // negated), not from activityEvents.cost. Per-execution cost on activity
+    // events is an uncontrolled write path (any caller can store any number),
+    // while ledger rows are written only by the credit reservation/settle
+    // path — the same source as `credits.used`. Same ledger, same numbers.
+    // Both are credits; dollar surfaces must convert via the credit rate.
     const [weeklyResult] = await db
-      .select({ total: sql<number>`coalesce(sum(${activityEvents.cost}), 0)::int` })
-      .from(activityEvents)
-      .where(and(eq(activityEvents.orgId, ctx.orgId), gte(activityEvents.occurredAt, weekAgo)));
-
-    // Activity `cost` is stored in credits (task-executor charges model credits +
-    // tool credits), so the weekly sum is credits — no dollar conversion. Dollar
-    // surfaces must convert explicitly via the declared credit rate instead.
+      .select({ total: sql<number>`coalesce(sum(-${creditTransactions.amount}), 0)::int` })
+      .from(creditTransactions)
+      .where(
+        and(
+          eq(creditTransactions.orgId, ctx.orgId),
+          eq(creditTransactions.type, 'usage'),
+          gte(creditTransactions.createdAt, weekAgo),
+        ),
+      );
     const weeklySpend = weeklyResult?.total ?? 0;
 
     return {
