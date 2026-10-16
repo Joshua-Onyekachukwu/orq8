@@ -74,7 +74,8 @@ te-limit, migration, oauth, waitlist.
 - **Evidence:** `/v1/dashboard` → `weekly_spend: 0.58→0.63` (growing, fractional) labeled “credits spent” next to “85 of 100 left” (implies 15 spent); ledger `totalUsed: 15`. `activityEvents.cost` mixes integer charges (`cost: 5` on llm.success) with fractional values — suspected mixed units (credits vs provider dollars) in one column, despite the code comment claiming credits-only.
 - **Impact:** every money figure on screen is suspect.
 - **Fix (recommended, not applied — needs data decision):** single unit for `activityEvents.cost`, or label the card with its true basis; add a test pinning ledger == dashboard basis. Deliberately NOT relabeled — that would paper over a possible unit bug.
-- **Status:** open.
+- **Status:** FIXED 2026-10-16 (B3) — `weekly_spend` now sums `credit_transactions` `usage` rows (negated) over the last 7 days, the same ledger `credits.used` settles from. `activityEvents.cost` is no longer read for money math. Regression test `dashboard-weekly-spend.integration.test.ts` pins it (old rows, purchases, and a 9999-cost activity decoy excluded). Mixed-unit suspicion on the activity column stands but is now irrelevant to displayed money.
+- **Live pre-deploy baseline (Railway API, still old code):** `weekly_spend: 0.72` vs direct-DB sums `activity7d = 72` (= 72/100, old dollar-conversion path) and `ledger7d = 18` (10 usage rows). Post-deploy expectation: `weekly_spend` becomes exactly `18`. Known cosmetic wrinkle: balance `used = 3` (B2 reset zeroed the counter without deleting ledger rows), so `weekly_spend (18) > used (3)` until the 7-day window rolls past the reset — both numbers are ledger-derived, no third basis involved.
 
 ### QA-F4 — Credit panels rendered 0/0 (P2, FIXED ✓)
 - **Cause:** `/v1/credits/balance` returns flat fields (`total/used/remaining/utilizationPercent/daysRemaining`); usage, budgets, and profile pages read nested `balance.balance.*` (+ `utilization`, `daysLeft`) → all `?? 0` / “—”. The credits page (flat reads) always worked, which is why this survived.
@@ -100,7 +101,7 @@ te-limit, migration, oauth, waitlist.
 ## 5. Placeholder / incomplete-feature inventory
 
 - **Fully functional (verified live):** auth/session/nav/refresh, EA grounded chat, department catalog + activation (modulo F5 feedback, fixed), entitlements enforcement, upgrade CTA wiring, attention counts, audit trail feed.
-- **Partially functional:** task execution (works when funded — currently starved, F2), credit surfaces (F3 basis dispute; F4 rendering fixed).
+- **Partially functional:** task execution (works when funded — currently starved, F2), credit surfaces (F3 basis unified on ledger 2026-10-16; F4 rendering fixed).
 - **Honest empty states (not placeholders):** approvals `[]`, integrations `[]`, decisions “none recorded yet”.
 - **Blocked by configuration:** Stripe live (keys), integration OAuth (credentials), admin review (separate account).
 - **Not implemented:** `credit_transactions` list endpoint (wanted for F2 archaeology), failed-task retry, mobile viewport pass.
@@ -140,6 +141,7 @@ te-limit, migration, oauth, waitlist.
 | Credit-shape tolerance (F4) | `apps/web/app/app/usage/page.tsx`, `apps/web/app/app/budgets/page.tsx`, `apps/web/app/app/profile/page.tsx` | Interfaces accept flat API fields with nested fallback; usage computes `utilizationPct` from `utilizationPercent ?? utilization`; budgets reads `remaining ?? available`, `daysRemaining ?? daysLeft` |
 | Activation confirmation (F5) | `apps/web/app/app/departments/page.tsx` | Persistent `role="status"` banner from existing `justActivated` state, shown after catalog closes; dismissible; reuses `CheckCircle2` + `text-mark-active` language |
 | (Prior P5, already pushed) | budgets `/pricing` links, `files.ts` `dirname()`, org-deletion test fixes | See `docs/ORQ8_UX_FIX_PLAN.md` |
+| Cost-basis unification (B3/F3) | `apps/api/src/routes/activity.ts`, `apps/api/test/dashboard-weekly-spend.integration.test.ts` | `weekly_spend` = 7d `usage`-ledger sum (negated); pinning test covers window/type/activity-decoy |
 
 ---
 
@@ -159,7 +161,7 @@ te-limit, migration, oauth, waitlist.
 |---|---------|----------|-----------------|
 | B1 | Demo org needs a real plan (F1) | P1 | DONE 2026-10-16 — team/4000/25 + org pro, live-verified |
 | B2 | Credit swing unexplained (F2) | P1 | DONE (reset + starvation proven by successful retry); swing mechanism still open, optional |
-| B3 | Cost-basis unification (F3) | P1 | Product decision: one unit for activity cost; then code + pinning test (I can implement once decided) |
+| B3 | Cost-basis unification (F3) | P1 | DONE 2026-10-16 — dashboard `weekly_spend` reads the credit ledger (`usage`, 7d); pinning test green; mixed-unit activity column retired from money math |
 | B4 | Live Stripe proof (Cat. B) | P2 | Supply test-mode keys; run checkout + `stripe trigger` webhook against staging |
 | B5 | Integration OAuth proof (F8) | P3 | Supply sandbox credentials |
 | B6 | Company-hub move (UX rec. 1) | P3 | Founder sign-off on option 2 before moving anything |
@@ -170,4 +172,4 @@ te-limit, migration, oauth, waitlist.
 
 **Verified working:** sign-in/out-equivalent session flows, navigation incl. refresh and deep links, dashboard rendering with API-true cards, EA grounded Q&A without metadata leakage, department catalog (20+ templates) with idempotent activation, entitlement enforcement (caps + autonomy ceiling observed live), upgrade CTAs, honest empty states.
 
-**Not ready for founder review yet** — for exactly three reasons, all decision-gated: the demo wears trial caps (B1), its work queue is a FAILED wall with no retry (B2), and two money numbers disagree (B3). The F4/F5 fixes in this pass remove two further embarrassments pending deploy verification. Nothing else found is review-blocking. After B1+B2 (+ deploy check), the account is reviewable; after B3, it is trustworthy.
+**Ready for founder review subject to the deploy check below.** B1 (real plan), B2 (credits + retry proven), and B3 (one ledger cost basis) are all DONE 2026-10-16 — the three review-blockers are cleared. Remaining: deploy verification of F4/F5/B3 on the live site, then credential-gated B4/B5 and sign-off-gated B6.
