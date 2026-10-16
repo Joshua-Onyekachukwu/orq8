@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { analytics } from "@/lib/analytics";
+import { levelAllowed } from "../../lib/autonomy-tiers";
 import {
   ArrowLeft,
   ArrowRight,
@@ -69,6 +70,43 @@ interface ActivationResult {
 
 type Phase = "path" | "playbook" | "describe" | "analyzing" | "analysis" | "planning" | "plan" | "activating" | "done";
 
+type AutonomyChoice = "cautious" | "balanced" | "autonomous";
+
+// C-09: the founder's approval preference, wired to the real enforcement
+// columns — PATCH /v1/agents/:id writes the same `autonomy_level` +
+// `authority.requiresApprovalFor` the execution path reads
+// (services/autonomy.enforceAutonomy + tool-registry spend check), so this is
+// policy, not a label.
+const AUTONOMY_OPTIONS: Array<{
+  key: AutonomyChoice;
+  title: string;
+  hint: string;
+  autonomyLevel: string;
+  requiresApprovalFor: string[];
+}> = [
+  {
+    key: "cautious",
+    title: "Check with me first",
+    hint: "Every consequential action waits for your approval.",
+    autonomyLevel: "execute_with_approval",
+    requiresApprovalFor: ["financial_commitments", "external_communications", "irreversible_actions", "high_impact_decisions"],
+  },
+  {
+    key: "balanced",
+    title: "Approve the big stuff",
+    hint: "Money and outside contact need you; routine work runs.",
+    autonomyLevel: "execute_with_approval",
+    requiresApprovalFor: ["financial_commitments", "external_communications"],
+  },
+  {
+    key: "autonomous",
+    title: "Run autonomously",
+    hint: "Full execution within the constitution — approvals only for spend.",
+    autonomyLevel: "autonomous",
+    requiresApprovalFor: [],
+  },
+];
+
 interface PlaybookMeta {
   slug: string;
   name: string;
@@ -120,6 +158,9 @@ export default function OnboardingPage() {
   // Department catalog (post-activation expansion from the system template catalog)
   const [catalogDepts, setCatalogDepts] = useState<Array<{ id: string; name: string; mission: string | null; description: string | null; teams: Array<{ name: string }> }>>([]);
   const [activatingDeptId, setActivatingDeptId] = useState<string | null>(null);
+  // C-05: activated templates stay visible as confirmed successes (with an
+  // "Open it" link) instead of vanishing silently from the list.
+  const [activatedCatalog, setActivatedCatalog] = useState<Array<{ id: string; name: string; departmentId?: string }>>([]);
   const [stayedForCatalog, setStayedForCatalog] = useState(false);
   const redirectRef = useRef<number | null>(null);
 
@@ -164,11 +205,60 @@ export default function OnboardingPage() {
     setPhase("playbook");
   };
 
+  // C-03/C-04: first-run demo door. The demo lives in its OWN org (a fresh
+  // "Northwind Labs (Demo)" the API creates, seeds, and moves this session
+  // into) — it never touches the founder's real company. A 409 demo_exists
+  // means a live demo org already exists: switch back into it instead.
+  const [seedingDemo, setSeedingDemo] = useState(false);
+  // ?demo=1 carries "tour the demo" intent from the register-page door.
+  const [demoIntent, setDemoIntent] = useState(false);
+  useEffect(() => {
+    try {
+      setDemoIntent(new URLSearchParams(window.location.search).get("demo") === "1");
+    } catch {
+      // Non-browser render: no intent to carry.
+    }
+  }, []);
+  const startDemo = async () => {
+    if (seedingDemo) return;
+    setSeedingDemo(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/demo-company/isolated", { method: "POST" });
+      // C-10: onboarding is reachable publicly, but the demo needs a
+      // session — send anonymous founders through free signup and back.
+      if (res.status === 401) {
+        router.push(`/register?next=${encodeURIComponent("/onboarding?demo=1")}`);
+        return;
+      }
+      const json = await res.json().catch(() => null);
+      if (res.status === 409 && json?.data?.orgId) {
+        await fetch("/api/org/switch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ org_id: json.data.orgId }),
+        });
+        router.push("/app");
+        return;
+      }
+      if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Demo setup failed");
+      router.push("/app");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not set up the demo company");
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
   // Industry playbooks — offer a ready-made operating model before the
   // describe/analyze flow, so time-to-first-win stays under 10 minutes.
   const [playbooksList, setPlaybooksList] = useState<PlaybookMeta[]>([]);
   const [playbooksLoading, setPlaybooksLoading] = useState(false);
   const [seedingPlaybook, setSeedingPlaybook] = useState<string | null>(null);
+  // C-02: a playbook is a template applied to YOUR company — the seed is gated
+  // behind the company facts so generic industry content never poses as strategy.
+  const [playbookCompany, setPlaybookCompany] = useState("");
+  const [playbookObjective, setPlaybookObjective] = useState("");
 
   useEffect(() => {
     if (phase !== "playbook") return;
@@ -187,6 +277,12 @@ export default function OnboardingPage() {
   }, [phase]);
 
   const seedPlaybook = async (slug: string) => {
+    // C-02 gate: no company facts, no seed. The API enforces this too, so a
+    // direct call cannot bypass the gate either.
+    if (!playbookCompany.trim()) {
+      setError("Name your company first — the playbook builds on your facts, not generic ones.");
+      return;
+    }
     setSeedingPlaybook(slug);
     setPhase("activating");
     setError(null);
@@ -195,13 +291,19 @@ export default function OnboardingPage() {
       const res = await fetch("/api/company-builder?action=playbook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({
+          slug,
+          companyName: playbookCompany.trim(),
+          ...(playbookObjective.trim() ? { objective: playbookObjective.trim() } : {}),
+        }),
       });
       const json = await res.json();
       if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Playbook failed");
       const result = json?.data?.result;
       if (result?.activation) {
         setActivation(result.activation);
+        // Playbook path skips plan review, so it ships the default posture.
+        await applyAutonomy((result.activation?.agents ?? []).map((a: { id: string }) => a.id), "balanced");
         setPhase("done");
         // If the plan capped the seeded workforce below the playbook size,
         // tell the founder rather than silently shipping a smaller team.
@@ -304,11 +406,74 @@ export default function OnboardingPage() {
       // explicit continue button instead of an auto-redirect race.
       if (redirectRef.current) window.clearTimeout(redirectRef.current);
       setStayedForCatalog(true);
+      const name = catalogDepts.find((t) => t.id === templateId)?.name ?? "Department";
+      const departmentId = (json as { data?: { departmentId?: string } } | null)?.data?.departmentId;
+      // C-05: confirm the activation visibly (name + Open link) rather than
+      // silently dropping the row — the silent drop read as "nothing happened".
+      setActivatedCatalog((prev) =>
+        prev.some((a) => a.id === templateId) ? prev : [...prev, { id: templateId, name, departmentId }],
+      );
       setCatalogDepts((prev) => prev.filter((t) => t.id !== templateId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     } finally {
       setActivatingDeptId(null);
+    }
+  };
+
+  const [autonomyChoice, setAutonomyChoice] = useState<AutonomyChoice>("balanced");
+  const [autonomyApplied, setAutonomyApplied] = useState<string | null>(null);
+  // P2 tier map: the plan ceiling for autonomy (from /api/entitlements).
+  // Unknown/absent fails open — the API still enforces with a 403.
+  const [planMaxAutonomy, setPlanMaxAutonomy] = useState<string | null>(null);
+  useEffect(() => {
+    if (phase !== "plan") return;
+    fetch("/api/entitlements")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const max = json?.data?.autonomy;
+        if (typeof max === "string" && max) {
+          setPlanMaxAutonomy(max);
+          if (!levelAllowed(max, AUTONOMY_OPTIONS.find((o) => o.key === autonomyChoice)?.autonomyLevel ?? "")) {
+            setAutonomyChoice("balanced");
+          }
+        }
+      })
+      .catch(() => {
+        // Entitlements unavailable: leave every option selectable; the
+        // activation PATCH answers 403 with the upgrade path if needed.
+      });
+    // Intentionally keyed on phase only: refetching on every selection
+    // change would flicker the options. No eslint in this repo.
+  }, [phase]);
+
+  // C-09: apply the founder's approval preference to every hired agent.
+  // Best-effort per agent — a single failure must not fail activation; the
+  // founder can still tune each employee from its workspace afterwards.
+  const applyAutonomy = async (agentIds: string[], choice: AutonomyChoice) => {
+    const opt = AUTONOMY_OPTIONS.find((o) => o.key === choice) ?? AUTONOMY_OPTIONS[1]!;
+    let ok = 0;
+    for (const id of agentIds) {
+      try {
+        const res = await fetch(`/api/agents/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            autonomyLevel: opt.autonomyLevel,
+            authority: { requiresApprovalFor: opt.requiresApprovalFor, spendingLimitCents: 0 },
+          }),
+        });
+        if (res.ok) ok += 1;
+      } catch {
+        // Counted as missed below; activation still succeeds.
+      }
+    }
+    if (ok > 0) setAutonomyApplied(opt.title);
+    if (ok < agentIds.length) {
+      setNotice(
+        (prev) => prev ??
+        `Approval preferences applied to ${ok} of ${agentIds.length} employees — tune the rest from each employee's workspace.`,
+      );
     }
   };
 
@@ -318,15 +483,19 @@ export default function OnboardingPage() {
     setError(null);
     setProgressLabel("Hiring your AI employees...");
     try {
+      // Send the founder-reviewed company name so activation applies it to the
+      // org record (C-06) — otherwise the dashboard keeps the signup-time name.
+      const companyName = (editedAnalysis ?? analysis)?.companyName?.trim() || undefined;
       const res = await fetch("/api/company-builder?action=activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, ...(companyName ? { companyName } : {}) }),
       });
       const json = await res.json();
       if (!res.ok || json?.error) throw new Error(json?.error?.message ?? "Activation failed");
       const act = json.data.activation as ActivationResult;
       setActivation(act);
+      await applyAutonomy((act?.agents ?? []).map((a) => a.id), autonomyChoice);
       setPhase("done");
       analytics.onboardingCompleted(
         act?.departments?.length ?? 0,
@@ -414,6 +583,25 @@ export default function OnboardingPage() {
                 </span>
               </button>
             </div>
+
+            <button
+              onClick={startDemo}
+              disabled={seedingDemo}
+              className={`group mt-4 flex w-full items-center gap-4 rounded-2xl border border-dashed bg-transparent p-5 text-left transition-all hover:border-ink-accent/60 hover:bg-white/[0.04] disabled:opacity-60 ${demoIntent ? "border-ink-accent/70 bg-white/[0.05]" : "border-white/20"}`}
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-white/70">
+                {seedingDemo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+              </div>
+              <span>
+                <span className="block text-base font-semibold text-white">
+                  {seedingDemo ? "Setting up your demo company…" : "Just looking? Explore a demo company"}
+                </span>
+                <span className="mt-1 block text-sm leading-relaxed text-white/50">
+                  Tour a living sample company in its own separate space — your real company stays untouched.
+                </span>
+              </span>
+              <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-white/40 transition-transform group-hover:translate-x-0.5" />
+            </button>
           </div>
         )}
 
@@ -429,9 +617,44 @@ export default function OnboardingPage() {
             <h1 className="mt-3 text-3xl font-semibold text-white">Choose an industry playbook</h1>
             <p className="mt-3 max-w-xl text-white/60">
               A playbook seeds your constitution, departments, AI employees, initial goals and starter tasks —
-              so your company is already organized and working when you arrive. You can also skip and describe
+              applied to <em className="text-white/80 not-italic underline decoration-ink-accent/60 underline-offset-4">your</em> company facts below,
+              so the result is yours rather than generic. You can also skip and describe
               your company from scratch.
             </p>
+
+            {/* C-02 gate: company facts before any seed. */}
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="playbook-company" className="mb-1.5 block text-xs font-medium text-white/70">
+                  Company name <span className="text-ink-accent">*</span>
+                </label>
+                <input
+                  id="playbook-company"
+                  value={playbookCompany}
+                  onChange={(e) => setPlaybookCompany(e.target.value)}
+                  placeholder="e.g. NovaForge AI"
+                  maxLength={120}
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent"
+                />
+              </div>
+              <div>
+                <label htmlFor="playbook-objective" className="mb-1.5 block text-xs font-medium text-white/70">
+                  Primary objective <span className="text-white/35">(optional)</span>
+                </label>
+                <input
+                  id="playbook-objective"
+                  value={playbookObjective}
+                  onChange={(e) => setPlaybookObjective(e.target.value)}
+                  placeholder="e.g. Reach $1M ARR with mid-market ops teams"
+                  maxLength={500}
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-ink-accent"
+                />
+              </div>
+            </div>
+            {!playbookCompany.trim() && (
+              <p className="mt-3 text-xs text-white/45">Name your company above to unlock the playbooks.</p>
+            )}
+            {error && phase === "playbook" && <ErrorBanner message={error} />}
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {playbooksLoading && playbooksList.length === 0
@@ -452,7 +675,8 @@ export default function OnboardingPage() {
                 <button
                   key={p.slug}
                   onClick={() => seedPlaybook(p.slug)}
-                  disabled={seedingPlaybook !== null}
+                  disabled={seedingPlaybook !== null || !playbookCompany.trim()}
+                  title={!playbookCompany.trim() ? "Name your company first" : `Seed the ${p.name} playbook`}
                   className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left transition-all hover:border-ink-accent/60 hover:bg-white/[0.06] disabled:opacity-50"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-accent/10 text-ink-accent">
@@ -803,6 +1027,48 @@ export default function OnboardingPage() {
               </section>
             </div>
 
+            {/* C-09: approval preference — written to the enforcement columns on activation. */}
+            <section className="mt-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-ink-accent" />
+                <h2 className="text-lg font-semibold text-white">How much leeway does your team get?</h2>
+              </div>
+              <p className="mt-1 text-sm text-white/50">
+                This is enforced on every run — not a label. You can change it per employee later.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Approval preference">
+                {AUTONOMY_OPTIONS.map((opt) => {
+                  const selected = autonomyChoice === opt.key;
+                  const locked = !levelAllowed(planMaxAutonomy, opt.autonomyLevel);
+                  return (
+                    <button
+                      key={opt.key}
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={locked}
+                      title={locked ? "Needs the Team plan or higher" : undefined}
+                      onClick={() => setAutonomyChoice(opt.key)}
+                      className={`rounded-xl border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
+                        selected
+                          ? "border-ink-accent/70 bg-ink-accent/10"
+                          : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-ink-accent" : "border-white/30"}`}>
+                          {selected && <span className="h-2 w-2 rounded-full bg-ink-accent" />}
+                        </span>
+                        {opt.title}
+                      </span>
+                      <span className="mt-1.5 block text-xs leading-relaxed text-white/50">
+                        {locked ? "Needs the Team plan or higher — upgrade to unlock." : opt.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
             <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6">
               <button
                 onClick={() => setPhase("analysis")}
@@ -860,6 +1126,12 @@ export default function OnboardingPage() {
             <p className="mt-3 max-w-md text-white/60">
               ORQ8 has built your AI workforce and is preparing your command center.
             </p>
+            {autonomyApplied && (
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3.5 py-1.5 text-xs text-white/70">
+                <Shield className="h-3.5 w-3.5 text-ink-accent" />
+                Your team starts in “{autonomyApplied}” mode
+              </p>
+            )}
             {notice && (
               <div className="mt-5 max-w-md rounded-xl border border-ink-accent/40 bg-ink-accent/10 px-4 py-3 text-sm text-ink-accent">
                 {notice}
@@ -887,11 +1159,31 @@ export default function OnboardingPage() {
                 <p className="mt-2 text-sm text-white/40">Taking you to your dashboard...</p>
               </>
             )}
-            {catalogDepts.length > 0 && (
+            {(catalogDepts.length > 0 || activatedCatalog.length > 0) && (
               <div className="mt-8 w-full max-w-lg text-left">
                 <p className="text-sm font-medium text-white/70">Add another department from the catalog</p>
+                {activatedCatalog.length > 0 && (
+                  <div className="mt-3 space-y-2" aria-live="polite">
+                    {activatedCatalog.map((a) => (
+                      <p key={a.id} className="rounded-xl border border-ink-accent/40 bg-ink-accent/10 px-4 py-3 text-sm text-white">
+                        <span className="font-semibold">{a.name}</span> is established.
+                        {a.departmentId ? (
+                          <>
+                            {" "}
+                            <button
+                              onClick={() => router.push(`/app/departments/${a.departmentId}`)}
+                              className="underline underline-offset-4 hover:text-ink-accent"
+                            >
+                              Open it
+                            </button>
+                          </>
+                        ) : null}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-3 space-y-2">
-                  {catalogDepts.slice(0, 4).map((t) => (
+                  {catalogDepts.map((t) => (
                     <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-white">{t.name}</p>

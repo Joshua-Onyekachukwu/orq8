@@ -90,7 +90,7 @@ export default async function AdminAgentsPage() {
                     {a.tasksCompleted}
                   </td>
                   <td className="px-5 py-3 font-mono text-xs tabular-nums text-muted">
-                    ${((a.weeklyCost ?? 0) / 100).toFixed(2)}
+                    {Number(a.weeklyCost ?? 0).toLocaleString()} cr
                   </td>
                 </tr>
               ))

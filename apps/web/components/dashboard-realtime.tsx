@@ -145,7 +145,7 @@ export function DashboardRealtime({
           case "credits.consumed":
             setStats((prev) => ({
               ...prev,
-              weeklySpend: prev.weeklySpend + event.amount / 100,
+              weeklySpend: prev.weeklySpend + event.amount,
             }));
             break;
           case "agent.status_changed":

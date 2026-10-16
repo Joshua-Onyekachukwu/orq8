@@ -68,9 +68,9 @@ describe('attention classification', () => {
     expect(deadlineSeverity(false)).toBe('warning');
   });
 
-  it('formats cents as the unit the schema stores', () => {
-    expect(formatCents(0)).toBe('$0.00');
-    expect(formatCents(12345)).toBe('$123.45');
+  it('formats cost columns as credit counts', () => {
+    expect(formatCents(0)).toBe('0 credits');
+    expect(formatCents(12345)).toBe('12,345 credits');
   });
 });
 
@@ -100,7 +100,7 @@ describe('attention item shape', () => {
     expect(item.what).toBe('Approve the pilot launch budget');
     expect(item.why).toContain('paid channel budget');
     expect(item.who).toBe('Atlas');
-    expect(item.impact).toBe('$250.00 of Work Credits at stake');
+    expect(item.impact).toBe('25,000 credits at stake');
     expect(item.next.length).toBeGreaterThan(0);
     expect(item.entity).toEqual({ type: 'approval', id: '11111111-1111-1111-1111-111111111111' });
 

@@ -156,7 +156,7 @@ export default async function ExecutionMonitoringPage() {
                         </span>
                         {event.cost > 0 && (
                           <span className="text-3xs font-mono text-ink-muted">
-                            {(event.cost / 100).toFixed(2)} credits
+                            {Number(event.cost ?? 0).toLocaleString()} credits
                           </span>
                         )}
                       </div>

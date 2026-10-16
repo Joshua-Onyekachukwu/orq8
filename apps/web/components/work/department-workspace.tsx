@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { usePageContext } from "../executive-agent-context";
 import { titleize, type AgentAuthority } from "./authority-panel";
-import { WorkCard } from "../os/primitives";
+import { WorkCard, formatCredits } from "../os/primitives";
 import { HirePanel } from "./hire-panel";
 import { WorkflowEditor } from "./workflow-editor";
 import {
@@ -305,10 +305,6 @@ const AUTONOMY_ORDER = [
   "autonomous",
 ] as const;
 
-function formatCost(cents: number): string {
-  return `$${((cents ?? 0) / 100).toFixed(2)}`;
-}
-
 function formatBytes(size: number): string {
   if (!Number.isFinite(size) || size <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -557,7 +553,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                   {approval.agentId ? (memberNameById.get(approval.agentId) ?? "Employee") : "Department"}
                   {" · "}
                   {approval.riskLevel} risk
-                  {approval.cost > 0 ? ` · ${formatCost(approval.cost)}` : ""}
+                  {approval.cost > 0 ? ` · ${formatCredits(approval.cost)}` : ""}
                   {" · "}
                   {/* normal-case: the label above is uppercased, and "6M AGO"
                       reads as six months for six minutes. */}
@@ -611,7 +607,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                 </span>
                 {task.cost > 0 && (
                   <span className="font-mono text-2xs tabular-nums text-muted">
-                    {formatCost(task.cost)}
+                    {formatCredits(task.cost)}
                   </span>
                 )}
               </li>
@@ -1294,7 +1290,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                     {approval.agentId ? (memberNameById.get(approval.agentId) ?? "Employee") : "—"}
                     {" · "}
                     {formatDate(approval.decidedAt ?? approval.createdAt)}
-                    {approval.cost > 0 ? ` · ${formatCost(approval.cost)}` : ""}
+                    {approval.cost > 0 ? ` · ${formatCredits(approval.cost)}` : ""}
                   </p>
                   {approval.decisionNote && (
                     <p className="mt-0.5 text-xs text-muted">“{approval.decisionNote}”</p>
@@ -1387,7 +1383,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                 </p>
                 <p className="mt-2 text-sm text-ink">
                   {authorityRollup.spendCeiling > 0
-                    ? `Up to ${formatCost(authorityRollup.spendCeiling)} per action without approval (highest member limit).`
+                    ? `Up to ${(authorityRollup.spendCeiling ?? 0).toLocaleString()} credits per action without approval (highest member limit).`
                     : "No employee in this department may spend without approval."}
                 </p>
 
@@ -1480,7 +1476,7 @@ export function DepartmentWorkspace({ detail }: { detail: DepartmentDetailData }
                     <span className="font-mono text-2xs text-muted">{formatTimeAgo(event.occurredAt)}</span>
                     {event.cost > 0 && (
                       <span className="font-mono text-2xs tabular-nums text-muted">
-                        {formatCost(event.cost)}
+                        {formatCredits(event.cost)}
                       </span>
                     )}
                   </div>

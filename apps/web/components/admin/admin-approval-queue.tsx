@@ -114,7 +114,7 @@ export function AdminApprovalQueue({ approvals }: { approvals: Approval[] }) {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 font-mono text-xs tabular-nums text-muted">
-                    ${(a.cost / 100).toFixed(2)}
+                    {`${Number(a.cost ?? 0).toLocaleString()} cr`}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
                     <span

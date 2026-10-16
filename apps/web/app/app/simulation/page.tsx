@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { formatCredits } from "../../../components/os/primitives";
 import {
   Activity,
   AlertTriangle,
@@ -116,11 +117,6 @@ function stateBadge(state: string) {
     case "applied": return { label: "Applied", cls: "bg-brand-soft text-brand-ink" };
     default: return { label: state, cls: "bg-muted/10 text-muted" };
   }
-}
-
-function formatCredits(cents: number) {
-  if (cents >= 100000) return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function deltaPct(current: number, projected: number) {

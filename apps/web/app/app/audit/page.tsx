@@ -332,7 +332,7 @@ export default async function AuditPage({
                             prev <span className="text-ink">{row.prevHash.slice(0, 16)}…</span>
                           </span>
                           {row.agentRole ? <span>{row.agentRole}</span> : null}
-                          {row.cost ? <span>{(row.cost / 100).toFixed(2)} spent</span> : null}
+                          {row.cost ? <span>{Number(row.cost).toLocaleString()} cr spent</span> : null}
                           {row.taskId ? (
                             <Link
                               href={`/app/tasks/${row.taskId}`}

@@ -295,10 +295,6 @@ function formatClock(iso: string): string {
   });
 }
 
-function formatMoney(dollars: number): string {
-  return `$${dollars.toFixed(2)}`;
-}
-
 /**
  * Company HQ (docs/71 §F, marketing/headquarters-mock-v2.html).
  *
@@ -555,7 +551,7 @@ export default async function AppPage() {
       tasksCompleted: agent.tasksCompleted ?? 0,
       tasksFailed: agent.tasksFailed ?? 0,
       weeklyCostLabel:
-        (agent.weeklyCost ?? 0) > 0 ? `${formatMoney((agent.weeklyCost ?? 0) / 100)}/wk` : null,
+        (agent.weeklyCost ?? 0) > 0 ? `${(agent.weeklyCost ?? 0).toLocaleString()} credits/wk` : null,
       ask: approval
         ? `${approval.action}${approval.description ? ` — ${approval.description}` : ""}`
         : state === "blocked"
@@ -815,8 +811,8 @@ export default async function AppPage() {
         />
         <StatCard
           label="Credits this week"
-          value={weeklySpend > 0 ? formatMoney(weeklySpend) : (credits?.remaining ?? 0)}
-          suffix={weeklySpend > 0 ? "spent" : "left"}
+          value={weeklySpend > 0 ? weeklySpend.toLocaleString() : (credits?.remaining ?? 0)}
+          suffix={weeklySpend > 0 ? "credits spent" : "credits left"}
           meter={credits?.utilizationPercent ?? 0}
           tone={credits?.isCritical ? "danger" : credits?.isLow ? "warn" : "ok"}
           subtext={
@@ -1044,11 +1040,6 @@ export default async function AppPage() {
                       ? event.summary.slice(who.length + 2)
                       : event.summary}
                   </span>
-                  {event.cost > 0 && (
-                    <span className="shrink-0 tabular-nums text-muted">
-                      {formatMoney(event.cost / 100)}
-                    </span>
-                  )}
                 </div>
               );
             })}

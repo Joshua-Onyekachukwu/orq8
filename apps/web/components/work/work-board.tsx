@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatCredits } from "../os/primitives";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -98,11 +99,6 @@ function matchesFilter(task: WorkTask, filter: Filter): boolean {
   if (filter === "backlog") return columnFor(task.status) === "backlog";
   if (filter === "progress") return task.status === "in_progress";
   return columnFor(task.status) === "done";
-}
-
-function formatCredits(cents: number): string {
-  // Tasks store cost in cents; the product shows whole credits.
-  return `${Math.round(cents / 100)} Cr`;
 }
 
 function formatWhen(iso: string | null | undefined): string {

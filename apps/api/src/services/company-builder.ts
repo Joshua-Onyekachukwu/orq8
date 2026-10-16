@@ -293,8 +293,11 @@ async function seedCompanyBrain(db: Db, orgId: string, analysis: CompanyAnalysis
   if (analysis.stage) {
     facts.push({ category: 'fact', content: `Company stage: ${analysis.stage}`, importance: 5 });
   }
+  // Priorities are NEVER founder decisions at this point — the founder has not
+  // confirmed them (and the fallback path invents them outright). Record as
+  // unconfirmed suggestions so memory cannot present guesses as commitments.
   for (const p of analysis.priorities) {
-    facts.push({ category: 'decision', content: `Founder priority: ${p}`, importance: 6 });
+    facts.push({ category: 'context', content: `Suggested priority (unconfirmed): ${p}`, importance: 6 });
   }
   for (const r of analysis.risks) {
     facts.push({ category: 'context', content: `Risk: ${r}`, importance: 5 });

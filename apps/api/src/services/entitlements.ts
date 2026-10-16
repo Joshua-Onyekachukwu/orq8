@@ -16,6 +16,7 @@ import { eq, and, notInArray, sql } from 'drizzle-orm';
 import { agents, departments, teams, integrationProviders, mcpServers, subscriptions, type Db } from '@orq8/db';
 import { forbidden } from '@orq8/core';
 import { PLANS, TRIAL_CAPS } from './billing.js';
+import { AUTONOMY_LEVELS, autonomyLabel, type AutonomyLevel } from './autonomy.js';
 
 /** Providers whose MCP rows are connector catalogs, not custom MCP servers. */
 const CONNECTOR_PROVIDERS = ['github', 'gmail', 'linear'] as const;
@@ -232,6 +233,27 @@ export async function enforceResourceLimit(db: Db, orgId: string, resource: Enti
         `Archive inactive ${label} to free capacity, or upgrade your plan.`,
     );
   }
+}
+
+/**
+ * Plan-tier autonomy gate (P2: Founder phased vs Company full map).
+ *
+ * Trial and Founder top out at `execute_with_approval`; `autonomous` unlocks
+ * at Team/Company/Enterprise. Enforced wherever a level is granted (hire,
+ * update, performance set_autonomy) — the grant paths, never only the
+ * frontend. Unknown level strings are left to zod/normalizeAutonomyLevel.
+ */
+export async function enforceAutonomyCap(db: Db, orgId: string, level: string): Promise<void> {
+  if (!(AUTONOMY_LEVELS as readonly string[]).includes(level)) return;
+  const caps = await getCaps(db, orgId);
+  const granted = (AUTONOMY_LEVELS as readonly string[]).indexOf(level);
+  const allowed = (AUTONOMY_LEVELS as readonly string[]).indexOf(caps.autonomy);
+  if (allowed < 0 || granted <= allowed) return;
+  const row = await resolvePlanRow(db, orgId);
+  throw forbidden(
+    `Your ${row.planName} plan allows autonomy up to ${autonomyLabel(caps.autonomy as AutonomyLevel)}; ` +
+      `'${level}' needs the Team plan or higher. Upgrade to unlock it.`,
+  );
 }
 
 /** Helper for route handlers that build a usage payload from a plan label. */

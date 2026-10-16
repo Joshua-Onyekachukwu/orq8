@@ -77,7 +77,7 @@ export function AdminActivityFeed({ activity }: { activity: ActivityEvent[] }) {
               </div>
               {e.cost > 0 && (
                 <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
-                  ${(e.cost / 100).toFixed(2)}
+                  {Number(e.cost ?? 0).toLocaleString()} cr
                 </span>
               )}
             </li>

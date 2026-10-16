@@ -342,7 +342,7 @@ function GoalRow({
           <span>
             {done}/{steps.length} done · {progress}% complete
           </span>
-          {spent > 0 ? <span>${(spent / 100).toFixed(2)} spent</span> : null}
+          {spent > 0 ? <span>{spent.toLocaleString()} cr spent</span> : null}
           <Link
             href={`/app/goals/${goal.id}`}
             className="ml-auto inline-flex items-center gap-1 font-sans text-xs text-ink transition-colors hover:text-brand-ink"

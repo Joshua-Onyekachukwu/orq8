@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ClipboardCheck } from "lucide-react";
 import { ApprovalActions } from "../approval-actions";
+import { formatCredits } from "../os/primitives";
 
 interface GatedWork {
   taskId: string | null;
@@ -25,10 +26,6 @@ interface Approval {
   createdAt: string;
   // Resolved by the API (migration 0036): what approving or rejecting moves.
   gatedWork?: GatedWork | null;
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function riskBadge(risk: string) {
@@ -126,7 +123,7 @@ export function ApprovalList({ approvals, onRefresh }: ApprovalListProps) {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs tabular-nums text-muted">
-                    {formatCost(a.cost)}
+                    {formatCredits(a.cost)}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3.5">
                     <ApprovalActions

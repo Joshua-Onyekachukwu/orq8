@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageErrorBoundary } from "../../../../components/page-error-boundary";
+import { formatCredits } from "../../../../components/os/primitives";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -79,10 +80,6 @@ function formatDate(iso: string): string {
   } catch {
     return "Unknown";
   }
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 export default function TaskDetailPage() {
@@ -355,10 +352,10 @@ export default function TaskDetailPage() {
                 </div>
                 <div className="bg-canvas px-4 py-3">
                   <dt className="font-mono text-2xs font-semibold uppercase tracking-wide text-muted">
-                    Cost
+                    Credits used
                   </dt>
                   <dd className="mt-0.5 text-sm font-medium tabular-nums text-ink">
-                    {formatCost(task.cost)}
+                    {formatCredits(task.cost)}
                   </dd>
                 </div>
               </dl>

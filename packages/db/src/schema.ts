@@ -561,7 +561,7 @@ export const tasks = pgTable(
     dueDate: timestamp('due_date', { withTimezone: true }), // optional deadline
     teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }), // optional team owner
     initiativeId: uuid('initiative_id').references(() => initiatives.id, { onDelete: 'set null' }), // strategy lineage link
-    cost: integer('cost').notNull().default(0), // cost in cents
+    cost: integer('cost').notNull().default(0), // cost in credits (task-executor charges model+tool credits; NOT cents)
     // docs/80 Phase 1: the reservation estimate shown to the user before the
     // task runs, so a task row can present estimate vs settled actual.
     estimatedCredits: integer('estimated_credits'),
@@ -605,7 +605,7 @@ export const approvals = pgTable(
     agentId: uuid('agent_id').references(() => agents.id),
     action: text('action').notNull(), // what the agent wants to do
     description: text('description'), // detailed description / context
-    cost: integer('cost').notNull().default(0), // cost in cents
+    cost: integer('cost').notNull().default(0), // cost in credits (task-executor charges model+tool credits; NOT cents)
     riskLevel: text('risk_level').notNull().default('low'), // low | medium | high
     status: text('status').notNull().default('pending'), // pending | approved | rejected | modified | expired
     decisionNote: text('decision_note'), // CEO's note when approving/modifying/rejecting
@@ -690,7 +690,7 @@ export const activityEvents = pgTable(
     type: text('type').notNull(), // analyzed | drafted | reviewed | deployed | approved | rejected | filed
     summary: text('summary').notNull(), // plain-language description
     reason: text('reason'), // the 'because' — why this action was taken
-    cost: integer('cost').notNull().default(0), // cost in cents
+    cost: integer('cost').notNull().default(0), // cost in credits (task-executor charges model+tool credits; NOT cents)
     department: text('department'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -107,15 +107,6 @@ export function CommandResultDisplay({
         <div className="flex-1">
           <p className="text-sm font-medium text-ink whitespace-pre-wrap">{result.message}</p>
 
-          {/* Credits consumed */}
-          {result.credits && result.credits.consumed > 0 && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-ink-muted">
-              <span className="rounded-full bg-brand-deep/10 px-2 py-0.5 text-brand-ink font-medium">
-                <Zap className="inline h-3 w-3" /> {result.credits.consumed} credits used
-              </span>
-              <span>{result.credits.remaining} remaining</span>
-            </div>
-          )}
 
           {/* NVIDIA Scope Warnings */}
           {result.warnings && result.warnings.length > 0 && (

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useExecutiveAgent, useEaName, usePageContext } from "../executive-agent-context";
 import { OsEmptyPanel, OsTabs, OsZoneTitle } from "../os/structure";
-import { formatCost, taskOsStatus, type DotState } from "../os/primitives";
+import { taskOsStatus, type DotState } from "../os/primitives";
 import {
   AuthorityPanel,
   authorityDirty,
@@ -112,7 +112,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-// DotState, formatCost and the task state mapping live in the shared layer
+// DotState and the task state mapping live in the shared layer
 // (components/os/primitives) — this file used to carry its own copies, which is
 // how "failed" came to render as "blocked" here while the department page had
 // already learned the difference.
@@ -457,7 +457,7 @@ export function EmployeeWorkspace({
             { label: "Tasks completed", value: String(agent.tasksCompleted ?? 0) },
             { label: "Tasks failed", value: String(agent.tasksFailed ?? 0) },
             { label: "Credits used", value: String(agent.creditsUsed ?? 0) },
-            { label: "Cost this week", value: formatCost(costThisWeek) },
+            { label: "Credits this week", value: `${costThisWeek.toLocaleString()} cr` },
             { label: "Hired", value: formatDate(agent.createdAt) },
           ].map((stat) => (
             <div key={stat.label} className="bg-canvas px-3.5 py-2.5">
@@ -813,7 +813,7 @@ export function EmployeeWorkspace({
                           {task.dueDate ? formatDate(task.dueDate) : "—"}
                         </td>
                         <td className="whitespace-nowrap px-3.5 py-2.5 font-mono text-xs tabular-nums text-muted">
-                          {formatCost(task.cost)}
+                          {`${task.cost.toLocaleString()} cr`}
                         </td>
                       </tr>
                     ))}
@@ -841,7 +841,7 @@ export function EmployeeWorkspace({
                     <span className="min-w-0 flex-1 text-sm text-ink">{event.summary}</span>
                     <span className="font-mono text-2xs text-muted">
                       {event.type.replace(/_/g, " ")}
-                      {event.cost > 0 ? ` · ${formatCost(event.cost)}` : ""} ·{" "}
+                      {event.cost > 0 ? ` · ${event.cost.toLocaleString()} cr` : ""} ·{" "}
                       {formatTimeAgo(event.occurredAt)}
                     </span>
                   </li>

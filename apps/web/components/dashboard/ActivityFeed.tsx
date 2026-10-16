@@ -126,7 +126,7 @@ export function ActivityFeed({ initialActivity = [] }: ActivityFeedProps) {
               )}
               <div className="mt-1 flex items-center gap-3 text-3xs text-muted">
                 {event.department && <span>{event.department}</span>}
-                {event.cost > 0 && <span className="font-mono">${(event.cost / 100).toFixed(2)}</span>}
+                {event.cost > 0 && <span className="font-mono">{event.cost} cr</span>}
                 <span>{formatTime(event.occurredAt)}</span>
               </div>
             </div>

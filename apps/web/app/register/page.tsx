@@ -73,16 +73,28 @@ export default async function RegisterPage({
       brandHeadline="You stay the CEO. The company runs."
       brandBody="Name your company, hire AI employees into real departments, and delegate the first work today. You review, approve, and decide."
       footer={
-        <p className="text-sm text-white/50">
-          Already running a company?{" "}
-          <Link
-            href={`/login${nextQs}`}
-            className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
-          >
-            Sign in
-          </Link>
-          .
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-white/50">
+            Just looking?{" "}
+            <Link
+              href="/onboarding?demo=1"
+              className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
+            >
+              Tour a demo company first
+            </Link>
+            {" "}— free account, no setup, your own company stays untouched.
+          </p>
+          <p className="text-sm text-white/50">
+            Already running a company?{" "}
+            <Link
+              href={`/login${nextQs}`}
+              className="text-white underline decoration-white/30 underline-offset-2 transition-colors hover:decoration-white"
+            >
+              Sign in
+            </Link>
+            .
+          </p>
+        </div>
       }
     >
       <AuthForm

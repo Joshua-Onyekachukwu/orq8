@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { formatCredits } from "../../../components/os/primitives";
 import { Filter, Search, Activity, AlertCircle, RefreshCw, Download } from "lucide-react";
 
 interface ActivityEvent {
@@ -14,10 +15,6 @@ interface ActivityEvent {
   cost: number;
   department: string | null;
   occurredAt: string;
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function formatTime(iso: string): string {
@@ -229,7 +226,7 @@ export default function ActivityPage() {
                     </span>
                   )}
                   <span className="ml-auto font-mono text-3xs tabular-nums text-muted">
-                    {formatCost(e.cost)}
+                    {formatCredits(e.cost)}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-ink">{e.summary}</p>

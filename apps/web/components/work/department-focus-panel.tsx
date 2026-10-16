@@ -20,7 +20,7 @@
 import Link from "next/link";
 
 import { OsEmptyPanel, OsFacts, OsMetricRow, OsSection, OsStateBadge, type OsMetric } from "../os/structure";
-import { type DotState, StateDot, formatTimeAgo } from "../os/primitives";
+import { type DotState, StateDot, formatCredits, formatTimeAgo } from "../os/primitives";
 
 export interface EngineeringFocusData {
   work: Array<{
@@ -271,11 +271,6 @@ export function DepartmentFocusPanel({
 }
 
 // ─── Marketing ──────────────────────────────────────────────────────────────
-
-/** Credits are this product's unit of account; print them as such. */
-export function formatCredits(n: number): string {
-  return `${n.toLocaleString()} cr`;
-}
 
 export interface MarketingFocusData {
   assets: Array<{

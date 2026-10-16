@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { ReportsTabs } from "../../../components/work/reports-tabs";
+import { formatCredits } from "../../../components/os/primitives";
 import {
   CalendarDays,
   AlertCircle,
@@ -44,10 +45,6 @@ interface ReportData {
   activity: ActivityEvent[];
   agents: Agent[];
   approvals: Approval[];
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 export default function ReportPage() {
@@ -207,10 +204,10 @@ export default function ReportPage() {
             <div className="rounded-xl border border-hairline bg-white p-4">
               <CircleDollarSign className="h-5 w-5 text-warm-ink" />
               <p className="mt-2 font-mono text-3xs font-semibold uppercase tracking-[0.18em] text-muted">
-                Total spend
+                Total credits used
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-                {formatCost(Math.round(totalSpend * 100))}
+                {formatCredits(Math.round(totalSpend))}
               </p>
             </div>
           </div>
@@ -262,7 +259,7 @@ export default function ReportPage() {
                       </span>
                     </div>
                     <span className="font-mono text-xs tabular-nums text-muted">
-                      {formatCost(a.cost)}
+                      {formatCredits(a.cost)}
                     </span>
                   </li>
                 ))}
@@ -325,7 +322,7 @@ export default function ReportPage() {
                           {a.tasksCompleted}
                         </td>
                         <td className="px-4 py-3 font-mono text-sm tabular-nums text-ink">
-                          {formatCost(a.weeklyCost)}
+                          {formatCredits(a.weeklyCost)}
                         </td>
                         <td className="px-4 py-3">
                           <span className="flex items-center gap-1.5 text-xs text-brand-ink">

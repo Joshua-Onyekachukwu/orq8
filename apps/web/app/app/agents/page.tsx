@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
+import { formatCredits } from "../../../components/os/primitives";
 import {
   Pause,
   Play,
@@ -52,10 +53,6 @@ const ACTION_LABELS: Record<string, string> = {
   external_communicate: "External communication",
   modify_resources: "Modify organization resources",
 };
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 function formatDate(iso: string): string {
   try {
@@ -514,8 +511,8 @@ export default function AgentsPage() {
                   <p className="text-2xs font-medium uppercase tracking-wide text-muted">Success</p>
                 </div>
                 <div className="rounded-lg bg-canvas px-3 py-2 text-center">
-                  <p className="font-mono text-sm font-bold text-ink">{formatCost(a.weeklyCost)}</p>
-                  <p className="text-2xs font-medium uppercase tracking-wide text-muted">Cost/wk</p>
+                  <p className="font-mono text-sm font-bold text-ink">{formatCredits(a.weeklyCost)}</p>
+                  <p className="text-2xs font-medium uppercase tracking-wide text-muted">Credits/wk</p>
                 </div>
               </div>
 

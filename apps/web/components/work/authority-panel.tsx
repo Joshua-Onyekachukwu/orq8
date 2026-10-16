@@ -283,7 +283,7 @@ export function AuthorityPanel({
   const set = (patch: Partial<AgentAuthority>) => onDraftChange({ ...authority, ...patch });
   const approvals = authority.requiresApprovalFor ?? [];
   const forbidden = authority.forbiddenActions ?? [];
-  const spendingDollars = ((authority.spendingLimitCents ?? 0) / 100).toFixed(2);
+  const spendingCredits = String(Math.round(authority.spendingLimitCents ?? 0));
 
   const autonomyOptions = [
     { value: "observe", label: "Observe", hint: "Read and research only — cannot execute work." },
@@ -320,29 +320,29 @@ export function AuthorityPanel({
         <div className="flex flex-wrap items-center gap-3 px-2 py-1">
           <span className="text-sm text-ink">Up to</span>
           <span className="inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas px-2 py-1.5">
-            <span className="font-mono text-xs text-muted">$</span>
             <input
               type="number"
               min={0}
               step={1}
-              value={spendingDollars}
+              value={spendingCredits}
               onChange={(e) => {
-                const dollars = Number(e.target.value);
+                const credits = Number(e.target.value);
                 set({
-                  spendingLimitCents: Number.isFinite(dollars)
-                    ? Math.max(0, Math.round(dollars * 100))
+                  spendingLimitCents: Number.isFinite(credits)
+                    ? Math.max(0, Math.round(credits))
                     : 0,
                 });
               }}
               className="w-20 bg-transparent text-sm tabular-nums text-ink focus:outline-none"
-              aria-label="Spending limit in dollars"
+              aria-label="Spending limit in credits"
             />
+            <span className="font-mono text-xs text-muted">cr</span>
           </span>
-          <span className="text-sm text-muted">per action without asking you.</span>
+          <span className="text-sm text-muted">credits per action without asking you.</span>
         </div>
         <p className="px-2 pt-1 text-2xs leading-relaxed text-muted">
           {(authority.spendingLimitCents ?? 0) === 0
-            ? "Set to $0.00 — this employee must get your approval before spending anything."
+            ? "Set to 0 — this employee must get your approval before spending anything."
             : "Anything above this amount is raised to your attention queue as an approval."}
         </p>
       </Band>

@@ -208,7 +208,7 @@ function assertUuid(value: string): void {
 async function countLegacy(db: Db, table: string, orgId: string): Promise<number> {
   assertUuid(orgId);
   const result = await db.execute(sql.raw(`SELECT COUNT(*)::int AS n FROM public.${table} WHERE org_id = '${orgId}'`));
-  const rows = (Array.isArray(result) ? result : (result as { rows: Array<{ n: number }> }).rows) as Array<{ n: number }>;
+  const rows = (Array.isArray(result) ? result : (result as unknown as { rows: Array<{ n: number }> }).rows) as Array<{ n: number }>;
   return rows[0]?.n ?? 0;
 }
 
@@ -485,7 +485,7 @@ export async function deleteOrgCompletely(
     filesRemoved,
     usersRemoved,
     audit: {
-      id: auditRow?.id ?? 'unknown',
+      id: auditRow?.id != null ? String(auditRow.id) : 'unknown',
       hash: (auditRow?.hash as string | null) ?? null,
       action: 'org.deleted',
       occurredAt: (auditRow?.occurredAt as Date | undefined)?.toISOString() ?? new Date().toISOString(),

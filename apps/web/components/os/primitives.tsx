@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { formatCredits } from "@/lib/credits";
 
 // ── Status system (docs/85 §4) ──────────────────────────────────────────────
 
@@ -73,9 +74,11 @@ export function StatusChip({ status, className = "" }: { status: OsStatus; class
 
 // ── Formatting helpers (shared, single source) ─────────────────────────────
 
-export function formatCost(cents: number): string {
-  return `$${((cents ?? 0) / 100).toFixed(2)}`;
-}
+// Credit formatting lives in `@/lib/credits` (pure TS, unit-tested) and is
+// re-exported here so existing `os/primitives` imports keep working.
+export { formatCredits } from "@/lib/credits";
+/** @deprecated Import `formatCredits` from `@/lib/credits` instead. */
+export { formatCredits as formatCost } from "@/lib/credits";
 
 /** Short month + day, for dense table cells and fact rows. `—` when absent. */
 export function formatDate(value: string | Date | null | undefined): string {
@@ -151,7 +154,6 @@ export function WorkCard({
       <p className="mt-1 text-2xs text-muted">
         {agentName ?? "Unassigned"}
         {task.priority && task.priority !== "normal" ? ` · ${task.priority}` : ""}
-        {task.cost ? ` · ${formatCost(task.cost)}` : ""}
         {task.updatedAt ? ` · ${formatTimeAgo(task.updatedAt)}` : task.createdAt ? ` · ${formatTimeAgo(task.createdAt)}` : ""}
       </p>
       {parentTitle ? (
@@ -212,7 +214,7 @@ export function EmployeeCard({ agent, href }: { agent: EmployeeCardAgent; href?:
         <p className="mt-2 truncate text-2xs text-ink">now: {agent.currentTask}</p>
       ) : null}
       <p className="mt-1.5 text-2xs text-muted">
-        {agent.tasksCompleted}✓ {agent.tasksFailed}✗ · {agent.creditsUsed}cr · {agent.autonomyLevel.replace(/_/g, " ")}
+        {agent.tasksCompleted}✓ {agent.tasksFailed}✗ · {agent.autonomyLevel.replace(/_/g, " ")}
         {agent.lastActiveAt ? ` · active ${formatTimeAgo(agent.lastActiveAt)}` : ""}
       </p>
     </>
@@ -272,7 +274,7 @@ export function ApprovalCard({
         <p className="mt-1.5 line-clamp-3 text-2xs leading-relaxed text-muted">{approval.description}</p>
       ) : null}
       <p className="mt-2 text-2xs text-muted">
-        {agentName ?? "An employee"} · {formatCost(approval.cost)} · {formatTimeAgo(approval.createdAt)}
+        {agentName ?? "An employee"} · {approval.cost > 0 ? `${approval.cost.toLocaleString()} credits` : "no charge"} · {formatTimeAgo(approval.createdAt)}
         {!pending && approval.status ? ` · ${approval.status}` : ""}
         {approval.decisionNote ? ` · “${approval.decisionNote}”` : ""}
       </p>
@@ -317,7 +319,7 @@ export function ActivityStream({ items, agentNameById }: { items: ActivityItem[]
             </p>
           </div>
           <span className="shrink-0 text-2xs text-muted">
-            {a.cost ? formatCost(a.cost) : ""} {formatTimeAgo(a.occurredAt)}
+            {formatTimeAgo(a.occurredAt)}
           </span>
         </li>
       ))}
@@ -368,7 +370,7 @@ export function AuthorityPanel({ authority, autonomyLevel }: { authority?: Agent
           <p className="font-mono text-2xs uppercase tracking-wider text-muted">Can spend</p>
           <p className="mt-2 text-sm text-ink">
             {(authority.spendingLimitCents ?? 0) > 0
-              ? `up to ${formatCost(authority.spendingLimitCents ?? 0)} without asking`
+              ? `up to ${formatCredits(authority.spendingLimitCents ?? 0)} without asking`
               : "nothing without approval"}
           </p>
         </div>

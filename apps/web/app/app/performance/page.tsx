@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { ReportsTabs } from "../../../components/work/reports-tabs";
+import { formatCredits } from "../../../components/os/primitives";
 import {
   Activity,
   AlertTriangle,
@@ -97,11 +98,6 @@ function autonomyBadge(level: ReliabilityProfile["autonomyLevel"]) {
 
 function pct(v: number) {
   return `${Math.round(v)}%`;
-}
-
-function formatCredits(cents: number) {
-  if (cents >= 100000) return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 /* ── Page ── */

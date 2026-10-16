@@ -305,11 +305,6 @@ export async function fetchOrgEaName(): Promise<string> {
 
 // ─── Utility functions ───
 
-/** Format cents as dollar amount */
-export function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 /** Format ISO date as human-readable time ago */
 export function formatTimeAgo(iso: string): string {
   try {

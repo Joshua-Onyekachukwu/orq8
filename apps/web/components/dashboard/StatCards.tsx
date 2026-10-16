@@ -22,9 +22,6 @@ interface StatCardsProps {
   } | null;
 }
 
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 const statCards = [
   {
@@ -47,11 +44,11 @@ const statCards = [
   },
   {
     key: "spend" as const,
-    label: "Weekly spend",
+    label: "Credits used",
     icon: CircleDollarSign,
     accent: "bg-warm-soft text-warm-ink",
     href: "/app/budgets",
-    getValue: (s: StatCardsProps) => formatCost(Math.round(s.weeklySpend * 100)),
+    getValue: (s: StatCardsProps) => `${Math.round(s.weeklySpend).toLocaleString()} cr`,
     getNote: (s: StatCardsProps) => (s.weeklySpend > 0 ? "this week" : "no spend yet"),
   },
   {

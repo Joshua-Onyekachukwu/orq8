@@ -229,7 +229,7 @@ export default function OrgPage() {
               { label: "Agents", value: data.stats.activeAgents, icon: <Users className="h-4 w-4" />, color: "bg-ink-accent/10 text-brand-ink" },
               { label: "Goals", value: data.stats.activeGoals, icon: <Target aria-hidden="true" className="h-4 w-4" />, color: "bg-brand-soft text-ink" },
               { label: "Tasks Done", value: data.stats.totalTasksCompleted, icon: <Activity className="h-4 w-4" />, color: "bg-brand-soft text-ink" },
-              { label: "Weekly Cost", value: `$${(data.stats.weeklyCost / 100).toFixed(2)}`, icon: <Wallet className="h-4 w-4" />, color: "bg-warm-soft text-warm-ink" },
+              { label: "Weekly credits", value: `${Math.round(data.stats.weeklyCost ?? 0).toLocaleString()} cr`, icon: <Wallet className="h-4 w-4" />, color: "bg-warm-soft text-warm-ink" },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl border border-hairline bg-white p-4">
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.color}`}>
@@ -430,8 +430,8 @@ export default function OrgPage() {
                   <dd className="mt-1 text-sm text-ink">{selectedAgent.tasksCompleted}</dd>
                 </div>
                 <div>
-                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Weekly Cost</dt>
-                  <dd className="mt-1 text-sm tabular-nums text-ink">${(selectedAgent.weeklyCost / 100).toFixed(2)}</dd>
+                  <dt className="font-mono text-3xs font-semibold uppercase tracking-wide text-muted">Weekly credits</dt>
+                  <dd className="mt-1 text-sm tabular-nums text-ink">{Math.round(selectedAgent.weeklyCost ?? 0).toLocaleString()} cr</dd>
                 </div>
               </dl>
               {selectedAgent.currentTask && (

@@ -178,6 +178,20 @@ export async function getPlanLimits(
 
 let stripeClient: any = null;
 
+/**
+ * Test seam: the `stripe` npm package is an optional dependency (loaded via
+ * `require`, which the vitest mock registry cannot intercept), so tests
+ * inject a fake client here instead of mocking the module. Production never
+ * calls this — `getStripe` lazily builds the real client on first use.
+ */
+export function __setStripeClientForTests(client: any): void {
+  stripeClient = client;
+}
+
+export function __resetStripeClientForTests(): void {
+  stripeClient = null;
+}
+
 function getStripe(config: AppConfig): any {
   if (stripeClient) return stripeClient;
   if (!config.STRIPE_SECRET_KEY) return null;
@@ -237,7 +251,18 @@ export async function createCheckoutSession(
     .where(and(eq(subscriptions.orgId, orgId), eq(subscriptions.status, 'active')))
     .limit(1);
 
-  let customerId = existingSub?.stripeSubscriptionId?.replace('sub_', 'cus_') ?? null;
+  // Resolve the Stripe customer from the live subscription object — a
+  // subscription id is never a customer id with the prefix swapped, so the
+  // customer must be read from Stripe, not derived by string surgery.
+  let customerId: string | null = null;
+  if (existingSub?.stripeSubscriptionId) {
+    try {
+      const live = await stripe.subscriptions.retrieve(existingSub.stripeSubscriptionId);
+      customerId = (typeof live.customer === 'string' ? live.customer : live.customer?.id) ?? null;
+    } catch {
+      customerId = null; // stale subscription row — fall through and mint a customer
+    }
+  }
 
   if (!customerId) {
     // Create a new Stripe customer

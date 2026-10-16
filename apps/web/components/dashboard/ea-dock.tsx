@@ -56,10 +56,6 @@ export interface EADockProps {
   eventsThisHour: number;
 }
 
-function formatMoney(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
 /** The dock's shared body — identical content in the desktop aside and the mobile sheet. */
 function DockBody({
   variant,
@@ -228,7 +224,6 @@ function DockBody({
           >
             <p className="text-2xs text-muted">
               Gate · {gate.agentName ?? "An employee"}
-              {gate.cost > 0 ? ` · ${formatMoney(gate.cost)}` : ""}
             </p>
             <p className="mt-1 text-sm font-semibold text-ink">{gate.action}</p>
             {gate.description && (
@@ -283,8 +278,7 @@ function DockBody({
         {events.slice(0, 2).map((event) => (
           <div key={event.id} className="rounded-lg border border-hairline bg-canvas p-3">
             <p className="text-2xs text-muted">
-              {event.agentName ? `${event.agentName} · ` : ""}
-              {formatMoney(event.cost)}
+              {event.agentName ?? "Update"}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-ink">{event.summary}</p>
           </div>

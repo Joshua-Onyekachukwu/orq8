@@ -22,7 +22,7 @@ import {
   autonomyLabel,
   type ActionClass,
 } from '../services/autonomy.js';
-import { enforceResourceLimit } from '../services/entitlements.js';
+import { enforceAutonomyCap, enforceResourceLimit } from '../services/entitlements.js';
 import * as deptService from '../services/departments.js';
 import * as teamService from '../services/teams.js';
 import type { AppDeps } from '../types.js';
@@ -255,6 +255,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
 
     // Plan enforcement: central entitlement engine (agent cap, archived excluded)
     await enforceResourceLimit(db, ctx.orgId, 'agents');
+    // P2 tier gate: the granted autonomy level must fit the plan's ceiling.
+    await enforceAutonomyCap(db, ctx.orgId, normalizeAutonomyLevel(parsed.data.autonomyLevel));
 
     // Resolve departmentId if name-based department is provided (backward compat)
     let departmentId: string | null = null;
@@ -396,7 +398,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       if (parsed.data.status !== undefined) updates.status = parsed.data.status;
       if (parsed.data.currentTask !== undefined) updates.currentTask = parsed.data.currentTask;
       if (parsed.data.capabilities !== undefined) updates.capabilities = parsed.data.capabilities;
-      if (parsed.data.autonomyLevel !== undefined) updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
+      if (parsed.data.autonomyLevel !== undefined) {
+        // P2 tier gate: raising the level past the plan ceiling is refused.
+        await enforceAutonomyCap(db, ctx.orgId, normalizeAutonomyLevel(parsed.data.autonomyLevel));
+        updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
+      }
       if (parsed.data.authority !== undefined) {
         updates.authority = { ...(agent.authority as Record<string, unknown>), ...parsed.data.authority };
       }
@@ -523,7 +529,11 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (parsed.data.role !== undefined) updates.role = parsed.data.role;
     if (parsed.data.capabilities !== undefined) updates.capabilities = parsed.data.capabilities;
-    if (parsed.data.autonomyLevel !== undefined) updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
+    if (parsed.data.autonomyLevel !== undefined) {
+      // P2 tier gate: performance grants obey the plan ceiling too.
+      await enforceAutonomyCap(db, ctx.orgId, normalizeAutonomyLevel(parsed.data.autonomyLevel));
+      updates.autonomyLevel = normalizeAutonomyLevel(parsed.data.autonomyLevel);
+    }
 
     switch (parsed.data.action) {
       case 'replace':

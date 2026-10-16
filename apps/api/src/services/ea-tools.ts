@@ -22,7 +22,8 @@ import { defaultPersonaForRole } from './agent-personas.js';
 import * as deptService from './departments.js';
 import * as teamService from './teams.js';
 import * as agentService from './agents.js';
-import { enforceResourceLimit } from './entitlements.js';
+import { enforceAutonomyCap, enforceResourceLimit } from './entitlements.js';
+import { normalizeAutonomyLevel } from './autonomy.js';
 
 // ─── Tool Types ──────────────────────────────────────────────────────────
 
@@ -242,6 +243,16 @@ export async function createAgent(
     if (!team) return { success: false, tool: 'create_agent', message: 'Team not found.', error: 'team_not_found' };
   }
 
+  // P2 tier gate: the EA hire path grants autonomy too, so it obeys the plan
+  // ceiling like the REST paths (normalize first — an unknown string must
+  // fall back to the safe default, never reach the row or bypass the check).
+  const resolvedLevel = normalizeAutonomyLevel(autonomyLevel);
+  try {
+    await enforceAutonomyCap(ctx.db, ctx.orgId, resolvedLevel);
+  } catch (err: any) {
+    return { success: false, tool: 'create_agent', message: err.message || 'Autonomy level not allowed on this plan.', error: 'tier_locked' };
+  }
+
   // Create the agent. A hire without an explicit persona carries the role's
   // default (docs/71 §F), so every employee is prompted as someone.
   const persona = defaultPersonaForRole(role.trim());
@@ -254,7 +265,7 @@ export async function createAgent(
       departmentId: departmentId ?? null,
       teamId: teamId ?? null,
       status: 'active',
-      autonomyLevel: autonomyLevel ?? 'execute_with_approval',
+      autonomyLevel: resolvedLevel,
       capabilities: capabilities ?? [],
       ...(persona ? { config: { systemPrompt: persona } } : {}),
     })

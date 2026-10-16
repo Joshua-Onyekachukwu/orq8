@@ -4,7 +4,9 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../plugins/auth.js';
 import * as builder from '../services/company-builder.js';
 import * as onboarding from '../services/onboarding.js';
+import * as orgs from '../services/orgs.js';
 import * as playbooks from '../services/playbooks.js';
+import { appendAudit } from '../services/audit.js';
 import type { AppDeps } from '../types.js';
 
 const analyzeBody = z.object({
@@ -18,6 +20,9 @@ const planBody = z.object({
 
 const activateBody = z.object({
   plan: z.record(z.string(), z.unknown()),
+  // The founder-reviewed company name from the analysis step. Applied to the
+  // org record so the dashboard shows the corrected name, not the signup one.
+  companyName: z.string().trim().min(1).max(120).optional(),
 });
 
 /**
@@ -110,6 +115,25 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
     try {
       const result = await builder.activateCompany(db, ctx.orgId, ctx.userId, plan);
 
+      // Apply the founder-reviewed company name (C-06). Best-effort: a rename
+      // failure must never fail an activation that already succeeded.
+      const companyName = parsed.data.companyName?.trim();
+      if (companyName) {
+        try {
+          await orgs.updateOrg(db, ctx.orgId, { name: companyName });
+          await appendAudit(db, {
+            orgId: ctx.orgId,
+            actorType: 'user',
+            actorId: ctx.userId,
+            action: 'org.renamed',
+            outcome: 'success',
+            inputRef: 'source=onboarding',
+          });
+        } catch (renameErr) {
+          logger.warn({ err: renameErr, orgId: ctx.orgId }, 'Company Builder: org rename skipped, activation stands');
+        }
+      }
+
       // Mark onboarding complete
       await onboarding.update(db, ctx.userId, {
         step: 'complete',
@@ -151,10 +175,21 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
     return { data: { playbooks: playbooks.listPlaybooks() } };
   });
 
-  /** Seed an industry playbook into the organization (idempotent). */
+  /**
+   * Seed an industry playbook into the organization (idempotent).
+   *
+   * C-02: the seed is gated behind company facts — a playbook is a starting
+   * template applied to YOUR company, not an instant generic company. The
+   * company name is required (applied to the org record); the objective is
+   * optional and is stored with the onboarding state for the EA to use.
+   */
   app.post('/v1/company-builder/playbook', async (request, reply) => {
     const ctx = await requireAuth(request, deps);
-    const parsed = z.object({ slug: z.string().trim().min(1).max(100) }).safeParse(request.body);
+    const parsed = z.object({
+      slug: z.string().trim().min(1).max(100),
+      companyName: z.string().trim().min(1).max(120),
+      objective: z.string().trim().min(1).max(500).optional(),
+    }).safeParse(request.body);
     if (!parsed.success) throw validation(parsed.error.flatten());
 
     try {
@@ -162,6 +197,36 @@ export function registerCompanyBuilderRoutes(app: FastifyInstance, deps: AppDeps
       // playbook seeds its most important roles and reports the trim so the
       // founder can see exactly why the team is smaller than the template.
       const result = await playbooks.seedPlaybook(db, ctx.orgId, ctx.userId, parsed.data.slug, { enforceAgentLimit: true });
+
+      // Apply the facts the gate collected. Best-effort: the seed already
+      // succeeded, so a rename/state failure is logged, never fatal.
+      try {
+        await orgs.updateOrg(db, ctx.orgId, { name: parsed.data.companyName });
+        await appendAudit(db, {
+          orgId: ctx.orgId,
+          actorType: 'user',
+          actorId: ctx.userId,
+          action: 'org.renamed',
+          outcome: 'success',
+          inputRef: 'source=playbook',
+        });
+        const current = await onboarding.getOrCreate(db, ctx.userId, ctx.orgId);
+        await onboarding.update(db, ctx.userId, {
+          step: 'complete',
+          completedAt: new Date(),
+          organization: {
+            ...(current.organization ?? {}),
+            playbookFacts: {
+              companyName: parsed.data.companyName,
+              ...(parsed.data.objective ? { objective: parsed.data.objective } : {}),
+              slug: parsed.data.slug,
+            },
+          },
+        });
+      } catch (factsErr) {
+        logger.warn({ err: factsErr, orgId: ctx.orgId }, 'Company Builder: playbook facts skipped, seed stands');
+      }
+
       return { data: { result } };
     } catch (error) {
       logger.error({ err: error, orgId: ctx.orgId, slug: parsed.data.slug }, 'Playbook seed failed');

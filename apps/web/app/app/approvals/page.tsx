@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageErrorBoundary } from "../../../components/page-error-boundary";
 import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { useRealtime } from "../../../hooks/use-realtime";
+import { formatCredits } from "../../../components/os/primitives";
 
 /**
  * The gate queue (docs/71 §J, marketing/headquarters-mock-v2.html
@@ -39,10 +40,6 @@ interface Approval {
   decidedAt: string | null;
   createdAt: string;
   gatedWork?: GatedWork | null;
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function formatDate(iso: string): string {
@@ -342,7 +339,7 @@ export default function ApprovalsPage() {
                     <span>
                       Cost:{" "}
                       <span className="text-ink">
-                        {approval.cost > 0 ? formatCost(approval.cost) : "Free"}
+                        {approval.cost > 0 ? formatCredits(approval.cost) : "Free"}
                       </span>
                     </span>
                     {approval.gatedWork?.taskId && (

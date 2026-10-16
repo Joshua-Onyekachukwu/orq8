@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PageErrorBoundary } from "../../../../components/page-error-boundary";
 import { CommandBar } from "../../../../components/command-bar";
+import { formatCredits } from "../../../../components/os/primitives";
 import {
   ArrowLeft,
   Target,
@@ -148,10 +149,6 @@ function formatDueDate(dateStr: string | null): string {
   } catch {
     return "Unknown";
   }
-}
-
-function formatCost(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
 }
 
 function formatTimeAgo(dateStr: string): string {
@@ -389,7 +386,7 @@ export default function GoalDetailPage() {
                 {totalCost > 0 && (
                   <span className="inline-flex items-center gap-1.5">
                     <DollarSign className="h-3.5 w-3.5" />
-                    {formatCost(totalCost)} total cost
+                    {formatCredits(totalCost)} total
                   </span>
                 )}
                 <span className="text-muted">·</span>
@@ -540,8 +537,8 @@ export default function GoalDetailPage() {
                           </div>
                           {agentCost > 0 && (
                             <div className="text-right">
-                              <p className="text-xs font-mono text-ink">{formatCost(agentCost)}</p>
-                              <p className="text-3xs text-muted">cost</p>
+                              <p className="text-xs font-mono text-ink">{formatCredits(agentCost)}</p>
+                              <p className="text-3xs text-muted">credits</p>
                             </div>
                           )}
                         </div>
@@ -724,7 +721,7 @@ export default function GoalDetailPage() {
                               </span>
                             )}
                             {t.cost > 0 && (
-                              <span className="font-mono">{formatCost(t.cost)}</span>
+                              <span className="font-mono">{formatCredits(t.cost)}</span>
                             )}
                           </div>
                           {t.result && (
@@ -778,7 +775,7 @@ export default function GoalDetailPage() {
                             )}
                             <span>{formatTimeAgo(event.occurredAt)}</span>
                             {event.cost > 0 && (
-                              <span className="font-mono">{formatCost(event.cost)}</span>
+                              <span className="font-mono">{formatCredits(event.cost)}</span>
                             )}
                           </div>
                           {event.reason && (

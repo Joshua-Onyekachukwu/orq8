@@ -81,7 +81,7 @@ export default async function AdminActivityPage() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 font-mono text-xs tabular-nums text-muted">
-                    {e.cost > 0 ? `$${(e.cost / 100).toFixed(2)}` : "—"}
+                    {e.cost > 0 ? `${Number(e.cost ?? 0).toLocaleString()} cr` : "—"}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3 text-xs text-muted">
                     {e.department ?? "—"}

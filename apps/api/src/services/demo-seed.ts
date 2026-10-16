@@ -147,7 +147,9 @@ export async function seedDemoCompany(db: Db, orgId: string, userId: string): Pr
     role: 'software_engineer',
     departmentId: engineering.id,
     status: 'active',
-    autonomyLevel: 'autonomous',
+    // Fixtures obey the trial ceiling too (P2 tier gate) — staged content
+    // must never showcase a tier the plan cannot grant.
+    autonomyLevel: 'execute_with_approval',
     capabilities: ['software_engineer', 'frontend', 'api', 'testing'],
     authority: FULL_AUTHORITY,
     config: {
@@ -187,7 +189,8 @@ export async function seedDemoCompany(db: Db, orgId: string, userId: string): Pr
     role: 'market_researcher',
     departmentId: growth.id,
     status: 'active',
-    autonomyLevel: 'autonomous',
+    // Same trial-ceiling rule as Ridge above.
+    autonomyLevel: 'execute_with_approval',
     capabilities: ['market_researcher', 'growth', 'outreach', 'campaigns'],
     authority: FULL_AUTHORITY,
     config: {

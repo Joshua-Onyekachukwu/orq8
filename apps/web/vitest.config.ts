@@ -1,7 +1,13 @@
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  // @vitejs/plugin-react transforms JSX/TSX in tests (components under
+  // test import .tsx modules with jsx:preserve sources). Component tests
+  // still prefer React.createElement in .ts files for speed; full .tsx
+  // suites (ea-stream-drop) run through this transform.
+  plugins: [react()],
   test: {
     environment: "jsdom",
     globals: true,

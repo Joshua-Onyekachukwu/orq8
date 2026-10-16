@@ -165,9 +165,9 @@ export const ATTENTION_SOURCES: AttentionSource[] = [
 
 // ─── Pure helpers ──────────────────────────────────────────────────────────
 
-/** Format cents (the unit every money column in the schema uses). */
+/** Format a credit count (cost columns store Work Credits, not cents). */
 export function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return `${Math.round(cents ?? 0).toLocaleString("en-US")} credits`;
 }
 
 /**
@@ -293,7 +293,7 @@ export function classifyApproval(row: ApprovalRow, eaName: string): AttentionIte
   const source = approvalSource(row.action);
   const severity = approvalSeverity(row.riskLevel);
   const who = row.agentName ?? 'Executive Agent';
-  const costImpact = row.cost > 0 ? `${formatCents(row.cost)} of Work Credits at stake` : null;
+  const costImpact = row.cost > 0 ? `${formatCents(row.cost)} at stake` : null;
   const riskImpact = row.riskLevel === 'high' ? 'High risk action' : row.riskLevel === 'medium' ? 'Medium risk action' : null;
   // A gate that does not name the work it gates asks the founder to rule on
   // nothing (docs/66.14 Gap A). Name the task when the row carries one, and the

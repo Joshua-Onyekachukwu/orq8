@@ -68,7 +68,7 @@ export function AdminAgentStatus({ agents }: { agents: Agent[] }) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs tabular-nums text-muted">
-                  ${((agent.weeklyCost ?? 0) / 100).toFixed(2)}
+                  {Number(agent.weeklyCost ?? 0).toLocaleString()} cr
                 </span>
                 <span
                   className={`h-2 w-2 shrink-0 rounded-full ${statusDot(agent.status)}`}

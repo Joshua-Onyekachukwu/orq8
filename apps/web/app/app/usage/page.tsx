@@ -64,14 +64,23 @@ export default function UsagePage() {
   const [balance, setBalance] = useState<CreditBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [limits, setLimits] = useState<{
+    plan: string;
+    planName: string;
+    upgradeAvailable: boolean;
+    nextPlan: { name: string; key: string } | null;
+  } | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [entRes, balRes] = await Promise.all([
+      const [entRes, balRes, limRes] = await Promise.all([
         fetch("/api/entitlements"),
         fetch("/api/credits/balance"),
+        fetch("/api/billing/limits"),
       ]);
       if (entRes.ok) {
         const json = await entRes.json();
@@ -83,6 +92,10 @@ export default function UsagePage() {
         const json = await balRes.json();
         setBalance(json.data ?? null);
       }
+      if (limRes.ok) {
+        const json = await limRes.json();
+        setLimits(json.data ?? null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load usage data");
     } finally {
@@ -93,6 +106,57 @@ export default function UsagePage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Start a Stripe Checkout for the next plan up. The API owns prices and
+  // returns the Stripe URL; the browser only names a plan, never a price.
+  // On success Stripe returns the founder to /app?upgraded=true (server-set).
+  const startCheckout = useCallback(async () => {
+    const key = limits?.nextPlan?.key;
+    if (!key || checkoutBusy) return;
+    setCheckoutBusy(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: key, billing_cycle: "monthly" }),
+      });
+      const json = await res.json().catch(() => null);
+      const url = json?.data?.url as string | undefined;
+      if (!res.ok || !url) {
+        throw new Error(
+          (json?.error?.message as string | undefined) ??
+            "Could not start checkout. Is billing configured?",
+        );
+      }
+      window.location.href = url;
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "Checkout failed");
+      setCheckoutBusy(false);
+    }
+  }, [limits, checkoutBusy]);
+
+  // Open the Stripe Customer Portal (payment method, invoices, cancel).
+  // Trial orgs have no subscription, so the button stays hidden for them.
+  const openPortal = useCallback(async () => {
+    if (checkoutBusy) return;
+    setCheckoutBusy(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const json = await res.json().catch(() => null);
+      const url = json?.data?.url as string | undefined;
+      if (!res.ok || !url) {
+        throw new Error(
+          (json?.error?.message as string | undefined) ?? "Could not open billing management.",
+        );
+      }
+      window.location.href = url;
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "Portal failed");
+      setCheckoutBusy(false);
+    }
+  }, [checkoutBusy]);
 
   const reached = entitlements?.resources.filter((r) => r.reached) ?? [];
   const autonomyLabel = entitlements ? AUTONOMY_LABELS[entitlements.autonomy] ?? entitlements.autonomy : null;
@@ -268,12 +332,40 @@ export default function UsagePage() {
                 ? "You've hit one or more plan limits. Upgrade to unlock more AI employees, departments, teams, and integrations."
                 : "Upgrade for more AI employees, departments, teams, connectors, and higher autonomy."}
             </p>
-            <a
-              href="/"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand"
-            >
-              View plans <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
+            {checkoutError && (
+              <p role="alert" className="mt-3 rounded-lg border border-border-error bg-error-soft px-3 py-2 text-xs text-error-ink">
+                {checkoutError}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {limits?.upgradeAvailable && limits.nextPlan ? (
+                <button
+                  type="button"
+                  onClick={startCheckout}
+                  disabled={checkoutBusy}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand disabled:opacity-50"
+                >
+                  {checkoutBusy ? "Starting checkout…" : `Upgrade to ${limits.nextPlan.name}`}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              {!entitlements?.trial ? (
+                <button
+                  type="button"
+                  onClick={openPortal}
+                  disabled={checkoutBusy}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+                >
+                  Manage billing
+                </button>
+              ) : null}
+              <a
+                href="/pricing"
+                className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-canvas"
+              >
+                View plans <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
           </div>
         )}
 

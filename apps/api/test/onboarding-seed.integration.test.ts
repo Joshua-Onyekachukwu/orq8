@@ -106,7 +106,7 @@ run('onboarding playbook seeding — entitlements, idempotency and first task', 
       method: 'POST',
       url: '/v1/company-builder/playbook',
       headers: auth(),
-      payload: { slug: 'startup-launch' },
+      payload: { slug: 'startup-launch', companyName: 'Seed Test Co' },
     });
     expect(res.statusCode).toBe(200);
     const { result } = res.json().data;
@@ -149,7 +149,7 @@ run('onboarding playbook seeding — entitlements, idempotency and first task', 
       method: 'POST',
       url: '/v1/company-builder/playbook',
       headers: auth(),
-      payload: { slug: 'startup-launch' },
+      payload: { slug: 'startup-launch', companyName: 'Seed Test Co' },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().data.result.alreadySeeded).toBe(true);

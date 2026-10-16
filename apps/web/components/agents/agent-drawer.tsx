@@ -559,7 +559,7 @@ export function AgentDrawer({
             )}
             {(authority?.spendingLimitCents ?? 0) > 0 && (
               <p className="mt-1 text-2xs text-muted">
-                Spending limit: ${((authority?.spendingLimitCents ?? 0) / 100).toFixed(2)}.
+                Spending limit: {(authority?.spendingLimitCents ?? 0).toLocaleString()} credits.
               </p>
             )}
           </section>

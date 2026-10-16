@@ -35,7 +35,7 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
       `"${(e.reason ?? '').replace(/"/g, '""')}"`,
       e.agentId ?? '',
       e.taskId ?? '',
-      (e.cost / 100).toFixed(2),
+      String(e.cost ?? 0),
       e.department ?? '',
       e.occurredAt instanceof Date ? e.occurredAt.toISOString() : String(e.occurredAt),
     ].join(','));
@@ -95,7 +95,10 @@ export function registerActivityRoutes(app: FastifyInstance, deps: AppDeps): voi
       .from(activityEvents)
       .where(and(eq(activityEvents.orgId, ctx.orgId), gte(activityEvents.occurredAt, weekAgo)));
 
-    const weeklySpend = (weeklyResult?.total ?? 0) / 100; // convert cents to dollars
+    // Activity `cost` is stored in credits (task-executor charges model credits +
+    // tool credits), so the weekly sum is credits — no dollar conversion. Dollar
+    // surfaces must convert explicitly via the declared credit rate instead.
+    const weeklySpend = weeklyResult?.total ?? 0;
 
     return {
       data: {
