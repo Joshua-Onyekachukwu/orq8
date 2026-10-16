@@ -59,16 +59,16 @@ te-limit, migration, oauth, waitlist.
 - **Repro:** log in as demo, open /app/usage — “Plan limits have been reached”, plan “Custom/Free trial”.
 - **Expected/actual:** Pro/team entitlements for the showcase org vs trial caps.
 - **Root cause:** the demo org was never granted a paid plan (billing history: none found); trial caps enforced correctly — the data, not the gate, is wrong.
-- **Fix:** founder decision — grant the demo org a Team (or Founder) plan subscription row + reset credits. Production data change: **asking approval, not doing it.**
-- **Status:** BLOCKED on approval.
+- **Fix applied 2026-10-16 (approved):** direct guarded update to the demo org only — `subscriptions` → plan team/active/4000 credits/maxAgents 25, `organizations.plan` → pro (legacy check constraint allows only free/pro/business/enterprise), October `credit_balances` → 4000/0/0/0. Two script bugs hit first (max_agents NOT NULL so 25 explicit, not NULL; org plan 'team' violates the legacy check) — both rolled back cleanly before the final apply. Live-verified: entitlements read team/25/autonomous with headroom everywhere; /app/usage renders Team, Autonomous, “3 / 4,000”.
+- **Status:** DONE.
 
 ### QA-F2 — 14 tasks failed on credit exhaustion; balance recovered unexplained; no retry path (P1 High)
 - **Impact:** dashboard leads with FAILED; 14 tasks blocked; founder sees a broken company.
 - **Repro:** open /app — LIVE ACTIVITY all FAILED ~11:00–13:41; task result: “Execution blocked: Work Credits exhausted (7 available, 8 required)”; balance now reads 85/100.
 - **Expected/actual:** failure honest per-task, but the intraday swing (7 avail → 85 avail, used=15 total) is unexplained, and failed tasks offer no retry/requeue affordance.
 - **Hypothesis:** reservations released or a grant landed mid-day; needs ledger archaeology (`credit_transactions` has no list endpoint — also a gap).
-- **Fix:** (a) investigate the swing; (b) add retry for failed tasks; (c) reset demo credits with F1. (a) needs prod-DB read access — flagging, not doing.
-- **Status:** open, needs approval for (a)/(c); (b) is code work for next round.
+- **Fix applied 2026-10-16 (approved):** credits reset to 4000 with B1; root cause confirmed as pure starvation by retrial — one failed task (“Define the MVP technical scope”) re-queued via `POST /v1/commands/tasks/:id/execute` completed in ~75s with a real deliverable at cost 3. No other failed tasks were retried (13 remain failed — left for the founder's review narrative or a follow-up). The intraday 7→85 swing mechanism remains unexplained; reservation accounting is the prime suspect.
+- **Status:** DONE (grant + proof); retry-all + swing archaeology remain optional follow-ups.
 
 ### QA-F3 — Dashboard “credits spent” disagrees with the ledger (P1 High)
 - **Evidence:** `/v1/dashboard` → `weekly_spend: 0.58→0.63` (growing, fractional) labeled “credits spent” next to “85 of 100 left” (implies 15 spent); ledger `totalUsed: 15`. `activityEvents.cost` mixes integer charges (`cost: 5` on llm.success) with fractional values — suspected mixed units (credits vs provider dollars) in one column, despite the code comment claiming credits-only.
@@ -157,8 +157,8 @@ te-limit, migration, oauth, waitlist.
 
 | # | Blocker | Severity | Action required |
 |---|---------|----------|-----------------|
-| B1 | Demo org needs a real plan (F1) | P1 | Founder: grant Team/Founder subscription to org `161a7b05-…` (or authorize me to apply the subscription row + credit reset) |
-| B2 | Credit swing unexplained (F2) | P1 | Read access to prod credit ledger for archaeology, or authorize reset-and-observe |
+| B1 | Demo org needs a real plan (F1) | P1 | DONE 2026-10-16 — team/4000/25 + org pro, live-verified |
+| B2 | Credit swing unexplained (F2) | P1 | DONE (reset + starvation proven by successful retry); swing mechanism still open, optional |
 | B3 | Cost-basis unification (F3) | P1 | Product decision: one unit for activity cost; then code + pinning test (I can implement once decided) |
 | B4 | Live Stripe proof (Cat. B) | P2 | Supply test-mode keys; run checkout + `stripe trigger` webhook against staging |
 | B5 | Integration OAuth proof (F8) | P3 | Supply sandbox credentials |
