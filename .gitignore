@@ -101,3 +101,8 @@ all prompt.txt
 # DR drill artifacts (prod data snapshot + restore scratch)
 .dr-backup/
 .dr-restore-data/
+
+# Local file-storage fallback (LOCAL_STORAGE_DIR default). Test runs and dev
+# servers write real blobs here; never commit them.
+.orq8-storage/
+**/.orq8-storage/
