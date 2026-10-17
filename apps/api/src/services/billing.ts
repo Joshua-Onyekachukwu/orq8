@@ -277,11 +277,11 @@ export async function createCheckoutSession(
     ? config[`STRIPE_PRICE_${plan.toUpperCase()}_ANNUAL` as keyof AppConfig]
     : config[`STRIPE_PRICE_${plan.toUpperCase()}_MONTHLY` as keyof AppConfig];
 
-  // Create checkout session
+  // Create checkout session. No `payment_method_types`: current Stripe API
+  // versions reject it (payment methods are managed in Dashboard settings).
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
-    payment_method_types: ['card'],
     line_items: priceId
       ? [{ price: priceId, quantity: 1 }]
       : [{
@@ -290,6 +290,9 @@ export async function createCheckoutSession(
             product_data: {
               name: `ORQ8 ${planConfig.name} Plan`,
               description: `${planConfig.name} plan — ${planConfig.credits.toLocaleString()} Work Credits/mo`,
+              // Stripe managed-payments accounts reject line items without a
+              // product tax code. SaaS, business use (B4 live proof).
+              tax_code: 'txcd_10103001',
             },
             unit_amount: billingCycle === 'annual' ? planConfig.annualPrice : planConfig.monthlyPrice,
             recurring: { interval: billingCycle === 'annual' ? 'year' : 'month' },
@@ -380,7 +383,6 @@ export async function createCreditPackCheckout(
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'payment',
-    payment_method_types: ['card'],
     line_items: priceId
       ? [{ price: priceId, quantity: 1 }]
       : [{
@@ -389,6 +391,7 @@ export async function createCreditPackCheckout(
             product_data: {
               name: `ORQ8 ${pack.name} Credits`,
               description: pack.description,
+              tax_code: 'txcd_10103001',
             },
             unit_amount: pack.priceCents,
           },
